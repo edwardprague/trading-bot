@@ -43,6 +43,12 @@ RISK_PCT        = 0.01
 MIN_STOP        = 0.0005     # 5 pips minimum stop
 MAX_STOP        = 0.0200     # 200 pips maximum stop
 
+ADX_PERIOD      = 14
+ADX_THRESHOLD   = 25         # only trade when ADX is above this
+
+VERSION         = "v3"
+NOTES           = "Added ADX 14 filter — only trade when ADX above 25"
+
 # ── Data fetch ────────────────────────────────────────────────────────────────
 
 def fetch_data(ticker, interval, days_back):
@@ -65,6 +71,38 @@ def fetch_data(ticker, interval, days_back):
 
 # ── Indicators ────────────────────────────────────────────────────────────────
 
+def calc_adx(df, period=14):
+    """Wilder-smoothed ADX (no external libraries required)."""
+    high  = df.High
+    low   = df.Low
+    close = df.Close
+
+    # True Range
+    tr = pd.concat([
+        high - low,
+        (high - close.shift(1)).abs(),
+        (low  - close.shift(1)).abs(),
+    ], axis=1).max(axis=1)
+
+    # Directional movement
+    up   = high - high.shift(1)
+    down = low.shift(1) - low
+    dm_pos = np.where((up > down) & (up > 0), up,   0.0)
+    dm_neg = np.where((down > up) & (down > 0), down, 0.0)
+
+    # Wilder smoothing (equivalent to EWM alpha = 1/period)
+    alpha = 1.0 / period
+    atr   = tr.ewm(alpha=alpha,    adjust=False).mean()
+    di_p  = pd.Series(dm_pos, index=df.index).ewm(alpha=alpha, adjust=False).mean()
+    di_n  = pd.Series(dm_neg, index=df.index).ewm(alpha=alpha, adjust=False).mean()
+
+    di_plus  = 100 * di_p / atr
+    di_minus = 100 * di_n / atr
+    dx       = 100 * (di_plus - di_minus).abs() / (di_plus + di_minus)
+    adx      = dx.ewm(alpha=alpha, adjust=False).mean()
+    return adx
+
+
 def add_indicators(df):
     df = df.copy()
     df["ema_slow"]  = df.Close.ewm(span=EMA_SLOW,  adjust=False).mean()
@@ -72,6 +110,7 @@ def add_indicators(df):
     df["ema_entry"] = df.Close.ewm(span=EMA_ENTRY, adjust=False).mean()
     df["s_low"]     = df.Low.shift(1).rolling(SWING_LOOKBACK).min()
     df["s_high"]    = df.High.shift(1).rolling(SWING_LOOKBACK).max()
+    df["adx"]       = calc_adx(df, period=ADX_PERIOD)
     return df.dropna().reset_index()
 
 # ── Backtest ──────────────────────────────────────────────────────────────────
@@ -94,6 +133,7 @@ def run_backtest(df):
         slow  = float(df.ema_slow.iloc[i])
         s_lo  = float(df.s_low.iloc[i])
         s_hi  = float(df.s_high.iloc[i])
+        adx   = float(df.adx.iloc[i])
         ts    = df.index[i] if not hasattr(df, 'Datetime') else df.Datetime.iloc[i]
 
         # ── Check exits ───────────────────────────────────────────────────────
@@ -132,7 +172,7 @@ def run_backtest(df):
             long_sig   = trend_up   and cp < enp and c > en
             short_sig  = trend_down and cp > enp and c < en
 
-            if long_sig and not np.isnan(s_lo):
+            if long_sig and not np.isnan(s_lo) and adx > ADX_THRESHOLD:
                 dist = c - s_lo
                 if MIN_STOP <= dist <= MAX_STOP:
                     direction = "long"
@@ -143,7 +183,7 @@ def run_backtest(df):
                     in_trade  = True
                     entry_idx = i
 
-            elif short_sig and not np.isnan(s_hi):
+            elif short_sig and not np.isnan(s_hi) and adx > ADX_THRESHOLD:
                 dist = s_hi - c
                 if MIN_STOP <= dist <= MAX_STOP:
                     direction = "short"
@@ -212,8 +252,8 @@ def print_results(trades, equity):
 # ── Charts ────────────────────────────────────────────────────────────────────
 
 def save_charts(df, trades, equity):
-    fig, axes = plt.subplots(3, 1, figsize=(16, 12),
-                              gridspec_kw={"height_ratios": [3, 1, 1]})
+    fig, axes = plt.subplots(4, 1, figsize=(16, 15),
+                              gridspec_kw={"height_ratios": [3, 1, 1, 1]})
     fig.patch.set_facecolor("#1a1a2e")
     for ax in axes:
         ax.set_facecolor("#16213e")
@@ -276,15 +316,35 @@ def save_charts(df, trades, equity):
     dd    = (eq_s - peak) / peak * 100
     ax3.fill_between(range(len(dd)), dd, 0, color="#ff6b6b", alpha=0.6)
     ax3.set_ylabel("Drawdown %", color="white")
-    ax3.set_xlabel("Bar", color="white")
+
+    # ── ADX ───────────────────────────────────────────────────────────────────
+    ax4 = axes[3]
+    ax4.plot(dates, df.adx, color="#c77dff", linewidth=1.0, label=f"ADX {ADX_PERIOD}")
+    ax4.axhline(ADX_THRESHOLD, color="#ffd93d", linestyle="--",
+                linewidth=0.9, label=f"Threshold ({ADX_THRESHOLD})")
+    ax4.fill_between(dates, ADX_THRESHOLD, df.adx,
+                     where=df.adx > ADX_THRESHOLD,
+                     alpha=0.15, color="#c77dff")
+    ax4.set_ylabel(f"ADX {ADX_PERIOD}", color="white")
+    ax4.set_xlabel("Date", color="white")
+    ax4.legend(loc="upper left", facecolor="#1a1a2e",
+               labelcolor="white", fontsize=8)
+    ax4.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
 
     plt.tight_layout(pad=2.0)
-    chart_path = "backtest_chart.png"
+
+    # Build a unique filename: results/{version}_{ticker}_{date}.png
+    os.makedirs("results", exist_ok=True)
+    ticker_clean = TICKER.split("=")[0].replace("^", "")
+    date_str     = datetime.now().strftime("%Y-%m-%d")
+    chart_path   = os.path.join("results", f"{VERSION}_{ticker_clean}_{date_str}.png")
+
     plt.savefig(chart_path, dpi=130, bbox_inches="tight",
                 facecolor="#1a1a2e")
     plt.close()
     print(f"  Chart saved → {chart_path}")
     print(f"  Open with:    open {chart_path}\n")
+    return chart_path
 
 # ── HTML Report ───────────────────────────────────────────────────────────────
 
@@ -792,10 +852,12 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    notes           = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else ""
+    # NOTES constant is used by default; a CLI argument overrides it if supplied
+    cli_notes       = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else ""
+    run_notes       = cli_notes if cli_notes else NOTES
     df              = fetch_data(TICKER, INTERVAL, DAYS_BACK)
     df              = add_indicators(df)
     trades, equity  = run_backtest(df)
     print_results(trades, equity)
-    save_charts(df, trades, equity)
-    generate_html_report(trades, equity, notes=notes)
+    chart_path = save_charts(df, trades, equity)
+    generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes)
