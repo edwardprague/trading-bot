@@ -13,7 +13,7 @@ Develop, test and optimise in Python, then deploy as a cTrader Python cBot.
 ## Three-Part Workflow
 1. **Claude Chat** — strategy decisions, result interpretation, next steps
 2. **Cowork** — writing and editing Python files
-3. **Terminal** — running scripts with real data
+3. **Browser** — run backtests and review results at http://localhost:8080
 
 ## Current Strategy
 - Instrument: EURUSD hourly (Yahoo Finance ticker: EURUSD=X)
@@ -43,11 +43,23 @@ Develop, test and optimise in Python, then deploy as a cTrader Python cBot.
 - Massive.io Starter ($29/mo): 5-min intraday, 5 years history (pending)
 
 ## Files
-- `strategy.py` — main backtest script
+- `strategy.py` — main backtest script; run directly or via the dashboard
+- `server.py` — Flask dashboard server; serves report.html with a Run Backtest button
+- `report.html` — auto-generated backtest report with version history (do not edit by hand)
+- `results/` — versioned chart images, e.g. `results/v3_EURUSD_2026-03-22.png`
 - `CONTEXT.md` — this file, project memory
 
 ## How to Start a Session
 1. Read this file
 2. Activate virtual environment: `source venv/bin/activate`
-3. Run current strategy: `python3 strategy.py`
-4. Review results and continue from Results Log above
+3. Start the dashboard: `python3 server.py`
+4. Open http://localhost:8080 in your browser
+5. Click **Run Backtest** to run strategy.py — the page refreshes automatically when done
+6. Or run strategy directly in the terminal: `python3 strategy.py`
+
+## Dashboard Notes
+- `server.py` uses Flask; it installs Flask automatically via pip on first run if missing
+- The Run Backtest button POSTs to `/run`, which runs `strategy.py` as a subprocess
+- Backtests can take 1–2 minutes (data fetch + compute); a spinner shows while running
+- Each run appends a new version to `report.html`; previous versions are never lost
+- The server uses `sys.executable` so it always runs strategy.py with the same Python/venv
