@@ -47,6 +47,7 @@ Develop, test and optimise in Python, then deploy as a cTrader Python cBot.
 - `strategy.py` — main backtest script; run directly or via the dashboard
 - `server.py` — Flask dashboard server; serves report.html with a Run Backtest button
 - `report.html` — auto-generated backtest report with version history (do not edit by hand)
+- `RESULTS_LOG.md` — plain markdown table appended after every backtest run; columns: Version, Date, Strategy, Instrument, Timeframe, Notes, Trades, Win Rate, Profit Factor, Net P&L, Max Drawdown, Sharpe Ratio
 - `results/` — versioned chart images, e.g. `results/v3_EURUSD_2026-03-22.png`
 - `CONTEXT.md` — this file, project memory
 

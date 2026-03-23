@@ -1073,6 +1073,68 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
     print(f"  Report {action} → {report_path}  ({version_num} version{'s' if version_num > 1 else ''})")
     print(f"  Open with:    open {report_path}\n")
 
+# ── Results log ───────────────────────────────────────────────────────────────
+
+_RESULTS_LOG_PATH = "RESULTS_LOG.md"
+
+_RESULTS_LOG_HEADER = (
+    "# Results Log\n\n"
+    "| Version | Date | Strategy | Instrument | Timeframe | Notes "
+    "| Trades | Win Rate | Profit Factor | Net P&L | Max Drawdown | Sharpe Ratio |\n"
+    "|---------|------|----------|------------|-----------|-------"
+    "|--------|----------|---------------|---------|--------------|-------------|\n"
+)
+
+
+def _fmt_money(n):
+    if n is None:
+        return "—"
+    try:
+        f = float(n)
+        return f"+${f:.2f}" if f >= 0 else f"-${abs(f):.2f}"
+    except (TypeError, ValueError):
+        return "—"
+
+
+def _safe_cell(s):
+    """Strip pipe chars that would break a markdown table."""
+    return str(s).replace("|", "\\|").strip() if s else "—"
+
+
+def update_results_log(metrics, notes=""):
+    """Append one row to RESULTS_LOG.md (creates the file with header if absent)."""
+    if metrics is None:
+        print("  No metrics — skipping results log update.")
+        return
+
+    m = metrics
+
+    pf_raw = m.get("profit_factor")
+    pf     = "∞" if pf_raw is None else f"{float(pf_raw):.2f}"
+    wr     = f"{float(m['win_rate']):.1f}%" if m.get("win_rate") is not None else "—"
+    dd     = f"{float(m['max_drawdown']):.2f}%" if m.get("max_drawdown") is not None else "—"
+    sharpe = f"{float(m['sharpe']):.2f}" if m.get("sharpe") is not None else "—"
+    trades = str(m["total_trades"]) if m.get("total_trades") is not None else "—"
+    pnl    = _fmt_money(m.get("net_profit"))
+    date   = datetime.now().strftime("%Y-%m-%d %H:%M")
+    note   = _safe_cell(notes) if notes else "—"
+
+    row = (
+        f"| {VERSION} | {date} | {STRATEGY} | {TICKER} | {INTERVAL} | {note} "
+        f"| {trades} | {wr} | {pf} | {pnl} | {dd} | {sharpe} |\n"
+    )
+
+    if not os.path.exists(_RESULTS_LOG_PATH):
+        with open(_RESULTS_LOG_PATH, "w", encoding="utf-8") as fh:
+            fh.write(_RESULTS_LOG_HEADER)
+        print(f"  Created {_RESULTS_LOG_PATH}")
+
+    with open(_RESULTS_LOG_PATH, "a", encoding="utf-8") as fh:
+        fh.write(row)
+
+    print(f"  Results log updated → {_RESULTS_LOG_PATH}")
+
+
 # ── Git auto-commit ───────────────────────────────────────────────────────────
 
 def git_commit_and_push(metrics, version, ticker, interval):
@@ -1132,4 +1194,5 @@ if __name__ == "__main__":
     chart_path = save_charts(df, trades, equity)
     generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes)
     metrics = compute_metrics(trades, equity)
+    update_results_log(metrics, notes=run_notes)
     git_commit_and_push(metrics, VERSION, TICKER, INTERVAL)
