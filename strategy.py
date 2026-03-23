@@ -279,7 +279,7 @@ def save_charts(df, trades, equity):
     eq_s  = pd.Series(equity)
     peak  = eq_s.cummax()
     dd    = (eq_s - peak) / peak * 100
-    ax3.fill_between(range(len(dd)), dd, 0, color="#ff6b6b", alpha=0.6)
+    ax3.fill_between(eq_dates[:len(dd)], dd, 0, color="#ff6b6b", alpha=0.6)
     ax3.set_ylabel("Drawdown %", color="white")
     ax3.set_xlabel("Date", color="white")
     ax3.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
