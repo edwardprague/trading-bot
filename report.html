@@ -200,6 +200,51 @@
     .arrow-dn { color: #ff6b6b; font-weight: 700; margin-left: 5px; }
     .arrow-nc { color: #505070; margin-left: 5px; }
 
+    /* ── Copy button ──────────────────────────────────────── */
+    #v-header-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    #v-header-top h2 { flex: 1; min-width: 0; }
+    .copy-btn {
+      flex-shrink: 0;
+      background: #181828;
+      color: #7070a0;
+      border: 1px solid #2a2a44;
+      border-radius: 5px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      margin-top: 4px;
+    }
+    .copy-btn:hover { background: #1e1e38; color: #c0c0e0; border-color: #3a3a60; }
+    .copy-btn.copied { background: rgba(107,203,119,.12); border-color: #6bcb77; color: #6bcb77; }
+
+    /* ── Toast ────────────────────────────────────────────── */
+    #copy-toast {
+      position: fixed;
+      bottom: 28px;
+      right: 32px;
+      background: #0e2a1a;
+      border: 1px solid #6bcb77;
+      color: #6bcb77;
+      border-radius: 7px;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      z-index: 999;
+    }
+    #copy-toast.show { opacity: 1; transform: translateY(0); }
+
     /* ── Scrollbars ───────────────────────────────────────── */
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -233,6 +278,8 @@
     </div>
   </div>
 </div>
+
+<div id="copy-toast">&#10003;&nbsp; Copied to clipboard!</div>
 
 <script type="application/json" id="versions-data">
 [
@@ -387,6 +434,98 @@
     return "<tr><td class='lbl'>" + label + "</td><td>" + v + "</td></tr>";
   }
 
+  /* ── Toast ──────────────────────────────────────────────── */
+  function showToast() {
+    var toast = document.getElementById("copy-toast");
+    toast.classList.add("show");
+    setTimeout(function () { toast.classList.remove("show"); }, 2200);
+  }
+
+  /* ── Markdown builder ───────────────────────────────────── */
+  function buildMarkdown(ver) {
+    var m  = ver.metrics     || {};
+    var p  = ver.params      || {};
+    var t  = ver.last_trades || [];
+
+    function mf(n, d) {
+      if (n === null || n === undefined || (typeof n === "number" && isNaN(n))) return "—";
+      return Number(n).toFixed(d !== undefined ? d : 2);
+    }
+    function mfMoney(n) {
+      if (n === null || n === undefined) return "—";
+      var f = Number(n);
+      return (f >= 0 ? "+" : "-") + "$" + Math.abs(f).toFixed(2);
+    }
+
+    var pf    = (m.profit_factor === null || m.profit_factor === undefined) ? "\u221e" : mf(m.profit_factor);
+    var npStr = mfMoney(m.net_profit);
+    if (m.net_profit_pct !== null && m.net_profit_pct !== undefined) {
+      npStr += " (" + (m.net_profit_pct >= 0 ? "+" : "") + mf(m.net_profit_pct, 1) + "%)";
+    }
+
+    var lines = [];
+    lines.push("## Backtest Report \u2014 " + (ver.name || "?"));
+    lines.push("");
+    lines.push("**Strategy:** " + (ver.strategy || "\u2014"));
+    lines.push("**Instrument:** " + (p.ticker   || "\u2014") + " \u00b7 " + (p.interval || "\u2014") + " \u00b7 " + (p.days_back || "\u2014") + " days");
+    lines.push("**Date:** "     + (ver.date    || "\u2014"));
+    if (ver.notes && ver.notes !== "\u2014" && ver.notes !== "\u2014") {
+      lines.push("**Notes:** " + ver.notes);
+    }
+    lines.push("");
+
+    lines.push("### Results");
+    lines.push("");
+    lines.push("| Metric | Value |");
+    lines.push("|--------|-------|");
+    lines.push("| Total Trades | "    + (m.total_trades   !== undefined ? m.total_trades   : "\u2014") + " |");
+    lines.push("| Winning Trades | "  + (m.winning_trades !== undefined ? m.winning_trades : "\u2014") + " |");
+    lines.push("| Losing Trades | "   + (m.losing_trades  !== undefined ? m.losing_trades  : "\u2014") + " |");
+    lines.push("| Win Rate | "        + mf(m.win_rate, 1) + "% |");
+    lines.push("| Profit Factor | "   + pf + " |");
+    lines.push("| Net Profit | "      + npStr + " |");
+    lines.push("| Final Equity | $"   + mf(m.final_equity) + " |");
+    lines.push("| Max Drawdown | "    + mf(m.max_drawdown) + "% |");
+    lines.push("| Sharpe Ratio | "    + mf(m.sharpe) + " |");
+    lines.push("| Avg Win | "         + (m.avg_win  !== null && m.avg_win  !== undefined ? "$"  + mf(m.avg_win)  : "\u2014") + " |");
+    lines.push("| Avg Loss | "        + (m.avg_loss !== null && m.avg_loss !== undefined ? "$"  + mf(m.avg_loss) : "\u2014") + " |");
+    lines.push("| Best Trade | "      + mfMoney(m.best_trade) + " |");
+    lines.push("| Worst Trade | "     + mfMoney(m.worst_trade) + " |");
+    lines.push("");
+
+    lines.push("### Parameters");
+    lines.push("");
+    lines.push("| Parameter | Value |");
+    lines.push("|-----------|-------|");
+    lines.push("| Instrument | "    + (p.ticker    || "\u2014") + " |");
+    lines.push("| Interval | "      + (p.interval  || "\u2014") + " |");
+    lines.push("| History | "       + (p.days_back || "\u2014") + " days |");
+    lines.push("| Starting Cash | $" + (p.starting_cash || 0).toLocaleString() + " |");
+    lines.push("| EMA Slow | "      + (p.ema_slow      || "\u2014") + " |");
+    lines.push("| EMA Fast | "      + (p.ema_fast      || "\u2014") + " |");
+    lines.push("| EMA Entry | "     + (p.ema_entry     || "\u2014") + " |");
+    lines.push("| Swing Lookback | " + (p.swing_lookback || "\u2014") + " bars |");
+    lines.push("| RRR | 1:"         + (p.rrr || "\u2014") + " |");
+    lines.push("| Risk / Trade | "  + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
+    lines.push("| Min Stop | "      + ((p.min_stop || 0) * 10000).toFixed(0) + " pips |");
+    lines.push("| Max Stop | "      + ((p.max_stop || 0) * 10000).toFixed(0) + " pips |");
+    lines.push("");
+
+    lines.push("### Last 10 Trades");
+    lines.push("");
+    lines.push("| Direction | Entry | Exit | P&L | Result |");
+    lines.push("|-----------|-------|------|-----|--------|");
+    if (t.length === 0) {
+      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
+    } else {
+      t.forEach(function (tr) {
+        lines.push("| " + tr.direction + " | " + tr.entry + " | " + tr.exit + " | " + tr.pnl + " | " + tr.result + " |");
+      });
+    }
+    lines.push("");
+    return lines.join("\n");
+  }
+
   /* ── Strategy filter ─────────────────────────────────────── */
   function getStrategyVersions() {
     var result = [];
@@ -503,7 +642,10 @@
     document.getElementById("content").innerHTML =
       /* header */
       "<div id='v-header'>" +
-        "<h2>" + esc(v.name) + stratBadge + "</h2>" +
+        "<div id='v-header-top'>" +
+          "<h2>" + esc(v.name) + stratBadge + "</h2>" +
+          "<button id='copy-btn' class='copy-btn'>Copy Report</button>" +
+        "</div>" +
         "<div class='v-meta'>Run on " + esc(v.date) +
           " &nbsp;&middot;&nbsp; " + esc(p.ticker || "") +
           " " + esc(p.interval || "") +
@@ -567,6 +709,27 @@
           "<tbody>" + tRows + "</tbody>" +
         "</table>" +
       "</div>";
+
+    /* Wire copy button */
+    (function (ver) {
+      var btn = document.getElementById("copy-btn");
+      if (!btn) return;
+      btn.addEventListener("click", function () {
+        var md = buildMarkdown(ver);
+        navigator.clipboard.writeText(md).then(function () {
+          btn.textContent = "\u2713 Copied!";
+          btn.classList.add("copied");
+          showToast();
+          setTimeout(function () {
+            btn.textContent = "Copy Report";
+            btn.classList.remove("copied");
+          }, 2200);
+        }).catch(function () {
+          btn.textContent = "Failed";
+          setTimeout(function () { btn.textContent = "Copy Report"; }, 2500);
+        });
+      });
+    }(v));
   }
 
   /* ── Dev Log ──────────────────────────────────────────────── */
