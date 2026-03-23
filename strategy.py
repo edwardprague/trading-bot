@@ -36,7 +36,7 @@ DAYS_BACK       = 720
 STARTING_CASH   = 10_000.0
 
 EMA_SLOW        = 200
-EMA_FAST        = 100
+EMA_FAST        = 50
 EMA_ENTRY       = 20
 SWING_LOOKBACK  = 20
 RRR             = 2.0
@@ -44,8 +44,10 @@ RISK_PCT        = 0.01
 MIN_STOP        = 0.0005     # 5 pips minimum stop
 MAX_STOP        = 0.0200     # 200 pips maximum stop
 
-VERSION         = "v3"
-NOTES           = "Increased EMA fast from 50 to 100 — wider separation between trend filter and entry signal"
+TRADE_DIRECTION = "short_only"   # "both" | "long_only" | "short_only"
+
+VERSION         = "v5"
+NOTES           = "Short only — testing direction asymmetry identified in v4 diagnostics"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -77,6 +79,27 @@ def add_indicators(df):
     df["ema_entry"] = df.Close.ewm(span=EMA_ENTRY, adjust=False).mean()
     df["s_low"]     = df.Low.shift(1).rolling(SWING_LOOKBACK).min()
     df["s_high"]    = df.High.shift(1).rolling(SWING_LOOKBACK).max()
+    # ── ADX (14-period, Wilder smoothing) ────────────────────────────────────
+    _adx_n   = 14
+    _alpha   = 1.0 / _adx_n
+    _cp      = df.Close.shift(1)
+    _tr      = pd.concat([(df.High - df.Low),
+                           (df.High - _cp).abs(),
+                           (df.Low  - _cp).abs()], axis=1).max(axis=1)
+    _hd      = df.High.diff()
+    _ld      = (-df.Low.diff())
+    _pdm_raw = np.where((_hd > _ld) & (_hd > 0), _hd, 0.0)
+    _mdm_raw = np.where((_ld > _hd) & (_ld > 0), _ld, 0.0)
+    _pdm     = pd.Series(_pdm_raw, index=df.index)
+    _mdm     = pd.Series(_mdm_raw, index=df.index)
+    _atr14   = _tr.ewm(alpha=_alpha,  adjust=False).mean()
+    _pdm14   = _pdm.ewm(alpha=_alpha, adjust=False).mean()
+    _mdm14   = _mdm.ewm(alpha=_alpha, adjust=False).mean()
+    _pdi     = 100.0 * _pdm14 / _atr14
+    _mdi     = 100.0 * _mdm14 / _atr14
+    _denom   = (_pdi + _mdi).replace(0, np.nan)
+    _dx      = 100.0 * (_pdi - _mdi).abs() / _denom
+    df["adx"] = _dx.ewm(alpha=_alpha, adjust=False).mean()
     return df.dropna().reset_index()
 
 # ── Backtest ──────────────────────────────────────────────────────────────────
@@ -90,6 +113,7 @@ def run_backtest(df):
     direction     = None
     entry_idx     = 0
     worst_adverse = 0.0   # tracks furthest adverse price during a trade
+    entry_adx     = 0.0   # ADX value at entry bar
 
     for i in range(1, len(df)):
         c     = float(df.Close.iloc[i])
@@ -131,9 +155,10 @@ def run_backtest(df):
                     "target":    tp,
                     "pnl":       pnl,
                     "win":       pnl > 0,
-                    "result":    "TP" if hit_tp else "SL",
-                    "mae":       mae,
-                    "timestamp": ts
+                    "result":       "TP" if hit_tp else "SL",
+                    "mae":          mae,
+                    "adx_at_entry": entry_adx,
+                    "timestamp":    ts
                 })
                 in_trade = False
 
@@ -146,6 +171,12 @@ def run_backtest(df):
             long_sig   = trend_up   and cp < enp and c > en
             short_sig  = trend_down and cp > enp and c < en
 
+            # Apply direction filter
+            if TRADE_DIRECTION == "long_only":
+                short_sig = False
+            elif TRADE_DIRECTION == "short_only":
+                long_sig = False
+
             if long_sig and not np.isnan(s_lo):
                 dist = c - s_lo
                 if MIN_STOP <= dist <= MAX_STOP:
@@ -157,6 +188,7 @@ def run_backtest(df):
                     in_trade      = True
                     entry_idx     = i
                     worst_adverse = c   # reset MAE tracker to entry price
+                    entry_adx     = float(df.adx.iloc[i])
 
             elif short_sig and not np.isnan(s_hi):
                 dist = s_hi - c
@@ -169,6 +201,7 @@ def run_backtest(df):
                     in_trade      = True
                     entry_idx     = i
                     worst_adverse = c   # reset MAE tracker to entry price
+                    entry_adx     = float(df.adx.iloc[i])
 
     return pd.DataFrame(trades), equity
 
@@ -410,6 +443,89 @@ def compute_metrics(trades, equity):
     avg_mae = round(float(trades["mae"].mean()) * 10000, 1) \
               if "mae" in trades.columns else None   # pips (×10 000)
 
+    # ── Regime classification (ADX ≥ 25 = Trending, < 25 = Ranging) ──────────
+    regime = []
+    if "adx_at_entry" in trades.columns:
+        for label, mask in [
+            ("Trending (ADX \u226525)", trades["adx_at_entry"] >= 25),
+            ("Ranging (ADX <25)",        trades["adx_at_entry"] <  25),
+        ]:
+            sub = trades[mask]
+            if sub.empty:
+                regime.append({"regime": label, "count": 0,
+                                "win_rate": 0.0, "profit_factor": None, "net_pnl": 0.0})
+                continue
+            sub_w  = sub[sub.win]
+            sub_l  = sub[~sub.win]
+            sub_pf = None
+            if not sub_l.empty and sub_l.pnl.sum() != 0:
+                sub_pf = round(abs(float(sub_w.pnl.sum()) / abs(float(sub_l.pnl.sum()))), 2)
+            regime.append({
+                "regime":        label,
+                "count":         int(len(sub)),
+                "win_rate":      round(len(sub_w) / len(sub) * 100, 1),
+                "profit_factor": sub_pf,
+                "net_pnl":       round(float(sub.pnl.sum()), 2),
+            })
+
+    # ── Time of day performance (UTC hour) ────────────────────────────────────
+    time_of_day = {"rows": [], "best_hour": None, "worst_hour": None}
+    try:
+        t3 = trades.copy()
+        t3["_hour"] = pd.to_datetime(t3["timestamp"]).dt.hour
+        tod_rows  = []
+        best_pnl  = float("-inf")
+        worst_pnl = float("inf")
+        best_hour = worst_hour = None
+        for hour, grp in t3.groupby("_hour"):
+            grp_w = grp[grp.win]
+            net   = round(float(grp.pnl.sum()), 2)
+            tod_rows.append({
+                "hour":     int(hour),
+                "trades":   int(len(grp)),
+                "win_rate": round(len(grp_w) / len(grp) * 100, 1),
+                "net_pnl":  net,
+            })
+            if net > best_pnl:
+                best_pnl  = net
+                best_hour = int(hour)
+            if net < worst_pnl:
+                worst_pnl  = net
+                worst_hour = int(hour)
+        time_of_day = {"rows": tod_rows, "best_hour": best_hour, "worst_hour": worst_hour}
+    except Exception:
+        pass
+
+    # ── Win rate trend (three equal time segments) ────────────────────────────
+    win_rate_trend = []
+    try:
+        if n >= 3:
+            seg_size = n // 3
+            segments = [
+                trades.iloc[:seg_size],
+                trades.iloc[seg_size : 2 * seg_size],
+                trades.iloc[2 * seg_size :],
+            ]
+            for seg in segments:
+                if seg.empty:
+                    continue
+                seg_w  = seg[seg.win]
+                seg_l  = seg[~seg.win]
+                seg_pf = None
+                if not seg_l.empty and seg_l.pnl.sum() != 0:
+                    seg_pf = round(abs(float(seg_w.pnl.sum()) / abs(float(seg_l.pnl.sum()))), 2)
+                ts0 = pd.to_datetime(seg["timestamp"].iloc[0]).strftime("%Y-%m-%d")
+                ts1 = pd.to_datetime(seg["timestamp"].iloc[-1]).strftime("%Y-%m-%d")
+                win_rate_trend.append({
+                    "period":        f"{ts0} to {ts1}",
+                    "trades":        int(len(seg)),
+                    "win_rate":      round(len(seg_w) / len(seg) * 100, 1),
+                    "profit_factor": seg_pf,
+                    "net_pnl":       round(float(seg.pnl.sum()), 2),
+                })
+    except Exception:
+        win_rate_trend = []
+
     return {
         "total_trades":   n,
         "winning_trades": int(len(wins)),
@@ -439,6 +555,9 @@ def compute_metrics(trades, equity):
             "pct_tp":  pct_tp,
             "avg_mae": avg_mae,
         },
+        "regime":          regime,
+        "time_of_day":     time_of_day,
+        "win_rate_trend":  win_rate_trend,
     }
 
 
@@ -852,6 +971,7 @@ __VERSIONS_JSON__
     lines.push("| Risk / Trade | "  + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
     lines.push("| Min Stop | "      + ((p.min_stop || 0) * 10000).toFixed(0) + " pips |");
     lines.push("| Max Stop | "      + ((p.max_stop || 0) * 10000).toFixed(0) + " pips |");
+    lines.push("| Direction | "     + (p.trade_direction || "both") + " |");
     lines.push("");
 
     /* ── Performance by Direction ──────────────────── */
@@ -923,6 +1043,60 @@ __VERSIONS_JSON__
     lines.push("| Hit Take Profit | " + (st.pct_tp  !== null && st.pct_tp  !== undefined ? st.pct_tp  + "%" : "\u2014") + " |");
     lines.push("| Avg MAE | "         + (st.avg_mae !== null && st.avg_mae !== undefined ? st.avg_mae + " pips" : "\u2014") + " |");
     lines.push("");
+
+    /* ── Regime Classification ───────────────────────── */
+    lines.push("### Regime Classification");
+    lines.push("");
+    lines.push("| Regime | Trades | Win Rate | Profit Factor | Net P&L |");
+    lines.push("|--------|--------|----------|---------------|---------|");
+    var mRegime = m.regime || [];
+    if (mRegime.length === 0) {
+      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
+    } else {
+      mRegime.forEach(function (r) {
+        var rpf = (r.profit_factor === null || r.profit_factor === undefined) ? "\u221e" : mf(r.profit_factor);
+        lines.push("| " + r.regime + " | " + r.count + " | " + mf(r.win_rate, 1) + "% | " + rpf + " | " + mfMoney(r.net_pnl) + " |");
+      });
+    }
+    lines.push("");
+
+    /* ── Time of Day Performance ─────────────────────── */
+    lines.push("### Time of Day Performance (UTC)");
+    lines.push("");
+    lines.push("| Hour | Trades | Win Rate | Net P&L |");
+    lines.push("|------|--------|----------|---------|");
+    var mTod     = m.time_of_day || { rows: [], best_hour: null, worst_hour: null };
+    var mTodRows = mTod.rows || [];
+    if (mTodRows.length === 0) {
+      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 |");
+    } else {
+      mTodRows.forEach(function (r) {
+        var hStr = (r.hour < 10 ? "0" : "") + r.hour + ":00";
+        if (mTod.best_hour  !== null && r.hour === mTod.best_hour)  hStr += " \u2605";
+        if (mTod.worst_hour !== null && r.hour === mTod.worst_hour) hStr += " \u25bc";
+        lines.push("| " + hStr + " | " + r.trades + " | " + mf(r.win_rate, 1) + "% | " + mfMoney(r.net_pnl) + " |");
+      });
+    }
+    lines.push("");
+
+    /* ── Win Rate Trend ──────────────────────────────── */
+    lines.push("### Win Rate Trend (3 Equal Periods)");
+    lines.push("");
+    lines.push("| Period | Trades | Win Rate | Profit Factor | Net P&L |");
+    lines.push("|--------|--------|----------|---------------|---------|");
+    var mWrt = m.win_rate_trend || [];
+    if (mWrt.length === 0) {
+      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
+    } else {
+      var segLabels = ["Early", "Mid", "Late"];
+      mWrt.forEach(function (seg, idx) {
+        var spf   = (seg.profit_factor === null || seg.profit_factor === undefined) ? "\u221e" : mf(seg.profit_factor);
+        var label = (segLabels[idx] || ("Seg " + (idx + 1))) + " (" + seg.period + ")";
+        lines.push("| " + label + " | " + seg.trades + " | " + mf(seg.win_rate, 1) + "% | " + spf + " | " + mfMoney(seg.net_pnl) + " |");
+      });
+    }
+    lines.push("");
+
     return lines.join("\n");
   }
 
@@ -1083,6 +1257,82 @@ __VERSIONS_JSON__
         row("Avg MAE",         st.avg_mae !== null && st.avg_mae !== undefined ? st.avg_mae + " pips"                             : "\u2014") +
         "</tbody></table></div>";
 
+    /* 5. Regime Classification */
+    var regime  = m.regime || [];
+    var regRows = "";
+    regime.forEach(function (r) {
+      var rpf    = (r.profit_factor === null || r.profit_factor === undefined) ? "\u221e" : fmt(r.profit_factor);
+      var rpfCls = (r.profit_factor === null || r.profit_factor === undefined || r.profit_factor >= 1.5) ? "pos" : (r.profit_factor < 1.0 ? "neg" : "neu");
+      regRows +=
+        "<tr>" +
+        "<td><strong>" + esc(r.regime) + "</strong></td>" +
+        "<td>" + r.count + "</td>" +
+        "<td class='" + (r.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(r.win_rate, 1) + "%</td>" +
+        "<td class='" + rpfCls + "'>" + rpf + "</td>" +
+        "<td class='" + pClass(r.net_pnl) + "'>" + fmtMoney(r.net_pnl) + "</td>" +
+        "</tr>";
+    });
+    if (!regRows) regRows = "<tr><td colspan='5' style='color:#404060;text-align:center;padding:20px'>No data</td></tr>";
+    var regimeHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Regime Classification</div>" +
+        "<table><thead><tr>" +
+        "<th>Regime</th><th>Trades</th><th>Win Rate</th><th>Profit Factor</th><th>Net P&amp;L</th>" +
+        "</tr></thead><tbody>" + regRows + "</tbody></table></div>";
+
+    /* 6. Time of Day Performance */
+    var tod     = m.time_of_day || { rows: [], best_hour: null, worst_hour: null };
+    var todList = tod.rows || [];
+    var todRows = "";
+    todList.forEach(function (r) {
+      var isBest  = tod.best_hour  !== null && r.hour === tod.best_hour;
+      var isWorst = tod.worst_hour !== null && r.hour === tod.worst_hour;
+      var rowBg   = isBest  ? "background:rgba(107,203,119,.07);" :
+                    isWorst ? "background:rgba(255,107,107,.07);" : "";
+      var suffix  = isBest ? " <span style='color:#6bcb77;font-size:11px'>\u2605 best</span>" :
+                    isWorst ? " <span style='color:#ff6b6b;font-size:11px'>\u25bc worst</span>" : "";
+      var hStr    = (r.hour < 10 ? "0" : "") + r.hour + ":00 UTC";
+      todRows +=
+        "<tr" + (rowBg ? " style='" + rowBg + "'" : "") + ">" +
+        "<td>" + hStr + suffix + "</td>" +
+        "<td>" + r.trades + "</td>" +
+        "<td class='" + (r.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(r.win_rate, 1) + "%</td>" +
+        "<td class='" + pClass(r.net_pnl) + "'>" + fmtMoney(r.net_pnl) + "</td>" +
+        "</tr>";
+    });
+    if (!todRows) todRows = "<tr><td colspan='4' style='color:#404060;text-align:center;padding:20px'>No data</td></tr>";
+    var timeOfDayHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Time of Day Performance (UTC)</div>" +
+        "<table><thead><tr>" +
+        "<th>Hour</th><th>Trades</th><th>Win Rate</th><th>Net P&amp;L</th>" +
+        "</tr></thead><tbody>" + todRows + "</tbody></table></div>";
+
+    /* 7. Win Rate Trend */
+    var wrt     = m.win_rate_trend || [];
+    var wrtRows = "";
+    wrt.forEach(function (seg, idx) {
+      var spf    = (seg.profit_factor === null || seg.profit_factor === undefined) ? "\u221e" : fmt(seg.profit_factor);
+      var spfCls = (seg.profit_factor === null || seg.profit_factor === undefined || seg.profit_factor >= 1.5) ? "pos" : (seg.profit_factor < 1.0 ? "neg" : "neu");
+      var labels = ["Early", "Mid", "Late"];
+      wrtRows +=
+        "<tr>" +
+        "<td><strong style='color:#7070a0'>" + (labels[idx] || ("Seg " + (idx + 1))) + "</strong><br>" +
+        "<span style='font-size:11px;color:#505070'>" + esc(seg.period) + "</span></td>" +
+        "<td>" + seg.trades + "</td>" +
+        "<td class='" + (seg.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(seg.win_rate, 1) + "%</td>" +
+        "<td class='" + spfCls + "'>" + spf + "</td>" +
+        "<td class='" + pClass(seg.net_pnl) + "'>" + fmtMoney(seg.net_pnl) + "</td>" +
+        "</tr>";
+    });
+    if (!wrtRows) wrtRows = "<tr><td colspan='5' style='color:#404060;text-align:center;padding:20px'>No data</td></tr>";
+    var winRateTrendHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Win Rate Trend (3 equal periods)</div>" +
+        "<table><thead><tr>" +
+        "<th>Period</th><th>Trades</th><th>Win Rate</th><th>Profit Factor</th><th>Net P&amp;L</th>" +
+        "</tr></thead><tbody>" + wrtRows + "</tbody></table></div>";
+
     var chartHtml = v.chart_b64
       ? "<div class='section'><div class='section-title'>Chart</div>" +
         "<img id='chart-img' src='data:image/png;base64," + v.chart_b64 + "' alt='Backtest Chart'/></div>"
@@ -1156,6 +1406,7 @@ __VERSIONS_JSON__
           row("Risk / Trade",   ((p.risk_pct || 0) * 100).toFixed(1) + "%") +
           row("Min Stop",       ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Max Stop",       ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
+          row("Direction",      "<span style='color:#ffd93d;font-weight:600'>" + esc(p.trade_direction || "both") + "</span>") +
           "</tbody></table>" +
         "</div>" +
 
@@ -1167,7 +1418,9 @@ __VERSIONS_JSON__
       /* analytical sections */
       dirHtml +
       monthHtml +
-      "<div class='two-col'>" + streakHtml + stopHtml + "</div>";
+      "<div class='two-col'>" + streakHtml + stopHtml + "</div>" +
+      "<div class='two-col'>" + regimeHtml + winRateTrendHtml + "</div>" +
+      timeOfDayHtml;
 
     /* Wire copy button */
     (function (ver) {
@@ -1390,9 +1643,10 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
             "ema_entry":      EMA_ENTRY,
             "swing_lookback": SWING_LOOKBACK,
             "rrr":            RRR,
-            "risk_pct":       RISK_PCT,
-            "min_stop":       MIN_STOP,
-            "max_stop":       MAX_STOP,
+            "risk_pct":        RISK_PCT,
+            "min_stop":        MIN_STOP,
+            "max_stop":        MAX_STOP,
+            "trade_direction": TRADE_DIRECTION,
         },
         "last_trades": last_trades,
         "strategy":    STRATEGY,
