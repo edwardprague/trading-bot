@@ -82,13 +82,14 @@ def add_indicators(df):
 # ── Backtest ──────────────────────────────────────────────────────────────────
 
 def run_backtest(df):
-    cash      = STARTING_CASH
-    equity    = [cash]
-    trades    = []
-    in_trade  = False
-    entry_p   = sl = tp = size = 0
-    direction = None
-    entry_idx = 0
+    cash          = STARTING_CASH
+    equity        = [cash]
+    trades        = []
+    in_trade      = False
+    entry_p       = sl = tp = size = 0
+    direction     = None
+    entry_idx     = 0
+    worst_adverse = 0.0   # tracks furthest adverse price during a trade
 
     for i in range(1, len(df)):
         c     = float(df.Close.iloc[i])
@@ -103,6 +104,12 @@ def run_backtest(df):
 
         # ── Check exits ───────────────────────────────────────────────────────
         if in_trade:
+            # Update MAE: track worst adverse intra-bar price before exit check
+            if direction == "long":
+                worst_adverse = min(worst_adverse, float(df.Low.iloc[i]))
+            else:
+                worst_adverse = max(worst_adverse, float(df.High.iloc[i]))
+
             hit_sl = (direction == "long"  and c <= sl) or \
                      (direction == "short" and c >= sl)
             hit_tp = (direction == "long"  and c >= tp) or \
@@ -112,6 +119,7 @@ def run_backtest(df):
                 exit_p  = sl if hit_sl else tp
                 pnl     = (exit_p - entry_p) * size if direction == "long" \
                           else (entry_p - exit_p) * size
+                mae     = abs(entry_p - worst_adverse)
                 cash   += pnl
                 trades.append({
                     "entry_idx": entry_idx,
@@ -124,6 +132,7 @@ def run_backtest(df):
                     "pnl":       pnl,
                     "win":       pnl > 0,
                     "result":    "TP" if hit_tp else "SL",
+                    "mae":       mae,
                     "timestamp": ts
                 })
                 in_trade = False
@@ -140,24 +149,26 @@ def run_backtest(df):
             if long_sig and not np.isnan(s_lo):
                 dist = c - s_lo
                 if MIN_STOP <= dist <= MAX_STOP:
-                    direction = "long"
-                    entry_p   = c
-                    sl        = s_lo
-                    tp        = c + dist * RRR
-                    size      = (cash * RISK_PCT) / dist
-                    in_trade  = True
-                    entry_idx = i
+                    direction     = "long"
+                    entry_p       = c
+                    sl            = s_lo
+                    tp            = c + dist * RRR
+                    size          = (cash * RISK_PCT) / dist
+                    in_trade      = True
+                    entry_idx     = i
+                    worst_adverse = c   # reset MAE tracker to entry price
 
             elif short_sig and not np.isnan(s_hi):
                 dist = s_hi - c
                 if MIN_STOP <= dist <= MAX_STOP:
-                    direction = "short"
-                    entry_p   = c
-                    sl        = s_hi
-                    tp        = c - dist * RRR
-                    size      = (cash * RISK_PCT) / dist
-                    in_trade  = True
-                    entry_idx = i
+                    direction     = "short"
+                    entry_p       = c
+                    sl            = s_hi
+                    tp            = c - dist * RRR
+                    size          = (cash * RISK_PCT) / dist
+                    in_trade      = True
+                    entry_idx     = i
+                    worst_adverse = c   # reset MAE tracker to entry price
 
     return pd.DataFrame(trades), equity
 
@@ -323,6 +334,82 @@ def compute_metrics(trades, equity):
                     if returns.std() > 0 else 0)
 
     n = len(trades)
+
+    # ── By direction ──────────────────────────────────────────────────────────
+    by_dir = {}
+    for d in ["long", "short"]:
+        sub = trades[trades.direction == d]
+        if sub.empty:
+            by_dir[d] = None
+            continue
+        sub_w  = sub[sub.win]
+        sub_l  = sub[~sub.win]
+        sub_pf = None
+        if not sub_l.empty and sub_l.pnl.sum() != 0:
+            sub_pf = round(abs(float(sub_w.pnl.sum()) / abs(float(sub_l.pnl.sum()))), 2)
+        by_dir[d] = {
+            "count":         int(len(sub)),
+            "win_rate":      round(len(sub_w) / len(sub) * 100, 1),
+            "profit_factor": sub_pf,
+            "avg_win":       round(float(sub_w.pnl.mean()), 2) if not sub_w.empty else None,
+            "avg_loss":      round(float(sub_l.pnl.mean()), 2) if not sub_l.empty else None,
+            "net_pnl":       round(float(sub.pnl.sum()), 2),
+        }
+
+    # ── Monthly performance ────────────────────────────────────────────────────
+    monthly = []
+    try:
+        t2 = trades.copy()
+        t2["_month"] = pd.to_datetime(t2["timestamp"]).dt.to_period("M")
+        for period, grp in t2.groupby("_month"):
+            grp_w = grp[grp.win]
+            grp_l = grp[~grp.win]
+            monthly.append({
+                "month":    str(period),
+                "trades":   int(len(grp)),
+                "wins":     int(len(grp_w)),
+                "losses":   int(len(grp_l)),
+                "win_rate": round(len(grp_w) / len(grp) * 100, 1),
+                "net_pnl":  round(float(grp.pnl.sum()), 2),
+            })
+    except Exception:
+        monthly = []
+
+    # ── Streak analysis ────────────────────────────────────────────────────────
+    results = trades["win"].tolist()
+    max_win_streak = max_loss_streak = 0
+    cur_w = cur_l = 0
+    win_lens = []
+    loss_lens = []
+    for r in results:
+        if r:
+            cur_w += 1
+            if cur_l > 0:
+                loss_lens.append(cur_l)
+                cur_l = 0
+            max_win_streak = max(max_win_streak, cur_w)
+        else:
+            cur_l += 1
+            if cur_w > 0:
+                win_lens.append(cur_w)
+                cur_w = 0
+            max_loss_streak = max(max_loss_streak, cur_l)
+    if cur_w > 0:
+        win_lens.append(cur_w)
+    if cur_l > 0:
+        loss_lens.append(cur_l)
+    avg_win_streak  = round(sum(win_lens)  / len(win_lens),  1) if win_lens  else 0.0
+    avg_loss_streak = round(sum(loss_lens) / len(loss_lens), 1) if loss_lens else 0.0
+    current_streak  = (f"{cur_w}W" if results[-1] else f"{cur_l}L") if results else "—"
+
+    # ── Stop / target analysis ─────────────────────────────────────────────────
+    pct_sl  = round(len(trades[trades.result == "SL"]) / n * 100, 1) \
+              if "result" in trades.columns else None
+    pct_tp  = round(len(trades[trades.result == "TP"]) / n * 100, 1) \
+              if "result" in trades.columns else None
+    avg_mae = round(float(trades["mae"].mean()) * 10000, 1) \
+              if "mae" in trades.columns else None   # pips (×10 000)
+
     return {
         "total_trades":   n,
         "winning_trades": int(len(wins)),
@@ -338,6 +425,20 @@ def compute_metrics(trades, equity):
         "final_equity":   round(STARTING_CASH + net, 2),
         "max_drawdown":   round(dd, 2),
         "sharpe":         round(sharpe, 2),
+        "by_direction":   by_dir,
+        "monthly":        monthly,
+        "streaks": {
+            "max_win_streak":  max_win_streak,
+            "max_loss_streak": max_loss_streak,
+            "avg_win_streak":  avg_win_streak,
+            "avg_loss_streak": avg_loss_streak,
+            "current_streak":  current_streak,
+        },
+        "stop_target": {
+            "pct_sl":  pct_sl,
+            "pct_tp":  pct_tp,
+            "avg_mae": avg_mae,
+        },
     }
 
 
@@ -669,6 +770,14 @@ __VERSIONS_JSON__
     return "<tr><td class='lbl'>" + label + "</td><td>" + v + "</td></tr>";
   }
 
+  function fmtMonth(s) {
+    var names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    var parts = String(s).split("-");
+    if (parts.length < 2) return s;
+    var idx = parseInt(parts[1], 10) - 1;
+    return names[idx] + " " + parts[0];
+  }
+
   /* ── Toast ──────────────────────────────────────────────── */
   function showToast() {
     var toast = document.getElementById("copy-toast");
@@ -678,9 +787,8 @@ __VERSIONS_JSON__
 
   /* ── Markdown builder ───────────────────────────────────── */
   function buildMarkdown(ver) {
-    var m  = ver.metrics     || {};
-    var p  = ver.params      || {};
-    var t  = ver.last_trades || [];
+    var m = ver.metrics || {};
+    var p = ver.params  || {};
 
     function mf(n, d) {
       if (n === null || n === undefined || (typeof n === "number" && isNaN(n))) return "—";
@@ -746,17 +854,74 @@ __VERSIONS_JSON__
     lines.push("| Max Stop | "      + ((p.max_stop || 0) * 10000).toFixed(0) + " pips |");
     lines.push("");
 
-    lines.push("### Last 10 Trades");
+    /* ── Performance by Direction ──────────────────── */
+    lines.push("### Performance by Direction");
     lines.push("");
-    lines.push("| Direction | Entry | Exit | P&L | Result |");
-    lines.push("|-----------|-------|------|-----|--------|");
-    if (t.length === 0) {
-      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
+    lines.push("| Direction | Trades | Win Rate | Profit Factor | Avg Win | Avg Loss | Net P&L |");
+    lines.push("|-----------|--------|----------|---------------|---------|----------|---------|");
+    var bd = m.by_direction || {};
+    ["long", "short"].forEach(function (d) {
+      var data = bd[d];
+      if (!data) {
+        lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) + " | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
+        return;
+      }
+      var dpf = (data.profit_factor === null || data.profit_factor === undefined) ? "\u221e" : mf(data.profit_factor);
+      lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) +
+        " | " + data.count +
+        " | " + mf(data.win_rate, 1) + "%" +
+        " | " + dpf +
+        " | " + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + mf(data.avg_win)  : "\u2014") +
+        " | " + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + mf(Math.abs(data.avg_loss)) : "\u2014") +
+        " | " + mfMoney(data.net_pnl) + " |");
+    });
+    lines.push("");
+
+    /* ── Monthly Performance ────────────────────────── */
+    lines.push("### Monthly Performance");
+    lines.push("");
+    lines.push("| Month | Trades | Wins | Losses | Win Rate | Net P&L |");
+    lines.push("|-------|--------|------|--------|----------|---------|");
+    var monthly = m.monthly || [];
+    if (monthly.length === 0) {
+      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
     } else {
-      t.forEach(function (tr) {
-        lines.push("| " + tr.direction + " | " + tr.entry + " | " + tr.exit + " | " + tr.pnl + " | " + tr.result + " |");
+      monthly.forEach(function (mo) {
+        var mnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var parts  = String(mo.month).split("-");
+        var mLabel = parts.length >= 2 ? mnames[parseInt(parts[1], 10) - 1] + " " + parts[0] : mo.month;
+        lines.push("| " + mLabel +
+          " | " + mo.trades +
+          " | " + mo.wins +
+          " | " + mo.losses +
+          " | " + mf(mo.win_rate, 1) + "%" +
+          " | " + mfMoney(mo.net_pnl) + " |");
       });
     }
+    lines.push("");
+
+    /* ── Streak Analysis ────────────────────────────── */
+    var str = m.streaks || {};
+    lines.push("### Streak Analysis");
+    lines.push("");
+    lines.push("| Metric | Value |");
+    lines.push("|--------|-------|");
+    lines.push("| Max Win Streak | "  + (str.max_win_streak  !== undefined ? str.max_win_streak  + " trades" : "\u2014") + " |");
+    lines.push("| Max Loss Streak | " + (str.max_loss_streak !== undefined ? str.max_loss_streak + " trades" : "\u2014") + " |");
+    lines.push("| Avg Win Streak | "  + (str.avg_win_streak  !== undefined ? str.avg_win_streak               : "\u2014") + " |");
+    lines.push("| Avg Loss Streak | " + (str.avg_loss_streak !== undefined ? str.avg_loss_streak               : "\u2014") + " |");
+    lines.push("| Current Streak | "  + (str.current_streak  || "\u2014") + " |");
+    lines.push("");
+
+    /* ── Stop vs Target ─────────────────────────────── */
+    var st = m.stop_target || {};
+    lines.push("### Stop vs Target");
+    lines.push("");
+    lines.push("| Metric | Value |");
+    lines.push("|--------|-------|");
+    lines.push("| Hit Stop Loss | "   + (st.pct_sl  !== null && st.pct_sl  !== undefined ? st.pct_sl  + "%" : "\u2014") + " |");
+    lines.push("| Hit Take Profit | " + (st.pct_tp  !== null && st.pct_tp  !== undefined ? st.pct_tp  + "%" : "\u2014") + " |");
+    lines.push("| Avg MAE | "         + (st.avg_mae !== null && st.avg_mae !== undefined ? st.avg_mae + " pips" : "\u2014") + " |");
     lines.push("");
     return lines.join("\n");
   }
@@ -825,9 +990,8 @@ __VERSIONS_JSON__
     var v = VERSIONS[idx];
     if (!v) return;
 
-    var m = v.metrics    || {};
-    var p = v.params     || {};
-    var t = v.last_trades || [];
+    var m = v.metrics || {};
+    var p = v.params  || {};
 
     /* profit factor display */
     var pfTxt = (m.profit_factor === null || m.profit_factor === undefined)
@@ -835,23 +999,89 @@ __VERSIONS_JSON__
     var pfCls = (m.profit_factor === null || m.profit_factor === undefined || m.profit_factor >= 1.5)
       ? "pos" : (m.profit_factor < 1.0 ? "neg" : "neu");
 
-    /* last 10 trades rows */
-    var tRows = "";
-    t.forEach(function (tr) {
-      var pn = parseFloat(tr.pnl);
-      var tc = pn >= 0 ? "pos" : "neg";
-      tRows +=
+    /* ── Analytical section builders ──────────────────────────── */
+
+    /* 1. Performance by Direction */
+    var bd    = m.by_direction || {};
+    var bdLng = bd.long  || null;
+    var bdSht = bd.short || null;
+    function dirRow(label, data) {
+      if (!data) {
+        return "<tr><td><strong>" + label + "</strong></td>" +
+               "<td colspan='6' style='color:#404060'>No data</td></tr>";
+      }
+      var dpf    = (data.profit_factor === null || data.profit_factor === undefined) ? "\u221e" : fmt(data.profit_factor);
+      var dpfCls = (data.profit_factor === null || data.profit_factor === undefined || data.profit_factor >= 1.5) ? "pos" : (data.profit_factor < 1.0 ? "neg" : "neu");
+      return "<tr>" +
+        "<td><strong>" + label + "</strong></td>" +
+        "<td>" + data.count + "</td>" +
+        "<td class='" + (data.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(data.win_rate, 1) + "%</td>" +
+        "<td class='" + dpfCls + "'>" + dpf + "</td>" +
+        "<td class='pos'>" + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + fmt(data.avg_win)  : "\u2014") + "</td>" +
+        "<td class='neg'>" + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + fmt(Math.abs(data.avg_loss)) : "\u2014") + "</td>" +
+        "<td class='" + pClass(data.net_pnl) + "'>" + fmtMoney(data.net_pnl) + "</td>" +
+        "</tr>";
+    }
+    var dirHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Performance by Direction</div>" +
+        "<table><thead><tr>" +
+        "<th>Direction</th><th>Trades</th><th>Win Rate</th>" +
+        "<th>Profit Factor</th><th>Avg Win</th><th>Avg Loss</th><th>Net P&amp;L</th>" +
+        "</tr></thead><tbody>" +
+        dirRow("Long", bdLng) + dirRow("Short", bdSht) +
+        "</tbody></table></div>";
+
+    /* 2. Monthly Performance */
+    var monthly = m.monthly || [];
+    var mRows = "";
+    monthly.forEach(function (mo) {
+      var pc = mo.net_pnl >= 0 ? "#6bcb77" : "#ff6b6b";
+      var bg = mo.net_pnl >= 0 ? "rgba(107,203,119,.08)" : "rgba(255,107,107,.08)";
+      mRows +=
         "<tr>" +
-        "<td>" + esc(tr.direction) + "</td>" +
-        "<td style='font-variant-numeric:tabular-nums'>" + esc(tr.entry) + "</td>" +
-        "<td style='font-variant-numeric:tabular-nums'>" + esc(tr.exit)  + "</td>" +
-        "<td class='" + tc + "' style='font-variant-numeric:tabular-nums'>" + esc(tr.pnl) + "</td>" +
-        "<td><span class='badge " + (tr.result === "WIN" ? "badge-win" : "badge-loss") + "'>" + tr.result + "</span></td>" +
+        "<td>" + fmtMonth(mo.month) + "</td>" +
+        "<td>" + mo.trades + "</td>" +
+        "<td class='pos'>" + mo.wins + "</td>" +
+        "<td class='neg'>" + mo.losses + "</td>" +
+        "<td class='" + (mo.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(mo.win_rate, 1) + "%</td>" +
+        "<td style='color:" + pc + ";background:" + bg + ";font-weight:600'>" + fmtMoney(mo.net_pnl) + "</td>" +
         "</tr>";
     });
-    if (!tRows) {
-      tRows = "<tr><td colspan='5' style='color:#404060;text-align:center;padding:22px'>No trades recorded</td></tr>";
+    if (!mRows) {
+      mRows = "<tr><td colspan='6' style='color:#404060;text-align:center;padding:20px'>No data</td></tr>";
     }
+    var monthHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Monthly Performance</div>" +
+        "<table><thead><tr>" +
+        "<th>Month</th><th>Trades</th><th>Wins</th><th>Losses</th>" +
+        "<th>Win Rate</th><th>Net P&amp;L</th>" +
+        "</tr></thead><tbody>" + mRows + "</tbody></table></div>";
+
+    /* 3. Streak Analysis */
+    var str = m.streaks || {};
+    var streakHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Streak Analysis</div>" +
+        "<table><tbody>" +
+        row("Max Win Streak",  str.max_win_streak  !== undefined ? str.max_win_streak  + " trades" : "\u2014") +
+        row("Max Loss Streak", str.max_loss_streak !== undefined ? str.max_loss_streak + " trades" : "\u2014") +
+        row("Avg Win Streak",  str.avg_win_streak  !== undefined ? str.avg_win_streak               : "\u2014") +
+        row("Avg Loss Streak", str.avg_loss_streak !== undefined ? str.avg_loss_streak               : "\u2014") +
+        row("Current Streak",  str.current_streak  || "\u2014") +
+        "</tbody></table></div>";
+
+    /* 4. Stop vs Target */
+    var st = m.stop_target || {};
+    var stopHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Stop vs Target</div>" +
+        "<table><tbody>" +
+        row("Hit Stop Loss",   st.pct_sl  !== null && st.pct_sl  !== undefined ? "<span class='neg'>"  + st.pct_sl  + "%</span>" : "\u2014") +
+        row("Hit Take Profit", st.pct_tp  !== null && st.pct_tp  !== undefined ? "<span class='pos'>"  + st.pct_tp  + "%</span>" : "\u2014") +
+        row("Avg MAE",         st.avg_mae !== null && st.avg_mae !== undefined ? st.avg_mae + " pips"                             : "\u2014") +
+        "</tbody></table></div>";
 
     var chartHtml = v.chart_b64
       ? "<div class='section'><div class='section-title'>Chart</div>" +
@@ -934,16 +1164,10 @@ __VERSIONS_JSON__
       /* chart */
       chartHtml +
 
-      /* last 10 trades */
-      "<div class='section'>" +
-        "<div class='section-title'>Last 10 Trades</div>" +
-        "<table>" +
-          "<thead><tr>" +
-          "<th>Direction</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Result</th>" +
-          "</tr></thead>" +
-          "<tbody>" + tRows + "</tbody>" +
-        "</table>" +
-      "</div>";
+      /* analytical sections */
+      dirHtml +
+      monthHtml +
+      "<div class='two-col'>" + streakHtml + stopHtml + "</div>";
 
     /* Wire copy button */
     (function (ver) {

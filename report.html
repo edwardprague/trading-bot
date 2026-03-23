@@ -652,6 +652,14 @@
     return "<tr><td class='lbl'>" + label + "</td><td>" + v + "</td></tr>";
   }
 
+  function fmtMonth(s) {
+    var names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    var parts = String(s).split("-");
+    if (parts.length < 2) return s;
+    var idx = parseInt(parts[1], 10) - 1;
+    return names[idx] + " " + parts[0];
+  }
+
   /* ── Toast ──────────────────────────────────────────────── */
   function showToast() {
     var toast = document.getElementById("copy-toast");
@@ -661,9 +669,8 @@
 
   /* ── Markdown builder ───────────────────────────────────── */
   function buildMarkdown(ver) {
-    var m  = ver.metrics     || {};
-    var p  = ver.params      || {};
-    var t  = ver.last_trades || [];
+    var m = ver.metrics || {};
+    var p = ver.params  || {};
 
     function mf(n, d) {
       if (n === null || n === undefined || (typeof n === "number" && isNaN(n))) return "—";
@@ -729,17 +736,74 @@
     lines.push("| Max Stop | "      + ((p.max_stop || 0) * 10000).toFixed(0) + " pips |");
     lines.push("");
 
-    lines.push("### Last 10 Trades");
+    /* ── Performance by Direction ──────────────────── */
+    lines.push("### Performance by Direction");
     lines.push("");
-    lines.push("| Direction | Entry | Exit | P&L | Result |");
-    lines.push("|-----------|-------|------|-----|--------|");
-    if (t.length === 0) {
-      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
+    lines.push("| Direction | Trades | Win Rate | Profit Factor | Avg Win | Avg Loss | Net P&L |");
+    lines.push("|-----------|--------|----------|---------------|---------|----------|---------|");
+    var bd = m.by_direction || {};
+    ["long", "short"].forEach(function (d) {
+      var data = bd[d];
+      if (!data) {
+        lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) + " | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
+        return;
+      }
+      var dpf = (data.profit_factor === null || data.profit_factor === undefined) ? "\u221e" : mf(data.profit_factor);
+      lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) +
+        " | " + data.count +
+        " | " + mf(data.win_rate, 1) + "%" +
+        " | " + dpf +
+        " | " + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + mf(data.avg_win)  : "\u2014") +
+        " | " + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + mf(Math.abs(data.avg_loss)) : "\u2014") +
+        " | " + mfMoney(data.net_pnl) + " |");
+    });
+    lines.push("");
+
+    /* ── Monthly Performance ────────────────────────── */
+    lines.push("### Monthly Performance");
+    lines.push("");
+    lines.push("| Month | Trades | Wins | Losses | Win Rate | Net P&L |");
+    lines.push("|-------|--------|------|--------|----------|---------|");
+    var monthly = m.monthly || [];
+    if (monthly.length === 0) {
+      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
     } else {
-      t.forEach(function (tr) {
-        lines.push("| " + tr.direction + " | " + tr.entry + " | " + tr.exit + " | " + tr.pnl + " | " + tr.result + " |");
+      monthly.forEach(function (mo) {
+        var mnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var parts  = String(mo.month).split("-");
+        var mLabel = parts.length >= 2 ? mnames[parseInt(parts[1], 10) - 1] + " " + parts[0] : mo.month;
+        lines.push("| " + mLabel +
+          " | " + mo.trades +
+          " | " + mo.wins +
+          " | " + mo.losses +
+          " | " + mf(mo.win_rate, 1) + "%" +
+          " | " + mfMoney(mo.net_pnl) + " |");
       });
     }
+    lines.push("");
+
+    /* ── Streak Analysis ────────────────────────────── */
+    var str = m.streaks || {};
+    lines.push("### Streak Analysis");
+    lines.push("");
+    lines.push("| Metric | Value |");
+    lines.push("|--------|-------|");
+    lines.push("| Max Win Streak | "  + (str.max_win_streak  !== undefined ? str.max_win_streak  + " trades" : "\u2014") + " |");
+    lines.push("| Max Loss Streak | " + (str.max_loss_streak !== undefined ? str.max_loss_streak + " trades" : "\u2014") + " |");
+    lines.push("| Avg Win Streak | "  + (str.avg_win_streak  !== undefined ? str.avg_win_streak               : "\u2014") + " |");
+    lines.push("| Avg Loss Streak | " + (str.avg_loss_streak !== undefined ? str.avg_loss_streak               : "\u2014") + " |");
+    lines.push("| Current Streak | "  + (str.current_streak  || "\u2014") + " |");
+    lines.push("");
+
+    /* ── Stop vs Target ─────────────────────────────── */
+    var st = m.stop_target || {};
+    lines.push("### Stop vs Target");
+    lines.push("");
+    lines.push("| Metric | Value |");
+    lines.push("|--------|-------|");
+    lines.push("| Hit Stop Loss | "   + (st.pct_sl  !== null && st.pct_sl  !== undefined ? st.pct_sl  + "%" : "\u2014") + " |");
+    lines.push("| Hit Take Profit | " + (st.pct_tp  !== null && st.pct_tp  !== undefined ? st.pct_tp  + "%" : "\u2014") + " |");
+    lines.push("| Avg MAE | "         + (st.avg_mae !== null && st.avg_mae !== undefined ? st.avg_mae + " pips" : "\u2014") + " |");
     lines.push("");
     return lines.join("\n");
   }
@@ -808,9 +872,8 @@
     var v = VERSIONS[idx];
     if (!v) return;
 
-    var m = v.metrics    || {};
-    var p = v.params     || {};
-    var t = v.last_trades || [];
+    var m = v.metrics || {};
+    var p = v.params  || {};
 
     /* profit factor display */
     var pfTxt = (m.profit_factor === null || m.profit_factor === undefined)
@@ -818,23 +881,89 @@
     var pfCls = (m.profit_factor === null || m.profit_factor === undefined || m.profit_factor >= 1.5)
       ? "pos" : (m.profit_factor < 1.0 ? "neg" : "neu");
 
-    /* last 10 trades rows */
-    var tRows = "";
-    t.forEach(function (tr) {
-      var pn = parseFloat(tr.pnl);
-      var tc = pn >= 0 ? "pos" : "neg";
-      tRows +=
+    /* ── Analytical section builders ──────────────────────────── */
+
+    /* 1. Performance by Direction */
+    var bd    = m.by_direction || {};
+    var bdLng = bd.long  || null;
+    var bdSht = bd.short || null;
+    function dirRow(label, data) {
+      if (!data) {
+        return "<tr><td><strong>" + label + "</strong></td>" +
+               "<td colspan='6' style='color:#404060'>No data</td></tr>";
+      }
+      var dpf    = (data.profit_factor === null || data.profit_factor === undefined) ? "\u221e" : fmt(data.profit_factor);
+      var dpfCls = (data.profit_factor === null || data.profit_factor === undefined || data.profit_factor >= 1.5) ? "pos" : (data.profit_factor < 1.0 ? "neg" : "neu");
+      return "<tr>" +
+        "<td><strong>" + label + "</strong></td>" +
+        "<td>" + data.count + "</td>" +
+        "<td class='" + (data.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(data.win_rate, 1) + "%</td>" +
+        "<td class='" + dpfCls + "'>" + dpf + "</td>" +
+        "<td class='pos'>" + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + fmt(data.avg_win)  : "\u2014") + "</td>" +
+        "<td class='neg'>" + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + fmt(Math.abs(data.avg_loss)) : "\u2014") + "</td>" +
+        "<td class='" + pClass(data.net_pnl) + "'>" + fmtMoney(data.net_pnl) + "</td>" +
+        "</tr>";
+    }
+    var dirHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Performance by Direction</div>" +
+        "<table><thead><tr>" +
+        "<th>Direction</th><th>Trades</th><th>Win Rate</th>" +
+        "<th>Profit Factor</th><th>Avg Win</th><th>Avg Loss</th><th>Net P&amp;L</th>" +
+        "</tr></thead><tbody>" +
+        dirRow("Long", bdLng) + dirRow("Short", bdSht) +
+        "</tbody></table></div>";
+
+    /* 2. Monthly Performance */
+    var monthly = m.monthly || [];
+    var mRows = "";
+    monthly.forEach(function (mo) {
+      var pc = mo.net_pnl >= 0 ? "#6bcb77" : "#ff6b6b";
+      var bg = mo.net_pnl >= 0 ? "rgba(107,203,119,.08)" : "rgba(255,107,107,.08)";
+      mRows +=
         "<tr>" +
-        "<td>" + esc(tr.direction) + "</td>" +
-        "<td style='font-variant-numeric:tabular-nums'>" + esc(tr.entry) + "</td>" +
-        "<td style='font-variant-numeric:tabular-nums'>" + esc(tr.exit)  + "</td>" +
-        "<td class='" + tc + "' style='font-variant-numeric:tabular-nums'>" + esc(tr.pnl) + "</td>" +
-        "<td><span class='badge " + (tr.result === "WIN" ? "badge-win" : "badge-loss") + "'>" + tr.result + "</span></td>" +
+        "<td>" + fmtMonth(mo.month) + "</td>" +
+        "<td>" + mo.trades + "</td>" +
+        "<td class='pos'>" + mo.wins + "</td>" +
+        "<td class='neg'>" + mo.losses + "</td>" +
+        "<td class='" + (mo.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(mo.win_rate, 1) + "%</td>" +
+        "<td style='color:" + pc + ";background:" + bg + ";font-weight:600'>" + fmtMoney(mo.net_pnl) + "</td>" +
         "</tr>";
     });
-    if (!tRows) {
-      tRows = "<tr><td colspan='5' style='color:#404060;text-align:center;padding:22px'>No trades recorded</td></tr>";
+    if (!mRows) {
+      mRows = "<tr><td colspan='6' style='color:#404060;text-align:center;padding:20px'>No data</td></tr>";
     }
+    var monthHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Monthly Performance</div>" +
+        "<table><thead><tr>" +
+        "<th>Month</th><th>Trades</th><th>Wins</th><th>Losses</th>" +
+        "<th>Win Rate</th><th>Net P&amp;L</th>" +
+        "</tr></thead><tbody>" + mRows + "</tbody></table></div>";
+
+    /* 3. Streak Analysis */
+    var str = m.streaks || {};
+    var streakHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Streak Analysis</div>" +
+        "<table><tbody>" +
+        row("Max Win Streak",  str.max_win_streak  !== undefined ? str.max_win_streak  + " trades" : "\u2014") +
+        row("Max Loss Streak", str.max_loss_streak !== undefined ? str.max_loss_streak + " trades" : "\u2014") +
+        row("Avg Win Streak",  str.avg_win_streak  !== undefined ? str.avg_win_streak               : "\u2014") +
+        row("Avg Loss Streak", str.avg_loss_streak !== undefined ? str.avg_loss_streak               : "\u2014") +
+        row("Current Streak",  str.current_streak  || "\u2014") +
+        "</tbody></table></div>";
+
+    /* 4. Stop vs Target */
+    var st = m.stop_target || {};
+    var stopHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Stop vs Target</div>" +
+        "<table><tbody>" +
+        row("Hit Stop Loss",   st.pct_sl  !== null && st.pct_sl  !== undefined ? "<span class='neg'>"  + st.pct_sl  + "%</span>" : "\u2014") +
+        row("Hit Take Profit", st.pct_tp  !== null && st.pct_tp  !== undefined ? "<span class='pos'>"  + st.pct_tp  + "%</span>" : "\u2014") +
+        row("Avg MAE",         st.avg_mae !== null && st.avg_mae !== undefined ? st.avg_mae + " pips"                             : "\u2014") +
+        "</tbody></table></div>";
 
     var chartHtml = v.chart_b64
       ? "<div class='section'><div class='section-title'>Chart</div>" +
@@ -917,16 +1046,10 @@
       /* chart */
       chartHtml +
 
-      /* last 10 trades */
-      "<div class='section'>" +
-        "<div class='section-title'>Last 10 Trades</div>" +
-        "<table>" +
-          "<thead><tr>" +
-          "<th>Direction</th><th>Entry</th><th>Exit</th><th>P&amp;L</th><th>Result</th>" +
-          "</tr></thead>" +
-          "<tbody>" + tRows + "</tbody>" +
-        "</table>" +
-      "</div>";
+      /* analytical sections */
+      dirHtml +
+      monthHtml +
+      "<div class='two-col'>" + streakHtml + stopHtml + "</div>";
 
     /* Wire copy button */
     (function (ver) {
