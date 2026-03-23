@@ -36,7 +36,7 @@ DAYS_BACK       = 720
 STARTING_CASH   = 10_000.0
 
 EMA_SLOW        = 200
-EMA_FAST        = 50
+EMA_FAST        = 100
 EMA_ENTRY       = 20
 SWING_LOOKBACK  = 20
 RRR             = 2.0
@@ -44,8 +44,8 @@ RISK_PCT        = 0.01
 MIN_STOP        = 0.0005     # 5 pips minimum stop
 MAX_STOP        = 0.0200     # 200 pips maximum stop
 
-VERSION         = "v1"
-NOTES           = "Baseline — EMA 20/50/200 swing stop 1:2 RRR"
+VERSION         = "v3"
+NOTES           = "Increased EMA fast from 50 to 100 — wider separation between trend filter and entry signal"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
