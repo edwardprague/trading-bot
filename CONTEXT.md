@@ -15,7 +15,7 @@ Develop, test and optimise in Python, then deploy as a cTrader Python cBot.
 2. **Cowork** — writing and editing Python files
 3. **Browser** — run backtests and review results at http://localhost:8080
 
-## Current Strategy
+## Current Strategy — Baseline
 - Instrument: EURUSD hourly (Yahoo Finance ticker: EURUSD=X)
 - Trend filter: EMA 50 vs EMA 200 (long above, short below)
 - Entry signal: price crosses EMA 20 in trend direction
@@ -24,14 +24,11 @@ Develop, test and optimise in Python, then deploy as a cTrader Python cBot.
 - Risk per trade: 1% of account
 - Starting capital: $10,000
 - Strategy tag: `STRATEGY = "Trend Following"` (used to group versions in the dashboard)
+- VERSION = "v1", NOTES = "Baseline — EMA 20/50/200 swing stop 1:2 RRR"
+- No additional filters — pure EMA crossover + swing stop
 
 ## Baseline Results (EURUSD hourly, 720 days)
-- Not yet run on this setup — to be established
-
-## Results Log
-| Version | Change | Trades | Win Rate | Profit Factor | Max DD | Net P&L |
-|---------|--------|--------|----------|---------------|--------|---------|
-| v1 baseline | Initial strategy | TBD | TBD | TBD | TBD | TBD |
+- Not yet established — run the backtest to record v1
 
 ## Hypotheses Queue
 - Add ADX filter to avoid ranging markets
@@ -73,5 +70,6 @@ Develop, test and optimise in Python, then deploy as a cTrader Python cBot.
 - Development Log button at sidebar bottom: shows timeline table of all versions for the
   selected strategy with version, date, change notes, profit factor (with ▲/▼ arrows vs
   previous version), win rate, and net P&L
-- `STRATEGY` variable in `strategy.py` tags each run; all 18 existing versions tagged as
-  "Trend Following"
+- `STRATEGY` variable in `strategy.py` tags each run as Trend Following / Counter Trend / Range Trading
+- Dashboard and RESULTS_LOG.md reset to clean state; next backtest run records v1 baseline
+- Main content area layout: results + parameters tables at top, chart image below
