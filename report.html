@@ -1,287 +1,476 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Backtest Report</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      background: #0c0c14;
-      color: #d0d0e8;
-      display: flex;
-      height: 100vh;
-      overflow: hidden;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backtest Report</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-    /* ── Sidebar ──────────────────────────────────────────── */
-    #sidebar {
-      width: 228px;
-      min-width: 228px;
-      background: #10101c;
-      border-right: 1px solid #1e1e30;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    #sidebar-header {
-      padding: 18px 16px 14px;
-      border-bottom: 1px solid #1e1e30;
-      flex-shrink: 0;
-    }
-    #sidebar-header h1 {
-      font-size: 10px;
-      font-weight: 700;
-      color: #505080;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-    }
-    #run-count {
-      font-size: 11px;
-      color: #404060;
-      margin-top: 4px;
-      margin-bottom: 12px;
-    }
-    .sb-label {
-      font-size: 10px;
-      font-weight: 700;
-      color: #484868;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      margin-bottom: 6px;
-    }
-    #strategy-select {
-      width: 100%;
-      background: #181828;
-      color: #c0c0e0;
-      border: 1px solid #2a2a44;
-      border-radius: 5px;
-      padding: 6px 10px;
-      font-size: 12px;
-      font-family: inherit;
-      cursor: pointer;
-      outline: none;
-      appearance: none;
-      -webkit-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23505080'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 10px center;
-    }
-    #strategy-select:focus { border-color: #4cc9f0; }
+        html,
+        body {
+            height: 100%;
+        }
 
-    #version-list { overflow-y: auto; flex: 1; }
-    .v-item {
-      padding: 12px 16px;
-      cursor: pointer;
-      border-bottom: 1px solid #181826;
-      border-left: 3px solid transparent;
-      transition: background 0.1s;
-    }
-    .v-item:hover  { background: #161624; }
-    .v-item.active { background: #182040; border-left-color: #4cc9f0; }
-    .v-name { font-size: 14px; font-weight: 600; color: #c8c8e8; }
-    .v-date { font-size: 11px; color: #505070; margin-top: 3px; }
-    .v-pnl  { font-size: 12px; font-weight: 600; margin-top: 5px; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            background: #0c0c14;
+            color: #d0d0e8;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
 
-    #sidebar-footer {
-      border-top: 1px solid #1e1e30;
-      padding: 12px 16px;
-      flex-shrink: 0;
-    }
-    #devlog-btn {
-      width: 100%;
-      background: #181828;
-      color: #9090c0;
-      border: 1px solid #2a2a44;
-      border-radius: 5px;
-      padding: 8px 12px;
-      font-size: 12px;
-      font-family: inherit;
-      cursor: pointer;
-      text-align: left;
-      transition: background 0.15s, color 0.15s;
-    }
-    #devlog-btn:hover { background: #1e1e38; color: #c0c0e0; }
-    #devlog-btn.active { background: #182040; border-color: #4cc9f0; color: #4cc9f0; }
+        /* ── Sidebar ──────────────────────────────────────────── */
+        #sidebar {
+            width: 228px;
+            min-width: 228px;
+            background: #10101c;
+            border-right: 1px solid #1e1e30;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-    /* ── Main ─────────────────────────────────────────────── */
-    #main { flex: 1; overflow-y: auto; padding: 30px 38px 52px; }
+        #sidebar-header {
+            padding: 18px 16px 14px;
+            border-bottom: 1px solid #1e1e30;
+            flex-shrink: 0;
+        }
 
-    /* ── Version header ───────────────────────────────────── */
-    #v-header { margin-bottom: 28px; }
-    #v-header h2 { font-size: 24px; font-weight: 700; color: #e4e4ff; }
-    .v-meta { font-size: 12px; color: #505070; margin-top: 6px; line-height: 1.7; }
-    .v-notes {
-      margin-top: 14px;
-      padding: 11px 16px;
-      background: #13132a;
-      border-radius: 6px;
-      border-left: 3px solid #4cc9f0;
-      font-size: 13px;
-      color: #9090c0;
-      line-height: 1.6;
-    }
+        #sidebar-header h1 {
+            font-size: 10px;
+            font-weight: 700;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
 
-    /* ── Section ──────────────────────────────────────────── */
-    .section { margin-bottom: 30px; }
-    .section-title {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: #484868;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #1a1a2c;
-    }
+        #run-count {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+            margin-bottom: 12px;
+        }
 
-    /* ── Chart ────────────────────────────────────────────── */
-    #chart-img {
-      width: 100%;
-      border-radius: 8px;
-      display: block;
-      border: 1px solid #1a1a2c;
-    }
+        .sb-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 6px;
+        }
 
-    /* ── Tables ───────────────────────────────────────────── */
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    thead th {
-      background: #131326;
-      color: #505080;
-      font-weight: 700;
-      padding: 9px 14px;
-      text-align: left;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-    tbody td { padding: 9px 14px; border-bottom: 1px solid #161626; }
-    tbody tr:last-child td { border-bottom: none; }
-    tbody tr:hover td { background: #131322; }
-    .lbl { color: #707090; }
+        #strategy-select {
+            width: 100%;
+            background: steelblue;
+            color: #fff;
+            border: 1px solid #2a2a44;
+            border-radius: 5px;
+            padding: 10px 10px;
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23505080'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
 
-    /* ── Colour helpers ───────────────────────────────────── */
-    .pos { color: #6bcb77; }
-    .neg { color: #ff6b6b; }
-    .neu { color: #ffd93d; }
+        #version-list {
+            overflow-y: auto;
+            flex: 1;
+        }
 
-    /* ── Badge ────────────────────────────────────────────── */
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-    }
-    .badge-win  { background: rgba(107,203,119,.16); color: #6bcb77; }
-    .badge-loss { background: rgba(255,107,107,.16); color: #ff6b6b; }
+        .v-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #181826;
+            border-left: 3px solid transparent;
+            transition: background 0.1s;
+        }
 
-    /* ── Two-column grid ──────────────────────────────────── */
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 30px; }
-    @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } #main { padding: 20px; } }
+        .v-item:hover {
+            background: #161624;
+        }
 
-    /* ── Empty state ──────────────────────────────────────── */
-    #empty-state {
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: center; height: 80vh;
-      color: #303050; font-size: 15px; gap: 10px;
-    }
+        .v-item.active {
+            background: #182040;
+            border-left-color: #4cc9f0;
+        }
 
-    /* ── Dev log ──────────────────────────────────────────── */
-    #devlog-header { margin-bottom: 28px; }
-    #devlog-header h2 { font-size: 24px; font-weight: 700; color: #e4e4ff; }
-    #devlog-header .v-meta { font-size: 12px; color: #505070; margin-top: 6px; }
-    .devlog-table thead th { white-space: nowrap; }
-    .devlog-table .dl-notes { color: #9090c0; font-size: 12px; max-width: 300px; }
-    .arrow-up { color: #6bcb77; font-weight: 700; margin-left: 5px; }
-    .arrow-dn { color: #ff6b6b; font-weight: 700; margin-left: 5px; }
-    .arrow-nc { color: #505070; margin-left: 5px; }
+        .v-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #c8c8e8;
+        }
 
-    /* ── Copy button ──────────────────────────────────────── */
-    #v-header-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-    }
-    #v-header-top h2 { flex: 1; min-width: 0; }
-    .copy-btn {
-      flex-shrink: 0;
-      background: #181828;
-      color: #7070a0;
-      border: 1px solid #2a2a44;
-      border-radius: 5px;
-      padding: 6px 14px;
-      font-size: 12px;
-      font-family: inherit;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
-      margin-top: 4px;
-    }
-    .copy-btn:hover { background: #1e1e38; color: #c0c0e0; border-color: #3a3a60; }
-    .copy-btn.copied { background: rgba(107,203,119,.12); border-color: #6bcb77; color: #6bcb77; }
+        .v-date {
+            font-size: 11px;
+            color: #aaa;
+            margin-top: 3px;
+        }
 
-    /* ── Toast ────────────────────────────────────────────── */
-    #copy-toast {
-      position: fixed;
-      bottom: 28px;
-      right: 32px;
-      background: #0e2a1a;
-      border: 1px solid #6bcb77;
-      color: #6bcb77;
-      border-radius: 7px;
-      padding: 10px 20px;
-      font-size: 13px;
-      font-weight: 600;
-      pointer-events: none;
-      opacity: 0;
-      transform: translateY(10px);
-      transition: opacity 0.18s ease, transform 0.18s ease;
-      z-index: 999;
-    }
-    #copy-toast.show { opacity: 1; transform: translateY(0); }
+        .v-pnl {
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
 
-    /* ── Scrollbars ───────────────────────────────────────── */
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #252540; border-radius: 3px; }
-  </style>
+        #sidebar-footer {
+            border-top: 1px solid #1e1e30;
+            padding: 12px 16px;
+            flex-shrink: 0;
+        }
+
+        #devlog-btn {
+            width: 100%;
+            background: steelblue;
+            color: #fff;
+            border: 1px solid steelblue;
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        #devlog-btn:hover {
+            background: #5da7e4;
+            color: #fff;
+        }
+
+        #devlog-btn.active {
+            background: #182040;
+            border-color: #4cc9f0;
+            color: #4cc9f0;
+        }
+
+        /* ── Main ─────────────────────────────────────────────── */
+        #main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px 38px 52px;
+        }
+
+        /* ── Version header ───────────────────────────────────── */
+        #v-header {
+            margin-bottom: 28px;
+        }
+
+        #v-header h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #e4e4ff;
+        }
+
+        .v-meta {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 6px;
+            line-height: 1.7;
+        }
+
+        .v-notes {
+            margin-top: 14px;
+            padding: 11px 16px;
+            background: #444;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #ccc;
+            line-height: 1.6;
+        }
+
+        /* ── Section ──────────────────────────────────────────── */
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: steelblue;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #1a1a2c;
+        }
+
+        /* ── Chart ────────────────────────────────────────────── */
+        #chart-img {
+            width: 100%;
+            border-radius: 8px;
+            display: block;
+            border: 1px solid #1a1a2c;
+        }
+
+        /* ── Tables ───────────────────────────────────────────── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead th {
+            background: #333;
+            color: #bbb;
+            font-weight: 700;
+            padding: 9px 14px;
+            text-align: left;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        tbody td {
+            padding: 9px 14px;
+            border-bottom: 1px solid #161626;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:hover td {
+            background: #131322;
+        }
+
+        .lbl {
+            color: #aaa;
+        }
+
+        /* ── Colour helpers ───────────────────────────────────── */
+        .pos {
+            color: #6bcb77;
+        }
+
+        .neg {
+            color: #ff6b6b;
+        }
+
+        .neu {
+            color: #ffd93d;
+        }
+
+        /* ── Badge ────────────────────────────────────────────── */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .badge-win {
+            background: rgba(107, 203, 119, .16);
+            color: #6bcb77;
+        }
+
+        .badge-loss {
+            background: rgba(255, 107, 107, .16);
+            color: #ff6b6b;
+        }
+
+        /* ── Two-column grid ──────────────────────────────────── */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 860px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+
+            #main {
+                padding: 20px;
+            }
+        }
+
+        /* ── Empty state ──────────────────────────────────────── */
+        #empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 80vh;
+            color: #303050;
+            font-size: 15px;
+            gap: 10px;
+        }
+
+        /* ── Dev log ──────────────────────────────────────────── */
+        #devlog-header {
+            margin-bottom: 28px;
+        }
+
+        #devlog-header h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #e4e4ff;
+        }
+
+        #devlog-header .v-meta {
+            font-size: 12px;
+            color: #505070;
+            margin-top: 6px;
+        }
+
+        .devlog-table thead th {
+            white-space: nowrap;
+        }
+
+        .devlog-table .dl-notes {
+            color: #9090c0;
+            font-size: 12px;
+            max-width: 300px;
+        }
+
+        .arrow-up {
+            color: #6bcb77;
+            font-weight: 700;
+            margin-left: 5px;
+        }
+
+        .arrow-dn {
+            color: #ff6b6b;
+            font-weight: 700;
+            margin-left: 5px;
+        }
+
+        .arrow-nc {
+            color: #505070;
+            margin-left: 5px;
+        }
+
+        /* ── Copy button ──────────────────────────────────────── */
+        #v-header-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        #v-header-top h2 {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .copy-btn {
+            flex-shrink: 0;
+            background: green;
+            color: #fff;
+            border: 1px solid green;
+            border-radius: 5px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+            margin-top: 4px;
+        }
+
+        .copy-btn:hover {
+            background: #02b002;
+            /* color: #c0c0e0; */
+            border-color: #02b002;
+        }
+
+        .copy-btn.copied {
+            background: rgba(107, 203, 119, .12);
+            border-color: #6bcb77;
+            color: #6bcb77;
+        }
+
+        /* ── Toast ────────────────────────────────────────────── */
+        #copy-toast {
+            position: fixed;
+            bottom: 28px;
+            right: 32px;
+            background: #0e2a1a;
+            border: 1px solid #6bcb77;
+            color: #6bcb77;
+            border-radius: 7px;
+            padding: 10px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.18s ease, transform 0.18s ease;
+            z-index: 999;
+        }
+
+        #copy-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ── Scrollbars ───────────────────────────────────────── */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #252540;
+            border-radius: 3px;
+        }
+    </style>
 </head>
+
 <body>
 
-<div id="sidebar">
-  <div id="sidebar-header">
-    <h1>Backtest History</h1>
-    <div id="run-count"></div>
-    <div class="sb-label">Strategy</div>
-    <select id="strategy-select">
-      <option value="Trend Following">Trend Following</option>
-      <option value="Counter Trend">Counter Trend</option>
-      <option value="Range Trading">Range Trading</option>
-    </select>
-  </div>
-  <div id="version-list"></div>
-  <div id="sidebar-footer">
-    <button id="devlog-btn">&#128203;&nbsp; Development Log</button>
-  </div>
-</div>
-
-<div id="main">
-  <div id="content">
-    <div id="empty-state">
-      <span style="font-size:36px">&#128202;</span>
-      <span>Select a version to view results</span>
+    <div id="sidebar">
+        <div id="sidebar-header">
+            <h1>Backtest History</h1>
+            <div id="run-count"></div>
+            <div class="sb-label">Strategy</div>
+            <select id="strategy-select">
+                <option value="Trend Following">Trend Following</option>
+                <option value="Counter Trend">Counter Trend</option>
+                <option value="Range Trading">Range Trading</option>
+            </select>
+        </div>
+        <div id="version-list"></div>
+        <div id="sidebar-footer">
+            <button id="devlog-btn">&#128203;&nbsp; Development Log</button>
+        </div>
     </div>
-  </div>
-</div>
 
-<div id="copy-toast">&#10003;&nbsp; Copied to clipboard!</div>
+    <div id="main">
+        <div id="content">
+            <div id="empty-state">
+                <span style="font-size:36px">&#128202;</span>
+                <span>Select a version to view results</span>
+            </div>
+        </div>
+    </div>
 
-<script type="application/json" id="versions-data">
+    <div id="copy-toast">&#10003;&nbsp; Copied to clipboard!</div>
+
+    <script type="application/json" id="versions-data">
 [
   {
     "name": "v1",
@@ -613,600 +802,601 @@
 ]
 </script>
 
-<script>
-(function () {
-  "use strict";
-
-  var VERSIONS = JSON.parse(document.getElementById("versions-data").textContent);
-  var currentStrategy = "Trend Following";
-  var devLogOpen = false;
-
-  /* ── Helpers ──────────────────────────────────────────────── */
-  function fmt(n, d) {
-    if (n === null || n === undefined || (typeof n === "number" && isNaN(n))) return "&#8212;";
-    return Number(n).toFixed(d !== undefined ? d : 2);
-  }
-
-  function fmtMoney(n) {
-    if (n === null || n === undefined) return "&#8212;";
-    var s = n >= 0 ? "+" : "";
-    return s + "$" + Math.abs(n).toFixed(2);
-  }
-
-  function pClass(n) {
-    if (n === null || n === undefined) return "";
-    return n >= 0 ? "pos" : "neg";
-  }
-
-  function esc(s) {
-    if (s === null || s === undefined) return "";
-    return String(s)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
-
-  function row(label, value) {
-    var v = (value === null || value === undefined) ? "&#8212;" : value;
-    return "<tr><td class='lbl'>" + label + "</td><td>" + v + "</td></tr>";
-  }
-
-  function fmtMonth(s) {
-    var names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    var parts = String(s).split("-");
-    if (parts.length < 2) return s;
-    var idx = parseInt(parts[1], 10) - 1;
-    return names[idx] + " " + parts[0];
-  }
-
-  /* ── Toast ──────────────────────────────────────────────── */
-  function showToast() {
-    var toast = document.getElementById("copy-toast");
-    toast.classList.add("show");
-    setTimeout(function () { toast.classList.remove("show"); }, 2200);
-  }
-
-  /* ── Markdown builder ───────────────────────────────────── */
-  function buildMarkdown(ver) {
-    var m = ver.metrics || {};
-    var p = ver.params  || {};
-
-    function mf(n, d) {
-      if (n === null || n === undefined || (typeof n === "number" && isNaN(n))) return "—";
-      return Number(n).toFixed(d !== undefined ? d : 2);
-    }
-    function mfMoney(n) {
-      if (n === null || n === undefined) return "—";
-      var f = Number(n);
-      return (f >= 0 ? "+" : "-") + "$" + Math.abs(f).toFixed(2);
-    }
-
-    var pf    = (m.profit_factor === null || m.profit_factor === undefined) ? "\u221e" : mf(m.profit_factor);
-    var npStr = mfMoney(m.net_profit);
-    if (m.net_profit_pct !== null && m.net_profit_pct !== undefined) {
-      npStr += " (" + (m.net_profit_pct >= 0 ? "+" : "") + mf(m.net_profit_pct, 1) + "%)";
-    }
-
-    var lines = [];
-    lines.push("## Backtest Report \u2014 " + (ver.name || "?"));
-    lines.push("");
-    lines.push("**Strategy:** " + (ver.strategy || "\u2014"));
-    lines.push("**Instrument:** " + (p.ticker   || "\u2014") + " \u00b7 " + (p.interval || "\u2014") + " \u00b7 " + (p.days_back || "\u2014") + " days");
-    lines.push("**Date:** "     + (ver.date    || "\u2014"));
-    if (ver.notes && ver.notes !== "\u2014" && ver.notes !== "\u2014") {
-      lines.push("**Notes:** " + ver.notes);
-    }
-    lines.push("");
-
-    lines.push("### Results");
-    lines.push("");
-    lines.push("| Metric | Value |");
-    lines.push("|--------|-------|");
-    lines.push("| Total Trades | "    + (m.total_trades   !== undefined ? m.total_trades   : "\u2014") + " |");
-    lines.push("| Winning Trades | "  + (m.winning_trades !== undefined ? m.winning_trades : "\u2014") + " |");
-    lines.push("| Losing Trades | "   + (m.losing_trades  !== undefined ? m.losing_trades  : "\u2014") + " |");
-    lines.push("| Win Rate | "        + mf(m.win_rate, 1) + "% |");
-    lines.push("| Profit Factor | "   + pf + " |");
-    lines.push("| Net Profit | "      + npStr + " |");
-    lines.push("| Final Equity | $"   + mf(m.final_equity) + " |");
-    lines.push("| Max Drawdown | "    + mf(m.max_drawdown) + "% |");
-    lines.push("| Sharpe Ratio | "    + mf(m.sharpe) + " |");
-    lines.push("| Avg Win | "         + (m.avg_win  !== null && m.avg_win  !== undefined ? "$"  + mf(m.avg_win)  : "\u2014") + " |");
-    lines.push("| Avg Loss | "        + (m.avg_loss !== null && m.avg_loss !== undefined ? "$"  + mf(m.avg_loss) : "\u2014") + " |");
-    lines.push("| Best Trade | "      + mfMoney(m.best_trade) + " |");
-    lines.push("| Worst Trade | "     + mfMoney(m.worst_trade) + " |");
-    lines.push("");
-
-    lines.push("### Parameters");
-    lines.push("");
-    lines.push("| Parameter | Value |");
-    lines.push("|-----------|-------|");
-    lines.push("| Instrument | "    + (p.ticker    || "\u2014") + " |");
-    lines.push("| Interval | "      + (p.interval  || "\u2014") + " |");
-    lines.push("| History | "       + (p.days_back || "\u2014") + " days |");
-    lines.push("| Starting Cash | $" + (p.starting_cash || 0).toLocaleString() + " |");
-    lines.push("| EMA Slow | "      + (p.ema_slow      || "\u2014") + " |");
-    lines.push("| EMA Fast | "      + (p.ema_fast      || "\u2014") + " |");
-    lines.push("| EMA Entry | "     + (p.ema_entry     || "\u2014") + " |");
-    lines.push("| Swing Lookback | " + (p.swing_lookback || "\u2014") + " bars |");
-    lines.push("| RRR | 1:"         + (p.rrr || "\u2014") + " |");
-    lines.push("| Risk / Trade | "  + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
-    lines.push("| Min Stop | "      + ((p.min_stop || 0) * 10000).toFixed(0) + " pips |");
-    lines.push("| Max Stop | "      + ((p.max_stop || 0) * 10000).toFixed(0) + " pips |");
-    lines.push("");
-
-    /* ── Performance by Direction ──────────────────── */
-    lines.push("### Performance by Direction");
-    lines.push("");
-    lines.push("| Direction | Trades | Win Rate | Profit Factor | Avg Win | Avg Loss | Net P&L |");
-    lines.push("|-----------|--------|----------|---------------|---------|----------|---------|");
-    var bd = m.by_direction || {};
-    ["long", "short"].forEach(function (d) {
-      var data = bd[d];
-      if (!data) {
-        lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) + " | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
-        return;
-      }
-      var dpf = (data.profit_factor === null || data.profit_factor === undefined) ? "\u221e" : mf(data.profit_factor);
-      lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) +
-        " | " + data.count +
-        " | " + mf(data.win_rate, 1) + "%" +
-        " | " + dpf +
-        " | " + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + mf(data.avg_win)  : "\u2014") +
-        " | " + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + mf(Math.abs(data.avg_loss)) : "\u2014") +
-        " | " + mfMoney(data.net_pnl) + " |");
-    });
-    lines.push("");
-
-    /* ── Monthly Performance ────────────────────────── */
-    lines.push("### Monthly Performance");
-    lines.push("");
-    lines.push("| Month | Trades | Wins | Losses | Win Rate | Net P&L |");
-    lines.push("|-------|--------|------|--------|----------|---------|");
-    var monthly = m.monthly || [];
-    if (monthly.length === 0) {
-      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
-    } else {
-      monthly.forEach(function (mo) {
-        var mnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        var parts  = String(mo.month).split("-");
-        var mLabel = parts.length >= 2 ? mnames[parseInt(parts[1], 10) - 1] + " " + parts[0] : mo.month;
-        lines.push("| " + mLabel +
-          " | " + mo.trades +
-          " | " + mo.wins +
-          " | " + mo.losses +
-          " | " + mf(mo.win_rate, 1) + "%" +
-          " | " + mfMoney(mo.net_pnl) + " |");
-      });
-    }
-    lines.push("");
-
-    /* ── Streak Analysis ────────────────────────────── */
-    var str = m.streaks || {};
-    lines.push("### Streak Analysis");
-    lines.push("");
-    lines.push("| Metric | Value |");
-    lines.push("|--------|-------|");
-    lines.push("| Max Win Streak | "  + (str.max_win_streak  !== undefined ? str.max_win_streak  + " trades" : "\u2014") + " |");
-    lines.push("| Max Loss Streak | " + (str.max_loss_streak !== undefined ? str.max_loss_streak + " trades" : "\u2014") + " |");
-    lines.push("| Avg Win Streak | "  + (str.avg_win_streak  !== undefined ? str.avg_win_streak               : "\u2014") + " |");
-    lines.push("| Avg Loss Streak | " + (str.avg_loss_streak !== undefined ? str.avg_loss_streak               : "\u2014") + " |");
-    lines.push("| Current Streak | "  + (str.current_streak  || "\u2014") + " |");
-    lines.push("");
-
-    /* ── Stop vs Target ─────────────────────────────── */
-    var st = m.stop_target || {};
-    lines.push("### Stop vs Target");
-    lines.push("");
-    lines.push("| Metric | Value |");
-    lines.push("|--------|-------|");
-    lines.push("| Hit Stop Loss | "   + (st.pct_sl  !== null && st.pct_sl  !== undefined ? st.pct_sl  + "%" : "\u2014") + " |");
-    lines.push("| Hit Take Profit | " + (st.pct_tp  !== null && st.pct_tp  !== undefined ? st.pct_tp  + "%" : "\u2014") + " |");
-    lines.push("| Avg MAE | "         + (st.avg_mae !== null && st.avg_mae !== undefined ? st.avg_mae + " pips" : "\u2014") + " |");
-    lines.push("");
-    return lines.join("\n");
-  }
-
-  /* ── Strategy filter ─────────────────────────────────────── */
-  function getStrategyVersions() {
-    var result = [];
-    for (var i = 0; i < VERSIONS.length; i++) {
-      var strat = VERSIONS[i].strategy || "Trend Following";
-      if (strat === currentStrategy) {
-        result.push({ v: VERSIONS[i], idx: i });
-      }
-    }
-    return result;
-  }
-
-  /* ── Sidebar ──────────────────────────────────────────────── */
-  function renderSidebar() {
-    var svs  = getStrategyVersions();
-    document.getElementById("run-count").textContent =
-      svs.length + " run" + (svs.length !== 1 ? "s" : "");
-
-    var list = document.getElementById("version-list");
-    list.innerHTML = "";
-
-    if (svs.length === 0) {
-      list.innerHTML = "<div style='padding:20px 16px;color:#404060;font-size:12px'>No runs for this strategy yet.</div>";
-      return;
-    }
-
-    for (var ri = svs.length - 1; ri >= 0; ri--) {
-      var entry = svs[ri];
-      var v    = entry.v;
-      var idx  = entry.idx;
-      var pnl  = v.metrics ? v.metrics.net_profit : null;
-      var pc   = pnl === null ? "" : (pnl >= 0 ? "pos" : "neg");
-      var ptxt = pnl === null ? "" :
-        (pnl >= 0 ? "+" : "") + "$" + Math.abs(pnl).toFixed(2);
-
-      var item = document.createElement("div");
-      item.className     = "v-item";
-      item.dataset.idx   = idx;
-      item.innerHTML     =
-        "<div class='v-name'>" + esc(v.name) + "</div>" +
-        "<div class='v-date'>" + esc(v.date) + "</div>" +
-        (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "");
-
-      (function (el, origIdx) {
-        el.addEventListener("click", function () {
-          devLogOpen = false;
-          document.getElementById("devlog-btn").classList.remove("active");
-          document.querySelectorAll(".v-item").forEach(function (e) {
-            e.classList.remove("active");
-          });
-          el.classList.add("active");
-          renderContent(origIdx);
-        });
-      })(item, idx);
-
-      list.appendChild(item);
-    }
-  }
-
-  /* ── Content ──────────────────────────────────────────────── */
-  function renderContent(idx) {
-    var v = VERSIONS[idx];
-    if (!v) return;
-
-    var m = v.metrics || {};
-    var p = v.params  || {};
-
-    /* profit factor display */
-    var pfTxt = (m.profit_factor === null || m.profit_factor === undefined)
-      ? "&#8734;" : fmt(m.profit_factor);
-    var pfCls = (m.profit_factor === null || m.profit_factor === undefined || m.profit_factor >= 1.5)
-      ? "pos" : (m.profit_factor < 1.0 ? "neg" : "neu");
-
-    /* ── Analytical section builders ──────────────────────────── */
-
-    /* 1. Performance by Direction */
-    var bd    = m.by_direction || {};
-    var bdLng = bd.long  || null;
-    var bdSht = bd.short || null;
-    function dirRow(label, data) {
-      if (!data) {
-        return "<tr><td><strong>" + label + "</strong></td>" +
-               "<td colspan='6' style='color:#404060'>No data</td></tr>";
-      }
-      var dpf    = (data.profit_factor === null || data.profit_factor === undefined) ? "\u221e" : fmt(data.profit_factor);
-      var dpfCls = (data.profit_factor === null || data.profit_factor === undefined || data.profit_factor >= 1.5) ? "pos" : (data.profit_factor < 1.0 ? "neg" : "neu");
-      return "<tr>" +
-        "<td><strong>" + label + "</strong></td>" +
-        "<td>" + data.count + "</td>" +
-        "<td class='" + (data.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(data.win_rate, 1) + "%</td>" +
-        "<td class='" + dpfCls + "'>" + dpf + "</td>" +
-        "<td class='pos'>" + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + fmt(data.avg_win)  : "\u2014") + "</td>" +
-        "<td class='neg'>" + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + fmt(Math.abs(data.avg_loss)) : "\u2014") + "</td>" +
-        "<td class='" + pClass(data.net_pnl) + "'>" + fmtMoney(data.net_pnl) + "</td>" +
-        "</tr>";
-    }
-    var dirHtml =
-      "<div class='section'>" +
-        "<div class='section-title'>Performance by Direction</div>" +
-        "<table><thead><tr>" +
-        "<th>Direction</th><th>Trades</th><th>Win Rate</th>" +
-        "<th>Profit Factor</th><th>Avg Win</th><th>Avg Loss</th><th>Net P&amp;L</th>" +
-        "</tr></thead><tbody>" +
-        dirRow("Long", bdLng) + dirRow("Short", bdSht) +
-        "</tbody></table></div>";
-
-    /* 2. Monthly Performance */
-    var monthly = m.monthly || [];
-    var mRows = "";
-    monthly.forEach(function (mo) {
-      var pc = mo.net_pnl >= 0 ? "#6bcb77" : "#ff6b6b";
-      var bg = mo.net_pnl >= 0 ? "rgba(107,203,119,.08)" : "rgba(255,107,107,.08)";
-      mRows +=
-        "<tr>" +
-        "<td>" + fmtMonth(mo.month) + "</td>" +
-        "<td>" + mo.trades + "</td>" +
-        "<td class='pos'>" + mo.wins + "</td>" +
-        "<td class='neg'>" + mo.losses + "</td>" +
-        "<td class='" + (mo.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(mo.win_rate, 1) + "%</td>" +
-        "<td style='color:" + pc + ";background:" + bg + ";font-weight:600'>" + fmtMoney(mo.net_pnl) + "</td>" +
-        "</tr>";
-    });
-    if (!mRows) {
-      mRows = "<tr><td colspan='6' style='color:#404060;text-align:center;padding:20px'>No data</td></tr>";
-    }
-    var monthHtml =
-      "<div class='section'>" +
-        "<div class='section-title'>Monthly Performance</div>" +
-        "<table><thead><tr>" +
-        "<th>Month</th><th>Trades</th><th>Wins</th><th>Losses</th>" +
-        "<th>Win Rate</th><th>Net P&amp;L</th>" +
-        "</tr></thead><tbody>" + mRows + "</tbody></table></div>";
-
-    /* 3. Streak Analysis */
-    var str = m.streaks || {};
-    var streakHtml =
-      "<div class='section'>" +
-        "<div class='section-title'>Streak Analysis</div>" +
-        "<table><tbody>" +
-        row("Max Win Streak",  str.max_win_streak  !== undefined ? str.max_win_streak  + " trades" : "\u2014") +
-        row("Max Loss Streak", str.max_loss_streak !== undefined ? str.max_loss_streak + " trades" : "\u2014") +
-        row("Avg Win Streak",  str.avg_win_streak  !== undefined ? str.avg_win_streak               : "\u2014") +
-        row("Avg Loss Streak", str.avg_loss_streak !== undefined ? str.avg_loss_streak               : "\u2014") +
-        row("Current Streak",  str.current_streak  || "\u2014") +
-        "</tbody></table></div>";
-
-    /* 4. Stop vs Target */
-    var st = m.stop_target || {};
-    var stopHtml =
-      "<div class='section'>" +
-        "<div class='section-title'>Stop vs Target</div>" +
-        "<table><tbody>" +
-        row("Hit Stop Loss",   st.pct_sl  !== null && st.pct_sl  !== undefined ? "<span class='neg'>"  + st.pct_sl  + "%</span>" : "\u2014") +
-        row("Hit Take Profit", st.pct_tp  !== null && st.pct_tp  !== undefined ? "<span class='pos'>"  + st.pct_tp  + "%</span>" : "\u2014") +
-        row("Avg MAE",         st.avg_mae !== null && st.avg_mae !== undefined ? st.avg_mae + " pips"                             : "\u2014") +
-        "</tbody></table></div>";
-
-    var chartHtml = v.chart_b64
-      ? "<div class='section'><div class='section-title'>Chart</div>" +
-        "<img id='chart-img' src='data:image/png;base64," + v.chart_b64 + "' alt='Backtest Chart'/></div>"
-      : "";
-
-    var notesHtml = (v.notes && v.notes !== "&#8212;" && v.notes !== "\u2014" && v.notes !== "—")
-      ? "<div class='v-notes'>&#128221;&nbsp; " + esc(v.notes) + "</div>"
-      : "";
-
-    var winRateCls = m.win_rate >= 50 ? "pos" : "neg";
-    var sharpeCls  = m.sharpe >= 1 ? "pos" : (m.sharpe < 0 ? "neg" : "neu");
-
-    var avgWinHtml  = m.avg_win  !== null && m.avg_win  !== undefined
-      ? "<span class='pos'>$" + fmt(m.avg_win)  + "</span>" : "&#8212;";
-    var avgLossHtml = m.avg_loss !== null && m.avg_loss !== undefined
-      ? "<span class='neg'>" + fmt(m.avg_loss) + "</span>" : "&#8212;";
-
-    var stratBadge = (v.strategy)
-      ? "<span style='font-size:11px;background:#1a1a30;border:1px solid #2a2a44;border-radius:4px;padding:2px 8px;color:#6060a0;margin-left:8px'>" + esc(v.strategy) + "</span>"
-      : "";
-
-    document.getElementById("content").innerHTML =
-      /* header */
-      "<div id='v-header'>" +
-        "<div id='v-header-top'>" +
-          "<h2>" + esc(v.name) + stratBadge + "</h2>" +
-          "<button id='copy-btn' class='copy-btn'>Copy Report</button>" +
-        "</div>" +
-        "<div class='v-meta'>Run on " + esc(v.date) +
-          " &nbsp;&middot;&nbsp; " + esc(p.ticker || "") +
-          " " + esc(p.interval || "") +
-          " &nbsp;&middot;&nbsp; " + (p.days_back || "") + " days</div>" +
-        notesHtml +
-      "</div>" +
-
-      /* results + params */
-      "<div class='two-col'>" +
-
-        "<div class='section'>" +
-          "<div class='section-title'>Results</div>" +
-          "<table><tbody>" +
-          row("Total Trades",  m.total_trades) +
-          row("Winning Trades", m.winning_trades) +
-          row("Losing Trades",  m.losing_trades) +
-          row("Win Rate",      "<span class='" + winRateCls + "'>" + fmt(m.win_rate, 1) + "%</span>") +
-          row("Profit Factor", "<span class='" + pfCls + "'>" + pfTxt + "</span>") +
-          row("Net Profit",    "<span class='" + pClass(m.net_profit) + "'>" +
-            fmtMoney(m.net_profit) + " (" + (m.net_profit_pct >= 0 ? "+" : "") + fmt(m.net_profit_pct, 1) + "%)</span>") +
-          row("Final Equity",  "$" + fmt(m.final_equity)) +
-          row("Max Drawdown",  "<span class='neg'>" + fmt(m.max_drawdown) + "%</span>") +
-          row("Sharpe Ratio",  "<span class='" + sharpeCls + "'>" + fmt(m.sharpe) + "</span>") +
-          row("Avg Win",       avgWinHtml) +
-          row("Avg Loss",      avgLossHtml) +
-          row("Best Trade",    "<span class='pos'>" + fmtMoney(m.best_trade)  + "</span>") +
-          row("Worst Trade",   "<span class='neg'>" + fmtMoney(m.worst_trade) + "</span>") +
-          "</tbody></table>" +
-        "</div>" +
-
-        "<div class='section'>" +
-          "<div class='section-title'>Parameters</div>" +
-          "<table><tbody>" +
-          row("Instrument",     esc(p.ticker || "")) +
-          row("Interval",       esc(p.interval || "")) +
-          row("History",        (p.days_back || "") + " days") +
-          row("Starting Cash",  "$" + (p.starting_cash || 0).toLocaleString()) +
-          row("EMA Slow",       p.ema_slow) +
-          row("EMA Fast",       p.ema_fast) +
-          row("EMA Entry",      p.ema_entry) +
-          row("Swing Lookback", (p.swing_lookback || "") + " bars") +
-          row("RRR",            "1&thinsp;:&thinsp;" + (p.rrr || "")) +
-          row("Risk / Trade",   ((p.risk_pct || 0) * 100).toFixed(1) + "%") +
-          row("Min Stop",       ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
-          row("Max Stop",       ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
-          "</tbody></table>" +
-        "</div>" +
-
-      "</div>" +
-
-      /* chart */
-      chartHtml +
-
-      /* analytical sections */
-      dirHtml +
-      monthHtml +
-      "<div class='two-col'>" + streakHtml + stopHtml + "</div>";
-
-    /* Wire copy button */
-    (function (ver) {
-      var btn = document.getElementById("copy-btn");
-      if (!btn) return;
-      btn.addEventListener("click", function () {
-        var md = buildMarkdown(ver);
-        navigator.clipboard.writeText(md).then(function () {
-          btn.textContent = "\u2713 Copied!";
-          btn.classList.add("copied");
-          showToast();
-          setTimeout(function () {
-            btn.textContent = "Copy Report";
-            btn.classList.remove("copied");
-          }, 2200);
-        }).catch(function () {
-          btn.textContent = "Failed";
-          setTimeout(function () { btn.textContent = "Copy Report"; }, 2500);
-        });
-      });
-    }(v));
-  }
-
-  /* ── Dev Log ──────────────────────────────────────────────── */
-  function showDevLog() {
-    var svs = getStrategyVersions();
-
-    if (svs.length === 0) {
-      document.getElementById("content").innerHTML =
-        "<div id='devlog-header'>" +
-          "<h2>Development Log</h2>" +
-          "<div class='v-meta'>" + esc(currentStrategy) + " &mdash; no runs yet</div>" +
-        "</div>";
-      return;
-    }
-
-    var dlRows = "";
-    var prevPF = null;
-
-    for (var i = 0; i < svs.length; i++) {
-      var entry = svs[i];
-      var v = entry.v;
-      var m = v.metrics || {};
-
-      var pf = (m.profit_factor !== null && m.profit_factor !== undefined) ? m.profit_factor : null;
-      var wr = (m.win_rate !== null && m.win_rate !== undefined) ? m.win_rate : null;
-      var np = (m.net_profit !== null && m.net_profit !== undefined) ? m.net_profit : null;
-
-      /* PF change arrow */
-      var arrowHtml = "";
-      if (prevPF !== null && pf !== null) {
-        if (pf > prevPF + 0.005) {
-          arrowHtml = "<span class='arrow-up'>&#9650;</span>";
-        } else if (pf < prevPF - 0.005) {
-          arrowHtml = "<span class='arrow-dn'>&#9660;</span>";
-        } else {
-          arrowHtml = "<span class='arrow-nc'>&#8213;</span>";
-        }
-      }
-      if (pf !== null) prevPF = pf;
-
-      var pfDisp = (pf === null) ? "&#8212;" :
-        "<span class='" + (pf >= 1.5 ? "pos" : (pf < 1.0 ? "neg" : "neu")) + "'>" + pf.toFixed(2) + "</span>" + arrowHtml;
-
-      var wrDisp = (wr === null) ? "&#8212;" :
-        "<span class='" + (wr >= 50 ? "pos" : "neg") + "'>" + wr.toFixed(1) + "%</span>";
-
-      var npDisp = (np === null) ? "&#8212;" :
-        "<span class='" + (np >= 0 ? "pos" : "neg") + "'>" + fmtMoney(np) + "</span>";
-
-      var notes = (v.notes && v.notes !== "—" && v.notes !== "\u2014") ? esc(v.notes) : "<span style='color:#404060'>—</span>";
-
-      dlRows +=
-        "<tr>" +
-        "<td style='white-space:nowrap;font-weight:600;color:#c8c8e8'>" + esc(v.name) + "</td>" +
-        "<td style='white-space:nowrap;color:#505070'>" + esc(v.date) + "</td>" +
-        "<td class='dl-notes'>" + notes + "</td>" +
-        "<td style='text-align:right;white-space:nowrap'>" + pfDisp + "</td>" +
-        "<td style='text-align:right;white-space:nowrap'>" + wrDisp + "</td>" +
-        "<td style='text-align:right;white-space:nowrap'>" + npDisp + "</td>" +
-        "</tr>";
-    }
-
-    document.getElementById("content").innerHTML =
-      "<div id='devlog-header'>" +
-        "<h2>Development Log</h2>" +
-        "<div class='v-meta'>" + esc(currentStrategy) + " &mdash; " + svs.length + " run" + (svs.length !== 1 ? "s" : "") + "</div>" +
-      "</div>" +
-      "<div class='section'>" +
-        "<table class='devlog-table'>" +
-          "<thead><tr>" +
-          "<th>Version</th><th>Date</th><th>Change</th>" +
-          "<th style='text-align:right'>Profit Factor</th>" +
-          "<th style='text-align:right'>Win Rate</th>" +
-          "<th style='text-align:right'>Net P&amp;L</th>" +
-          "</tr></thead>" +
-          "<tbody>" + dlRows + "</tbody>" +
-        "</table>" +
-      "</div>";
-  }
-
-  /* ── Strategy change ─────────────────────────────────────── */
-  function onStrategyChange() {
-    currentStrategy = document.getElementById("strategy-select").value;
-    devLogOpen = false;
-    document.getElementById("devlog-btn").classList.remove("active");
-    renderSidebar();
-
-    /* auto-select most recent version for new strategy */
-    var svs = getStrategyVersions();
-    if (svs.length > 0) {
-      var lastIdx = svs[svs.length - 1].idx;
-      var firstItem = document.querySelector(".v-item");
-      if (firstItem) firstItem.classList.add("active");
-      renderContent(lastIdx);
-    } else {
-      document.getElementById("content").innerHTML =
-        "<div id='empty-state'>" +
-          "<span style='font-size:36px'>&#128202;</span>" +
-          "<span>No runs for <strong>" + esc(currentStrategy) + "</strong> yet</span>" +
-        "</div>";
-    }
-  }
-
-  /* ── Init ──────────────────────────────────────────────────── */
-  document.getElementById("strategy-select").addEventListener("change", onStrategyChange);
-
-  document.getElementById("devlog-btn").addEventListener("click", function () {
-    devLogOpen = !devLogOpen;
-    this.classList.toggle("active", devLogOpen);
-    document.querySelectorAll(".v-item").forEach(function (e) {
-      e.classList.remove("active");
-    });
-    if (devLogOpen) {
-      showDevLog();
-    } else {
-      /* re-select most recent version */
-      var svs = getStrategyVersions();
-      if (svs.length > 0) {
-        var lastIdx = svs[svs.length - 1].idx;
-        var firstItem = document.querySelector(".v-item");
-        if (firstItem) firstItem.classList.add("active");
-        renderContent(lastIdx);
-      }
-    }
-  });
-
-  renderSidebar();
-  var svs = getStrategyVersions();
-  if (svs.length > 0) {
-    var lastIdx = svs[svs.length - 1].idx;
-    var firstItem = document.querySelector(".v-item");
-    if (firstItem) firstItem.classList.add("active");
-    renderContent(lastIdx);
-  }
-})();
-</script>
+    <script>
+        (function () {
+            "use strict";
+
+            var VERSIONS = JSON.parse(document.getElementById("versions-data").textContent);
+            var currentStrategy = "Trend Following";
+            var devLogOpen = false;
+
+            /* ── Helpers ──────────────────────────────────────────────── */
+            function fmt(n, d) {
+                if (n === null || n === undefined || (typeof n === "number" && isNaN(n))) return "&#8212;";
+                return Number(n).toFixed(d !== undefined ? d : 2);
+            }
+
+            function fmtMoney(n) {
+                if (n === null || n === undefined) return "&#8212;";
+                var s = n >= 0 ? "+" : "";
+                return s + "$" + Math.abs(n).toFixed(2);
+            }
+
+            function pClass(n) {
+                if (n === null || n === undefined) return "";
+                return n >= 0 ? "pos" : "neg";
+            }
+
+            function esc(s) {
+                if (s === null || s === undefined) return "";
+                return String(s)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;");
+            }
+
+            function row(label, value) {
+                var v = (value === null || value === undefined) ? "&#8212;" : value;
+                return "<tr><td class='lbl'>" + label + "</td><td>" + v + "</td></tr>";
+            }
+
+            function fmtMonth(s) {
+                var names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                var parts = String(s).split("-");
+                if (parts.length < 2) return s;
+                var idx = parseInt(parts[1], 10) - 1;
+                return names[idx] + " " + parts[0];
+            }
+
+            /* ── Toast ──────────────────────────────────────────────── */
+            function showToast() {
+                var toast = document.getElementById("copy-toast");
+                toast.classList.add("show");
+                setTimeout(function () { toast.classList.remove("show"); }, 2200);
+            }
+
+            /* ── Markdown builder ───────────────────────────────────── */
+            function buildMarkdown(ver) {
+                var m = ver.metrics || {};
+                var p = ver.params || {};
+
+                function mf(n, d) {
+                    if (n === null || n === undefined || (typeof n === "number" && isNaN(n))) return "—";
+                    return Number(n).toFixed(d !== undefined ? d : 2);
+                }
+                function mfMoney(n) {
+                    if (n === null || n === undefined) return "—";
+                    var f = Number(n);
+                    return (f >= 0 ? "+" : "-") + "$" + Math.abs(f).toFixed(2);
+                }
+
+                var pf = (m.profit_factor === null || m.profit_factor === undefined) ? "\u221e" : mf(m.profit_factor);
+                var npStr = mfMoney(m.net_profit);
+                if (m.net_profit_pct !== null && m.net_profit_pct !== undefined) {
+                    npStr += " (" + (m.net_profit_pct >= 0 ? "+" : "") + mf(m.net_profit_pct, 1) + "%)";
+                }
+
+                var lines = [];
+                lines.push("## Backtest Report \u2014 " + (ver.name || "?"));
+                lines.push("");
+                lines.push("**Strategy:** " + (ver.strategy || "\u2014"));
+                lines.push("**Instrument:** " + (p.ticker || "\u2014") + " \u00b7 " + (p.interval || "\u2014") + " \u00b7 " + (p.days_back || "\u2014") + " days");
+                lines.push("**Date:** " + (ver.date || "\u2014"));
+                if (ver.notes && ver.notes !== "\u2014" && ver.notes !== "\u2014") {
+                    lines.push("**Notes:** " + ver.notes);
+                }
+                lines.push("");
+
+                lines.push("### Results");
+                lines.push("");
+                lines.push("| Metric | Value |");
+                lines.push("|--------|-------|");
+                lines.push("| Total Trades | " + (m.total_trades !== undefined ? m.total_trades : "\u2014") + " |");
+                lines.push("| Winning Trades | " + (m.winning_trades !== undefined ? m.winning_trades : "\u2014") + " |");
+                lines.push("| Losing Trades | " + (m.losing_trades !== undefined ? m.losing_trades : "\u2014") + " |");
+                lines.push("| Win Rate | " + mf(m.win_rate, 1) + "% |");
+                lines.push("| Profit Factor | " + pf + " |");
+                lines.push("| Net Profit | " + npStr + " |");
+                lines.push("| Final Equity | $" + mf(m.final_equity) + " |");
+                lines.push("| Max Drawdown | " + mf(m.max_drawdown) + "% |");
+                lines.push("| Sharpe Ratio | " + mf(m.sharpe) + " |");
+                lines.push("| Avg Win | " + (m.avg_win !== null && m.avg_win !== undefined ? "$" + mf(m.avg_win) : "\u2014") + " |");
+                lines.push("| Avg Loss | " + (m.avg_loss !== null && m.avg_loss !== undefined ? "$" + mf(m.avg_loss) : "\u2014") + " |");
+                lines.push("| Best Trade | " + mfMoney(m.best_trade) + " |");
+                lines.push("| Worst Trade | " + mfMoney(m.worst_trade) + " |");
+                lines.push("");
+
+                lines.push("### Parameters");
+                lines.push("");
+                lines.push("| Parameter | Value |");
+                lines.push("|-----------|-------|");
+                lines.push("| Instrument | " + (p.ticker || "\u2014") + " |");
+                lines.push("| Interval | " + (p.interval || "\u2014") + " |");
+                lines.push("| History | " + (p.days_back || "\u2014") + " days |");
+                lines.push("| Starting Cash | $" + (p.starting_cash || 0).toLocaleString() + " |");
+                lines.push("| EMA Slow | " + (p.ema_slow || "\u2014") + " |");
+                lines.push("| EMA Fast | " + (p.ema_fast || "\u2014") + " |");
+                lines.push("| EMA Entry | " + (p.ema_entry || "\u2014") + " |");
+                lines.push("| Swing Lookback | " + (p.swing_lookback || "\u2014") + " bars |");
+                lines.push("| RRR | 1:" + (p.rrr || "\u2014") + " |");
+                lines.push("| Risk / Trade | " + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
+                lines.push("| Min Stop | " + ((p.min_stop || 0) * 10000).toFixed(0) + " pips |");
+                lines.push("| Max Stop | " + ((p.max_stop || 0) * 10000).toFixed(0) + " pips |");
+                lines.push("");
+
+                /* ── Performance by Direction ──────────────────── */
+                lines.push("### Performance by Direction");
+                lines.push("");
+                lines.push("| Direction | Trades | Win Rate | Profit Factor | Avg Win | Avg Loss | Net P&L |");
+                lines.push("|-----------|--------|----------|---------------|---------|----------|---------|");
+                var bd = m.by_direction || {};
+                ["long", "short"].forEach(function (d) {
+                    var data = bd[d];
+                    if (!data) {
+                        lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) + " | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
+                        return;
+                    }
+                    var dpf = (data.profit_factor === null || data.profit_factor === undefined) ? "\u221e" : mf(data.profit_factor);
+                    lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) +
+                        " | " + data.count +
+                        " | " + mf(data.win_rate, 1) + "%" +
+                        " | " + dpf +
+                        " | " + (data.avg_win !== null && data.avg_win !== undefined ? "$" + mf(data.avg_win) : "\u2014") +
+                        " | " + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + mf(Math.abs(data.avg_loss)) : "\u2014") +
+                        " | " + mfMoney(data.net_pnl) + " |");
+                });
+                lines.push("");
+
+                /* ── Monthly Performance ────────────────────────── */
+                lines.push("### Monthly Performance");
+                lines.push("");
+                lines.push("| Month | Trades | Wins | Losses | Win Rate | Net P&L |");
+                lines.push("|-------|--------|------|--------|----------|---------|");
+                var monthly = m.monthly || [];
+                if (monthly.length === 0) {
+                    lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
+                } else {
+                    monthly.forEach(function (mo) {
+                        var mnames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                        var parts = String(mo.month).split("-");
+                        var mLabel = parts.length >= 2 ? mnames[parseInt(parts[1], 10) - 1] + " " + parts[0] : mo.month;
+                        lines.push("| " + mLabel +
+                            " | " + mo.trades +
+                            " | " + mo.wins +
+                            " | " + mo.losses +
+                            " | " + mf(mo.win_rate, 1) + "%" +
+                            " | " + mfMoney(mo.net_pnl) + " |");
+                    });
+                }
+                lines.push("");
+
+                /* ── Streak Analysis ────────────────────────────── */
+                var str = m.streaks || {};
+                lines.push("### Streak Analysis");
+                lines.push("");
+                lines.push("| Metric | Value |");
+                lines.push("|--------|-------|");
+                lines.push("| Max Win Streak | " + (str.max_win_streak !== undefined ? str.max_win_streak + " trades" : "\u2014") + " |");
+                lines.push("| Max Loss Streak | " + (str.max_loss_streak !== undefined ? str.max_loss_streak + " trades" : "\u2014") + " |");
+                lines.push("| Avg Win Streak | " + (str.avg_win_streak !== undefined ? str.avg_win_streak : "\u2014") + " |");
+                lines.push("| Avg Loss Streak | " + (str.avg_loss_streak !== undefined ? str.avg_loss_streak : "\u2014") + " |");
+                lines.push("| Current Streak | " + (str.current_streak || "\u2014") + " |");
+                lines.push("");
+
+                /* ── Stop vs Target ─────────────────────────────── */
+                var st = m.stop_target || {};
+                lines.push("### Stop vs Target");
+                lines.push("");
+                lines.push("| Metric | Value |");
+                lines.push("|--------|-------|");
+                lines.push("| Hit Stop Loss | " + (st.pct_sl !== null && st.pct_sl !== undefined ? st.pct_sl + "%" : "\u2014") + " |");
+                lines.push("| Hit Take Profit | " + (st.pct_tp !== null && st.pct_tp !== undefined ? st.pct_tp + "%" : "\u2014") + " |");
+                lines.push("| Avg MAE | " + (st.avg_mae !== null && st.avg_mae !== undefined ? st.avg_mae + " pips" : "\u2014") + " |");
+                lines.push("");
+                return lines.join("\n");
+            }
+
+            /* ── Strategy filter ─────────────────────────────────────── */
+            function getStrategyVersions() {
+                var result = [];
+                for (var i = 0; i < VERSIONS.length; i++) {
+                    var strat = VERSIONS[i].strategy || "Trend Following";
+                    if (strat === currentStrategy) {
+                        result.push({ v: VERSIONS[i], idx: i });
+                    }
+                }
+                return result;
+            }
+
+            /* ── Sidebar ──────────────────────────────────────────────── */
+            function renderSidebar() {
+                var svs = getStrategyVersions();
+                document.getElementById("run-count").textContent =
+                    svs.length + " run" + (svs.length !== 1 ? "s" : "");
+
+                var list = document.getElementById("version-list");
+                list.innerHTML = "";
+
+                if (svs.length === 0) {
+                    list.innerHTML = "<div style='padding:20px 16px;color:#404060;font-size:12px'>No runs for this strategy yet.</div>";
+                    return;
+                }
+
+                for (var ri = svs.length - 1; ri >= 0; ri--) {
+                    var entry = svs[ri];
+                    var v = entry.v;
+                    var idx = entry.idx;
+                    var pnl = v.metrics ? v.metrics.net_profit : null;
+                    var pc = pnl === null ? "" : (pnl >= 0 ? "pos" : "neg");
+                    var ptxt = pnl === null ? "" :
+                        (pnl >= 0 ? "+" : "") + "$" + Math.abs(pnl).toFixed(2);
+
+                    var item = document.createElement("div");
+                    item.className = "v-item";
+                    item.dataset.idx = idx;
+                    item.innerHTML =
+                        "<div class='v-name'>" + esc(v.name) + "</div>" +
+                        "<div class='v-date'>" + esc(v.date) + "</div>" +
+                        (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "");
+
+                    (function (el, origIdx) {
+                        el.addEventListener("click", function () {
+                            devLogOpen = false;
+                            document.getElementById("devlog-btn").classList.remove("active");
+                            document.querySelectorAll(".v-item").forEach(function (e) {
+                                e.classList.remove("active");
+                            });
+                            el.classList.add("active");
+                            renderContent(origIdx);
+                        });
+                    })(item, idx);
+
+                    list.appendChild(item);
+                }
+            }
+
+            /* ── Content ──────────────────────────────────────────────── */
+            function renderContent(idx) {
+                var v = VERSIONS[idx];
+                if (!v) return;
+
+                var m = v.metrics || {};
+                var p = v.params || {};
+
+                /* profit factor display */
+                var pfTxt = (m.profit_factor === null || m.profit_factor === undefined)
+                    ? "&#8734;" : fmt(m.profit_factor);
+                var pfCls = (m.profit_factor === null || m.profit_factor === undefined || m.profit_factor >= 1.5)
+                    ? "pos" : (m.profit_factor < 1.0 ? "neg" : "neu");
+
+                /* ── Analytical section builders ──────────────────────────── */
+
+                /* 1. Performance by Direction */
+                var bd = m.by_direction || {};
+                var bdLng = bd.long || null;
+                var bdSht = bd.short || null;
+                function dirRow(label, data) {
+                    if (!data) {
+                        return "<tr><td><strong>" + label + "</strong></td>" +
+                            "<td colspan='6' style='color:#404060'>No data</td></tr>";
+                    }
+                    var dpf = (data.profit_factor === null || data.profit_factor === undefined) ? "\u221e" : fmt(data.profit_factor);
+                    var dpfCls = (data.profit_factor === null || data.profit_factor === undefined || data.profit_factor >= 1.5) ? "pos" : (data.profit_factor < 1.0 ? "neg" : "neu");
+                    return "<tr>" +
+                        "<td><strong>" + label + "</strong></td>" +
+                        "<td>" + data.count + "</td>" +
+                        "<td class='" + (data.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(data.win_rate, 1) + "%</td>" +
+                        "<td class='" + dpfCls + "'>" + dpf + "</td>" +
+                        "<td class='pos'>" + (data.avg_win !== null && data.avg_win !== undefined ? "$" + fmt(data.avg_win) : "\u2014") + "</td>" +
+                        "<td class='neg'>" + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + fmt(Math.abs(data.avg_loss)) : "\u2014") + "</td>" +
+                        "<td class='" + pClass(data.net_pnl) + "'>" + fmtMoney(data.net_pnl) + "</td>" +
+                        "</tr>";
+                }
+                var dirHtml =
+                    "<div class='section'>" +
+                    "<div class='section-title'>Performance by Direction</div>" +
+                    "<table><thead><tr>" +
+                    "<th>Direction</th><th>Trades</th><th>Win Rate</th>" +
+                    "<th>Profit Factor</th><th>Avg Win</th><th>Avg Loss</th><th>Net P&amp;L</th>" +
+                    "</tr></thead><tbody>" +
+                    dirRow("Long", bdLng) + dirRow("Short", bdSht) +
+                    "</tbody></table></div>";
+
+                /* 2. Monthly Performance */
+                var monthly = m.monthly || [];
+                var mRows = "";
+                monthly.forEach(function (mo) {
+                    var pc = mo.net_pnl >= 0 ? "#6bcb77" : "#ff6b6b";
+                    var bg = mo.net_pnl >= 0 ? "rgba(107,203,119,.08)" : "rgba(255,107,107,.08)";
+                    mRows +=
+                        "<tr>" +
+                        "<td>" + fmtMonth(mo.month) + "</td>" +
+                        "<td>" + mo.trades + "</td>" +
+                        "<td class='pos'>" + mo.wins + "</td>" +
+                        "<td class='neg'>" + mo.losses + "</td>" +
+                        "<td class='" + (mo.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(mo.win_rate, 1) + "%</td>" +
+                        "<td style='color:" + pc + ";background:" + bg + ";font-weight:600'>" + fmtMoney(mo.net_pnl) + "</td>" +
+                        "</tr>";
+                });
+                if (!mRows) {
+                    mRows = "<tr><td colspan='6' style='color:#404060;text-align:center;padding:20px'>No data</td></tr>";
+                }
+                var monthHtml =
+                    "<div class='section'>" +
+                    "<div class='section-title'>Monthly Performance</div>" +
+                    "<table><thead><tr>" +
+                    "<th>Month</th><th>Trades</th><th>Wins</th><th>Losses</th>" +
+                    "<th>Win Rate</th><th>Net P&amp;L</th>" +
+                    "</tr></thead><tbody>" + mRows + "</tbody></table></div>";
+
+                /* 3. Streak Analysis */
+                var str = m.streaks || {};
+                var streakHtml =
+                    "<div class='section'>" +
+                    "<div class='section-title'>Streak Analysis</div>" +
+                    "<table><tbody>" +
+                    row("Max Win Streak", str.max_win_streak !== undefined ? str.max_win_streak + " trades" : "\u2014") +
+                    row("Max Loss Streak", str.max_loss_streak !== undefined ? str.max_loss_streak + " trades" : "\u2014") +
+                    row("Avg Win Streak", str.avg_win_streak !== undefined ? str.avg_win_streak : "\u2014") +
+                    row("Avg Loss Streak", str.avg_loss_streak !== undefined ? str.avg_loss_streak : "\u2014") +
+                    row("Current Streak", str.current_streak || "\u2014") +
+                    "</tbody></table></div>";
+
+                /* 4. Stop vs Target */
+                var st = m.stop_target || {};
+                var stopHtml =
+                    "<div class='section'>" +
+                    "<div class='section-title'>Stop vs Target</div>" +
+                    "<table><tbody>" +
+                    row("Hit Stop Loss", st.pct_sl !== null && st.pct_sl !== undefined ? "<span class='neg'>" + st.pct_sl + "%</span>" : "\u2014") +
+                    row("Hit Take Profit", st.pct_tp !== null && st.pct_tp !== undefined ? "<span class='pos'>" + st.pct_tp + "%</span>" : "\u2014") +
+                    row("Avg MAE", st.avg_mae !== null && st.avg_mae !== undefined ? st.avg_mae + " pips" : "\u2014") +
+                    "</tbody></table></div>";
+
+                var chartHtml = v.chart_b64
+                    ? "<div class='section'><div class='section-title'>Chart</div>" +
+                    "<img id='chart-img' src='data:image/png;base64," + v.chart_b64 + "' alt='Backtest Chart'/></div>"
+                    : "";
+
+                var notesHtml = (v.notes && v.notes !== "&#8212;" && v.notes !== "\u2014" && v.notes !== "—")
+                    ? "<div class='v-notes'>&#128221;&nbsp; " + esc(v.notes) + "</div>"
+                    : "";
+
+                var winRateCls = m.win_rate >= 50 ? "pos" : "neg";
+                var sharpeCls = m.sharpe >= 1 ? "pos" : (m.sharpe < 0 ? "neg" : "neu");
+
+                var avgWinHtml = m.avg_win !== null && m.avg_win !== undefined
+                    ? "<span class='pos'>$" + fmt(m.avg_win) + "</span>" : "&#8212;";
+                var avgLossHtml = m.avg_loss !== null && m.avg_loss !== undefined
+                    ? "<span class='neg'>" + fmt(m.avg_loss) + "</span>" : "&#8212;";
+
+                var stratBadge = (v.strategy)
+                    ? "<span style='font-size:11px;background:#1a1a30;border:1px solid #2a2a44;border-radius:4px;padding:2px 8px;color:#6060a0;margin-left:8px'>" + esc(v.strategy) + "</span>"
+                    : "";
+
+                document.getElementById("content").innerHTML =
+                    /* header */
+                    "<div id='v-header'>" +
+                    "<div id='v-header-top'>" +
+                    "<h2>" + esc(v.name) + stratBadge + "</h2>" +
+                    "<button id='copy-btn' class='copy-btn'>Copy Report</button>" +
+                    "</div>" +
+                    "<div class='v-meta'>Run on " + esc(v.date) +
+                    " &nbsp;&middot;&nbsp; " + esc(p.ticker || "") +
+                    " " + esc(p.interval || "") +
+                    " &nbsp;&middot;&nbsp; " + (p.days_back || "") + " days</div>" +
+                    notesHtml +
+                    "</div>" +
+
+                    /* results + params */
+                    "<div class='two-col'>" +
+
+                    "<div class='section'>" +
+                    "<div class='section-title'>Results</div>" +
+                    "<table><tbody>" +
+                    row("Total Trades", m.total_trades) +
+                    row("Winning Trades", m.winning_trades) +
+                    row("Losing Trades", m.losing_trades) +
+                    row("Win Rate", "<span class='" + winRateCls + "'>" + fmt(m.win_rate, 1) + "%</span>") +
+                    row("Profit Factor", "<span class='" + pfCls + "'>" + pfTxt + "</span>") +
+                    row("Net Profit", "<span class='" + pClass(m.net_profit) + "'>" +
+                        fmtMoney(m.net_profit) + " (" + (m.net_profit_pct >= 0 ? "+" : "") + fmt(m.net_profit_pct, 1) + "%)</span>") +
+                    row("Final Equity", "$" + fmt(m.final_equity)) +
+                    row("Max Drawdown", "<span class='neg'>" + fmt(m.max_drawdown) + "%</span>") +
+                    row("Sharpe Ratio", "<span class='" + sharpeCls + "'>" + fmt(m.sharpe) + "</span>") +
+                    row("Avg Win", avgWinHtml) +
+                    row("Avg Loss", avgLossHtml) +
+                    row("Best Trade", "<span class='pos'>" + fmtMoney(m.best_trade) + "</span>") +
+                    row("Worst Trade", "<span class='neg'>" + fmtMoney(m.worst_trade) + "</span>") +
+                    "</tbody></table>" +
+                    "</div>" +
+
+                    "<div class='section'>" +
+                    "<div class='section-title'>Parameters</div>" +
+                    "<table><tbody>" +
+                    row("Instrument", esc(p.ticker || "")) +
+                    row("Interval", esc(p.interval || "")) +
+                    row("History", (p.days_back || "") + " days") +
+                    row("Starting Cash", "$" + (p.starting_cash || 0).toLocaleString()) +
+                    row("EMA Slow", p.ema_slow) +
+                    row("EMA Fast", p.ema_fast) +
+                    row("EMA Entry", p.ema_entry) +
+                    row("Swing Lookback", (p.swing_lookback || "") + " bars") +
+                    row("RRR", "1&thinsp;:&thinsp;" + (p.rrr || "")) +
+                    row("Risk / Trade", ((p.risk_pct || 0) * 100).toFixed(1) + "%") +
+                    row("Min Stop", ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
+                    row("Max Stop", ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
+                    "</tbody></table>" +
+                    "</div>" +
+
+                    "</div>" +
+
+                    /* chart */
+                    chartHtml +
+
+                    /* analytical sections */
+                    dirHtml +
+                    monthHtml +
+                    "<div class='two-col'>" + streakHtml + stopHtml + "</div>";
+
+                /* Wire copy button */
+                (function (ver) {
+                    var btn = document.getElementById("copy-btn");
+                    if (!btn) return;
+                    btn.addEventListener("click", function () {
+                        var md = buildMarkdown(ver);
+                        navigator.clipboard.writeText(md).then(function () {
+                            btn.textContent = "\u2713 Copied!";
+                            btn.classList.add("copied");
+                            showToast();
+                            setTimeout(function () {
+                                btn.textContent = "Copy Report";
+                                btn.classList.remove("copied");
+                            }, 2200);
+                        }).catch(function () {
+                            btn.textContent = "Failed";
+                            setTimeout(function () { btn.textContent = "Copy Report"; }, 2500);
+                        });
+                    });
+                }(v));
+            }
+
+            /* ── Dev Log ──────────────────────────────────────────────── */
+            function showDevLog() {
+                var svs = getStrategyVersions();
+
+                if (svs.length === 0) {
+                    document.getElementById("content").innerHTML =
+                        "<div id='devlog-header'>" +
+                        "<h2>Development Log</h2>" +
+                        "<div class='v-meta'>" + esc(currentStrategy) + " &mdash; no runs yet</div>" +
+                        "</div>";
+                    return;
+                }
+
+                var dlRows = "";
+                var prevPF = null;
+
+                for (var i = 0; i < svs.length; i++) {
+                    var entry = svs[i];
+                    var v = entry.v;
+                    var m = v.metrics || {};
+
+                    var pf = (m.profit_factor !== null && m.profit_factor !== undefined) ? m.profit_factor : null;
+                    var wr = (m.win_rate !== null && m.win_rate !== undefined) ? m.win_rate : null;
+                    var np = (m.net_profit !== null && m.net_profit !== undefined) ? m.net_profit : null;
+
+                    /* PF change arrow */
+                    var arrowHtml = "";
+                    if (prevPF !== null && pf !== null) {
+                        if (pf > prevPF + 0.005) {
+                            arrowHtml = "<span class='arrow-up'>&#9650;</span>";
+                        } else if (pf < prevPF - 0.005) {
+                            arrowHtml = "<span class='arrow-dn'>&#9660;</span>";
+                        } else {
+                            arrowHtml = "<span class='arrow-nc'>&#8213;</span>";
+                        }
+                    }
+                    if (pf !== null) prevPF = pf;
+
+                    var pfDisp = (pf === null) ? "&#8212;" :
+                        "<span class='" + (pf >= 1.5 ? "pos" : (pf < 1.0 ? "neg" : "neu")) + "'>" + pf.toFixed(2) + "</span>" + arrowHtml;
+
+                    var wrDisp = (wr === null) ? "&#8212;" :
+                        "<span class='" + (wr >= 50 ? "pos" : "neg") + "'>" + wr.toFixed(1) + "%</span>";
+
+                    var npDisp = (np === null) ? "&#8212;" :
+                        "<span class='" + (np >= 0 ? "pos" : "neg") + "'>" + fmtMoney(np) + "</span>";
+
+                    var notes = (v.notes && v.notes !== "—" && v.notes !== "\u2014") ? esc(v.notes) : "<span style='color:#404060'>—</span>";
+
+                    dlRows +=
+                        "<tr>" +
+                        "<td style='white-space:nowrap;font-weight:600;color:#c8c8e8'>" + esc(v.name) + "</td>" +
+                        "<td style='white-space:nowrap;color:#505070'>" + esc(v.date) + "</td>" +
+                        "<td class='dl-notes'>" + notes + "</td>" +
+                        "<td style='text-align:right;white-space:nowrap'>" + pfDisp + "</td>" +
+                        "<td style='text-align:right;white-space:nowrap'>" + wrDisp + "</td>" +
+                        "<td style='text-align:right;white-space:nowrap'>" + npDisp + "</td>" +
+                        "</tr>";
+                }
+
+                document.getElementById("content").innerHTML =
+                    "<div id='devlog-header'>" +
+                    "<h2>Development Log</h2>" +
+                    "<div class='v-meta'>" + esc(currentStrategy) + " &mdash; " + svs.length + " run" + (svs.length !== 1 ? "s" : "") + "</div>" +
+                    "</div>" +
+                    "<div class='section'>" +
+                    "<table class='devlog-table'>" +
+                    "<thead><tr>" +
+                    "<th>Version</th><th>Date</th><th>Change</th>" +
+                    "<th style='text-align:right'>Profit Factor</th>" +
+                    "<th style='text-align:right'>Win Rate</th>" +
+                    "<th style='text-align:right'>Net P&amp;L</th>" +
+                    "</tr></thead>" +
+                    "<tbody>" + dlRows + "</tbody>" +
+                    "</table>" +
+                    "</div>";
+            }
+
+            /* ── Strategy change ─────────────────────────────────────── */
+            function onStrategyChange() {
+                currentStrategy = document.getElementById("strategy-select").value;
+                devLogOpen = false;
+                document.getElementById("devlog-btn").classList.remove("active");
+                renderSidebar();
+
+                /* auto-select most recent version for new strategy */
+                var svs = getStrategyVersions();
+                if (svs.length > 0) {
+                    var lastIdx = svs[svs.length - 1].idx;
+                    var firstItem = document.querySelector(".v-item");
+                    if (firstItem) firstItem.classList.add("active");
+                    renderContent(lastIdx);
+                } else {
+                    document.getElementById("content").innerHTML =
+                        "<div id='empty-state'>" +
+                        "<span style='font-size:36px'>&#128202;</span>" +
+                        "<span>No runs for <strong>" + esc(currentStrategy) + "</strong> yet</span>" +
+                        "</div>";
+                }
+            }
+
+            /* ── Init ──────────────────────────────────────────────────── */
+            document.getElementById("strategy-select").addEventListener("change", onStrategyChange);
+
+            document.getElementById("devlog-btn").addEventListener("click", function () {
+                devLogOpen = !devLogOpen;
+                this.classList.toggle("active", devLogOpen);
+                document.querySelectorAll(".v-item").forEach(function (e) {
+                    e.classList.remove("active");
+                });
+                if (devLogOpen) {
+                    showDevLog();
+                } else {
+                    /* re-select most recent version */
+                    var svs = getStrategyVersions();
+                    if (svs.length > 0) {
+                        var lastIdx = svs[svs.length - 1].idx;
+                        var firstItem = document.querySelector(".v-item");
+                        if (firstItem) firstItem.classList.add("active");
+                        renderContent(lastIdx);
+                    }
+                }
+            });
+
+            renderSidebar();
+            var svs = getStrategyVersions();
+            if (svs.length > 0) {
+                var lastIdx = svs[svs.length - 1].idx;
+                var firstItem = document.querySelector(".v-item");
+                if (firstItem) firstItem.classList.add("active");
+                renderContent(lastIdx);
+            }
+        })();
+    </script>
 
 </body>
+
 </html>
