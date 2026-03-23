@@ -49,6 +49,7 @@ ADX_THRESHOLD   = 25         # only trade when ADX is above this
 
 VERSION         = "v3"
 NOTES           = "Added ADX 14 filter — only trade when ADX above 25"
+STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
 
@@ -420,7 +421,7 @@ def _build_html(versions_json):
       overflow: hidden;
     }
     #sidebar-header {
-      padding: 20px 16px 14px;
+      padding: 18px 16px 14px;
       border-bottom: 1px solid #1e1e30;
       flex-shrink: 0;
     }
@@ -435,7 +436,35 @@ def _build_html(versions_json):
       font-size: 11px;
       color: #404060;
       margin-top: 4px;
+      margin-bottom: 12px;
     }
+    .sb-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #484868;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 6px;
+    }
+    #strategy-select {
+      width: 100%;
+      background: #181828;
+      color: #c0c0e0;
+      border: 1px solid #2a2a44;
+      border-radius: 5px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23505080'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+    #strategy-select:focus { border-color: #4cc9f0; }
+
     #version-list { overflow-y: auto; flex: 1; }
     .v-item {
       padding: 12px 16px;
@@ -449,6 +478,27 @@ def _build_html(versions_json):
     .v-name { font-size: 14px; font-weight: 600; color: #c8c8e8; }
     .v-date { font-size: 11px; color: #505070; margin-top: 3px; }
     .v-pnl  { font-size: 12px; font-weight: 600; margin-top: 5px; }
+
+    #sidebar-footer {
+      border-top: 1px solid #1e1e30;
+      padding: 12px 16px;
+      flex-shrink: 0;
+    }
+    #devlog-btn {
+      width: 100%;
+      background: #181828;
+      color: #9090c0;
+      border: 1px solid #2a2a44;
+      border-radius: 5px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.15s, color 0.15s;
+    }
+    #devlog-btn:hover { background: #1e1e38; color: #c0c0e0; }
+    #devlog-btn.active { background: #182040; border-color: #4cc9f0; color: #4cc9f0; }
 
     /* ── Main ─────────────────────────────────────────────── */
     #main { flex: 1; overflow-y: auto; padding: 30px 38px 52px; }
@@ -534,6 +584,16 @@ def _build_html(versions_json):
       color: #303050; font-size: 15px; gap: 10px;
     }
 
+    /* ── Dev log ──────────────────────────────────────────── */
+    #devlog-header { margin-bottom: 28px; }
+    #devlog-header h2 { font-size: 24px; font-weight: 700; color: #e4e4ff; }
+    #devlog-header .v-meta { font-size: 12px; color: #505070; margin-top: 6px; }
+    .devlog-table thead th { white-space: nowrap; }
+    .devlog-table .dl-notes { color: #9090c0; font-size: 12px; max-width: 300px; }
+    .arrow-up { color: #6bcb77; font-weight: 700; margin-left: 5px; }
+    .arrow-dn { color: #ff6b6b; font-weight: 700; margin-left: 5px; }
+    .arrow-nc { color: #505070; margin-left: 5px; }
+
     /* ── Scrollbars ───────────────────────────────────────── */
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -546,8 +606,17 @@ def _build_html(versions_json):
   <div id="sidebar-header">
     <h1>Backtest History</h1>
     <div id="run-count"></div>
+    <div class="sb-label">Strategy</div>
+    <select id="strategy-select">
+      <option value="Trend Following">Trend Following</option>
+      <option value="Counter Trend">Counter Trend</option>
+      <option value="Range Trading">Range Trading</option>
+    </select>
   </div>
   <div id="version-list"></div>
+  <div id="sidebar-footer">
+    <button id="devlog-btn">&#128203;&nbsp; Development Log</button>
+  </div>
 </div>
 
 <div id="main">
@@ -568,6 +637,8 @@ __VERSIONS_JSON__
   "use strict";
 
   var VERSIONS = JSON.parse(document.getElementById("versions-data").textContent);
+  var currentStrategy = "Trend Following";
+  var devLogOpen = false;
 
   /* ── Helpers ──────────────────────────────────────────────── */
   function fmt(n, d) {
@@ -600,38 +671,60 @@ __VERSIONS_JSON__
     return "<tr><td class='lbl'>" + label + "</td><td>" + v + "</td></tr>";
   }
 
+  /* ── Strategy filter ─────────────────────────────────────── */
+  function getStrategyVersions() {
+    var result = [];
+    for (var i = 0; i < VERSIONS.length; i++) {
+      var strat = VERSIONS[i].strategy || "Trend Following";
+      if (strat === currentStrategy) {
+        result.push({ v: VERSIONS[i], idx: i });
+      }
+    }
+    return result;
+  }
+
   /* ── Sidebar ──────────────────────────────────────────────── */
   function renderSidebar() {
+    var svs  = getStrategyVersions();
     document.getElementById("run-count").textContent =
-      VERSIONS.length + " run" + (VERSIONS.length !== 1 ? "s" : "");
+      svs.length + " run" + (svs.length !== 1 ? "s" : "");
 
     var list = document.getElementById("version-list");
     list.innerHTML = "";
 
-    for (var ri = VERSIONS.length - 1; ri >= 0; ri--) {
-      var v    = VERSIONS[ri];
+    if (svs.length === 0) {
+      list.innerHTML = "<div style='padding:20px 16px;color:#404060;font-size:12px'>No runs for this strategy yet.</div>";
+      return;
+    }
+
+    for (var ri = svs.length - 1; ri >= 0; ri--) {
+      var entry = svs[ri];
+      var v    = entry.v;
+      var idx  = entry.idx;
       var pnl  = v.metrics ? v.metrics.net_profit : null;
       var pc   = pnl === null ? "" : (pnl >= 0 ? "pos" : "neg");
       var ptxt = pnl === null ? "" :
         (pnl >= 0 ? "+" : "") + "$" + Math.abs(pnl).toFixed(2);
 
       var item = document.createElement("div");
-      item.className   = "v-item";
-      item.dataset.idx = ri;
-      item.innerHTML   =
+      item.className     = "v-item";
+      item.dataset.idx   = idx;
+      item.innerHTML     =
         "<div class='v-name'>" + esc(v.name) + "</div>" +
         "<div class='v-date'>" + esc(v.date) + "</div>" +
         (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "");
 
-      (function (el, idx) {
+      (function (el, origIdx) {
         el.addEventListener("click", function () {
+          devLogOpen = false;
+          document.getElementById("devlog-btn").classList.remove("active");
           document.querySelectorAll(".v-item").forEach(function (e) {
             e.classList.remove("active");
           });
           el.classList.add("active");
-          renderContent(idx);
+          renderContent(origIdx);
         });
-      })(item, ri);
+      })(item, idx);
 
       list.appendChild(item);
     }
@@ -687,10 +780,14 @@ __VERSIONS_JSON__
     var avgLossHtml = m.avg_loss !== null && m.avg_loss !== undefined
       ? "<span class='neg'>" + fmt(m.avg_loss) + "</span>" : "&#8212;";
 
+    var stratBadge = (v.strategy)
+      ? "<span style='font-size:11px;background:#1a1a30;border:1px solid #2a2a44;border-radius:4px;padding:2px 8px;color:#6060a0;margin-left:8px'>" + esc(v.strategy) + "</span>"
+      : "";
+
     document.getElementById("content").innerHTML =
       /* header */
       "<div id='v-header'>" +
-        "<h2>" + esc(v.name) + "</h2>" +
+        "<h2>" + esc(v.name) + stratBadge + "</h2>" +
         "<div class='v-meta'>Run on " + esc(v.date) +
           " &nbsp;&middot;&nbsp; " + esc(p.ticker || "") +
           " " + esc(p.interval || "") +
@@ -756,12 +853,137 @@ __VERSIONS_JSON__
       "</div>";
   }
 
+  /* ── Dev Log ──────────────────────────────────────────────── */
+  function showDevLog() {
+    var svs = getStrategyVersions();
+
+    if (svs.length === 0) {
+      document.getElementById("content").innerHTML =
+        "<div id='devlog-header'>" +
+          "<h2>Development Log</h2>" +
+          "<div class='v-meta'>" + esc(currentStrategy) + " &mdash; no runs yet</div>" +
+        "</div>";
+      return;
+    }
+
+    var dlRows = "";
+    var prevPF = null;
+
+    for (var i = 0; i < svs.length; i++) {
+      var entry = svs[i];
+      var v = entry.v;
+      var m = v.metrics || {};
+
+      var pf = (m.profit_factor !== null && m.profit_factor !== undefined) ? m.profit_factor : null;
+      var wr = (m.win_rate !== null && m.win_rate !== undefined) ? m.win_rate : null;
+      var np = (m.net_profit !== null && m.net_profit !== undefined) ? m.net_profit : null;
+
+      /* PF change arrow */
+      var arrowHtml = "";
+      if (prevPF !== null && pf !== null) {
+        if (pf > prevPF + 0.005) {
+          arrowHtml = "<span class='arrow-up'>&#9650;</span>";
+        } else if (pf < prevPF - 0.005) {
+          arrowHtml = "<span class='arrow-dn'>&#9660;</span>";
+        } else {
+          arrowHtml = "<span class='arrow-nc'>&#8213;</span>";
+        }
+      }
+      if (pf !== null) prevPF = pf;
+
+      var pfDisp = (pf === null) ? "&#8212;" :
+        "<span class='" + (pf >= 1.5 ? "pos" : (pf < 1.0 ? "neg" : "neu")) + "'>" + pf.toFixed(2) + "</span>" + arrowHtml;
+
+      var wrDisp = (wr === null) ? "&#8212;" :
+        "<span class='" + (wr >= 50 ? "pos" : "neg") + "'>" + wr.toFixed(1) + "%</span>";
+
+      var npDisp = (np === null) ? "&#8212;" :
+        "<span class='" + (np >= 0 ? "pos" : "neg") + "'>" + fmtMoney(np) + "</span>";
+
+      var notes = (v.notes && v.notes !== "—" && v.notes !== "\u2014") ? esc(v.notes) : "<span style='color:#404060'>—</span>";
+
+      dlRows +=
+        "<tr>" +
+        "<td style='white-space:nowrap;font-weight:600;color:#c8c8e8'>" + esc(v.name) + "</td>" +
+        "<td style='white-space:nowrap;color:#505070'>" + esc(v.date) + "</td>" +
+        "<td class='dl-notes'>" + notes + "</td>" +
+        "<td style='text-align:right;white-space:nowrap'>" + pfDisp + "</td>" +
+        "<td style='text-align:right;white-space:nowrap'>" + wrDisp + "</td>" +
+        "<td style='text-align:right;white-space:nowrap'>" + npDisp + "</td>" +
+        "</tr>";
+    }
+
+    document.getElementById("content").innerHTML =
+      "<div id='devlog-header'>" +
+        "<h2>Development Log</h2>" +
+        "<div class='v-meta'>" + esc(currentStrategy) + " &mdash; " + svs.length + " run" + (svs.length !== 1 ? "s" : "") + "</div>" +
+      "</div>" +
+      "<div class='section'>" +
+        "<table class='devlog-table'>" +
+          "<thead><tr>" +
+          "<th>Version</th><th>Date</th><th>Change</th>" +
+          "<th style='text-align:right'>Profit Factor</th>" +
+          "<th style='text-align:right'>Win Rate</th>" +
+          "<th style='text-align:right'>Net P&amp;L</th>" +
+          "</tr></thead>" +
+          "<tbody>" + dlRows + "</tbody>" +
+        "</table>" +
+      "</div>";
+  }
+
+  /* ── Strategy change ─────────────────────────────────────── */
+  function onStrategyChange() {
+    currentStrategy = document.getElementById("strategy-select").value;
+    devLogOpen = false;
+    document.getElementById("devlog-btn").classList.remove("active");
+    renderSidebar();
+
+    /* auto-select most recent version for new strategy */
+    var svs = getStrategyVersions();
+    if (svs.length > 0) {
+      var lastIdx = svs[svs.length - 1].idx;
+      var firstItem = document.querySelector(".v-item");
+      if (firstItem) firstItem.classList.add("active");
+      renderContent(lastIdx);
+    } else {
+      document.getElementById("content").innerHTML =
+        "<div id='empty-state'>" +
+          "<span style='font-size:36px'>&#128202;</span>" +
+          "<span>No runs for <strong>" + esc(currentStrategy) + "</strong> yet</span>" +
+        "</div>";
+    }
+  }
+
   /* ── Init ──────────────────────────────────────────────────── */
+  document.getElementById("strategy-select").addEventListener("change", onStrategyChange);
+
+  document.getElementById("devlog-btn").addEventListener("click", function () {
+    devLogOpen = !devLogOpen;
+    this.classList.toggle("active", devLogOpen);
+    document.querySelectorAll(".v-item").forEach(function (e) {
+      e.classList.remove("active");
+    });
+    if (devLogOpen) {
+      showDevLog();
+    } else {
+      /* re-select most recent version */
+      var svs = getStrategyVersions();
+      if (svs.length > 0) {
+        var lastIdx = svs[svs.length - 1].idx;
+        var firstItem = document.querySelector(".v-item");
+        if (firstItem) firstItem.classList.add("active");
+        renderContent(lastIdx);
+      }
+    }
+  });
+
   renderSidebar();
-  if (VERSIONS.length > 0) {
-    var first = document.querySelector(".v-item");
-    if (first) first.classList.add("active");
-    renderContent(VERSIONS.length - 1);
+  var svs = getStrategyVersions();
+  if (svs.length > 0) {
+    var lastIdx = svs[svs.length - 1].idx;
+    var firstItem = document.querySelector(".v-item");
+    if (firstItem) firstItem.classList.add("active");
+    renderContent(lastIdx);
   }
 })();
 </script>
@@ -835,6 +1057,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
             "max_stop":       MAX_STOP,
         },
         "last_trades": last_trades,
+        "strategy":    STRATEGY,
     }
 
     existing_versions.append(new_version)

@@ -23,6 +23,7 @@ Develop, test and optimise in Python, then deploy as a cTrader Python cBot.
 - Target: 1:2 Risk:Reward ratio
 - Risk per trade: 1% of account
 - Starting capital: $10,000
+- Strategy tag: `STRATEGY = "Trend Following"` (used to group versions in the dashboard)
 
 ## Baseline Results (EURUSD hourly, 720 days)
 - Not yet run on this setup — to be established
@@ -63,3 +64,13 @@ Develop, test and optimise in Python, then deploy as a cTrader Python cBot.
 - Backtests can take 1–2 minutes (data fetch + compute); a spinner shows while running
 - Each run appends a new version to `report.html`; previous versions are never lost
 - The server uses `sys.executable` so it always runs strategy.py with the same Python/venv
+
+## Dashboard UI
+- Strategy dropdown at top of sidebar: Trend Following / Counter Trend / Range Trading
+- Version list filters to show only runs for the selected strategy
+- Each version entry shows version name, date, and net P&L coloured green/red
+- Development Log button at sidebar bottom: shows timeline table of all versions for the
+  selected strategy with version, date, change notes, profit factor (with ▲/▼ arrows vs
+  previous version), win rate, and net P&L
+- `STRATEGY` variable in `strategy.py` tags each run; all 18 existing versions tagged as
+  "Trend Following"
