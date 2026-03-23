@@ -16,6 +16,7 @@ import re
 import json
 import base64
 import os
+import subprocess
 import warnings
 import pandas as pd
 import numpy as np
@@ -849,6 +850,52 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
     print(f"  Report {action} → {report_path}  ({version_num} version{'s' if version_num > 1 else ''})")
     print(f"  Open with:    open {report_path}\n")
 
+# ── Git auto-commit ───────────────────────────────────────────────────────────
+
+def git_commit_and_push(metrics, version, ticker, interval):
+    """Stage all changes, commit with a metrics summary, then push.
+    A failed push prints a warning but never raises — results are already saved."""
+
+    if metrics is None:
+        print("  No metrics — skipping git commit.")
+        return
+
+    pf  = f"{metrics['profit_factor']:.2f}" if metrics["profit_factor"] is not None else "∞"
+    wr  = f"{metrics['win_rate']:.1f}"
+    dd  = f"{metrics['max_drawdown']:.2f}"
+    pnl = f"{metrics['net_profit_pct']:+.1f}"
+    date_str = datetime.now().strftime("%Y-%m-%d")
+
+    msg = (
+        f"backtest {version} {ticker} {interval} {date_str} | "
+        f"WR {wr}% PF {pf} DD {dd}% P&L {pnl}%"
+    )
+
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+
+    try:
+        subprocess.run(["git", "add", "-A"], cwd=repo_dir, check=True)
+        print("  git add -A ... done")
+    except subprocess.CalledProcessError as e:
+        print(f"  ⚠  git add failed: {e}")
+        return
+
+    try:
+        subprocess.run(["git", "commit", "-m", msg], cwd=repo_dir, check=True)
+        print(f"  git commit ... done")
+        print(f"  Commit message: {msg}")
+    except subprocess.CalledProcessError as e:
+        # Exit code 1 means nothing to commit — not a real error
+        print(f"  git commit — nothing new to commit (or error: {e})")
+        return
+
+    try:
+        subprocess.run(["git", "push", "origin", "main"], cwd=repo_dir, check=True)
+        print("  git push origin main ... done\n")
+    except subprocess.CalledProcessError as e:
+        print(f"  ⚠  git push failed (results saved locally): {e}\n")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -861,3 +908,5 @@ if __name__ == "__main__":
     print_results(trades, equity)
     chart_path = save_charts(df, trades, equity)
     generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes)
+    metrics = compute_metrics(trades, equity)
+    git_commit_and_push(metrics, VERSION, TICKER, INTERVAL)
