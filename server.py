@@ -149,6 +149,15 @@ def index():
     return Response(html, mimetype="text/html")
 
 
+@app.route("/style.css")
+def serve_css():
+    """Serve the dashboard stylesheet."""
+    css_path = BASE_DIR / "style.css"
+    if not css_path.exists():
+        return Response("", mimetype="text/css")
+    return Response(css_path.read_text(encoding="utf-8"), mimetype="text/css")
+
+
 @app.route("/run", methods=["POST"])
 def run_backtest():
     """Run strategy.py as a subprocess and return JSON {ok, output|error}."""
