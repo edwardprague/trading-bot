@@ -40,14 +40,14 @@ body {
 #sidebar-header h1 {
     font-size: 10px;
     font-weight: 700;
-    color: #505080;
+    color: steelblue;
     text-transform: uppercase;
     letter-spacing: 0.14em;
 }
 
 #run-count {
     font-size: 11px;
-    color: #404060;
+    color: #aaa;
     margin-top: 4px;
     margin-bottom: 12px;
 }
@@ -55,7 +55,7 @@ body {
 .sb-label {
     font-size: 10px;
     font-weight: 700;
-    color: #484868;
+    color: steelblue;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     margin-bottom: 6px;
@@ -63,11 +63,11 @@ body {
 
 #strategy-select {
     width: 100%;
-    background: #181828;
-    color: #c0c0e0;
+    background: steelblue;
+    color: #fff;
     border: 1px solid #2a2a44;
     border-radius: 5px;
-    padding: 6px 10px;
+    padding: 10px 10px;
     font-size: 12px;
     font-family: inherit;
     cursor: pointer;
@@ -131,9 +131,9 @@ body {
 
 #devlog-btn {
     width: 100%;
-    background: #181828;
-    color: #9090c0;
-    border: 1px solid #2a2a44;
+    background: steelblue;
+    color: #fff;
+    border: 1px solid steelblue;
     border-radius: 5px;
     padding: 8px 12px;
     font-size: 12px;
@@ -144,8 +144,8 @@ body {
 }
 
 #devlog-btn:hover {
-    background: #1e1e38;
-    color: #c0c0e0;
+    background: #55a0dd;
+    color: #fff;
 }
 
 #devlog-btn.active {
@@ -174,7 +174,7 @@ body {
 
 .v-meta {
     font-size: 12px;
-    color: #505070;
+    color: #ccc;
     margin-top: 6px;
     line-height: 1.7;
 }
@@ -182,11 +182,10 @@ body {
 .v-notes {
     margin-top: 14px;
     padding: 11px 16px;
-    background: #13132a;
+    background: #333;
     border-radius: 6px;
-    border-left: 3px solid #4cc9f0;
     font-size: 13px;
-    color: #9090c0;
+    color: #ccc;
     line-height: 1.6;
 }
 
@@ -196,11 +195,11 @@ body {
 }
 
 .section-title {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    color: #484868;
+    color: steelblue;
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid #1a1a2c;
@@ -222,8 +221,8 @@ table {
 }
 
 thead th {
-    background: #131326;
-    color: #505080;
+    background: #333;
+    color: #ccc;
     font-weight: 700;
     padding: 9px 14px;
     text-align: left;
@@ -246,7 +245,7 @@ tbody tr:hover td {
 }
 
 .lbl {
-    color: #707090;
+    color: #aaa;
 }
 
 /* ── Colour helpers ───────────────────────────────────── */
@@ -373,7 +372,7 @@ tbody tr:hover td {
     flex-shrink: 0;
     background: green;
     color: #fff;
-    border: 1px solid #2a2a44;
+    border: 1px solid green;
     border-radius: 5px;
     padding: 6px 14px;
     font-size: 12px;
@@ -385,9 +384,9 @@ tbody tr:hover td {
 }
 
 .copy-btn:hover {
-    background: #1e1e38;
-    color: #c0c0e0;
-    border-color: #3a3a60;
+    background: #02bc02;
+    color: #fff;
+    border-color: #02bc02;
 }
 
 .copy-btn.copied {
