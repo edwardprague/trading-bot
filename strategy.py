@@ -49,8 +49,10 @@ TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 TIME_FILTER       = True
 TIME_FILTER_HOURS = [16, 17, 18, 1, 2, 3, 4]   # UTC hours allowed
 
-VERSION         = "v20"
-NOTES           = "Testing same strategy on GBPUSD — checking if edge generalises across instruments"
+ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
+
+VERSION         = "v21"
+NOTES           = "Added Rolling Profit Factor diagnostic — visualising regime performance over time"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -436,8 +438,8 @@ def print_results(trades, equity):
 # ── Charts ────────────────────────────────────────────────────────────────────
 
 def save_charts(df, trades, equity):
-    fig, axes = plt.subplots(3, 1, figsize=(16, 12),
-                              gridspec_kw={"height_ratios": [3, 1, 1]})
+    fig, axes = plt.subplots(4, 1, figsize=(16, 16),
+                              gridspec_kw={"height_ratios": [3, 1, 1, 1]})
     fig.patch.set_facecolor("#1a1a2e")
     for ax in axes:
         ax.set_facecolor("#16213e")
@@ -499,8 +501,48 @@ def save_charts(df, trades, equity):
     dd    = (eq_s - peak) / peak * 100
     ax3.fill_between(eq_dates[:len(dd)], dd, 0, color="#ff6b6b", alpha=0.6)
     ax3.set_ylabel("Drawdown %", color="white")
-    ax3.set_xlabel("Date", color="white")
     ax3.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+
+    # ── Rolling Profit Factor ──────────────────────────────────────────────────
+    ax4 = axes[3]
+    if not trades.empty and len(trades) >= ROLLING_PF_WINDOW:
+        rpf_vals  = []
+        rpf_dates = []
+        for _i in range(ROLLING_PF_WINDOW - 1, len(trades)):
+            _win = trades.iloc[_i - ROLLING_PF_WINDOW + 1 : _i + 1]
+            _ww  = _win[_win.win]
+            _wl  = _win[~_win.win]
+            if not _wl.empty and _wl.pnl.sum() != 0:
+                _pf = abs(float(_ww.pnl.sum()) / abs(float(_wl.pnl.sum())))
+            elif not _ww.empty:
+                _pf = 5.0   # visual cap for chart
+            else:
+                _pf = 0.0
+            rpf_vals.append(min(_pf, 5.0))   # cap at 5 for readability
+            rpf_dates.append(pd.to_datetime(trades.iloc[_i]["timestamp"]))
+
+        ax4.plot(rpf_dates, rpf_vals, color="#c77dff", linewidth=1.2,
+                 label=f"Rolling PF ({ROLLING_PF_WINDOW} trades)")
+        ax4.axhline(1.0, color="#ff6b6b", linestyle="--", linewidth=1.0,
+                    label="Break Even (1.0)")
+        ax4.axhline(1.3, color="#ffd93d", linestyle="--", linewidth=0.8,
+                    label="Full Risk (1.3)")
+        ax4.fill_between(rpf_dates, rpf_vals, 1.0,
+                         where=[v >= 1.0 for v in rpf_vals],
+                         alpha=0.12, color="#6bcb77")
+        ax4.fill_between(rpf_dates, rpf_vals, 1.0,
+                         where=[v < 1.0 for v in rpf_vals],
+                         alpha=0.18, color="#ff6b6b")
+        ax4.set_ylim(bottom=0)
+        ax4.legend(loc="upper left", facecolor="#1a1a2e",
+                   labelcolor="white", fontsize=8)
+    else:
+        ax4.text(0.5, 0.5, f"Insufficient trades for {ROLLING_PF_WINDOW}-trade rolling window",
+                 ha="center", va="center", transform=ax4.transAxes, color="#666", fontsize=10)
+
+    ax4.set_ylabel(f"Rolling PF ({ROLLING_PF_WINDOW})", color="white")
+    ax4.set_xlabel("Date", color="white")
+    ax4.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
 
     plt.tight_layout(pad=2.0)
 
@@ -779,6 +821,39 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         except Exception:
             filter_impact = []
 
+    # ── Rolling Profit Factor ──────────────────────────────────────────────────
+    rolling_pf_stats = {
+        "window": ROLLING_PF_WINDOW,
+        "current": None, "min": None, "max": None,
+        "pct_above_1_3": None, "pct_1_0_to_1_3": None, "pct_below_1_0": None,
+    }
+    if n >= ROLLING_PF_WINDOW:
+        try:
+            rpf_vals = []
+            for _i in range(ROLLING_PF_WINDOW - 1, n):
+                _win = trades.iloc[_i - ROLLING_PF_WINDOW + 1 : _i + 1]
+                _ww  = _win[_win.win]
+                _wl  = _win[~_win.win]
+                if not _wl.empty and _wl.pnl.sum() != 0:
+                    _pf = abs(float(_ww.pnl.sum()) / abs(float(_wl.pnl.sum())))
+                elif not _ww.empty:
+                    _pf = 99.0   # cap infinity for storage
+                else:
+                    _pf = 0.0
+                rpf_vals.append(_pf)
+            _total = len(rpf_vals)
+            rolling_pf_stats = {
+                "window":          ROLLING_PF_WINDOW,
+                "current":         round(rpf_vals[-1], 2),
+                "min":             round(min(rpf_vals), 2),
+                "max":             round(min(max(rpf_vals), 99.0), 2),
+                "pct_above_1_3":   round(sum(1 for v in rpf_vals if v >= 1.3)  / _total * 100, 1),
+                "pct_1_0_to_1_3":  round(sum(1 for v in rpf_vals if 1.0 <= v < 1.3) / _total * 100, 1),
+                "pct_below_1_0":   round(sum(1 for v in rpf_vals if v < 1.0)   / _total * 100, 1),
+            }
+        except Exception:
+            pass
+
     # ── Position size metrics ──────────────────────────────────────────────────
     avg_pos_size = None
     min_pos_size = None
@@ -828,6 +903,7 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         "win_rate_trend":  win_rate_trend,
         "duration_analysis": duration_analysis,
         "filter_impact":     filter_impact,
+        "rolling_pf":        rolling_pf_stats,
         "rrr_sensitivity":   [],
         "swing_sensitivity": [],
     }
@@ -1489,7 +1565,36 @@ __VERSIONS_JSON__
         "<th>Date (UTC)</th><th>Trades</th><th>P&amp;L</th><th>Drawdown %</th>" +
         "</tr></thead><tbody>" + ddDayRows + "</tbody></table></div>";
 
-    /* 11. RRR Sensitivity */
+    /* 11. Rolling Profit Factor */
+    var rpf     = m.rolling_pf || {};
+    var rpfWin  = rpf.window || 10;
+    var rpfCur  = rpf.current !== null && rpf.current !== undefined ? fmt(rpf.current) : "&#8212;";
+    var rpfMin  = rpf.min     !== null && rpf.min     !== undefined ? fmt(rpf.min)     : "&#8212;";
+    var rpfMax  = rpf.max     !== null && rpf.max     !== undefined ? fmt(rpf.max)     : "&#8212;";
+    var rpfCurClass = (rpf.current !== null && rpf.current !== undefined)
+      ? (rpf.current >= 1.3 ? "pos" : (rpf.current < 1.0 ? "neg" : "neu")) : "";
+    var rollingPfHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Rolling Profit Factor (" + rpfWin + "-trade window)</div>" +
+        "<table><tbody>" +
+        "<tr><th>Metric</th><th>Value</th></tr>" +
+        "<tr><td>Current Rolling PF</td><td><span class='" + rpfCurClass + "'>" + rpfCur + "</span></td></tr>" +
+        "<tr><td>Min Rolling PF</td><td><span class='neg'>" + rpfMin + "</span></td></tr>" +
+        "<tr><td>Max Rolling PF</td><td><span class='pos'>" + rpfMax + "</span></td></tr>" +
+        "</tbody></table>" +
+        "<table style='margin-top:8px'><thead><tr>" +
+        "<th>Zone</th><th>Threshold</th><th>% of Time</th>" +
+        "</tr></thead><tbody>" +
+        "<tr><td><span class='pos'>&#9679; Above full risk</span></td><td>&ge; 1.3</td>" +
+        "<td><span class='pos'>" + (rpf.pct_above_1_3  !== null && rpf.pct_above_1_3  !== undefined ? fmt(rpf.pct_above_1_3, 1)  + "%" : "&#8212;") + "</span></td></tr>" +
+        "<tr><td><span class='neu'>&#9679; Caution zone</span></td><td>1.0 &ndash; 1.3</td>" +
+        "<td><span class='neu'>" + (rpf.pct_1_0_to_1_3 !== null && rpf.pct_1_0_to_1_3 !== undefined ? fmt(rpf.pct_1_0_to_1_3, 1) + "%" : "&#8212;") + "</span></td></tr>" +
+        "<tr><td><span class='neg'>&#9679; Below break even</span></td><td>&lt; 1.0</td>" +
+        "<td><span class='neg'>" + (rpf.pct_below_1_0  !== null && rpf.pct_below_1_0  !== undefined ? fmt(rpf.pct_below_1_0, 1)  + "%" : "&#8212;") + "</span></td></tr>" +
+        "</tbody></table>" +
+      "</div>";
+
+    /* 13. RRR Sensitivity */
     var rrrSens     = m.rrr_sensitivity || [];
     var rrrSensRows = "";
     rrrSens.forEach(function (r) {
@@ -1516,7 +1621,7 @@ __VERSIONS_JSON__
         "<th>RRR</th><th>Trades</th><th>Win Rate</th><th>Profit Factor</th><th>Net P&amp;L</th><th>Max DD</th>" +
         "</tr></thead><tbody>" + rrrSensRows + "</tbody></table></div>";
 
-    /* 12. Swing Lookback Sensitivity */
+    /* 14. Swing Lookback Sensitivity */
     var swingSens     = m.swing_sensitivity || [];
     var swingSensRows = "";
     swingSens.forEach(function (r) {
@@ -1652,6 +1757,7 @@ __VERSIONS_JSON__
       "<div class='two-col'>" + regimeHtml + winRateTrendHtml + "</div>" +
       "<div class='two-col'>" + durationHtml + filterImpactHtml + "</div>" +
       dailyDDHtml +
+      rollingPfHtml +
       monthHtml +
       timeOfDayHtml +
       "<div class='two-col'>" + rrrSensHtml + swingSensHtml + "</div>" +
