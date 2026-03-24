@@ -1325,16 +1325,16 @@ __VERSIONS_JSON__
 
       "</div>" +
 
-      /* chart */
-      chartHtml +
-
       /* analytical sections */
       dirHtml +
       monthHtml +
       "<div class='two-col'>" + streakHtml + stopHtml + "</div>" +
       "<div class='two-col'>" + regimeHtml + winRateTrendHtml + "</div>" +
+      "<div class='two-col'>" + durationHtml + filterImpactHtml + "</div>" +
       timeOfDayHtml +
-      "<div class='two-col'>" + durationHtml + filterImpactHtml + "</div>";
+
+      /* chart — below all data sections */
+      chartHtml;
 
     /* Wire copy button */
     (function (ver) {
