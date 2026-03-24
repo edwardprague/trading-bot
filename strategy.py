@@ -39,7 +39,7 @@ EMA_SLOW        = 200
 EMA_FAST        = 50
 EMA_ENTRY       = 20
 SWING_LOOKBACK  = 20
-RRR             = 2.0
+RRR             = 2.5
 RISK_PCT        = 0.01
 MIN_STOP        = 0.0005     # 5 pips minimum stop
 MAX_STOP        = 0.0200     # 200 pips maximum stop
@@ -49,8 +49,8 @@ TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 TIME_FILTER       = True
 TIME_FILTER_HOURS = [16, 17, 18, 1, 2, 3, 4]   # UTC hours allowed
 
-VERSION         = "v15"
-NOTES           = "Tightened time filter — removed worst hours 00 and 19, keeping 01-04 and 16-18"
+VERSION         = "v16"
+NOTES           = "Increased RRR from 2.0 to 2.5 — testing if wider target improves results given 42.6% win rate"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
