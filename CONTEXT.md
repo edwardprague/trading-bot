@@ -30,6 +30,12 @@ Develop, test and optimise in Python, then deploy as a cTrader Python cBot.
 ## Baseline Results (EURUSD hourly, 720 days)
 - Not yet established — run the backtest to record v1
 
+## Target Challenge Parameters
+Strategy is being developed and optimised to pass the **FTMO $100k challenge**:
+- Max overall drawdown: 10% ($10,000 on a $100k account)
+- Max daily drawdown: 3% ($3,000 on a $100k account)
+- The dashboard tracks both metrics on every backtest run
+
 ## Hypotheses Queue
 - Add ADX filter to avoid ranging markets
 - Test 15-minute timeframe for more trades

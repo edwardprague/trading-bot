@@ -49,8 +49,8 @@ TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 TIME_FILTER       = True
 TIME_FILTER_HOURS = [16, 17, 18, 1, 2, 3, 4]   # UTC hours allowed
 
-VERSION         = "v17"
-NOTES           = "Reverted RRR to 2.0, added RRR and parameter sensitivity diagnostics"
+VERSION         = "v18"
+NOTES           = "Added dollar drawdown amounts and daily drawdown tracking — aligning with FTMO $100k challenge parameters"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -532,9 +532,10 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
     else:
         pf = None   # infinite — stored as null, displayed as ∞
 
-    eq      = pd.Series(equity)
-    peak    = eq.cummax()
-    dd      = float(((eq - peak) / peak * 100).min())
+    eq        = pd.Series(equity)
+    peak      = eq.cummax()
+    dd        = float(((eq - peak) / peak * 100).min())
+    dd_dollar = round(float((eq - peak).min()), 2)    # peak-to-trough in $
     returns = eq.pct_change().dropna()
     sharpe  = float(returns.mean() / returns.std() * np.sqrt(24 * 252)
                     if returns.std() > 0 else 0)
@@ -729,6 +730,37 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
     except Exception:
         duration_analysis = {}
 
+    # ── Daily drawdown analysis ────────────────────────────────────────────────
+    max_daily_drawdown = {"dollar": None, "pct": None}
+    daily_drawdown     = []
+    try:
+        td2 = trades.copy()
+        _ts_col = "entry_ts" if "entry_ts" in td2.columns else "timestamp"
+        _ts_s   = pd.to_datetime(td2[_ts_col])
+        if _ts_s.dt.tz is not None:
+            _ts_s = _ts_s.dt.tz_convert("UTC")
+        else:
+            _ts_s = _ts_s.dt.tz_localize("UTC")
+        td2["_date"] = _ts_s.dt.date
+        daily = td2.groupby("_date")["pnl"].agg(["sum", "count"]).reset_index()
+        daily.columns = ["date", "pnl", "trades"]
+        daily = daily.sort_values("pnl")       # worst first
+        if not daily.empty:
+            worst = daily.iloc[0]
+            max_daily_drawdown = {
+                "dollar": round(float(worst["pnl"]), 2),
+                "pct":    round(float(worst["pnl"]) / STARTING_CASH * 100, 2),
+            }
+        for _, dr in daily.head(5).iterrows():
+            daily_drawdown.append({
+                "date":         str(dr["date"]),
+                "trades":       int(dr["trades"]),
+                "pnl":          round(float(dr["pnl"]), 2),
+                "drawdown_pct": round(float(dr["pnl"]) / STARTING_CASH * 100, 2),
+            })
+    except Exception:
+        pass
+
     # ── Filter Impact Summary ──────────────────────────────────────────────────
     filter_impact = []
     if blocked_signals:
@@ -756,10 +788,13 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         "avg_loss":       round(float(loss.pnl.mean()), 2) if not loss.empty else None,
         "best_trade":     round(float(trades.pnl.max()), 2),
         "worst_trade":    round(float(trades.pnl.min()), 2),
-        "net_profit":     round(net, 2),
-        "net_profit_pct": round(net / STARTING_CASH * 100, 2),
-        "final_equity":   round(STARTING_CASH + net, 2),
-        "max_drawdown":   round(dd, 2),
+        "net_profit":          round(net, 2),
+        "net_profit_pct":      round(net / STARTING_CASH * 100, 2),
+        "final_equity":        round(STARTING_CASH + net, 2),
+        "max_drawdown":        round(dd, 2),
+        "max_drawdown_dollar": dd_dollar,
+        "max_daily_drawdown":  max_daily_drawdown,
+        "daily_drawdown":      daily_drawdown,
         "sharpe":         round(sharpe, 2),
         "by_direction":   by_dir,
         "monthly":        monthly,
@@ -956,7 +991,16 @@ __VERSIONS_JSON__
     lines.push("| Profit Factor | "   + pf + " |");
     lines.push("| Net Profit | "      + npStr + " |");
     lines.push("| Final Equity | $"   + mf(m.final_equity) + " |");
-    lines.push("| Max Drawdown | "    + mf(m.max_drawdown) + "% |");
+    var mdDollar = m.max_drawdown_dollar;
+    var mdStr    = (mdDollar !== null && mdDollar !== undefined)
+      ? "-$" + Math.abs(mdDollar).toFixed(2) + " (" + mf(m.max_drawdown) + "%)"
+      : mf(m.max_drawdown) + "%";
+    lines.push("| Max Drawdown | "    + mdStr + " |");
+    var mddMd = m.max_daily_drawdown || {};
+    var mddStr = (mddMd.dollar !== null && mddMd.dollar !== undefined)
+      ? "-$" + Math.abs(mddMd.dollar).toFixed(2) + " (" + mf(mddMd.pct, 2) + "%)"
+      : "\u2014";
+    lines.push("| Max Daily DD | "   + mddStr + " |");
     lines.push("| Sharpe Ratio | "    + mf(m.sharpe) + " |");
     lines.push("| Avg Win | "         + (m.avg_win  !== null && m.avg_win  !== undefined ? "$"  + mf(m.avg_win)  : "\u2014") + " |");
     lines.push("| Avg Loss | "        + (m.avg_loss !== null && m.avg_loss !== undefined ? "$"  + mf(m.avg_loss) : "\u2014") + " |");
@@ -1104,6 +1148,21 @@ __VERSIONS_JSON__
         var spf   = (seg.profit_factor === null || seg.profit_factor === undefined) ? "\u221e" : mf(seg.profit_factor);
         var label = (segLabels[idx] || ("Seg " + (idx + 1))) + " (" + seg.period + ")";
         lines.push("| " + label + " | " + seg.trades + " | " + mf(seg.win_rate, 1) + "% | " + spf + " | " + mfMoney(seg.net_pnl) + " |");
+      });
+    }
+    lines.push("");
+
+    /* ── Daily Drawdown (Worst 5 Days) ──────────────────────── */
+    lines.push("### Daily Drawdown — Worst 5 Days");
+    lines.push("");
+    lines.push("| Date | Trades | P&L | Drawdown% |");
+    lines.push("|------|--------|-----|-----------|");
+    var mDailyDD = m.daily_drawdown || [];
+    if (mDailyDD.length === 0) {
+      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 |");
+    } else {
+      mDailyDD.forEach(function (d) {
+        lines.push("| " + d.date + " | " + d.trades + " | -$" + Math.abs(d.pnl).toFixed(2) + " | " + mf(d.drawdown_pct, 2) + "% |");
       });
     }
     lines.push("");
@@ -1397,7 +1456,27 @@ __VERSIONS_JSON__
         "<th>Filter</th><th>Trades Removed</th><th>Win Rate (if kept)</th><th>Net P&amp;L (if kept)</th>" +
         "</tr></thead><tbody>" + fiRows + "</tbody></table></div>";
 
-    /* 10. RRR Sensitivity */
+    /* 10. Daily Drawdown — worst 5 days */
+    var ddDays     = m.daily_drawdown || [];
+    var ddDayRows  = "";
+    ddDays.forEach(function (d) {
+      ddDayRows +=
+        "<tr>" +
+        "<td style='white-space:nowrap'>" + esc(d.date) + "</td>" +
+        "<td>" + d.trades + "</td>" +
+        "<td class='neg'>" + "-$" + Math.abs(d.pnl).toFixed(2) + "</td>" +
+        "<td class='neg'>" + fmt(d.drawdown_pct, 2) + "%</td>" +
+        "</tr>";
+    });
+    if (!ddDayRows) ddDayRows = "<tr><td colspan='4' style='color:#404060;text-align:center;padding:16px'>No data</td></tr>";
+    var dailyDDHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Daily Drawdown — Worst 5 Days</div>" +
+        "<table><thead><tr>" +
+        "<th>Date (UTC)</th><th>Trades</th><th>P&amp;L</th><th>Drawdown %</th>" +
+        "</tr></thead><tbody>" + ddDayRows + "</tbody></table></div>";
+
+    /* 11. RRR Sensitivity */
     var rrrSens     = m.rrr_sensitivity || [];
     var rrrSensRows = "";
     rrrSens.forEach(function (r) {
@@ -1424,7 +1503,7 @@ __VERSIONS_JSON__
         "<th>RRR</th><th>Trades</th><th>Win Rate</th><th>Profit Factor</th><th>Net P&amp;L</th><th>Max DD</th>" +
         "</tr></thead><tbody>" + rrrSensRows + "</tbody></table></div>";
 
-    /* 11. Swing Lookback Sensitivity */
+    /* 12. Swing Lookback Sensitivity */
     var swingSens     = m.swing_sensitivity || [];
     var swingSensRows = "";
     swingSens.forEach(function (r) {
@@ -1500,7 +1579,16 @@ __VERSIONS_JSON__
           row("Net Profit",    "<span class='" + pClass(m.net_profit) + "'>" +
             fmtMoney(m.net_profit) + " (" + (m.net_profit_pct >= 0 ? "+" : "") + fmt(m.net_profit_pct, 1) + "%)</span>") +
           row("Final Equity",  "$" + fmt(m.final_equity)) +
-          row("Max Drawdown",  "<span class='neg'>" + fmt(m.max_drawdown) + "%</span>") +
+          row("Max Drawdown",  (function () {
+            var ddD = m.max_drawdown_dollar;
+            var ddDStr = (ddD !== null && ddD !== undefined) ? "-$" + Math.abs(ddD).toFixed(2) + " (" + fmt(m.max_drawdown) + "%)" : fmt(m.max_drawdown) + "%";
+            return "<span class='neg'>" + ddDStr + "</span>";
+          }()) ) +
+          row("Max Daily DD",  (function () {
+            var mdd = m.max_daily_drawdown || {};
+            if (mdd.dollar === null || mdd.dollar === undefined) return "&#8212;";
+            return "<span class='neg'>-$" + Math.abs(mdd.dollar).toFixed(2) + " (" + fmt(mdd.pct, 2) + "%)</span>";
+          }()) ) +
           row("Sharpe Ratio",  "<span class='" + sharpeCls + "'>" + fmt(m.sharpe) + "</span>") +
           row("Avg Win",       avgWinHtml) +
           row("Avg Loss",      avgLossHtml) +
@@ -1538,6 +1626,7 @@ __VERSIONS_JSON__
       "<div class='two-col'>" + streakHtml + stopHtml + "</div>" +
       "<div class='two-col'>" + regimeHtml + winRateTrendHtml + "</div>" +
       "<div class='two-col'>" + durationHtml + filterImpactHtml + "</div>" +
+      dailyDDHtml +
       monthHtml +
       timeOfDayHtml +
       "<div class='two-col'>" + rrrSensHtml + swingSensHtml + "</div>" +
