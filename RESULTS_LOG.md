@@ -20,3 +20,4 @@
 | v16 | 2026-03-24 10:10 | Trend Following | EURUSD=X | 1h | Increased RRR from 2.0 to 2.5 — testing if wider target improves results given 42.6% win rate | 53 | 37.7% | 1.53 | -$284.73 | -5.85% | 0.95 |
 | v17 | 2026-03-24 10:35 | Trend Following | EURUSD=X | 1h | Reverted RRR to 2.0, added RRR and parameter sensitivity diagnostics | 54 | 42.6% | 1.49 | +$201.12 | -5.85% | 0.95 |
 | v18 | 2026-03-24 10:57 | Trend Following | EURUSD=X | 1h | Added dollar drawdown amounts and daily drawdown tracking — aligning with FTMO $100k challenge parameters | 54 | 42.6% | 1.49 | +$201.12 | -5.85% | 0.95 |
+| v18 | 2026-03-24 11:09 | Trend Following | EURUSD=X | 1h | Scaled to $100k capital — aligning with FTMO challenge parameters, added position size tracking | 54 | 42.6% | 1.49 | +$2011.15 | -5.85% | 0.95 |

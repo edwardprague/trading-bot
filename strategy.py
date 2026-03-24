@@ -33,7 +33,7 @@ warnings.filterwarnings("ignore")
 TICKER          = "EURUSD=X"
 INTERVAL        = "1h"
 DAYS_BACK       = 720
-STARTING_CASH   = 10_000.0
+STARTING_CASH   = 100_000.0
 
 EMA_SLOW        = 200
 EMA_FAST        = 50
@@ -50,7 +50,7 @@ TIME_FILTER       = True
 TIME_FILTER_HOURS = [16, 17, 18, 1, 2, 3, 4]   # UTC hours allowed
 
 VERSION         = "v18"
-NOTES           = "Added dollar drawdown amounts and daily drawdown tracking — aligning with FTMO $100k challenge parameters"
+NOTES           = "Scaled to $100k capital — aligning with FTMO challenge parameters, added position size tracking"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -277,6 +277,7 @@ def run_backtest(df):
                     "exit":      exit_p,
                     "stop":      sl,
                     "target":    tp,
+                    "size":      size,
                     "pnl":       pnl,
                     "win":       pnl > 0,
                     "result":       "TP" if hit_tp else "SL",
@@ -778,6 +779,15 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         except Exception:
             filter_impact = []
 
+    # ── Position size metrics ──────────────────────────────────────────────────
+    avg_pos_size = None
+    min_pos_size = None
+    max_pos_size = None
+    if "size" in trades.columns:
+        avg_pos_size = round(float(trades["size"].mean()), 0)
+        min_pos_size = round(float(trades["size"].min()), 0)
+        max_pos_size = round(float(trades["size"].max()), 0)
+
     result = {
         "total_trades":   n,
         "winning_trades": int(len(wins)),
@@ -796,6 +806,9 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         "max_daily_drawdown":  max_daily_drawdown,
         "daily_drawdown":      daily_drawdown,
         "sharpe":         round(sharpe, 2),
+        "avg_position_size": avg_pos_size,
+        "min_position_size": min_pos_size,
+        "max_position_size": max_pos_size,
         "by_direction":   by_dir,
         "monthly":        monthly,
         "streaks": {
@@ -1594,6 +1607,15 @@ __VERSIONS_JSON__
           row("Avg Loss",      avgLossHtml) +
           row("Best Trade",    "<span class='pos'>" + fmtMoney(m.best_trade)  + "</span>") +
           row("Worst Trade",   "<span class='neg'>" + fmtMoney(m.worst_trade) + "</span>") +
+          (m.avg_position_size !== null && m.avg_position_size !== undefined
+            ? row("Avg Position Size", Math.round(m.avg_position_size).toLocaleString() + " units")
+            : "") +
+          (m.min_position_size !== null && m.min_position_size !== undefined
+            ? row("Min Position Size", Math.round(m.min_position_size).toLocaleString() + " units")
+            : "") +
+          (m.max_position_size !== null && m.max_position_size !== undefined
+            ? row("Max Position Size", Math.round(m.max_position_size).toLocaleString() + " units")
+            : "") +
           "</tbody></table>" +
         "</div>" +
 
@@ -1603,13 +1625,16 @@ __VERSIONS_JSON__
           row("Instrument",     esc(p.ticker || "")) +
           row("Interval",       esc(p.interval || "")) +
           row("History",        (p.days_back || "") + " days") +
-          row("Starting Cash",  "$" + (p.starting_cash || 0).toLocaleString()) +
+          row("Starting Capital", "$" + (p.starting_cash || 0).toLocaleString()) +
           row("EMA Slow",       p.ema_slow) +
           row("EMA Fast",       p.ema_fast) +
           row("EMA Entry",      p.ema_entry) +
           row("Swing Lookback", (p.swing_lookback || "") + " bars") +
           row("RRR",            "1&thinsp;:&thinsp;" + (p.rrr || "")) +
-          row("Risk / Trade",   ((p.risk_pct || 0) * 100).toFixed(1) + "%") +
+          row("Risk / Trade",   ((p.risk_pct || 0) * 100).toFixed(1) + "% = $" + ((p.starting_cash || 0) * (p.risk_pct || 0)).toLocaleString()) +
+          (m.avg_position_size !== null && m.avg_position_size !== undefined
+            ? row("Avg Position Size", Math.round(m.avg_position_size).toLocaleString() + " units")
+            : "") +
           row("Min Stop",       ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Max Stop",       ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Direction",      "<span style='color:#ffd93d;font-weight:600'>" + esc(p.trade_direction || "both") + "</span>") +
