@@ -49,8 +49,8 @@ TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 TIME_FILTER       = True
 TIME_FILTER_HOURS = [16, 17, 18, 19, 0, 1, 2, 3, 4]   # UTC hours allowed
 
-VERSION         = "v11"
-NOTES           = "Time filter timezone fix"
+VERSION         = "v12"
+NOTES           = "Time filter bug fix — added continue to actually block trades outside allowed hours"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -246,6 +246,7 @@ def run_backtest(df):
                                 (cash * RISK_PCT) / dist_b, ts, "time"))
                     long_sig  = False
                     short_sig = False
+                    continue
 
             if long_sig and not np.isnan(s_lo):
                 dist = c - s_lo
