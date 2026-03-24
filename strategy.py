@@ -35,9 +35,10 @@ MASSIVE_API_KEY = os.getenv("MASSIVE_API_KEY")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-TICKER          = "EURUSD=X"
-INTERVAL        = "1h"
-DAYS_BACK       = 720
+TICKER          = "EURUSD=X"      # Yahoo Finance ticker (fallback)
+MASSIVE_TICKER  = "C:EURUSD"      # Massive API ticker (primary)
+INTERVAL        = "5m"            # bar interval — used by Massive (primary) and Yahoo (fallback)
+DAYS_BACK       = 730             # 2 years of history
 STARTING_CASH   = 100_000.0
 
 EMA_SLOW        = 200
@@ -56,25 +57,73 @@ TIME_FILTER_HOURS = [16, 17, 18, 1, 2, 3, 4]   # UTC hours allowed
 
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
-VERSION         = "v22"
-NOTES           = "Back to EURUSD — viewing Rolling PF chart"
+VERSION         = "v23"
+NOTES           = "Switched to Massive API — 5-minute EURUSD data"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
 
 def fetch_data(ticker, interval, days_back):
+    end   = datetime.now()
+    start = end - timedelta(days=days_back)
+
+    # ── Primary: Massive API ───────────────────────────────────────────────────
+    if MASSIVE_API_KEY:
+        try:
+            from massive import RESTClient
+            print(f"\nFetching {MASSIVE_TICKER} {interval} data from Massive ({days_back} days)...")
+            client = RESTClient(api_key=MASSIVE_API_KEY)
+            bars = list(client.list_aggs(
+                ticker    = MASSIVE_TICKER,
+                multiplier= 5,
+                timespan  = "minute",
+                from_     = start.strftime("%Y-%m-%d"),
+                to        = end.strftime("%Y-%m-%d"),
+                sort      = "asc",
+                limit     = 50000,
+            ))
+            if not bars:
+                raise ValueError("No bars returned from Massive API")
+            # Build DataFrame: timestamp is Unix milliseconds UTC
+            df = pd.DataFrame(
+                {
+                    "Open":   [b.open   for b in bars],
+                    "High":   [b.high   for b in bars],
+                    "Low":    [b.low    for b in bars],
+                    "Close":  [b.close  for b in bars],
+                    "Volume": [b.volume if b.volume is not None else 0.0 for b in bars],
+                },
+                index=pd.DatetimeIndex(
+                    [pd.Timestamp(b.timestamp, unit="ms", tz="UTC") for b in bars],
+                    name="Datetime",
+                ),
+            )
+            df = df[["Open", "High", "Low", "Close", "Volume"]].dropna()
+            print(f"  {len(df)} bars loaded | {df.index[0].date()} → {df.index[-1].date()}")
+            print(f"  Source: Massive API ({MASSIVE_TICKER}, 5m)")
+            return df
+        except Exception as e:
+            print(f"  Massive API fetch failed: {e}")
+            print(f"  Falling back to Yahoo Finance...")
+    else:
+        print(f"\nNo MASSIVE_API_KEY found — using Yahoo Finance fallback.")
+
+    # ── Fallback: Yahoo Finance ────────────────────────────────────────────────
+    # Yahoo free tier: 5m data is capped at 60 days; use 1h for longer history
     try:
         import yfinance as yf
-        end   = datetime.now()
-        start = end - timedelta(days=days_back)
-        print(f"\nFetching {ticker} {interval} data ({days_back} days)...")
-        df = yf.download(ticker, start=start, end=end,
-                         interval=interval, auto_adjust=True, progress=False)
+        yf_interval = "1h"
+        yf_days     = min(days_back, 720)
+        yf_start    = end - timedelta(days=yf_days)
+        print(f"\nFetching {ticker} {yf_interval} data from Yahoo ({yf_days} days)...")
+        df = yf.download(ticker, start=yf_start, end=end,
+                         interval=yf_interval, auto_adjust=True, progress=False)
         if df.empty:
             raise ValueError("Empty dataframe returned")
         df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
         df = df[["Open", "High", "Low", "Close", "Volume"]].dropna()
         print(f"  {len(df)} bars loaded | {df.index[0].date()} → {df.index[-1].date()}")
+        print(f"  Source: Yahoo Finance ({ticker}, 1h fallback)")
         return df
     except Exception as e:
         print(f"  Data fetch failed: {e}")
