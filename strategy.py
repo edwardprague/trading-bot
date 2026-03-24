@@ -25,8 +25,13 @@ matplotlib.use("Agg")           # headless — saves chart to file
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
 warnings.filterwarnings("ignore")
+
+# Load environment variables from .env (API keys, secrets — never commit .env)
+load_dotenv()
+MASSIVE_API_KEY = os.getenv("MASSIVE_API_KEY")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
