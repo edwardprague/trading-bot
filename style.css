@@ -192,6 +192,9 @@ body {
 /* ── Section ──────────────────────────────────────────── */
 .section {
     margin-bottom: 30px;
+    border: 1px solid #555;
+    padding: 15px;
+    border-radius: 10px;
 }
 
 .section-title {
@@ -202,7 +205,7 @@ body {
     color: #ccc;
     margin-bottom: 12px;
     padding-bottom: 8px;
-    border-bottom: 1px solid #1a1a2c;
+    border-bottom: 1px solid #555;
 }
 
 /* ── Chart ────────────────────────────────────────────── */
