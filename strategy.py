@@ -49,8 +49,8 @@ TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 TIME_FILTER       = True
 TIME_FILTER_HOURS = [16, 17, 18, 19, 0, 1, 2, 3, 4]   # UTC hours allowed
 
-VERSION         = "v12"
-NOTES           = "Time filter bug fix — added continue to actually block trades outside allowed hours"
+VERSION         = "v13"
+NOTES           = "Fixed time of day display — was showing incorrect hours in diagnostic table"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -146,6 +146,7 @@ def run_backtest(df):
     entry_idx     = 0
     worst_adverse    = 0.0   # tracks furthest adverse price during a trade
     entry_adx        = 0.0   # ADX value at entry bar
+    entry_ts         = None  # timestamp of the entry bar (for time-of-day diagnostics)
     blocked_signals  = []    # signals that were filtered out (for Filter Impact Summary)
     _debug_entries   = 0     # counter for entry timezone debug prints
 
@@ -192,7 +193,8 @@ def run_backtest(df):
                     "result":       "TP" if hit_tp else "SL",
                     "mae":          mae,
                     "adx_at_entry": entry_adx,
-                    "timestamp":    ts
+                    "timestamp":    ts,
+                    "entry_ts":     entry_ts
                 })
                 in_trade = False
 
@@ -258,6 +260,7 @@ def run_backtest(df):
                     size          = (cash * RISK_PCT) / dist
                     in_trade      = True
                     entry_idx     = i
+                    entry_ts      = ts
                     worst_adverse = c   # reset MAE tracker to entry price
                     entry_adx     = float(df.adx.iloc[i])
                     if _debug_entries < 5:
@@ -276,6 +279,7 @@ def run_backtest(df):
                     size          = (cash * RISK_PCT) / dist
                     in_trade      = True
                     entry_idx     = i
+                    entry_ts      = ts
                     worst_adverse = c   # reset MAE tracker to entry price
                     entry_adx     = float(df.adx.iloc[i])
                     if _debug_entries < 5:
@@ -552,7 +556,14 @@ def compute_metrics(trades, equity, blocked_signals=None):
     time_of_day = {"rows": [], "best_hour": None, "worst_hour": None}
     try:
         t3 = trades.copy()
-        t3["_hour"] = pd.to_datetime(t3["timestamp"]).dt.hour
+        # Use entry_ts (entry bar) if available; fall back to timestamp (exit bar)
+        _ts_col = "entry_ts" if "entry_ts" in t3.columns else "timestamp"
+        _ts_s   = pd.to_datetime(t3[_ts_col])
+        if _ts_s.dt.tz is not None:
+            _ts_s = _ts_s.dt.tz_convert('UTC')
+        else:
+            _ts_s = _ts_s.dt.tz_localize('UTC')
+        t3["_hour"] = _ts_s.dt.hour
         tod_rows  = []
         best_pnl  = float("-inf")
         worst_pnl = float("inf")
