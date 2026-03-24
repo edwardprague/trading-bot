@@ -7,3 +7,4 @@
 | v3 | 2026-03-23 13:48 | Trend Following | EURUSD=X | 1h | Increased EMA fast from 50 to 100 — wider separation between trend filter and entry signal | 191 | 31.9% | 0.92 | -$938.80 | -22.50% | -0.29 |
 | v3 | 2026-03-23 18:03 | Trend Following | EURUSD=X | 1h | Increased EMA fast from 50 to 100 — wider separation between trend filter and entry signal | 191 | 31.4% | 0.90 | -$1205.30 | -22.50% | -0.40 |
 | v5 | 2026-03-23 18:27 | Trend Following | EURUSD=X | 1h | Short only — testing direction asymmetry identified in v4 diagnostics | 93 | 38.7% | 1.25 | -$207.10 | -5.85% | 0.75 |
+| v6 | 2026-03-24 03:52 | Trend Following | EURUSD=X | 1h | Short only plus time filter — blocking worst hours 06 09 14 20 23 keeping best hours 16-19 and 00-04 | 59 | 40.7% | 1.37 | -$101.67 | -5.85% | 0.80 |

@@ -44,10 +44,13 @@ RISK_PCT        = 0.01
 MIN_STOP        = 0.0005     # 5 pips minimum stop
 MAX_STOP        = 0.0200     # 200 pips maximum stop
 
-TRADE_DIRECTION = "short_only"   # "both" | "long_only" | "short_only"
+TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 
-VERSION         = "v5"
-NOTES           = "Short only — testing direction asymmetry identified in v4 diagnostics"
+TIME_FILTER       = True
+TIME_FILTER_HOURS = [16, 17, 18, 19, 0, 1, 2, 3, 4]   # UTC hours allowed
+
+VERSION         = "v6"
+NOTES           = "Short only plus time filter — blocking worst hours 06 09 14 20 23 keeping best hours 16-19 and 00-04"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -102,6 +105,29 @@ def add_indicators(df):
     df["adx"] = _dx.ewm(alpha=_alpha, adjust=False).mean()
     return df.dropna().reset_index()
 
+# ── Blocked-signal outcome simulation ────────────────────────────────────────
+
+def _scan_outcome(df, entry_idx, direction, entry_p, sl, tp, size, ts, reason):
+    """Forward-scan to estimate the TP/SL outcome of a signal that was filtered out.
+    Scans up to 1 000 bars ahead; uses last-bar close if neither level is hit."""
+    pnl  = None
+    end  = min(entry_idx + 1000, len(df))
+    for j in range(entry_idx + 1, end):
+        c_j = float(df.Close.iloc[j])
+        if direction == "long":
+            if c_j <= sl:   pnl = (sl - entry_p) * size;  break
+            elif c_j >= tp: pnl = (tp - entry_p) * size;  break
+        else:
+            if c_j >= sl:   pnl = (entry_p - sl) * size;  break
+            elif c_j <= tp: pnl = (entry_p - tp) * size;  break
+    if pnl is None:
+        c_last = float(df.Close.iloc[min(end - 1, len(df) - 1)])
+        pnl = (c_last - entry_p) * size if direction == "long" \
+              else (entry_p - c_last) * size
+    return {"reason": reason, "direction": direction,
+            "pnl": pnl, "win": bool(pnl > 0), "timestamp": ts}
+
+
 # ── Backtest ──────────────────────────────────────────────────────────────────
 
 def run_backtest(df):
@@ -112,8 +138,9 @@ def run_backtest(df):
     entry_p       = sl = tp = size = 0
     direction     = None
     entry_idx     = 0
-    worst_adverse = 0.0   # tracks furthest adverse price during a trade
-    entry_adx     = 0.0   # ADX value at entry bar
+    worst_adverse    = 0.0   # tracks furthest adverse price during a trade
+    entry_adx        = 0.0   # ADX value at entry bar
+    blocked_signals  = []    # signals that were filtered out (for Filter Impact Summary)
 
     for i in range(1, len(df)):
         c     = float(df.Close.iloc[i])
@@ -166,16 +193,47 @@ def run_backtest(df):
 
         # ── Check entries ─────────────────────────────────────────────────────
         if not in_trade:
-            trend_up   = fast > slow
-            trend_down = fast < slow
-            long_sig   = trend_up   and cp < enp and c > en
-            short_sig  = trend_down and cp > enp and c < en
+            trend_up      = fast > slow
+            trend_down    = fast < slow
+            long_sig_raw  = trend_up   and cp < enp and c > en
+            short_sig_raw = trend_down and cp > enp and c < en
+
+            # ── Track direction-blocked signals ────────────────────────────────
+            if TRADE_DIRECTION == "short_only" and long_sig_raw and not np.isnan(s_lo):
+                dist_b = c - s_lo
+                if MIN_STOP <= dist_b <= MAX_STOP:
+                    blocked_signals.append(_scan_outcome(
+                        df, i, "long", c, s_lo, c + dist_b * RRR,
+                        (cash * RISK_PCT) / dist_b, ts, "direction"))
+            if TRADE_DIRECTION == "long_only" and short_sig_raw and not np.isnan(s_hi):
+                dist_b = s_hi - c
+                if MIN_STOP <= dist_b <= MAX_STOP:
+                    blocked_signals.append(_scan_outcome(
+                        df, i, "short", c, s_hi, c - dist_b * RRR,
+                        (cash * RISK_PCT) / dist_b, ts, "direction"))
 
             # Apply direction filter
-            if TRADE_DIRECTION == "long_only":
-                short_sig = False
-            elif TRADE_DIRECTION == "short_only":
-                long_sig = False
+            long_sig  = long_sig_raw  and (TRADE_DIRECTION != "short_only")
+            short_sig = short_sig_raw and (TRADE_DIRECTION != "long_only")
+
+            # ── Apply time filter and track blocked signals ────────────────────
+            if TIME_FILTER:
+                entry_hour = pd.to_datetime(ts).hour
+                if entry_hour not in TIME_FILTER_HOURS:
+                    if long_sig and not np.isnan(s_lo):
+                        dist_b = c - s_lo
+                        if MIN_STOP <= dist_b <= MAX_STOP:
+                            blocked_signals.append(_scan_outcome(
+                                df, i, "long", c, s_lo, c + dist_b * RRR,
+                                (cash * RISK_PCT) / dist_b, ts, "time"))
+                    if short_sig and not np.isnan(s_hi):
+                        dist_b = s_hi - c
+                        if MIN_STOP <= dist_b <= MAX_STOP:
+                            blocked_signals.append(_scan_outcome(
+                                df, i, "short", c, s_hi, c - dist_b * RRR,
+                                (cash * RISK_PCT) / dist_b, ts, "time"))
+                    long_sig  = False
+                    short_sig = False
 
             if long_sig and not np.isnan(s_lo):
                 dist = c - s_lo
@@ -203,7 +261,7 @@ def run_backtest(df):
                     worst_adverse = c   # reset MAE tracker to entry price
                     entry_adx     = float(df.adx.iloc[i])
 
-    return pd.DataFrame(trades), equity
+    return pd.DataFrame(trades), equity, blocked_signals
 
 # ── Results ───────────────────────────────────────────────────────────────────
 
@@ -345,7 +403,7 @@ def save_charts(df, trades, equity):
 
 # ── HTML Report ───────────────────────────────────────────────────────────────
 
-def compute_metrics(trades, equity):
+def compute_metrics(trades, equity, blocked_signals=None):
     """Compute all backtest metrics and return as a JSON-serialisable dict."""
     if trades.empty:
         return None
@@ -526,6 +584,46 @@ def compute_metrics(trades, equity):
     except Exception:
         win_rate_trend = []
 
+    # ── Trade Duration Analysis ────────────────────────────────────────────────
+    duration_analysis = {}
+    try:
+        if "entry_idx" in trades.columns and "exit_idx" in trades.columns:
+            td = trades.copy()
+            td["_dur"] = (td["exit_idx"] - td["entry_idx"]).astype(float)
+            for label, mask in [
+                ("winners", td["win"]),
+                ("losers",  ~td["win"]),
+                ("all",     pd.Series(True, index=td.index)),
+            ]:
+                sub = td[mask]
+                if sub.empty:
+                    duration_analysis[label] = {"avg": None, "min": None, "max": None}
+                else:
+                    duration_analysis[label] = {
+                        "avg": round(float(sub["_dur"].mean()), 1),
+                        "min": int(sub["_dur"].min()),
+                        "max": int(sub["_dur"].max()),
+                    }
+    except Exception:
+        duration_analysis = {}
+
+    # ── Filter Impact Summary ──────────────────────────────────────────────────
+    filter_impact = []
+    if blocked_signals:
+        try:
+            bs = pd.DataFrame(blocked_signals)
+            for reason in sorted(bs["reason"].unique()):
+                sub   = bs[bs["reason"] == reason]
+                sub_w = sub[sub["win"]]
+                filter_impact.append({
+                    "filter":   reason.capitalize() + " Filter",
+                    "removed":  int(len(sub)),
+                    "win_rate": round(len(sub_w) / len(sub) * 100, 1) if len(sub) > 0 else 0.0,
+                    "net_pnl":  round(float(sub["pnl"].sum()), 2),
+                })
+        except Exception:
+            filter_impact = []
+
     return {
         "total_trades":   n,
         "winning_trades": int(len(wins)),
@@ -558,6 +656,8 @@ def compute_metrics(trades, equity):
         "regime":          regime,
         "time_of_day":     time_of_day,
         "win_rate_trend":  win_rate_trend,
+        "duration_analysis": duration_analysis,
+        "filter_impact":     filter_impact,
     }
 
 
@@ -972,6 +1072,8 @@ __VERSIONS_JSON__
     lines.push("| Min Stop | "      + ((p.min_stop || 0) * 10000).toFixed(0) + " pips |");
     lines.push("| Max Stop | "      + ((p.max_stop || 0) * 10000).toFixed(0) + " pips |");
     lines.push("| Direction | "     + (p.trade_direction || "both") + " |");
+    var tfHours = (p.time_filter_hours || []).join(", ");
+    lines.push("| Time Filter | "   + (p.time_filter ? "ON \u2014 hours " + tfHours : "OFF") + " |");
     lines.push("");
 
     /* ── Performance by Direction ──────────────────── */
@@ -1333,6 +1435,59 @@ __VERSIONS_JSON__
         "<th>Period</th><th>Trades</th><th>Win Rate</th><th>Profit Factor</th><th>Net P&amp;L</th>" +
         "</tr></thead><tbody>" + wrtRows + "</tbody></table></div>";
 
+    /* 8. Trade Duration Analysis */
+    var dur     = m.duration_analysis || {};
+    var durRows = "";
+    [["Winners", dur.winners], ["Losers", dur.losers], ["All Trades", dur.all]].forEach(function (pair) {
+      var label = pair[0], d = pair[1];
+      if (!d || d.avg === null) {
+        durRows += "<tr><td><strong>" + label + "</strong></td><td colspan='3' style='color:#404060'>No data</td></tr>";
+        return;
+      }
+      durRows +=
+        "<tr>" +
+        "<td><strong>" + label + "</strong></td>" +
+        "<td>" + d.avg + " bars</td>" +
+        "<td>" + d.min + " bars</td>" +
+        "<td>" + d.max + " bars</td>" +
+        "</tr>";
+    });
+    var durationHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Trade Duration (bars = hours on 1h)</div>" +
+        "<table><thead><tr>" +
+        "<th>Group</th><th>Avg</th><th>Min</th><th>Max</th>" +
+        "</tr></thead><tbody>" + durRows + "</tbody></table></div>";
+
+    /* 9. Filter Impact Summary */
+    var fi     = m.filter_impact || [];
+    var fiRows = "";
+    fi.forEach(function (f) {
+      var savedAmt = (-f.net_pnl).toFixed(2);
+      var noteCol;
+      if (f.net_pnl < 0) {
+        noteCol = "<span style='color:#6bcb77;font-size:11px'>\u2713 filter saved $" + (-f.net_pnl).toFixed(2) + "</span>";
+      } else if (f.net_pnl > 0) {
+        noteCol = "<span style='color:#ff6b6b;font-size:11px'>\u26a0 blocked +$" + f.net_pnl.toFixed(2) + "</span>";
+      } else {
+        noteCol = "<span style='color:#505070;font-size:11px'>neutral</span>";
+      }
+      fiRows +=
+        "<tr>" +
+        "<td><strong>" + esc(f.filter) + "</strong></td>" +
+        "<td>" + f.removed + "</td>" +
+        "<td class='" + (f.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(f.win_rate, 1) + "%</td>" +
+        "<td class='" + pClass(f.net_pnl) + "'>" + fmtMoney(f.net_pnl) + " " + noteCol + "</td>" +
+        "</tr>";
+    });
+    if (!fiRows) fiRows = "<tr><td colspan='4' style='color:#404060;text-align:center;padding:20px'>No filters active or no signals blocked</td></tr>";
+    var filterImpactHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Filter Impact Summary</div>" +
+        "<table><thead><tr>" +
+        "<th>Filter</th><th>Trades Removed</th><th>Win Rate (if kept)</th><th>Net P&amp;L (if kept)</th>" +
+        "</tr></thead><tbody>" + fiRows + "</tbody></table></div>";
+
     var chartHtml = v.chart_b64
       ? "<div class='section'><div class='section-title'>Chart</div>" +
         "<img id='chart-img' src='data:image/png;base64," + v.chart_b64 + "' alt='Backtest Chart'/></div>"
@@ -1407,6 +1562,9 @@ __VERSIONS_JSON__
           row("Min Stop",       ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Max Stop",       ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Direction",      "<span style='color:#ffd93d;font-weight:600'>" + esc(p.trade_direction || "both") + "</span>") +
+          row("Time Filter",    p.time_filter
+            ? "<span class='pos'>ON</span> &mdash; " + esc((p.time_filter_hours || []).join(", ")) + " UTC"
+            : "<span style='color:#404060'>OFF</span>") +
           "</tbody></table>" +
         "</div>" +
 
@@ -1420,7 +1578,8 @@ __VERSIONS_JSON__
       monthHtml +
       "<div class='two-col'>" + streakHtml + stopHtml + "</div>" +
       "<div class='two-col'>" + regimeHtml + winRateTrendHtml + "</div>" +
-      timeOfDayHtml;
+      timeOfDayHtml +
+      "<div class='two-col'>" + durationHtml + filterImpactHtml + "</div>";
 
     /* Wire copy button */
     (function (ver) {
@@ -1584,11 +1743,12 @@ __VERSIONS_JSON__
     return template.replace("__VERSIONS_JSON__", versions_json)
 
 
-def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=""):
+def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes="",
+                         blocked_signals=None):
     """Create or update report.html with the new backtest version appended."""
     report_path = "report.html"
 
-    metrics = compute_metrics(trades, equity)
+    metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals)
     if metrics is None:
         print("  No trades generated — skipping HTML report.")
         return
@@ -1643,10 +1803,12 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
             "ema_entry":      EMA_ENTRY,
             "swing_lookback": SWING_LOOKBACK,
             "rrr":            RRR,
-            "risk_pct":        RISK_PCT,
-            "min_stop":        MIN_STOP,
-            "max_stop":        MAX_STOP,
-            "trade_direction": TRADE_DIRECTION,
+            "risk_pct":          RISK_PCT,
+            "min_stop":          MIN_STOP,
+            "max_stop":          MAX_STOP,
+            "trade_direction":   TRADE_DIRECTION,
+            "time_filter":       TIME_FILTER,
+            "time_filter_hours": TIME_FILTER_HOURS if TIME_FILTER else [],
         },
         "last_trades": last_trades,
         "strategy":    STRATEGY,
@@ -1781,10 +1943,11 @@ if __name__ == "__main__":
     run_notes       = cli_notes if cli_notes else NOTES
     df              = fetch_data(TICKER, INTERVAL, DAYS_BACK)
     df              = add_indicators(df)
-    trades, equity  = run_backtest(df)
+    trades, equity, blocked_signals = run_backtest(df)
     print_results(trades, equity)
     chart_path = save_charts(df, trades, equity)
-    generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes)
-    metrics = compute_metrics(trades, equity)
+    generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes,
+                         blocked_signals=blocked_signals)
+    metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals)
     update_results_log(metrics, notes=run_notes)
     git_commit_and_push(metrics, VERSION, TICKER, INTERVAL)
