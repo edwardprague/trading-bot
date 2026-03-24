@@ -30,7 +30,7 @@ warnings.filterwarnings("ignore")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-TICKER          = "EURUSD=X"
+TICKER          = "GBPUSD=X"
 INTERVAL        = "1h"
 DAYS_BACK       = 720
 STARTING_CASH   = 100_000.0
@@ -49,8 +49,8 @@ TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 TIME_FILTER       = True
 TIME_FILTER_HOURS = [16, 17, 18, 1, 2, 3, 4]   # UTC hours allowed
 
-VERSION         = "v18"
-NOTES           = "Scaled to $100k capital — aligning with FTMO challenge parameters, added position size tracking"
+VERSION         = "v20"
+NOTES           = "Testing same strategy on GBPUSD — checking if edge generalises across instruments"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
