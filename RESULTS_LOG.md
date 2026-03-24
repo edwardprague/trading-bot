@@ -23,3 +23,4 @@
 | v18 | 2026-03-24 11:09 | Trend Following | EURUSD=X | 1h | Scaled to $100k capital — aligning with FTMO challenge parameters, added position size tracking | 54 | 42.6% | 1.49 | +$2011.15 | -5.85% | 0.95 |
 | v20 | 2026-03-24 13:44 | Trend Following | GBPUSD=X | 1h | Testing same strategy on GBPUSD — checking if edge generalises across instruments | 48 | 45.8% | 1.65 | +$5450.17 | -5.85% | 1.19 |
 | v21 | 2026-03-24 14:40 | Trend Following | GBPUSD=X | 1h | Added Rolling Profit Factor diagnostic — visualising regime performance over time | 48 | 45.8% | 1.65 | +$5450.17 | -5.85% | 1.19 |
+| v22 | 2026-03-24 14:56 | Trend Following | EURUSD=X | 1h | Back to EURUSD — viewing Rolling PF chart | 54 | 42.6% | 1.49 | +$2011.15 | -5.85% | 0.95 |

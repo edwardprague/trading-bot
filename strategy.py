@@ -30,7 +30,7 @@ warnings.filterwarnings("ignore")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-TICKER          = "GBPUSD=X"
+TICKER          = "EURUSD=X"
 INTERVAL        = "1h"
 DAYS_BACK       = 720
 STARTING_CASH   = 100_000.0
@@ -51,8 +51,8 @@ TIME_FILTER_HOURS = [16, 17, 18, 1, 2, 3, 4]   # UTC hours allowed
 
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
-VERSION         = "v21"
-NOTES           = "Added Rolling Profit Factor diagnostic — visualising regime performance over time"
+VERSION         = "v22"
+NOTES           = "Back to EURUSD — viewing Rolling PF chart"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
