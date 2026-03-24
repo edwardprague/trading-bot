@@ -39,7 +39,7 @@ EMA_SLOW        = 200
 EMA_FAST        = 50
 EMA_ENTRY       = 20
 SWING_LOOKBACK  = 20
-RRR             = 2.5
+RRR             = 2.0
 RISK_PCT        = 0.01
 MIN_STOP        = 0.0005     # 5 pips minimum stop
 MAX_STOP        = 0.0200     # 200 pips maximum stop
@@ -49,8 +49,8 @@ TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 TIME_FILTER       = True
 TIME_FILTER_HOURS = [16, 17, 18, 1, 2, 3, 4]   # UTC hours allowed
 
-VERSION         = "v16"
-NOTES           = "Increased RRR from 2.0 to 2.5 — testing if wider target improves results given 42.6% win rate"
+VERSION         = "v17"
+NOTES           = "Reverted RRR to 2.0, added RRR and parameter sensitivity diagnostics"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -132,6 +132,95 @@ def _scan_outcome(df, entry_idx, direction, entry_p, sl, tp, size, ts, reason):
               else (entry_p - c_last) * size
     return {"reason": reason, "direction": direction,
             "pnl": pnl, "win": bool(pnl > 0), "timestamp": ts}
+
+
+# ── Sensitivity helper ────────────────────────────────────────────────────────
+
+def _sensitivity_run(df, rrr, swing_lookback):
+    """Stripped-down backtest with a specific RRR and swing lookback.
+    Recomputes swing stops; all other params use globals.
+    Returns condensed metrics dict, or None if no trades."""
+    df2 = df.copy()
+    df2["s_low"]  = df2["Low"].shift(1).rolling(swing_lookback).min()
+    df2["s_high"] = df2["High"].shift(1).rolling(swing_lookback).max()
+    df2 = df2.dropna(subset=["s_low", "s_high"]).reset_index(drop=True)
+
+    cash      = STARTING_CASH
+    equity_s  = [cash]
+    trades_s  = []
+    in_trade  = False
+    entry_p = sl = tp = size = 0.0
+    direction = None
+
+    for i in range(1, len(df2)):
+        c    = float(df2["Close"].iloc[i])
+        cp   = float(df2["Close"].iloc[i-1])
+        en   = float(df2["ema_entry"].iloc[i])
+        enp  = float(df2["ema_entry"].iloc[i-1])
+        fast = float(df2["ema_fast"].iloc[i])
+        slow = float(df2["ema_slow"].iloc[i])
+        s_lo = float(df2["s_low"].iloc[i])
+        s_hi = float(df2["s_high"].iloc[i])
+        ts   = df2["Datetime"].iloc[i]
+
+        if in_trade:
+            hit_sl = (direction == "long"  and c <= sl) or \
+                     (direction == "short" and c >= sl)
+            hit_tp = (direction == "long"  and c >= tp) or \
+                     (direction == "short" and c <= tp)
+            if hit_sl or hit_tp:
+                exit_p = sl if hit_sl else tp
+                pnl    = (exit_p - entry_p) * size if direction == "long" \
+                         else (entry_p - exit_p) * size
+                cash  += pnl
+                trades_s.append({"pnl": pnl, "win": pnl > 0})
+                in_trade = False
+
+        equity_s.append(cash)
+
+        if not in_trade:
+            trend_up   = fast > slow
+            trend_down = fast < slow
+            long_sig   = trend_up   and cp < enp and c > en and (TRADE_DIRECTION != "short_only")
+            short_sig  = trend_down and cp > enp and c < en and (TRADE_DIRECTION != "long_only")
+
+            if TIME_FILTER:
+                _ts_u = pd.to_datetime(ts)
+                if _ts_u.tzinfo is not None:
+                    _ts_u = _ts_u.tz_convert("UTC")
+                else:
+                    _ts_u = _ts_u.tz_localize("UTC")
+                if _ts_u.hour not in TIME_FILTER_HOURS:
+                    continue
+
+            if long_sig and not np.isnan(s_lo):
+                dist = c - s_lo
+                if MIN_STOP <= dist <= MAX_STOP:
+                    direction = "long";  entry_p = c;  sl = s_lo
+                    tp = c + dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
+
+            elif short_sig and not np.isnan(s_hi):
+                dist = s_hi - c
+                if MIN_STOP <= dist <= MAX_STOP:
+                    direction = "short"; entry_p = c;  sl = s_hi
+                    tp = c - dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
+
+    if not trades_s:
+        return None
+
+    tdf  = pd.DataFrame(trades_s)
+    wins = tdf[tdf["win"]]
+    loss = tdf[~tdf["win"]]
+    net  = float(tdf["pnl"].sum())
+    wr   = round(len(wins) / len(tdf) * 100, 1)
+    pf   = round(abs(float(wins["pnl"].sum()) / float(loss["pnl"].sum())), 2) \
+           if not loss.empty and float(loss["pnl"].sum()) != 0 else None
+    eq   = pd.Series(equity_s)
+    peak = eq.cummax()
+    dd   = round(float(((eq - peak) / peak * 100).min()), 2)
+
+    return {"trades": len(tdf), "win_rate": wr,
+            "profit_factor": pf, "net_pnl": round(net, 2), "max_drawdown": dd}
 
 
 # ── Backtest ──────────────────────────────────────────────────────────────────
@@ -429,7 +518,7 @@ def save_charts(df, trades, equity):
 
 # ── HTML Report ───────────────────────────────────────────────────────────────
 
-def compute_metrics(trades, equity, blocked_signals=None):
+def compute_metrics(trades, equity, blocked_signals=None, df=None):
     """Compute all backtest metrics and return as a JSON-serialisable dict."""
     if trades.empty:
         return None
@@ -657,7 +746,7 @@ def compute_metrics(trades, equity, blocked_signals=None):
         except Exception:
             filter_impact = []
 
-    return {
+    result = {
         "total_trades":   n,
         "winning_trades": int(len(wins)),
         "losing_trades":  int(len(loss)),
@@ -691,7 +780,39 @@ def compute_metrics(trades, equity, blocked_signals=None):
         "win_rate_trend":  win_rate_trend,
         "duration_analysis": duration_analysis,
         "filter_impact":     filter_impact,
+        "rrr_sensitivity":   [],
+        "swing_sensitivity": [],
     }
+
+    # ── Sensitivity sweeps (requires original df) ──────────────────────────────
+    if df is not None:
+        try:
+            rrr_rows, swing_rows = compute_sensitivity(df)
+            result["rrr_sensitivity"]   = rrr_rows
+            result["swing_sensitivity"] = swing_rows
+        except Exception:
+            pass
+
+    return result
+
+
+def compute_sensitivity(df):
+    """Sweep RRR and swing lookback; return (rrr_rows, swing_rows) lists."""
+    rrr_rows = []
+    for val in [1.5, 2.0, 2.5, 3.0]:
+        r = _sensitivity_run(df, rrr=val, swing_lookback=SWING_LOOKBACK)
+        if r:
+            r["param"] = val
+            rrr_rows.append(r)
+
+    swing_rows = []
+    for val in [10, 15, 20, 25, 30]:
+        r = _sensitivity_run(df, rrr=RRR, swing_lookback=val)
+        if r:
+            r["param"] = val
+            swing_rows.append(r)
+
+    return rrr_rows, swing_rows
 
 
 def _build_html(versions_json):
@@ -1276,6 +1397,60 @@ __VERSIONS_JSON__
         "<th>Filter</th><th>Trades Removed</th><th>Win Rate (if kept)</th><th>Net P&amp;L (if kept)</th>" +
         "</tr></thead><tbody>" + fiRows + "</tbody></table></div>";
 
+    /* 10. RRR Sensitivity */
+    var rrrSens     = m.rrr_sensitivity || [];
+    var rrrSensRows = "";
+    rrrSens.forEach(function (r) {
+      var isCurrent = (p.rrr !== undefined && Math.abs(r.param - p.rrr) < 0.001);
+      var rowStyle  = isCurrent ? " style='background:#1a2040;font-weight:600'" : "";
+      var pfTxt2    = r.profit_factor !== null && r.profit_factor !== undefined
+        ? "<span class='" + (r.profit_factor >= 1.5 ? "pos" : (r.profit_factor < 1.0 ? "neg" : "neu")) + "'>" + fmt(r.profit_factor) + "</span>"
+        : "&#8734;";
+      rrrSensRows +=
+        "<tr" + rowStyle + ">" +
+        "<td style='white-space:nowrap'>" + (isCurrent ? "<strong>" : "") + "1&thinsp;:&thinsp;" + r.param.toFixed(1) + (isCurrent ? " &#9654;</strong>" : "") + "</td>" +
+        "<td>" + r.trades + "</td>" +
+        "<td class='" + (r.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(r.win_rate, 1) + "%</td>" +
+        "<td>" + pfTxt2 + "</td>" +
+        "<td class='" + pClass(r.net_pnl) + "'>" + fmtMoney(r.net_pnl) + "</td>" +
+        "<td class='neg'>" + fmt(r.max_drawdown, 1) + "%</td>" +
+        "</tr>";
+    });
+    if (!rrrSensRows) rrrSensRows = "<tr><td colspan='6' style='color:#404060;text-align:center;padding:16px'>No data</td></tr>";
+    var rrrSensHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>RRR Sensitivity</div>" +
+        "<table><thead><tr>" +
+        "<th>RRR</th><th>Trades</th><th>Win Rate</th><th>Profit Factor</th><th>Net P&amp;L</th><th>Max DD</th>" +
+        "</tr></thead><tbody>" + rrrSensRows + "</tbody></table></div>";
+
+    /* 11. Swing Lookback Sensitivity */
+    var swingSens     = m.swing_sensitivity || [];
+    var swingSensRows = "";
+    swingSens.forEach(function (r) {
+      var isCurrent = (p.swing_lookback !== undefined && r.param === p.swing_lookback);
+      var rowStyle  = isCurrent ? " style='background:#1a2040;font-weight:600'" : "";
+      var pfTxt3    = r.profit_factor !== null && r.profit_factor !== undefined
+        ? "<span class='" + (r.profit_factor >= 1.5 ? "pos" : (r.profit_factor < 1.0 ? "neg" : "neu")) + "'>" + fmt(r.profit_factor) + "</span>"
+        : "&#8734;";
+      swingSensRows +=
+        "<tr" + rowStyle + ">" +
+        "<td style='white-space:nowrap'>" + (isCurrent ? "<strong>" : "") + r.param + " bars" + (isCurrent ? " &#9654;</strong>" : "") + "</td>" +
+        "<td>" + r.trades + "</td>" +
+        "<td class='" + (r.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(r.win_rate, 1) + "%</td>" +
+        "<td>" + pfTxt3 + "</td>" +
+        "<td class='" + pClass(r.net_pnl) + "'>" + fmtMoney(r.net_pnl) + "</td>" +
+        "<td class='neg'>" + fmt(r.max_drawdown, 1) + "%</td>" +
+        "</tr>";
+    });
+    if (!swingSensRows) swingSensRows = "<tr><td colspan='6' style='color:#404060;text-align:center;padding:16px'>No data</td></tr>";
+    var swingSensHtml =
+      "<div class='section'>" +
+        "<div class='section-title'>Swing Lookback Sensitivity</div>" +
+        "<table><thead><tr>" +
+        "<th>Swing Bars</th><th>Trades</th><th>Win Rate</th><th>Profit Factor</th><th>Net P&amp;L</th><th>Max DD</th>" +
+        "</tr></thead><tbody>" + swingSensRows + "</tbody></table></div>";
+
     var chartHtml = v.chart_b64
       ? "<div class='section'><div class='section-title'>Chart</div>" +
         "<img id='chart-img' src='data:image/png;base64," + v.chart_b64 + "' alt='Backtest Chart'/></div>"
@@ -1365,6 +1540,7 @@ __VERSIONS_JSON__
       "<div class='two-col'>" + durationHtml + filterImpactHtml + "</div>" +
       monthHtml +
       timeOfDayHtml +
+      "<div class='two-col'>" + rrrSensHtml + swingSensHtml + "</div>" +
 
       /* chart — below all data sections */
       chartHtml;
@@ -1534,11 +1710,11 @@ __VERSIONS_JSON__
 
 
 def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes="",
-                         blocked_signals=None):
+                         blocked_signals=None, df=None):
     """Create or update report.html with the new backtest version appended."""
     report_path = "report.html"
 
-    metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals)
+    metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals, df=df)
     if metrics is None:
         print("  No trades generated — skipping HTML report.")
         return
@@ -1739,7 +1915,7 @@ if __name__ == "__main__":
     print(f"  Time filter blocked : {time_blocked} signal(s)")
     chart_path = save_charts(df, trades, equity)
     generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes,
-                         blocked_signals=blocked_signals)
-    metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals)
+                         blocked_signals=blocked_signals, df=df)
+    metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals, df=df)
     update_results_log(metrics, notes=run_notes)
     git_commit_and_push(metrics, VERSION, TICKER, INTERVAL)
