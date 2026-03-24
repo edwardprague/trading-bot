@@ -49,8 +49,8 @@ TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 TIME_FILTER       = True
 TIME_FILTER_HOURS = [16, 17, 18, 19, 0, 1, 2, 3, 4]   # UTC hours allowed
 
-VERSION         = "v6"
-NOTES           = "Short only plus time filter — blocking worst hours 06 09 14 20 23 keeping best hours 16-19 and 00-04"
+VERSION         = "v9"
+NOTES           = "Fixed time filter — short only strict hours 16-19 and 00-04 only"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -103,7 +103,13 @@ def add_indicators(df):
     _denom   = (_pdi + _mdi).replace(0, np.nan)
     _dx      = 100.0 * (_pdi - _mdi).abs() / _denom
     df["adx"] = _dx.ewm(alpha=_alpha, adjust=False).mean()
-    return df.dropna().reset_index()
+    df = df.dropna().reset_index()
+    # Normalise the datetime column to 'Datetime' regardless of yfinance version
+    for _col in ("Datetime", "Date", "index"):
+        if _col in df.columns and _col != "Datetime":
+            df = df.rename(columns={_col: "Datetime"})
+            break
+    return df
 
 # ── Blocked-signal outcome simulation ────────────────────────────────────────
 
@@ -151,7 +157,7 @@ def run_backtest(df):
         slow  = float(df.ema_slow.iloc[i])
         s_lo  = float(df.s_low.iloc[i])
         s_hi  = float(df.s_high.iloc[i])
-        ts    = df.index[i] if not hasattr(df, 'Datetime') else df.Datetime.iloc[i]
+        ts    = df['Datetime'].iloc[i]
 
         # ── Check exits ───────────────────────────────────────────────────────
         if in_trade:
@@ -330,8 +336,7 @@ def save_charts(df, trades, equity):
         ax.spines["left"].set_color("#444")
         ax.spines["right"].set_color("#444")
 
-    dates = pd.to_datetime(df.index if "Datetime" not in df.columns
-                           else df.Datetime)
+    dates = pd.to_datetime(df['Datetime'])
 
     # ── Price chart with EMAs ─────────────────────────────────────────────────
     ax1 = axes[0]
@@ -1700,6 +1705,8 @@ if __name__ == "__main__":
     df              = add_indicators(df)
     trades, equity, blocked_signals = run_backtest(df)
     print_results(trades, equity)
+    time_blocked = sum(1 for s in blocked_signals if s["reason"] == "time")
+    print(f"  Time filter blocked : {time_blocked} signal(s)")
     chart_path = save_charts(df, trades, equity)
     generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes,
                          blocked_signals=blocked_signals)
