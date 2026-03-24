@@ -12,3 +12,4 @@
 | v6 | 2026-03-24 08:56 | Trend Following | EURUSD=X | 1h | Short only plus time filter — blocking worst hours 06 09 14 20 23 keeping best hours 16-19 and 00-04 | 59 | 40.7% | 1.37 | -$101.67 | -5.85% | 0.80 |
 | v9 | 2026-03-24 09:39 | Trend Following | EURUSD=X | 1h | Fixed time filter — short only strict hours 16-19 and 00-04 only | 59 | 40.7% | 1.37 | -$101.67 | -5.85% | 0.80 |
 | v9 | 2026-03-24 09:39 | Trend Following | EURUSD=X | 1h | Fixed time filter — short only strict hours 16-19 and 00-04 only | 59 | 40.7% | 1.37 | -$101.67 | -5.85% | 0.80 |
+| v11 | 2026-03-24 09:45 | Trend Following | EURUSD=X | 1h | Time filter timezone fix | 59 | 40.7% | 1.37 | -$101.67 | -5.85% | 0.80 |

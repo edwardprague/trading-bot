@@ -49,8 +49,8 @@ TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 TIME_FILTER       = True
 TIME_FILTER_HOURS = [16, 17, 18, 19, 0, 1, 2, 3, 4]   # UTC hours allowed
 
-VERSION         = "v9"
-NOTES           = "Fixed time filter — short only strict hours 16-19 and 00-04 only"
+VERSION         = "v11"
+NOTES           = "Time filter timezone fix"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -147,6 +147,7 @@ def run_backtest(df):
     worst_adverse    = 0.0   # tracks furthest adverse price during a trade
     entry_adx        = 0.0   # ADX value at entry bar
     blocked_signals  = []    # signals that were filtered out (for Filter Impact Summary)
+    _debug_entries   = 0     # counter for entry timezone debug prints
 
     for i in range(1, len(df)):
         c     = float(df.Close.iloc[i])
@@ -224,7 +225,12 @@ def run_backtest(df):
 
             # ── Apply time filter and track blocked signals ────────────────────
             if TIME_FILTER:
-                entry_hour = pd.to_datetime(ts).hour
+                _ts_utc    = pd.to_datetime(ts)
+                if _ts_utc.tzinfo is not None:
+                    _ts_utc = _ts_utc.tz_convert('UTC')
+                else:
+                    _ts_utc = _ts_utc.tz_localize('UTC')
+                entry_hour = _ts_utc.hour
                 if entry_hour not in TIME_FILTER_HOURS:
                     if long_sig and not np.isnan(s_lo):
                         dist_b = c - s_lo
@@ -253,6 +259,11 @@ def run_backtest(df):
                     entry_idx     = i
                     worst_adverse = c   # reset MAE tracker to entry price
                     entry_adx     = float(df.adx.iloc[i])
+                    if _debug_entries < 5:
+                        _ts_dbg = pd.to_datetime(ts)
+                        _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
+                        print(f"  [DBG entry {_debug_entries+1}] raw={ts}  tz={getattr(ts,'tzinfo',None)}  utc_hour={_ts_utc_dbg.hour}  direction=long")
+                        _debug_entries += 1
 
             elif short_sig and not np.isnan(s_hi):
                 dist = s_hi - c
@@ -266,6 +277,11 @@ def run_backtest(df):
                     entry_idx     = i
                     worst_adverse = c   # reset MAE tracker to entry price
                     entry_adx     = float(df.adx.iloc[i])
+                    if _debug_entries < 5:
+                        _ts_dbg = pd.to_datetime(ts)
+                        _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
+                        print(f"  [DBG entry {_debug_entries+1}] raw={ts}  tz={getattr(ts,'tzinfo',None)}  utc_hour={_ts_utc_dbg.hour}  direction=short")
+                        _debug_entries += 1
 
     return pd.DataFrame(trades), equity, blocked_signals
 
