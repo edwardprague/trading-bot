@@ -1404,7 +1404,7 @@ __VERSIONS_JSON__
       return;
     }
 
-    var dlRows = "";
+    var dlRowArr = [];
     var prevPF = null;
 
     for (var i = 0; i < svs.length; i++) {
@@ -1440,7 +1440,7 @@ __VERSIONS_JSON__
 
       var notes = (v.notes && v.notes !== "—" && v.notes !== "\u2014") ? esc(v.notes) : "<span style='color:#404060'>—</span>";
 
-      dlRows +=
+      dlRowArr.push(
         "<tr>" +
         "<td style='white-space:nowrap;font-weight:600;color:#c8c8e8'>" + esc(v.name) + "</td>" +
         "<td style='white-space:nowrap;color:#505070'>" + esc(v.date) + "</td>" +
@@ -1448,8 +1448,10 @@ __VERSIONS_JSON__
         "<td style='text-align:right;white-space:nowrap'>" + pfDisp + "</td>" +
         "<td style='text-align:right;white-space:nowrap'>" + wrDisp + "</td>" +
         "<td style='text-align:right;white-space:nowrap'>" + npDisp + "</td>" +
-        "</tr>";
+        "</tr>"
+      );
     }
+    var dlRows = dlRowArr.slice().reverse().join("");
 
     document.getElementById("content").innerHTML =
       "<div id='devlog-header'>" +
