@@ -1327,10 +1327,10 @@ __VERSIONS_JSON__
 
       /* analytical sections */
       dirHtml +
-      monthHtml +
       "<div class='two-col'>" + streakHtml + stopHtml + "</div>" +
       "<div class='two-col'>" + regimeHtml + winRateTrendHtml + "</div>" +
       "<div class='two-col'>" + durationHtml + filterImpactHtml + "</div>" +
+      monthHtml +
       timeOfDayHtml +
 
       /* chart — below all data sections */
