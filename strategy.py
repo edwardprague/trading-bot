@@ -47,10 +47,10 @@ MAX_STOP        = 0.0200     # 200 pips maximum stop
 TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 
 TIME_FILTER       = True
-TIME_FILTER_HOURS = [16, 17, 18, 19, 0, 1, 2, 3, 4]   # UTC hours allowed
+TIME_FILTER_HOURS = [16, 17, 18, 1, 2, 3, 4]   # UTC hours allowed
 
-VERSION         = "v13"
-NOTES           = "Fixed time of day display — was showing incorrect hours in diagnostic table"
+VERSION         = "v15"
+NOTES           = "Tightened time filter — removed worst hours 00 and 19, keeping 01-04 and 16-18"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────

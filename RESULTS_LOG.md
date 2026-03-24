@@ -16,3 +16,4 @@
 | v12 | 2026-03-24 09:54 | Trend Following | EURUSD=X | 1h | Time filter bug fix — added continue to actually block trades outside allowed hours | 59 | 40.7% | 1.37 | -$101.67 | -5.85% | 0.80 |
 | v12 | 2026-03-24 09:59 | Trend Following | EURUSD=X | 1h | Time filter bug fix — added continue to actually block trades outside allowed hours | 59 | 40.7% | 1.37 | -$101.67 | -5.85% | 0.80 |
 | v13 | 2026-03-24 10:02 | Trend Following | EURUSD=X | 1h | Fixed time of day display — was showing incorrect hours in diagnostic table | 59 | 40.7% | 1.37 | -$100.98 | -5.85% | 0.80 |
+| v15 | 2026-03-24 10:05 | Trend Following | EURUSD=X | 1h | Tightened time filter — removed worst hours 00 and 19, keeping 01-04 and 16-18 | 54 | 42.6% | 1.49 | +$201.12 | -5.85% | 0.95 |
