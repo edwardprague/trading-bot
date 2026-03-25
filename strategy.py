@@ -63,7 +63,7 @@ REGIME_LENGTH     = 20              # lookback bars — if all closes within ATR
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
 VERSION         = "v2"
-NOTES           = "RS development mode — 5 days, fixed filter logic, range boxes on chart"
+NOTES           = "Fixed ATR calculation to true ATR high-low-close, fixed chart shading"
 STRATEGY        = "Trend Following"
 
 ENTRY_CONDITIONS = [
@@ -217,7 +217,14 @@ def add_indicators(df):
     _dx      = 100.0 * (_pdi - _mdi).abs() / _denom
     df["adx"] = _dx.ewm(alpha=_alpha, adjust=False).mean()
     # ── Regime filter indicators (LuxAlgo Range Detector logic) ─────────────
-    df["regime_atr"] = _tr.rolling(REGIME_ATR_LENGTH).mean()
+    # True ATR: true_range = max(high - low, |high - prev_close|, |low - prev_close|)
+    _prev_close = df.Close.shift(1)
+    _true_range = pd.concat([
+        (df.High - df.Low),
+        (df.High - _prev_close).abs(),
+        (df.Low  - _prev_close).abs()
+    ], axis=1).max(axis=1)
+    df["regime_atr"] = _true_range.rolling(REGIME_ATR_LENGTH).mean()
     df["regime_sma"] = df.Close.rolling(REGIME_LENGTH).mean()
     # ── Per-bar regime classification: True = ranging, False = trending ────────
     # Ranging when ALL closes over REGIME_LENGTH bars stay within ATR of SMA
@@ -640,7 +647,7 @@ def save_charts(df, trades, equity):
     ax1.plot(dates, df.ema_fast,  color="#ffd93d", linewidth=1.0, label=f"EMA {EMA_FAST}")
     ax1.plot(dates, df.ema_entry, color="#6bcb77", linewidth=0.8, label=f"EMA {EMA_ENTRY}")
 
-    # ── Range detection shading (grey background when ranging) ─────────────
+    # ── Range detection shading (subtle grey background when ranging) ──────
     if "regime_ranging" in df.columns:
         ranging_vals = df["regime_ranging"].values
         in_range = False
@@ -651,11 +658,11 @@ def save_charts(df, trades, equity):
                 range_start = dates.iloc[ri]
             elif not ranging_vals[ri] and in_range:
                 in_range = False
-                ax1.axvspan(range_start, dates.iloc[ri], alpha=0.15,
-                            color="#888888", zorder=0)
+                ax1.axvspan(range_start, dates.iloc[ri], alpha=0.08,
+                            facecolor="#aaaaaa", edgecolor="none", zorder=0)
         if in_range and range_start is not None:
-            ax1.axvspan(range_start, dates.iloc[-1], alpha=0.15,
-                        color="#888888", zorder=0)
+            ax1.axvspan(range_start, dates.iloc[-1], alpha=0.08,
+                        facecolor="#aaaaaa", edgecolor="none", zorder=0)
 
     if not trades.empty:
         for _, t in trades.iterrows():
