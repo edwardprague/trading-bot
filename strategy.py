@@ -55,12 +55,12 @@ TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 TIME_FILTER       = True
 TIME_FILTER_HOURS = [1, 2, 16, 18]              # UTC hours allowed
 
-MAX_TRADES_PER_DAY = 2              # max entries per calendar day (UTC)
+MAX_DAILY_LOSS  = 2500.0            # stop trading if day's loss reaches $2,500 (2.5% of capital)
 
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
 VERSION         = "v2"
-NOTES           = "Removed hour 17 and added max 2 trades per day to control daily drawdown"
+NOTES           = "Removed hour 17 and added $2,500 daily loss limit"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -296,8 +296,8 @@ def run_backtest(df):
     entry_ts         = None  # timestamp of the entry bar (for time-of-day diagnostics)
     blocked_signals  = []    # signals that were filtered out (for Filter Impact Summary)
     _debug_entries   = 0     # counter for entry timezone debug prints
-    _daily_trade_day = None  # current calendar day (UTC date) for daily trade counter
-    _daily_trade_cnt = 0     # number of trades entered on _daily_trade_day
+    _daily_loss_day  = None  # current calendar day (UTC date) for daily loss tracking
+    _daily_loss_pnl  = 0.0   # cumulative closed-trade P&L for _daily_loss_day
 
     for i in range(1, len(df)):
         c     = float(df.Close.iloc[i])
@@ -329,6 +329,14 @@ def run_backtest(df):
                           else (entry_p - exit_p) * size
                 mae     = abs(entry_p - worst_adverse)
                 cash   += pnl
+                # ── Update daily loss tracker on exit ─────────────────────────
+                _exit_utc = pd.to_datetime(ts)
+                _exit_utc = _exit_utc.tz_convert('UTC') if _exit_utc.tzinfo else _exit_utc.tz_localize('UTC')
+                _exit_day = _exit_utc.date()
+                if _exit_day != _daily_loss_day:
+                    _daily_loss_day = _exit_day
+                    _daily_loss_pnl = 0.0
+                _daily_loss_pnl += pnl
                 trades.append({
                     "entry_idx": entry_idx,
                     "exit_idx":  i,
@@ -400,14 +408,14 @@ def run_backtest(df):
                     short_sig = False
                     continue
 
-            # ── Daily trade limit ─────────────────────────────────────────────
+            # ── Daily loss limit ──────────────────────────────────────────────
             _ts_day = pd.to_datetime(ts)
             _ts_day_utc = _ts_day.tz_convert('UTC') if _ts_day.tzinfo else _ts_day.tz_localize('UTC')
             _today = _ts_day_utc.date()
-            if _today != _daily_trade_day:
-                _daily_trade_day = _today
-                _daily_trade_cnt = 0
-            if _daily_trade_cnt >= MAX_TRADES_PER_DAY:
+            if _today != _daily_loss_day:
+                _daily_loss_day = _today
+                _daily_loss_pnl = 0.0
+            if _daily_loss_pnl <= -MAX_DAILY_LOSS:
                 continue
 
             if long_sig and not np.isnan(s_lo):
@@ -423,7 +431,6 @@ def run_backtest(df):
                     entry_ts      = ts
                     worst_adverse = c   # reset MAE tracker to entry price
                     entry_adx     = float(df.adx.iloc[i])
-                    _daily_trade_cnt += 1
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
@@ -443,7 +450,6 @@ def run_backtest(df):
                     entry_ts      = ts
                     worst_adverse = c   # reset MAE tracker to entry price
                     entry_adx     = float(df.adx.iloc[i])
-                    _daily_trade_cnt += 1
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
@@ -1877,7 +1883,6 @@ __VERSIONS_JSON__
           "<tr><td style='padding:5px 10px;color:#c8c8e8'>Stop Placement</td><td style='padding:5px 10px'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td style='padding:5px 10px;color:#8888aa'>Structural invalidation level</td></tr>" +
           "<tr><td style='padding:5px 10px;color:#c8c8e8'>Direction</td><td style='padding:5px 10px'><span style='color:#ffd93d;font-weight:600'>Short only</span></td><td style='padding:5px 10px;color:#8888aa'>Asymmetric edge identified on EURUSD</td></tr>" +
           "<tr><td style='padding:5px 10px;color:#c8c8e8'>Time Window</td><td style='padding:5px 10px'>UTC " + (p.time_filter ? tfHoursStr : "<span style='color:#404060'>OFF</span>") + "</td><td style='padding:5px 10px;color:#8888aa'>High quality session hours</td></tr>" +
-          "<tr><td style='padding:5px 10px;color:#c8c8e8'>Daily Trade Limit</td><td style='padding:5px 10px'>Max " + (p.max_trades_per_day || 2) + " trades per calendar day</td><td style='padding:5px 10px;color:#8888aa'>Prevents daily drawdown limit breach</td></tr>" +
           "</tbody>" +
         "</table>" +
       "</div>";
@@ -2237,7 +2242,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
             "trade_direction":   TRADE_DIRECTION,
             "time_filter":       TIME_FILTER,
             "time_filter_hours": TIME_FILTER_HOURS if TIME_FILTER else [],
-            "max_trades_per_day": MAX_TRADES_PER_DAY,
+            "max_daily_loss": MAX_DAILY_LOSS,
         },
         "last_trades": last_trades,
         "strategy":    STRATEGY,

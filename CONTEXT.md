@@ -72,7 +72,8 @@ Or run directly: `python3 strategy.py`
 | Entry Signal | Price crosses below EMA20 | Pullback rejection in trend direction |
 | Stop Placement | Swing high over 20 bars | Structural invalidation level |
 | Direction | Short only | Asymmetric edge identified on EURUSD |
-| Time Window | UTC 01, 02, 16, 17, 18 | Quality session hours |
+| Time Window | UTC 01, 02, 16, 18 | Quality session hours |
+| Daily Loss Limit | Stop trading if daily loss reaches $2,500 (2.5%) | Prevents FTMO 3% daily drawdown breach |
 
 ### Current Baseline Results (v1 — 5-minute, 730 days)
 - Total Trades: 382
@@ -112,7 +113,7 @@ Hours selected based on 5-minute performance analysis:
 
 ### Daily Drawdown Issue
 3 trades in one bad day can breach FTMO 3% daily limit.
-Solution: MAX_TRADES_PER_DAY = 2 to be added in v2.
+Solution: MAX_DAILY_LOSS = 2500 — stop entering new trades once the day's closed P&L reaches -$2,500 (2.5%).
 
 ---
 
@@ -160,10 +161,10 @@ Never stops completely — minimum risk keeps feedback loop alive.
 | Version | Hypothesis | Result |
 |---------|-----------|--------|
 | v1 | Baseline 5min short only hours 01 02 16 17 18 | PF 1.03, +7.4%, DD 25.36% |
-| v2 | Remove hour 17 + max 2 trades/day | TBD |
+| v2 | Remove hour 17 + $2,500 daily loss limit | TBD |
 
 ### Next to Test
-1. Remove hour 17 + MAX_TRADES_PER_DAY=2
+1. Remove hour 17 + MAX_DAILY_LOSS=2500
 2. Scale EMA periods for 5-minute (200/50/20 may be too small)
 3. RPF position sizing
 4. Regime composite score
@@ -188,6 +189,6 @@ Never stops completely — minimum risk keeps feedback loop alive.
 
 ## Next Session Priority
 1. Confirm clean v1 in dashboard
-2. Run v2: remove hour 17 + MAX_TRADES_PER_DAY=2
+2. Run v2: remove hour 17 + MAX_DAILY_LOSS=2500
 3. Analyse drawdown reduction
 4. If drawdown still too high — consider EMA scaling for 5-minute
