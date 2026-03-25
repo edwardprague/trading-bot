@@ -24,10 +24,10 @@ Develop, test and optimise in Python, then deploy as a cTrader Python cBot.
 - Risk per trade: 1% of account
 - Starting capital: $10,000
 - Strategy tag: `STRATEGY = "Trend Following"` (used to group versions in the dashboard)
-- VERSION = "v1", NOTES = "Baseline — EMA 20/50/200 swing stop 1:2 RRR"
+- VERSION = "v1", NOTES = "Baseline — 5-minute EURUSD short only time filter hours 01 02 16 17 18"
 - No additional filters — pure EMA crossover + swing stop
 
-## Baseline Results (EURUSD hourly, 720 days)
+## Baseline Results (EURUSD 5-minute, short only, time filter hours 01 02 16 17 18)
 - Not yet established — run the backtest to record v1
 
 ## Target Challenge Parameters

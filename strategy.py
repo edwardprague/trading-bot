@@ -57,8 +57,8 @@ TIME_FILTER_HOURS = [1, 2, 16, 17, 18]          # UTC hours allowed
 
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
-VERSION         = "v44"
-NOTES           = "Removed worst hours 03 and 04 — keeping 01 02 16 17 18 based on 5-minute time of day analysis"
+VERSION         = "v1"
+NOTES           = "Baseline — 5-minute EURUSD short only time filter hours 01 02 16 17 18"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
