@@ -216,6 +216,13 @@ body {
     border: 1px solid #1a1a2c;
 }
 
+#rpf-chart-img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+}
+
 /* ── Tables ───────────────────────────────────────────── */
 table {
     width: 100%;

@@ -672,6 +672,19 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
             "net_pnl":       round(float(sub.pnl.sum()), 2),
         }
 
+    # ── Reconcile by-direction P&Ls with overall net ───────────────────────────
+    # Rounding each direction's P&L independently can cause long + short ≠ net_profit
+    # by up to $0.01. Fix: treat long as authoritative and derive short as the residual
+    # so that by_dir["long"]["net_pnl"] + by_dir["short"]["net_pnl"] == round(net, 2)
+    # exactly. (Subtracting two already-rounded 2-dp values gives an exact 2-dp result.)
+    _net_rounded = round(net, 2)
+    if by_dir.get("long") is not None and by_dir.get("short") is not None:
+        by_dir["short"]["net_pnl"] = round(_net_rounded - by_dir["long"]["net_pnl"], 2)
+    elif by_dir.get("long") is not None:
+        by_dir["long"]["net_pnl"]  = _net_rounded
+    elif by_dir.get("short") is not None:
+        by_dir["short"]["net_pnl"] = _net_rounded
+
     # ── Monthly performance ────────────────────────────────────────────────────
     monthly = []
     try:
@@ -1243,6 +1256,10 @@ __VERSIONS_JSON__
         " | " + mfMoney(data.net_pnl) + " |");
     });
     lines.push("");
+    lines.push("> **Position sizing note:** All P&L figures use **compounding equity** — each trade risks " +
+      mf((p.risk_pct || 0) * 100, 1) + "% of *current* equity, not a fixed dollar amount. " +
+      "Long Net P&L + Short Net P&L = Net Profit.");
+    lines.push("");
 
     /* ── Monthly Performance ────────────────────────── */
     lines.push("### Monthly Performance");
@@ -1466,7 +1483,16 @@ __VERSIONS_JSON__
         "<th>Profit Factor</th><th>Avg Win</th><th>Avg Loss</th><th>Net P&amp;L</th>" +
         "</tr></thead><tbody>" +
         dirRow("Long", bdLng) + dirRow("Short", bdSht) +
-        "</tbody></table></div>";
+        "</tbody></table>" +
+        "<p style='font-size:11px;color:#6060a0;margin:8px 4px 2px;line-height:1.6'>" +
+        "<strong style='color:#8080b0'>&#8505; Position sizing note:</strong> " +
+        "All P&amp;L figures use <strong>compounding equity</strong> &mdash; each trade risks " +
+        fmt((p.risk_pct || 0) * 100, 1) + "% of <em>current</em> equity (not a fixed dollar amount). " +
+        "As equity grows the dollar risk per trade increases; as equity falls it decreases. " +
+        "Long&nbsp;Net&nbsp;P&amp;L&nbsp;+&nbsp;Short&nbsp;Net&nbsp;P&amp;L&nbsp;" +
+        "always equals Net&nbsp;Profit in Results." +
+        "</p>" +
+      "</div>";
 
     /* 2. Monthly Performance */
     var monthly = m.monthly || [];
