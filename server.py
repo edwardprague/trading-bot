@@ -16,18 +16,20 @@ they reach Flask.
 
 import os
 import sys
+import json
+import re
 import subprocess
 import threading
 from pathlib import Path
 
 # ── Auto-install Flask if missing ─────────────────────────────────────────────
 try:
-    from flask import Flask, Response, jsonify
+    from flask import Flask, Response, jsonify, request
 except ImportError:
     print("  Flask not found — installing...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "flask"],
                           stdout=subprocess.DEVNULL)
-    from flask import Flask, Response, jsonify
+    from flask import Flask, Response, jsonify, request
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
@@ -257,6 +259,53 @@ def backtest_status():
     """Return the current backtest state for the browser to poll."""
     with _bt_lock:
         return jsonify(dict(_bt_state))
+
+
+@app.route("/delete_version", methods=["POST"])
+def delete_version():
+    """Remove a version from report.html and RESULTS_LOG.md."""
+    try:
+        data = request.get_json(force=True)
+        name = (data.get("name") or "").strip()
+        if not name:
+            return jsonify({"ok": False, "error": "No version name provided"})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)})
+
+    # ── Remove from report.html ────────────────────────────────────────────────
+    if not REPORT_FILE.exists():
+        return jsonify({"ok": False, "error": "report.html not found"})
+
+    html = REPORT_FILE.read_text(encoding="utf-8")
+    match = re.search(
+        r'(<script[^>]+id=["\']versions-data["\'][^>]*>)([\s\S]*?)(</script>)',
+        html
+    )
+    if not match:
+        return jsonify({"ok": False, "error": "Could not parse versions data in report.html"})
+
+    try:
+        versions = json.loads(match.group(2).strip())
+    except (json.JSONDecodeError, ValueError) as exc:
+        return jsonify({"ok": False, "error": f"JSON parse error: {exc}"})
+
+    original_count = len(versions)
+    versions = [v for v in versions if v.get("name") != name]
+    if len(versions) == original_count:
+        return jsonify({"ok": False, "error": f"Version '{name}' not found"})
+
+    new_json = json.dumps(versions, indent=2, ensure_ascii=False)
+    new_html = html[:match.start(2)] + "\n" + new_json + "\n" + html[match.end(2):]
+    REPORT_FILE.write_text(new_html, encoding="utf-8")
+
+    # ── Remove from RESULTS_LOG.md ─────────────────────────────────────────────
+    results_log = BASE_DIR / "RESULTS_LOG.md"
+    if results_log.exists():
+        lines = results_log.read_text(encoding="utf-8").splitlines(keepends=True)
+        new_lines = [l for l in lines if not re.match(r'^\|\s*' + re.escape(name) + r'\s*\|', l)]
+        results_log.write_text("".join(new_lines), encoding="utf-8")
+
+    return jsonify({"ok": True})
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

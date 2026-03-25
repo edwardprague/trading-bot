@@ -63,6 +63,51 @@ VERSION         = "v2"
 NOTES           = "Removed hour 17 and added $2,500 daily loss limit"
 STRATEGY        = "Trend Following"
 
+ENTRY_CONDITIONS = [
+    {
+        "condition":       "Trend Filter",
+        "rule":            f"EMA{EMA_FAST} < EMA{EMA_SLOW}",
+        "purpose":         "Confirms downtrend — short only",
+        "since_version":   "v1",
+        "removed_version": None,
+    },
+    {
+        "condition":       "Entry Signal",
+        "rule":            f"Price crosses below EMA{EMA_ENTRY}",
+        "purpose":         "Pullback rejection in trend direction",
+        "since_version":   "v1",
+        "removed_version": None,
+    },
+    {
+        "condition":       "Stop Placement",
+        "rule":            f"Swing high over {SWING_LOOKBACK} bars",
+        "purpose":         "Structural invalidation level",
+        "since_version":   "v1",
+        "removed_version": None,
+    },
+    {
+        "condition":       "Direction",
+        "rule":            "Short only",
+        "purpose":         "Asymmetric edge identified on EURUSD",
+        "since_version":   "v1",
+        "removed_version": None,
+    },
+    {
+        "condition":       "Time Window",
+        "rule":            f"UTC {' '.join(f'{h:02d}' for h in sorted(TIME_FILTER_HOURS))}",
+        "purpose":         "High quality session hours",
+        "since_version":   "v1",
+        "removed_version": None,
+    },
+    {
+        "condition":       "Daily Loss Limit",
+        "rule":            f"Stop trading if daily loss >= ${MAX_DAILY_LOSS:,.0f}",
+        "purpose":         "Prevents FTMO 3% daily drawdown breach",
+        "since_version":   "v1",
+        "removed_version": None,
+    },
+]
+
 # ── Data fetch ────────────────────────────────────────────────────────────────
 
 def fetch_data(ticker, interval, days_back):
@@ -1102,7 +1147,7 @@ def _build_html(versions_json):
 <div id="main">
   <div id="content">
     <div id="empty-state">
-      <span style="font-size:36px">&#128202;</span>
+      <span class="empty-icon">&#128202;</span>
       <span>Select a version to view results</span>
     </div>
   </div>
@@ -1419,7 +1464,7 @@ __VERSIONS_JSON__
     list.innerHTML = "";
 
     if (svs.length === 0) {
-      list.innerHTML = "<div style='padding:20px 16px;color:#404060;font-size:12px'>No runs for this strategy yet.</div>";
+      list.innerHTML = "<div class='sb-no-runs'>No runs for this strategy yet.</div>";
       return;
     }
 
@@ -1479,7 +1524,7 @@ __VERSIONS_JSON__
     function dirRow(label, data) {
       if (!data) {
         return "<tr><td><strong>" + label + "</strong></td>" +
-               "<td colspan='7' style='color:#404060'>No data</td></tr>";
+               "<td colspan='7' class='text-dim'>No data</td></tr>";
       }
       var dpf    = (data.profit_factor === null || data.profit_factor === undefined) ? "\u221e" : fmt(data.profit_factor);
       var dpfCls = (data.profit_factor === null || data.profit_factor === undefined || data.profit_factor >= 1.5) ? "pos" : (data.profit_factor < 1.0 ? "neg" : "neu");
@@ -1509,8 +1554,7 @@ __VERSIONS_JSON__
     var monthly = m.monthly || [];
     var mRows = "";
     monthly.forEach(function (mo) {
-      var pc = mo.net_pnl >= 0 ? "#6bcb77" : "#ff6b6b";
-      var bg = mo.net_pnl >= 0 ? "rgba(107,203,119,.08)" : "rgba(255,107,107,.08)";
+      var mPnlCls = mo.net_pnl >= 0 ? "mo-pnl-pos" : "mo-pnl-neg";
       mRows +=
         "<tr>" +
         "<td>" + fmtMonth(mo.month) + "</td>" +
@@ -1518,11 +1562,11 @@ __VERSIONS_JSON__
         "<td class='pos'>" + mo.wins + "</td>" +
         "<td class='neg'>" + mo.losses + "</td>" +
         "<td class='" + (mo.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(mo.win_rate, 1) + "%</td>" +
-        "<td style='color:" + pc + ";background:" + bg + ";font-weight:600'>" + fmtMoney(mo.net_pnl) + "</td>" +
+        "<td class='" + mPnlCls + "'>" + fmtMoney(mo.net_pnl) + "</td>" +
         "</tr>";
     });
     if (!mRows) {
-      mRows = "<tr><td colspan='6' style='color:#404060;text-align:center;padding:20px'>No data</td></tr>";
+      mRows = "<tr><td colspan='6' class='td-empty'>No data</td></tr>";
     }
     var monthHtml =
       "<div class='section'>" +
@@ -1571,7 +1615,7 @@ __VERSIONS_JSON__
         "<td class='" + pClass(r.net_pnl) + "'>" + fmtMoney(r.net_pnl) + "</td>" +
         "</tr>";
     });
-    if (!regRows) regRows = "<tr><td colspan='5' style='color:#404060;text-align:center;padding:20px'>No data</td></tr>";
+    if (!regRows) regRows = "<tr><td colspan='5' class='td-empty'>No data</td></tr>";
     var regimeHtml =
       "<div class='section'>" +
         "<div class='section-title'>Regime Classification</div>" +
@@ -1586,20 +1630,20 @@ __VERSIONS_JSON__
     todList.forEach(function (r) {
       var isBest  = tod.best_hour  !== null && r.hour === tod.best_hour;
       var isWorst = tod.worst_hour !== null && r.hour === tod.worst_hour;
-      var rowBg   = isBest  ? "background:rgba(107,203,119,.07);" :
-                    isWorst ? "background:rgba(255,107,107,.07);" : "";
-      var suffix  = isBest ? " <span style='color:#6bcb77;font-size:11px'>\u2605 best</span>" :
-                    isWorst ? " <span style='color:#ff6b6b;font-size:11px'>\u25bc worst</span>" : "";
+      var rowCls  = isBest  ? " class='tod-row-best'"  :
+                    isWorst ? " class='tod-row-worst'" : "";
+      var suffix  = isBest  ? " <span class='badge-pos'>\u2605 best</span>"  :
+                    isWorst ? " <span class='badge-neg'>\u25bc worst</span>" : "";
       var hStr    = (r.hour < 10 ? "0" : "") + r.hour + ":00 UTC";
       todRows +=
-        "<tr" + (rowBg ? " style='" + rowBg + "'" : "") + ">" +
+        "<tr" + rowCls + ">" +
         "<td>" + hStr + suffix + "</td>" +
         "<td>" + r.trades + "</td>" +
         "<td class='" + (r.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(r.win_rate, 1) + "%</td>" +
         "<td class='" + pClass(r.net_pnl) + "'>" + fmtMoney(r.net_pnl) + "</td>" +
         "</tr>";
     });
-    if (!todRows) todRows = "<tr><td colspan='4' style='color:#404060;text-align:center;padding:20px'>No data</td></tr>";
+    if (!todRows) todRows = "<tr><td colspan='4' class='td-empty'>No data</td></tr>";
     var timeOfDayHtml =
       "<div class='section'>" +
         "<div class='section-title'>Time of Day Performance (UTC)</div>" +
@@ -1616,15 +1660,15 @@ __VERSIONS_JSON__
       var labels = ["Early", "Mid", "Late"];
       wrtRows +=
         "<tr>" +
-        "<td><strong style='color:#7070a0'>" + (labels[idx] || ("Seg " + (idx + 1))) + "</strong><br>" +
-        "<span style='font-size:11px;color:#505070'>" + esc(seg.period) + "</span></td>" +
+        "<td><strong class='seg-label'>" + (labels[idx] || ("Seg " + (idx + 1))) + "</strong><br>" +
+        "<span class='seg-dates'>" + esc(seg.period) + "</span></td>" +
         "<td>" + seg.trades + "</td>" +
         "<td class='" + (seg.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(seg.win_rate, 1) + "%</td>" +
         "<td class='" + spfCls + "'>" + spf + "</td>" +
         "<td class='" + pClass(seg.net_pnl) + "'>" + fmtMoney(seg.net_pnl) + "</td>" +
         "</tr>";
     });
-    if (!wrtRows) wrtRows = "<tr><td colspan='5' style='color:#404060;text-align:center;padding:20px'>No data</td></tr>";
+    if (!wrtRows) wrtRows = "<tr><td colspan='5' class='td-empty'>No data</td></tr>";
     var winRateTrendHtml =
       "<div class='section'>" +
         "<div class='section-title'>Win Rate Trend (3 equal periods)</div>" +
@@ -1638,7 +1682,7 @@ __VERSIONS_JSON__
     [["Winners", dur.winners], ["Losers", dur.losers], ["All Trades", dur.all]].forEach(function (pair) {
       var label = pair[0], d = pair[1];
       if (!d || d.avg === null) {
-        durRows += "<tr><td><strong>" + label + "</strong></td><td colspan='3' style='color:#404060'>No data</td></tr>";
+        durRows += "<tr><td><strong>" + label + "</strong></td><td colspan='3' class='text-dim'>No data</td></tr>";
         return;
       }
       durRows +=
@@ -1663,11 +1707,11 @@ __VERSIONS_JSON__
       var savedAmt = commaFmt(-f.net_pnl);
       var noteCol;
       if (f.net_pnl < 0) {
-        noteCol = "<span style='color:#6bcb77;font-size:11px'>\u2713 filter saved $" + commaFmt(-f.net_pnl) + "</span>";
+        noteCol = "<span class='badge-pos'>\u2713 filter saved $" + commaFmt(-f.net_pnl) + "</span>";
       } else if (f.net_pnl > 0) {
-        noteCol = "<span style='color:#ff6b6b;font-size:11px'>\u26a0 blocked +$" + commaFmt(f.net_pnl) + "</span>";
+        noteCol = "<span class='badge-neg'>\u26a0 blocked +$" + commaFmt(f.net_pnl) + "</span>";
       } else {
-        noteCol = "<span style='color:#505070;font-size:11px'>neutral</span>";
+        noteCol = "<span class='badge-neu'>neutral</span>";
       }
       fiRows +=
         "<tr>" +
@@ -1677,7 +1721,7 @@ __VERSIONS_JSON__
         "<td class='" + pClass(f.net_pnl) + "'>" + fmtMoney(f.net_pnl) + " " + noteCol + "</td>" +
         "</tr>";
     });
-    if (!fiRows) fiRows = "<tr><td colspan='4' style='color:#404060;text-align:center;padding:20px'>No filters active or no signals blocked</td></tr>";
+    if (!fiRows) fiRows = "<tr><td colspan='4' class='td-empty'>No filters active or no signals blocked</td></tr>";
     var filterImpactHtml =
       "<div class='section'>" +
         "<div class='section-title'>Filter Impact Summary</div>" +
@@ -1691,13 +1735,13 @@ __VERSIONS_JSON__
     ddDays.forEach(function (d) {
       ddDayRows +=
         "<tr>" +
-        "<td style='white-space:nowrap'>" + esc(d.date) + "</td>" +
+        "<td class='nowrap'>" + esc(d.date) + "</td>" +
         "<td>" + d.trades + "</td>" +
         "<td class='neg'>" + "-$" + commaFmt(d.pnl) + "</td>" +
         "<td class='neg'>" + fmt(d.drawdown_pct, 2) + "%</td>" +
         "</tr>";
     });
-    if (!ddDayRows) ddDayRows = "<tr><td colspan='4' style='color:#404060;text-align:center;padding:16px'>No data</td></tr>";
+    if (!ddDayRows) ddDayRows = "<tr><td colspan='4' class='td-empty-sm'>No data</td></tr>";
     var dailyDDHtml =
       "<div class='section'>" +
         "<div class='section-title'>Daily Drawdown — Worst 5 Days</div>" +
@@ -1744,7 +1788,7 @@ __VERSIONS_JSON__
       });
     }
     var rpfNoteHtml = rpfTiers.length > 0
-      ? "<div style='font-size:11px;color:#505070;margin-top:6px;padding:0 4px'>" +
+      ? "<div class='rpf-note'>" +
           "Tier classification is look-ahead-free: each trade is classified by the RPF of the " +
           rpfWin + " trades that preceded it." +
         "</div>"
@@ -1758,7 +1802,7 @@ __VERSIONS_JSON__
         "<tr><td>Min Rolling PF</td><td><span class='neg'>" + rpfMin + "</span></td></tr>" +
         "<tr><td>Max Rolling PF</td><td><span class='pos'>" + rpfMax + "</span></td></tr>" +
         "</tbody></table>" +
-        "<table style='margin-top:8px'><thead><tr>" +
+        "<table class='mt-table'><thead><tr>" +
         "<th>Tier</th><th>Threshold</th><th>% of Time</th><th>Trades</th><th>Net P&amp;L</th>" +
         "</tr></thead><tbody>" + rpfTierRows + "</tbody></table>" +
         rpfNoteHtml +
@@ -1775,13 +1819,13 @@ __VERSIONS_JSON__
     var rrrSensRows = "";
     rrrSens.forEach(function (r) {
       var isCurrent = (p.rrr !== undefined && Math.abs(r.param - p.rrr) < 0.001);
-      var rowStyle  = isCurrent ? " style='background:#1a2040;font-weight:600'" : "";
+      var rowStyle  = isCurrent ? " class='sens-current'" : "";
       var pfTxt2    = r.profit_factor !== null && r.profit_factor !== undefined
         ? "<span class='" + (r.profit_factor >= 1.5 ? "pos" : (r.profit_factor < 1.0 ? "neg" : "neu")) + "'>" + fmt(r.profit_factor) + "</span>"
         : "&#8734;";
       rrrSensRows +=
         "<tr" + rowStyle + ">" +
-        "<td style='white-space:nowrap'>" + (isCurrent ? "<strong>" : "") + "1&thinsp;:&thinsp;" + r.param.toFixed(1) + (isCurrent ? " &#9654;</strong>" : "") + "</td>" +
+        "<td class='nowrap'>" + (isCurrent ? "<strong>" : "") + "1&thinsp;:&thinsp;" + r.param.toFixed(1) + (isCurrent ? " &#9654;</strong>" : "") + "</td>" +
         "<td>" + r.trades + "</td>" +
         "<td class='" + (r.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(r.win_rate, 1) + "%</td>" +
         "<td>" + pfTxt2 + "</td>" +
@@ -1789,7 +1833,7 @@ __VERSIONS_JSON__
         "<td class='neg'>" + fmt(r.max_drawdown, 1) + "%</td>" +
         "</tr>";
     });
-    if (!rrrSensRows) rrrSensRows = "<tr><td colspan='6' style='color:#404060;text-align:center;padding:16px'>No data</td></tr>";
+    if (!rrrSensRows) rrrSensRows = "<tr><td colspan='6' class='td-empty-sm'>No data</td></tr>";
     var rrrSensHtml =
       "<div class='section'>" +
         "<div class='section-title'>RRR Sensitivity</div>" +
@@ -1802,13 +1846,13 @@ __VERSIONS_JSON__
     var swingSensRows = "";
     swingSens.forEach(function (r) {
       var isCurrent = (p.swing_lookback !== undefined && r.param === p.swing_lookback);
-      var rowStyle  = isCurrent ? " style='background:#1a2040;font-weight:600'" : "";
+      var rowStyle  = isCurrent ? " class='sens-current'" : "";
       var pfTxt3    = r.profit_factor !== null && r.profit_factor !== undefined
         ? "<span class='" + (r.profit_factor >= 1.5 ? "pos" : (r.profit_factor < 1.0 ? "neg" : "neu")) + "'>" + fmt(r.profit_factor) + "</span>"
         : "&#8734;";
       swingSensRows +=
         "<tr" + rowStyle + ">" +
-        "<td style='white-space:nowrap'>" + (isCurrent ? "<strong>" : "") + r.param + " bars" + (isCurrent ? " &#9654;</strong>" : "") + "</td>" +
+        "<td class='nowrap'>" + (isCurrent ? "<strong>" : "") + r.param + " bars" + (isCurrent ? " &#9654;</strong>" : "") + "</td>" +
         "<td>" + r.trades + "</td>" +
         "<td class='" + (r.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(r.win_rate, 1) + "%</td>" +
         "<td>" + pfTxt3 + "</td>" +
@@ -1816,7 +1860,7 @@ __VERSIONS_JSON__
         "<td class='neg'>" + fmt(r.max_drawdown, 1) + "%</td>" +
         "</tr>";
     });
-    if (!swingSensRows) swingSensRows = "<tr><td colspan='6' style='color:#404060;text-align:center;padding:16px'>No data</td></tr>";
+    if (!swingSensRows) swingSensRows = "<tr><td colspan='6' class='td-empty-sm'>No data</td></tr>";
     var swingSensHtml =
       "<div class='section'>" +
         "<div class='section-title'>Swing Lookback Sensitivity</div>" +
@@ -1842,7 +1886,7 @@ __VERSIONS_JSON__
       ? "<span class='neg'>-$" + commaFmt(Math.abs(m.avg_loss)) + "</span>" : "&#8212;";
 
     var stratBadge = (v.strategy)
-      ? "<span style='font-size:11px;background:#1a1a30;border:1px solid #2a2a44;border-radius:4px;padding:2px 8px;color:#6060a0;margin-left:8px'>" + esc(v.strategy) + "</span>"
+      ? "<span class='strat-badge'>" + esc(v.strategy) + "</span>"
       : "";
 
     /* ── Summary panel (5 hero metrics) ─────────────────────────────────────── */
@@ -1867,32 +1911,71 @@ __VERSIONS_JSON__
       "</div>";
 
     /* ── Entry Conditions panel ──────────────────────────────────────────────── */
-    var tfHoursStr = (p.time_filter_hours || []).sort(function(a,b){return a-b;}).map(function(h){return (h<10?"0":"")+h;}).join(" ");
-    var entryCondHtml =
-      "<div class='section'>" +
-        "<div class='section-title'>Entry Conditions</div>" +
-        "<table>" +
-          "<thead><tr>" +
-            "<th style='text-align:left;padding:6px 10px;color:#a0a0c0;font-weight:600;font-size:0.8em;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #2a2a4a'>Condition</th>" +
-            "<th style='text-align:left;padding:6px 10px;color:#a0a0c0;font-weight:600;font-size:0.8em;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #2a2a4a'>Rule</th>" +
-            "<th style='text-align:left;padding:6px 10px;color:#a0a0c0;font-weight:600;font-size:0.8em;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #2a2a4a'>Purpose</th>" +
-          "</tr></thead>" +
-          "<tbody>" +
-          "<tr><td style='padding:5px 10px;color:#c8c8e8'>Trend Filter</td><td style='padding:5px 10px'>EMA" + (p.ema_fast||"50") + " &lt; EMA" + (p.ema_slow||"200") + "</td><td style='padding:5px 10px;color:#8888aa'>Confirms downtrend — short only</td></tr>" +
-          "<tr><td style='padding:5px 10px;color:#c8c8e8'>Entry Signal</td><td style='padding:5px 10px'>Price crosses below EMA" + (p.ema_entry||"20") + "</td><td style='padding:5px 10px;color:#8888aa'>Pullback rejection in trend direction</td></tr>" +
-          "<tr><td style='padding:5px 10px;color:#c8c8e8'>Stop Placement</td><td style='padding:5px 10px'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td style='padding:5px 10px;color:#8888aa'>Structural invalidation level</td></tr>" +
-          "<tr><td style='padding:5px 10px;color:#c8c8e8'>Direction</td><td style='padding:5px 10px'><span style='color:#ffd93d;font-weight:600'>Short only</span></td><td style='padding:5px 10px;color:#8888aa'>Asymmetric edge identified on EURUSD</td></tr>" +
-          "<tr><td style='padding:5px 10px;color:#c8c8e8'>Time Window</td><td style='padding:5px 10px'>UTC " + (p.time_filter ? tfHoursStr : "<span style='color:#404060'>OFF</span>") + "</td><td style='padding:5px 10px;color:#8888aa'>High quality session hours</td></tr>" +
-          "</tbody>" +
-        "</table>" +
-      "</div>";
+    var ecData = v.entry_conditions || null;
+    var ecThStyle = "class='ec-th'";
+    var entryCondHtml;
+    if (ecData && ecData.length > 0) {
+      var ecRows = ecData.map(function(ec) {
+        var addedVal = ec.since_version || "v1";
+        var removedDisp = ec.removed_version
+          ? "<span class='ec-removed-val'>" + esc(ec.removed_version) + "</span>"
+          : "<span class='text-dim'>\u2014</span>";
+        var rowOpacity = ec.removed_version ? " class='ec-row-removed'" : "";
+        return "<tr" + rowOpacity + ">" +
+          "<td class='ec-td-cond'>" + esc(ec.condition) + "</td>" +
+          "<td class='ec-td-rule'>" + esc(ec.rule) + "</td>" +
+          "<td class='ec-td-purpose'>" + esc(ec.purpose) + "</td>" +
+          "<td class='ec-td-ver'><span class='ec-since-val'>" + esc(addedVal) + "</span></td>" +
+          "<td class='ec-td-ver'>" + removedDisp + "</td>" +
+          "</tr>";
+      }).join("");
+      entryCondHtml =
+        "<div class='section'>" +
+          "<div class='section-title'>Entry Conditions</div>" +
+          "<table>" +
+            "<thead><tr>" +
+              "<th " + ecThStyle + ">Condition</th>" +
+              "<th " + ecThStyle + ">Rule</th>" +
+              "<th " + ecThStyle + ">Purpose</th>" +
+              "<th " + ecThStyle + ">+</th>" +
+              "<th " + ecThStyle + ">\u2212</th>" +
+            "</tr></thead>" +
+            "<tbody>" + ecRows + "</tbody>" +
+          "</table>" +
+        "</div>";
+    } else {
+      var tfHoursStr = (p.time_filter_hours || []).sort(function(a,b){return a-b;}).map(function(h){return (h<10?"0":"")+h;}).join(" ");
+      entryCondHtml =
+        "<div class='section'>" +
+          "<div class='section-title'>Entry Conditions</div>" +
+          "<table>" +
+            "<thead><tr>" +
+              "<th " + ecThStyle + ">Condition</th>" +
+              "<th " + ecThStyle + ">Rule</th>" +
+              "<th " + ecThStyle + ">Purpose</th>" +
+              "<th " + ecThStyle + ">+</th>" +
+              "<th " + ecThStyle + ">\u2212</th>" +
+            "</tr></thead>" +
+            "<tbody>" +
+            "<tr><td class='ec-td-cond'>Trend Filter</td><td class='ec-td-rule'>EMA" + (p.ema_fast||"50") + " &lt; EMA" + (p.ema_slow||"200") + "</td><td class='ec-td-purpose'>Confirms downtrend \u2014 short only</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Entry Signal</td><td class='ec-td-rule'>Price crosses below EMA" + (p.ema_entry||"20") + "</td><td class='ec-td-purpose'>Pullback rejection in trend direction</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Stop Placement</td><td class='ec-td-rule'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td class='ec-td-purpose'>Structural invalidation level</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'><span class='val-highlight'>Short only</span></td><td class='ec-td-purpose'>Asymmetric edge identified on EURUSD</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Time Window</td><td class='ec-td-rule'>UTC " + (p.time_filter ? tfHoursStr : "<span class='text-dim'>OFF</span>") + "</td><td class='ec-td-purpose'>High quality session hours</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
+            "</tbody>" +
+          "</table>" +
+        "</div>";
+    }
 
     document.getElementById("content").innerHTML =
       /* header */
       "<div id='v-header'>" +
         "<div id='v-header-top'>" +
           "<h2>" + esc(v.name) + stratBadge + "</h2>" +
-          "<button id='copy-btn' class='copy-btn'>Copy Report</button>" +
+          "<div class='btn-group'>" +
+            "<button id='copy-btn' class='copy-btn'>Copy Report</button>" +
+            "<button id='delete-btn' class='delete-btn'>Delete Version</button>" +
+          "</div>" +
         "</div>" +
         "<div class='v-meta'>Run on " + esc(v.date) +
           " &nbsp;&middot;&nbsp; " + esc(p.ticker || "") +
@@ -1963,10 +2046,10 @@ __VERSIONS_JSON__
             : "") +
           row("Min Stop",       ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Max Stop",       ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
-          row("Direction",      "<span style='color:#ffd93d;font-weight:600'>" + esc(p.trade_direction || "both") + "</span>") +
+          row("Direction",      "<span class='val-highlight'>" + esc(p.trade_direction || "both") + "</span>") +
           row("Time Filter",    p.time_filter
             ? "<span class='pos'>ON</span> &mdash; " + esc((p.time_filter_hours || []).join(", ")) + " UTC"
-            : "<span style='color:#404060'>OFF</span>") +
+            : "<span class='text-dim'>OFF</span>") +
           "</tbody></table>" +
         "</div>" +
 
@@ -2025,6 +2108,37 @@ __VERSIONS_JSON__
         });
       });
     }(v));
+
+    /* Wire delete button */
+    (function (ver) {
+      var delBtn = document.getElementById("delete-btn");
+      if (!delBtn) return;
+      delBtn.addEventListener("click", function () {
+        if (!confirm("Are you sure you want to delete this version? This cannot be undone.")) return;
+        delBtn.disabled = true;
+        delBtn.textContent = "Deleting\u2026";
+        fetch("/delete_version", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: ver.name })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok) {
+            window.location.reload();
+          } else {
+            delBtn.disabled = false;
+            delBtn.textContent = "Delete Version";
+            alert("Delete failed: " + (data.error || "Unknown error"));
+          }
+        })
+        .catch(function () {
+          delBtn.disabled = false;
+          delBtn.textContent = "Delete Version";
+          alert("Delete failed \u2014 is the server running?");
+        });
+      });
+    }(v));
   }
 
   /* ── Dev Log ──────────────────────────────────────────────── */
@@ -2074,16 +2188,16 @@ __VERSIONS_JSON__
       var npDisp = (np === null) ? "&#8212;" :
         "<span class='" + (np >= 0 ? "pos" : "neg") + "'>" + fmtMoney(np) + "</span>";
 
-      var notes = (v.notes && v.notes !== "—" && v.notes !== "\u2014") ? esc(v.notes) : "<span style='color:#404060'>—</span>";
+      var notes = (v.notes && v.notes !== "—" && v.notes !== "\u2014") ? esc(v.notes) : "<span class='text-dim'>—</span>";
 
       dlRowArr.push(
         "<tr>" +
-        "<td style='white-space:nowrap;font-weight:600;color:#c8c8e8'>" + esc(v.name) + "</td>" +
-        "<td style='white-space:nowrap;color:#505070'>" + esc(v.date) + "</td>" +
+        "<td class='dl-version'>" + esc(v.name) + "</td>" +
+        "<td class='dl-date'>" + esc(v.date) + "</td>" +
         "<td class='dl-notes'>" + notes + "</td>" +
-        "<td style='text-align:right;white-space:nowrap'>" + pfDisp + "</td>" +
-        "<td style='text-align:right;white-space:nowrap'>" + wrDisp + "</td>" +
-        "<td style='text-align:right;white-space:nowrap'>" + npDisp + "</td>" +
+        "<td class='dl-td-right'>" + pfDisp + "</td>" +
+        "<td class='dl-td-right'>" + wrDisp + "</td>" +
+        "<td class='dl-td-right'>" + npDisp + "</td>" +
         "</tr>"
       );
     }
@@ -2098,9 +2212,9 @@ __VERSIONS_JSON__
         "<table class='devlog-table'>" +
           "<thead><tr>" +
           "<th>Version</th><th>Date</th><th>Change</th>" +
-          "<th style='text-align:right'>Profit Factor</th>" +
-          "<th style='text-align:right'>Win Rate</th>" +
-          "<th style='text-align:right'>Net P&amp;L</th>" +
+          "<th class='dl-th-right'>Profit Factor</th>" +
+          "<th class='dl-th-right'>Win Rate</th>" +
+          "<th class='dl-th-right'>Net P&amp;L</th>" +
           "</tr></thead>" +
           "<tbody>" + dlRows + "</tbody>" +
         "</table>" +
@@ -2124,7 +2238,7 @@ __VERSIONS_JSON__
     } else {
       document.getElementById("content").innerHTML =
         "<div id='empty-state'>" +
-          "<span style='font-size:36px'>&#128202;</span>" +
+          "<span class='empty-icon'>&#128202;</span>" +
           "<span>No runs for <strong>" + esc(currentStrategy) + "</strong> yet</span>" +
         "</div>";
     }
@@ -2244,8 +2358,9 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
             "time_filter_hours": TIME_FILTER_HOURS if TIME_FILTER else [],
             "max_daily_loss": MAX_DAILY_LOSS,
         },
-        "last_trades": last_trades,
-        "strategy":    STRATEGY,
+        "last_trades":      last_trades,
+        "strategy":         STRATEGY,
+        "entry_conditions": ENTRY_CONDITIONS,
     }
 
     existing_versions.append(new_version)
