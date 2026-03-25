@@ -1106,10 +1106,16 @@ __VERSIONS_JSON__
     return Number(n).toFixed(d !== undefined ? d : 2);
   }
 
+  function commaFmt(n) {
+    var parts = Math.abs(Number(n)).toFixed(2).split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
+  }
+
   function fmtMoney(n) {
     if (n === null || n === undefined) return "&#8212;";
     var s = n >= 0 ? "+" : "";
-    return s + "$" + Math.abs(n).toFixed(2);
+    return s + "$" + commaFmt(n);
   }
 
   function pClass(n) {
@@ -1158,7 +1164,7 @@ __VERSIONS_JSON__
     function mfMoney(n) {
       if (n === null || n === undefined) return "—";
       var f = Number(n);
-      return (f >= 0 ? "+" : "-") + "$" + Math.abs(f).toFixed(2);
+      return (f >= 0 ? "+" : "-") + "$" + commaFmt(f);
     }
 
     var pf    = (m.profit_factor === null || m.profit_factor === undefined) ? "\u221e" : mf(m.profit_factor);
@@ -1188,20 +1194,20 @@ __VERSIONS_JSON__
     lines.push("| Win Rate | "        + mf(m.win_rate, 1) + "% |");
     lines.push("| Profit Factor | "   + pf + " |");
     lines.push("| Net Profit | "      + npStr + " |");
-    lines.push("| Final Equity | $"   + mf(m.final_equity) + " |");
+    lines.push("| Final Equity | $"   + commaFmt(m.final_equity) + " |");
     var mdDollar = m.max_drawdown_dollar;
     var mdStr    = (mdDollar !== null && mdDollar !== undefined)
-      ? "-$" + Math.abs(mdDollar).toFixed(2) + " (" + mf(m.max_drawdown) + "%)"
+      ? "-$" + commaFmt(mdDollar) + " (" + mf(m.max_drawdown) + "%)"
       : mf(m.max_drawdown) + "%";
     lines.push("| Max Drawdown | "    + mdStr + " |");
     var mddMd = m.max_daily_drawdown || {};
     var mddStr = (mddMd.dollar !== null && mddMd.dollar !== undefined)
-      ? "-$" + Math.abs(mddMd.dollar).toFixed(2) + " (" + mf(mddMd.pct, 2) + "%)"
+      ? "-$" + commaFmt(mddMd.dollar) + " (" + mf(mddMd.pct, 2) + "%)"
       : "\u2014";
     lines.push("| Max Daily DD | "   + mddStr + " |");
     lines.push("| Sharpe Ratio | "    + mf(m.sharpe) + " |");
-    lines.push("| Avg Win | "         + (m.avg_win  !== null && m.avg_win  !== undefined ? "$"  + mf(m.avg_win)  : "\u2014") + " |");
-    lines.push("| Avg Loss | "        + (m.avg_loss !== null && m.avg_loss !== undefined ? "$"  + mf(m.avg_loss) : "\u2014") + " |");
+    lines.push("| Avg Win | "         + (m.avg_win  !== null && m.avg_win  !== undefined ? "$"  + commaFmt(m.avg_win)  : "\u2014") + " |");
+    lines.push("| Avg Loss | "        + (m.avg_loss !== null && m.avg_loss !== undefined ? "$"  + commaFmt(m.avg_loss) : "\u2014") + " |");
     lines.push("| Best Trade | "      + mfMoney(m.best_trade) + " |");
     lines.push("| Worst Trade | "     + mfMoney(m.worst_trade) + " |");
     lines.push("");
@@ -1245,8 +1251,8 @@ __VERSIONS_JSON__
         " | " + mf(data.pct_of_total_trades, 1) + "%" +
         " | " + mf(data.win_rate, 1) + "%" +
         " | " + dpf +
-        " | " + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + mf(data.avg_win)  : "\u2014") +
-        " | " + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + mf(Math.abs(data.avg_loss)) : "\u2014") +
+        " | " + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + commaFmt(data.avg_win)  : "\u2014") +
+        " | " + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + commaFmt(Math.abs(data.avg_loss)) : "\u2014") +
         " | " + mfMoney(data.avg_pnl_per_trade) + " |");
     });
     lines.push("");
@@ -1361,7 +1367,7 @@ __VERSIONS_JSON__
       lines.push("| \u2014 | \u2014 | \u2014 | \u2014 |");
     } else {
       mDailyDD.forEach(function (d) {
-        lines.push("| " + d.date + " | " + d.trades + " | -$" + Math.abs(d.pnl).toFixed(2) + " | " + mf(d.drawdown_pct, 2) + "% |");
+        lines.push("| " + d.date + " | " + d.trades + " | -$" + commaFmt(d.pnl) + " | " + mf(d.drawdown_pct, 2) + "% |");
       });
     }
     lines.push("");
@@ -1402,7 +1408,7 @@ __VERSIONS_JSON__
       var pnl  = v.metrics ? v.metrics.net_profit : null;
       var pc   = pnl === null ? "" : (pnl >= 0 ? "pos" : "neg");
       var ptxt = pnl === null ? "" :
-        (pnl >= 0 ? "+" : "") + "$" + Math.abs(pnl).toFixed(2);
+        (pnl >= 0 ? "+" : "") + "$" + commaFmt(pnl);
 
       var item = document.createElement("div");
       item.className     = "v-item";
@@ -1461,8 +1467,8 @@ __VERSIONS_JSON__
         "<td>" + fmt(data.pct_of_total_trades, 1) + "%</td>" +
         "<td class='" + (data.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(data.win_rate, 1) + "%</td>" +
         "<td class='" + dpfCls + "'>" + dpf + "</td>" +
-        "<td class='pos'>" + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + fmt(data.avg_win)  : "\u2014") + "</td>" +
-        "<td class='neg'>" + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + fmt(Math.abs(data.avg_loss)) : "\u2014") + "</td>" +
+        "<td class='pos'>" + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + commaFmt(data.avg_win)  : "\u2014") + "</td>" +
+        "<td class='neg'>" + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + commaFmt(Math.abs(data.avg_loss)) : "\u2014") + "</td>" +
         "<td class='" + pClass(data.avg_pnl_per_trade) + "'>" + fmtMoney(data.avg_pnl_per_trade) + "</td>" +
         "</tr>";
     }
@@ -1632,12 +1638,12 @@ __VERSIONS_JSON__
     var fi     = m.filter_impact || [];
     var fiRows = "";
     fi.forEach(function (f) {
-      var savedAmt = (-f.net_pnl).toFixed(2);
+      var savedAmt = commaFmt(-f.net_pnl);
       var noteCol;
       if (f.net_pnl < 0) {
-        noteCol = "<span style='color:#6bcb77;font-size:11px'>\u2713 filter saved $" + (-f.net_pnl).toFixed(2) + "</span>";
+        noteCol = "<span style='color:#6bcb77;font-size:11px'>\u2713 filter saved $" + commaFmt(-f.net_pnl) + "</span>";
       } else if (f.net_pnl > 0) {
-        noteCol = "<span style='color:#ff6b6b;font-size:11px'>\u26a0 blocked +$" + f.net_pnl.toFixed(2) + "</span>";
+        noteCol = "<span style='color:#ff6b6b;font-size:11px'>\u26a0 blocked +$" + commaFmt(f.net_pnl) + "</span>";
       } else {
         noteCol = "<span style='color:#505070;font-size:11px'>neutral</span>";
       }
@@ -1665,7 +1671,7 @@ __VERSIONS_JSON__
         "<tr>" +
         "<td style='white-space:nowrap'>" + esc(d.date) + "</td>" +
         "<td>" + d.trades + "</td>" +
-        "<td class='neg'>" + "-$" + Math.abs(d.pnl).toFixed(2) + "</td>" +
+        "<td class='neg'>" + "-$" + commaFmt(d.pnl) + "</td>" +
         "<td class='neg'>" + fmt(d.drawdown_pct, 2) + "%</td>" +
         "</tr>";
     });
@@ -1809,9 +1815,9 @@ __VERSIONS_JSON__
     var sharpeCls  = m.sharpe >= 1 ? "pos" : (m.sharpe < 0 ? "neg" : "neu");
 
     var avgWinHtml  = m.avg_win  !== null && m.avg_win  !== undefined
-      ? "<span class='pos'>$" + fmt(m.avg_win)  + "</span>" : "&#8212;";
+      ? "<span class='pos'>$" + commaFmt(m.avg_win)  + "</span>" : "&#8212;";
     var avgLossHtml = m.avg_loss !== null && m.avg_loss !== undefined
-      ? "<span class='neg'>" + fmt(m.avg_loss) + "</span>" : "&#8212;";
+      ? "<span class='neg'>-$" + commaFmt(Math.abs(m.avg_loss)) + "</span>" : "&#8212;";
 
     var stratBadge = (v.strategy)
       ? "<span style='font-size:11px;background:#1a1a30;border:1px solid #2a2a44;border-radius:4px;padding:2px 8px;color:#6060a0;margin-left:8px'>" + esc(v.strategy) + "</span>"
@@ -1820,19 +1826,19 @@ __VERSIONS_JSON__
     /* ── Summary panel (5 hero metrics) ─────────────────────────────────────── */
     var mddS = m.max_daily_drawdown || {};
     var mddSStr = (mddS.dollar !== null && mddS.dollar !== undefined)
-      ? "<span class='neg'>-$" + Math.abs(mddS.dollar).toFixed(2) + "<br><small>(" + fmt(mddS.pct, 2) + "%)</small></span>"
+      ? "<span class='neg'>-$" + commaFmt(mddS.dollar) + " (" + fmt(mddS.pct, 2) + "%)</span>"
       : "&#8212;";
     var ddSStr = (m.max_drawdown_dollar !== null && m.max_drawdown_dollar !== undefined)
-      ? "<span class='neg'>-$" + Math.abs(m.max_drawdown_dollar).toFixed(2) + "<br><small>(" + fmt(m.max_drawdown) + "%)</small></span>"
+      ? "<span class='neg'>-$" + commaFmt(m.max_drawdown_dollar) + " (" + fmt(m.max_drawdown) + "%)</span>"
       : "<span class='neg'>" + fmt(m.max_drawdown) + "%</span>";
     var summaryHtml =
       "<div class='section'>" +
         "<div class='section-title'>Summary</div>" +
         "<table><tbody>" +
-        "<tr><td class='lbl'>Total P&amp;L</td><td><span class='" + pClass(m.net_profit) + "' style='font-size:1.15em;font-weight:700'>" +
+        "<tr><td class='lbl'>Total P&amp;L</td><td><span class='" + pClass(m.net_profit) + "'>" +
           fmtMoney(m.net_profit) + " (" + (m.net_profit_pct >= 0 ? "+" : "") + fmt(m.net_profit_pct, 1) + "%)</span></td></tr>" +
-        "<tr><td class='lbl'>Win Rate</td><td><span class='" + (m.win_rate >= 50 ? "pos" : "neg") + "' style='font-size:1.1em;font-weight:600'>" + fmt(m.win_rate, 1) + "%</span></td></tr>" +
-        "<tr><td class='lbl'>Profit Factor</td><td><span class='" + pfCls + "' style='font-size:1.1em;font-weight:600'>" + pfTxt + "</span></td></tr>" +
+        "<tr><td class='lbl'>Win Rate</td><td><span class='" + (m.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(m.win_rate, 1) + "%</span></td></tr>" +
+        "<tr><td class='lbl'>Profit Factor</td><td><span class='" + pfCls + "'>" + pfTxt + "</span></td></tr>" +
         "<tr><td class='lbl'>Max Drawdown</td><td>" + ddSStr + "</td></tr>" +
         "<tr><td class='lbl'>Max Daily DD</td><td>" + mddSStr + "</td></tr>" +
         "</tbody></table>" +
@@ -1889,16 +1895,16 @@ __VERSIONS_JSON__
           row("Profit Factor", "<span class='" + pfCls + "'>" + pfTxt + "</span>") +
           row("Net Profit",    "<span class='" + pClass(m.net_profit) + "'>" +
             fmtMoney(m.net_profit) + " (" + (m.net_profit_pct >= 0 ? "+" : "") + fmt(m.net_profit_pct, 1) + "%)</span>") +
-          row("Final Equity",  "$" + fmt(m.final_equity)) +
+          row("Final Equity",  "$" + commaFmt(m.final_equity)) +
           row("Max Drawdown",  (function () {
             var ddD = m.max_drawdown_dollar;
-            var ddDStr = (ddD !== null && ddD !== undefined) ? "-$" + Math.abs(ddD).toFixed(2) + " (" + fmt(m.max_drawdown) + "%)" : fmt(m.max_drawdown) + "%";
+            var ddDStr = (ddD !== null && ddD !== undefined) ? "-$" + commaFmt(ddD) + " (" + fmt(m.max_drawdown) + "%)" : fmt(m.max_drawdown) + "%";
             return "<span class='neg'>" + ddDStr + "</span>";
           }()) ) +
           row("Max Daily DD",  (function () {
             var mdd = m.max_daily_drawdown || {};
             if (mdd.dollar === null || mdd.dollar === undefined) return "&#8212;";
-            return "<span class='neg'>-$" + Math.abs(mdd.dollar).toFixed(2) + " (" + fmt(mdd.pct, 2) + "%)</span>";
+            return "<span class='neg'>-$" + commaFmt(mdd.dollar) + " (" + fmt(mdd.pct, 2) + "%)</span>";
           }()) ) +
           row("Sharpe Ratio",  "<span class='" + sharpeCls + "'>" + fmt(m.sharpe) + "</span>") +
           row("Avg Win",       avgWinHtml) +

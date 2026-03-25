@@ -45,3 +45,4 @@
 | v36 | 2026-03-25 09:23 | Trend Following | EURUSD=X | 5m | Removed misleading direction P&L — replaced with avg P&L per trade and trade share | 455 | 33.0% | 0.97 | -$9058.92 | -31.16% | -0.03 |
 | v36 | 2026-03-25 09:24 | Trend Following | EURUSD=X | 5m | Removed misleading direction P&L — replaced with avg P&L per trade and trade share | 455 | 33.0% | 0.97 | -$9058.92 | -31.16% | -0.03 |
 | v44 | 2026-03-25 09:36 | Trend Following | EURUSD=X | 5m | Removed worst hours 03 and 04 — keeping 01 02 16 17 18 based on 5-minute time of day analysis | 382 | 34.3% | 1.03 | +$7412.88 | -25.36% | 0.08 |
+| v44 | 2026-03-25 09:53 | Trend Following | EURUSD=X | 5m | Removed worst hours 03 and 04 — keeping 01 02 16 17 18 based on 5-minute time of day analysis | 382 | 34.3% | 1.03 | +$7412.88 | -25.36% | 0.08 |
