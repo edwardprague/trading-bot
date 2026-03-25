@@ -38,7 +38,7 @@ MASSIVE_API_KEY = os.getenv("MASSIVE_API_KEY")
 TICKER          = "EURUSD=X"      # Yahoo Finance ticker (fallback)
 MASSIVE_TICKER  = "C:EURUSD"      # Massive API ticker (primary)
 INTERVAL        = "5m"            # bar interval — used by Massive (primary) and Yahoo (fallback)
-DAYS_BACK       = 730             # 2 years of history
+DAYS_BACK       = 5               # RS development mode — temporarily reduced
 STARTING_CASH   = 100_000.0
 
 EMA_SLOW        = 200
@@ -53,7 +53,7 @@ MAX_STOP        = 0.0200     # 200 pips maximum stop
 TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 
 TIME_FILTER       = True
-TIME_FILTER_HOURS = [1, 2, 16, 18]              # UTC hours allowed
+TIME_FILTER_HOURS = [1, 2, 16, 17, 18]           # UTC hours allowed
 
 MAX_DAILY_LOSS  = 2500.0            # stop trading if day's loss reaches $2,500 (2.5% of capital)
 
@@ -63,7 +63,7 @@ REGIME_LENGTH     = 20              # lookback bars — if all closes within ATR
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
 VERSION         = "v2"
-NOTES           = "Added LuxAlgo range detection regime filter ATR 96 Bars 20"
+NOTES           = "RS development mode — 5 days, fixed filter logic, range boxes on chart"
 STRATEGY        = "Trend Following"
 
 ENTRY_CONDITIONS = [
@@ -219,6 +219,22 @@ def add_indicators(df):
     # ── Regime filter indicators (LuxAlgo Range Detector logic) ─────────────
     df["regime_atr"] = _tr.rolling(REGIME_ATR_LENGTH).mean()
     df["regime_sma"] = df.Close.rolling(REGIME_LENGTH).mean()
+    # ── Per-bar regime classification: True = ranging, False = trending ────────
+    # Ranging when ALL closes over REGIME_LENGTH bars stay within ATR of SMA
+    _ranging = pd.Series(False, index=df.index)
+    _ratr = df["regime_atr"].values
+    _rsma = df["regime_sma"].values
+    _close = df["Close"].values
+    for _i in range(REGIME_LENGTH, len(df)):
+        if np.isnan(_ratr[_i]) or np.isnan(_rsma[_i]):
+            continue
+        _all_in = True
+        for _k in range(REGIME_LENGTH):
+            if abs(_close[_i - _k] - _rsma[_i]) > _ratr[_i]:
+                _all_in = False
+                break
+        _ranging.iloc[_i] = _all_in
+    df["regime_ranging"] = _ranging
     df = df.dropna().reset_index()
     # Normalise the datetime column to 'Datetime' regardless of yfinance version
     for _col in ("Datetime", "Date", "index"):
@@ -477,16 +493,11 @@ def run_backtest(df):
                 continue
 
             # ── Regime filter (LuxAlgo Range Detector logic) ─────────────────
-            if (long_sig or short_sig) and i >= REGIME_LENGTH:
-                _regime_atr = float(df.regime_atr.iloc[i])
-                _regime_sma = float(df.regime_sma.iloc[i])
-                _all_in_range = True
-                for _k in range(REGIME_LENGTH):
-                    _c_k = float(df.Close.iloc[i - _k])
-                    if abs(_c_k - _regime_sma) > _regime_atr:
-                        _all_in_range = False
-                        break
-                if _all_in_range:
+            # BLOCK entries when ALL closes over REGIME_LENGTH bars stay within
+            # ATR of SMA (ranging).  ALLOW when trending (at least one close outside).
+            if (long_sig or short_sig):
+                _is_ranging = bool(df.regime_ranging.iloc[i])
+                if _is_ranging:
                     # Market is ranging — record blocked signals and skip
                     if long_sig and not np.isnan(s_lo):
                         dist_b = c - s_lo
@@ -628,6 +639,23 @@ def save_charts(df, trades, equity):
     ax1.plot(dates, df.ema_slow,  color="#ff6b6b", linewidth=1.2, label=f"EMA {EMA_SLOW}")
     ax1.plot(dates, df.ema_fast,  color="#ffd93d", linewidth=1.0, label=f"EMA {EMA_FAST}")
     ax1.plot(dates, df.ema_entry, color="#6bcb77", linewidth=0.8, label=f"EMA {EMA_ENTRY}")
+
+    # ── Range detection shading (grey background when ranging) ─────────────
+    if "regime_ranging" in df.columns:
+        ranging_vals = df["regime_ranging"].values
+        in_range = False
+        range_start = None
+        for ri in range(len(ranging_vals)):
+            if ranging_vals[ri] and not in_range:
+                in_range = True
+                range_start = dates.iloc[ri]
+            elif not ranging_vals[ri] and in_range:
+                in_range = False
+                ax1.axvspan(range_start, dates.iloc[ri], alpha=0.15,
+                            color="#888888", zorder=0)
+        if in_range and range_start is not None:
+            ax1.axvspan(range_start, dates.iloc[-1], alpha=0.15,
+                        color="#888888", zorder=0)
 
     if not trades.empty:
         for _, t in trades.iterrows():
@@ -1001,6 +1029,42 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         except Exception:
             filter_impact = []
 
+    # ── RS Diagnostic (Regime Score development) ────────────────────────────────
+    rs_diagnostic = {}
+    if blocked_signals:
+        try:
+            bs = pd.DataFrame(blocked_signals)
+            regime_blocked = bs[bs["reason"] == "regime"]
+            regime_filtered_count = len(regime_blocked)
+            regime_allowed_count  = n   # all executed trades passed the regime filter
+            total_signals = regime_filtered_count + regime_allowed_count
+            filter_rate = round(regime_filtered_count / total_signals * 100, 1) if total_signals > 0 else 0.0
+
+            # Stats for filtered (blocked) signals
+            filtered_wins = regime_blocked[regime_blocked["win"]] if not regime_blocked.empty else pd.DataFrame()
+            filtered_losses = regime_blocked[~regime_blocked["win"]] if not regime_blocked.empty else pd.DataFrame()
+            filtered_wr = round(len(filtered_wins) / len(regime_blocked) * 100, 1) if len(regime_blocked) > 0 else 0.0
+            filtered_pf = None
+            if not filtered_losses.empty and filtered_losses["pnl"].sum() != 0:
+                filtered_pf = round(abs(float(filtered_wins["pnl"].sum()) / abs(float(filtered_losses["pnl"].sum()))), 2)
+
+            # Stats for allowed (executed) trades
+            allowed_wr = round(len(wins) / n * 100, 1) if n > 0 else 0.0
+            allowed_pf = pf   # already computed above
+
+            rs_diagnostic = {
+                "trades_filtered":  regime_filtered_count,
+                "trades_allowed":   regime_allowed_count,
+                "total_signals":    total_signals,
+                "filter_rate":      filter_rate,
+                "filtered_wr":      filtered_wr,
+                "filtered_pf":      filtered_pf,
+                "allowed_wr":       allowed_wr,
+                "allowed_pf":       allowed_pf,
+            }
+        except Exception:
+            rs_diagnostic = {}
+
     # ── Rolling Profit Factor ──────────────────────────────────────────────────
     rolling_pf_stats = {
         "window": ROLLING_PF_WINDOW,
@@ -1121,6 +1185,7 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         "duration_analysis": duration_analysis,
         "filter_impact":     filter_impact,
         "rolling_pf":        rolling_pf_stats,
+        "rs_diagnostic":     rs_diagnostic,
         "rrr_sensitivity":   [],
         "swing_sensitivity": [],
     }
@@ -1770,6 +1835,36 @@ __VERSIONS_JSON__
         "<th>Filter</th><th>Trades Removed</th><th>Win Rate (if kept)</th><th>Net P&amp;L (if kept)</th>" +
         "</tr></thead><tbody>" + fiRows + "</tbody></table></div>";
 
+    /* 9b. RS Diagnostic — Regime Score development */
+    var rsd    = m.rs_diagnostic || {};
+    var rsdHtml = "";
+    if (rsd.total_signals && rsd.total_signals > 0) {
+      var filteredPfTxt = (rsd.filtered_pf === null || rsd.filtered_pf === undefined)
+        ? "&#8734;" : fmt(rsd.filtered_pf);
+      var allowedPfTxt  = (rsd.allowed_pf === null || rsd.allowed_pf === undefined)
+        ? "&#8734;" : fmt(rsd.allowed_pf);
+      var filteredPfCls = (rsd.filtered_pf === null || rsd.filtered_pf === undefined || rsd.filtered_pf >= 1.5)
+        ? "pos" : (rsd.filtered_pf < 1.0 ? "neg" : "neu");
+      var allowedPfCls  = (rsd.allowed_pf === null || rsd.allowed_pf === undefined || rsd.allowed_pf >= 1.5)
+        ? "pos" : (rsd.allowed_pf < 1.0 ? "neg" : "neu");
+      rsdHtml =
+        "<div class='section'>" +
+          "<div class='section-title'>RS Diagnostic — Regime Score</div>" +
+          "<table><thead><tr>" +
+          "<th>Metric</th><th>Filtered (Blocked)</th><th>Allowed (Executed)</th>" +
+          "</tr></thead><tbody>" +
+          "<tr><td>Trades</td><td>" + rsd.trades_filtered + "</td><td>" + rsd.trades_allowed + "</td></tr>" +
+          "<tr><td>Win Rate</td>" +
+            "<td class='" + (rsd.filtered_wr >= 50 ? "pos" : "neg") + "'>" + fmt(rsd.filtered_wr, 1) + "%</td>" +
+            "<td class='" + (rsd.allowed_wr >= 50 ? "pos" : "neg") + "'>" + fmt(rsd.allowed_wr, 1) + "%</td></tr>" +
+          "<tr><td>Profit Factor</td>" +
+            "<td class='" + filteredPfCls + "'>" + filteredPfTxt + "</td>" +
+            "<td class='" + allowedPfCls + "'>" + allowedPfTxt + "</td></tr>" +
+          "<tr><td colspan='3'><strong>Filter Rate: " + fmt(rsd.filter_rate, 1) + "%</strong> (" +
+            rsd.trades_filtered + " of " + rsd.total_signals + " signals blocked)</td></tr>" +
+          "</tbody></table></div>";
+    }
+
     /* 10. Daily Drawdown — worst 5 days */
     var ddDays     = m.daily_drawdown || [];
     var ddDayRows  = "";
@@ -2122,6 +2217,9 @@ __VERSIONS_JSON__
 
       /* ── Section 11: Trade Duration + Filter Impact Summary ───────────────── */
       "<div class='two-col'>" + durationHtml + filterImpactHtml + "</div>" +
+
+      /* ── RS Diagnostic section ───────────────────────────────────────────── */
+      rsdHtml +
 
       /* ── Daily Drawdown (worst 5 days) — FTMO tracking ────────────────────── */
       dailyDDHtml +
