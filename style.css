@@ -408,9 +408,9 @@ tbody tr:hover td {
 /* ── Delete Version button ────────────────────────────── */
 .delete-btn {
     flex-shrink: 0;
-    background: transparent;
-    color: #886060;
-    border: 1px solid #553030;
+    background: crimson;
+    color: #fff;
+    border: 1px solid crimson;
     border-radius: 5px;
     padding: 6px 14px;
     font-size: 12px;
@@ -422,9 +422,9 @@ tbody tr:hover td {
 }
 
 .delete-btn:hover {
-    background: rgba(180, 60, 60, 0.15);
-    color: #cc6666;
-    border-color: #884444;
+    background: #f4254e;
+    color: #fff;
+    border-color: #f4254e;
 }
 
 .delete-btn:disabled {
@@ -476,58 +476,156 @@ tbody tr:hover td {
     border-bottom: 1px solid #2a2a4a;
 }
 
-.ec-td-cond    { padding: 5px 10px; color: #c8c8e8; }
-.ec-td-rule    { padding: 5px 10px; }
-.ec-td-purpose { padding: 5px 10px; color: #8888aa; }
-.ec-td-ver     { padding: 5px 10px; color: #606080; font-size: 0.85em; white-space: nowrap; text-align: center; }
-.ec-since-val     { color: #7070a0; }
-.ec-removed-val   { color: #aa6060; }
-.ec-row-removed   { opacity: 0.5; }
+.ec-td-cond {
+    padding: 5px 10px;
+    color: #c8c8e8;
+}
+
+.ec-td-rule {
+    padding: 5px 10px;
+}
+
+.ec-td-purpose {
+    padding: 5px 10px;
+    color: #8888aa;
+}
+
+.ec-td-ver {
+    padding: 5px 10px;
+    color: #606080;
+    font-size: 0.85em;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.ec-since-val {
+    color: #7070a0;
+}
+
+.ec-removed-val {
+    color: #aa6060;
+}
+
+.ec-row-removed {
+    opacity: 0.5;
+}
 
 /* ── Small inline badge labels ────────────────────────── */
-.badge-pos { color: #6bcb77; font-size: 11px; }
-.badge-neg { color: #ff6b6b; font-size: 11px; }
-.badge-neu { color: #505070; font-size: 11px; }
+.badge-pos {
+    color: #6bcb77;
+    font-size: 11px;
+}
+
+.badge-neg {
+    color: #ff6b6b;
+    font-size: 11px;
+}
+
+.badge-neu {
+    color: #505070;
+    font-size: 11px;
+}
 
 /* ── Win-rate trend segment labels ───────────────────── */
-.seg-label { color: #7070a0; }
-.seg-dates { font-size: 11px; color: #505070; }
+.seg-label {
+    color: #7070a0;
+}
+
+.seg-dates {
+    font-size: 11px;
+    color: #505070;
+}
 
 /* ── Highlighted parameter value (direction etc.) ─────── */
-.val-highlight { color: #ffd93d; font-weight: 600; }
+.val-highlight {
+    color: #ffd93d;
+    font-weight: 600;
+}
 
 /* ── Dimmed text (OFF states, no-data, empty notes) ───── */
-.text-dim { color: #404060; }
+.text-dim {
+    color: #404060;
+}
 
 /* ── Monthly P&L cell colors ──────────────────────────── */
-.mo-pnl-pos { color: #6bcb77; background: rgba(107, 203, 119, 0.08); font-weight: 600; }
-.mo-pnl-neg { color: #ff6b6b; background: rgba(255, 107, 107, 0.08); font-weight: 600; }
+.mo-pnl-pos {
+    color: #6bcb77;
+    background: rgba(107, 203, 119, 0.08);
+    font-weight: 600;
+}
+
+.mo-pnl-neg {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.08);
+    font-weight: 600;
+}
 
 /* ── Time-of-day best / worst row highlight ───────────── */
-.tod-row-best  { background: rgba(107, 203, 119, 0.07); }
-.tod-row-worst { background: rgba(255, 107, 107, 0.07); }
+.tod-row-best {
+    background: rgba(107, 203, 119, 0.07);
+}
+
+.tod-row-worst {
+    background: rgba(255, 107, 107, 0.07);
+}
 
 /* ── Sensitivity table: current parameter row ─────────── */
-.sens-current { background: #1a2040; font-weight: 600; }
+.sens-current {
+    background: #1a2040;
+    font-weight: 600;
+}
 
 /* ── White-space nowrap utility ───────────────────────── */
-.nowrap { white-space: nowrap; }
+.nowrap {
+    white-space: nowrap;
+}
 
 /* ── RPF note text ────────────────────────────────────── */
-.rpf-note { font-size: 11px; color: #505070; margin-top: 6px; padding: 0 4px; }
+.rpf-note {
+    font-size: 11px;
+    color: #505070;
+    margin-top: 6px;
+    padding: 0 4px;
+}
 
 /* ── RPF second table (tier breakdown) ────────────────── */
-.mt-table { margin-top: 8px; }
+.mt-table {
+    margin-top: 8px;
+}
 
 /* ── Empty / no-data table cells ─────────────────────── */
-.td-empty    { color: #404060; text-align: center; padding: 20px; }
-.td-empty-sm { color: #404060; text-align: center; padding: 16px; }
+.td-empty {
+    color: #404060;
+    text-align: center;
+    padding: 20px;
+}
+
+.td-empty-sm {
+    color: #404060;
+    text-align: center;
+    padding: 16px;
+}
 
 /* ── Dev log cells ────────────────────────────────────── */
-.dl-version  { white-space: nowrap; font-weight: 600; color: #c8c8e8; }
-.dl-date     { white-space: nowrap; color: #505070; }
-.dl-th-right { text-align: right; }
-.dl-td-right { text-align: right; white-space: nowrap; }
+.dl-version {
+    white-space: nowrap;
+    font-weight: 600;
+    color: #c8c8e8;
+}
+
+.dl-date {
+    white-space: nowrap;
+    color: #505070;
+}
+
+.dl-th-right {
+    text-align: right;
+}
+
+.dl-td-right {
+    text-align: right;
+    white-space: nowrap;
+}
 
 /* ── Toast ────────────────────────────────────────────── */
 #copy-toast {
