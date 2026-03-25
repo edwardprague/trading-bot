@@ -17,6 +17,7 @@ they reach Flask.
 import os
 import sys
 import subprocess
+import threading
 from pathlib import Path
 
 # ── Auto-install Flask if missing ─────────────────────────────────────────────
@@ -35,6 +36,10 @@ REPORT_FILE   = BASE_DIR / "report.html"
 STRATEGY_FILE = BASE_DIR / "strategy.py"
 
 app = Flask(__name__)
+
+# ── Backtest state (shared between the Flask thread and the worker thread) ─────
+_bt_lock  = threading.Lock()
+_bt_state = {"running": False, "ok": None, "error": None}
 
 # ── Run-bar HTML (injected into every page response) ──────────────────────────
 #
@@ -75,34 +80,77 @@ INJECT_HTML = """
 </style>
 
 <script>
+// On load: if a backtest is already in progress (e.g. page was refreshed
+// mid-run), pick up where we left off and start polling immediately.
+document.addEventListener("DOMContentLoaded", function() {
+  fetch("/status")
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.running) {
+        var btn    = document.getElementById("run-btn");
+        var status = document.getElementById("run-status");
+        btn.disabled    = true;
+        btn.textContent = "Running\u2026";
+        status.innerHTML  = '<span class="rb-spin"></span>Running\u2026';
+        status.style.color = "#9090c0";
+        pollStatus();
+      }
+    })
+    .catch(function() {});
+});
+
 function runBacktest() {
   var btn    = document.getElementById("run-btn");
   var status = document.getElementById("run-status");
 
-  btn.disabled  = true;
+  btn.disabled    = true;
   btn.textContent = "Running\u2026";
-  status.innerHTML = '<span class="rb-spin"></span>Fetching data and running backtest\u2026';
+  status.innerHTML  = '<span class="rb-spin"></span>Running\u2026';
   status.style.color = "#9090c0";
 
   fetch("/run", { method: "POST" })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (data.ok) {
-        status.innerHTML = "\u2713\u2009Done \u2014 reloading\u2026";
-        status.style.color = "#6bcb77";
-        setTimeout(function() { window.location.reload(); }, 900);
+      if (data.started) {
+        pollStatus();
       } else {
-        btn.disabled = false;
-        btn.innerHTML = "&#9654;&nbsp; Run Backtest";
-        status.innerHTML = "\u2717\u2009" + (data.error || "Unknown error");
+        btn.disabled   = false;
+        btn.innerHTML  = "&#9654;&nbsp; Run Backtest";
+        status.innerHTML   = "\u2717\u2009" + (data.error || "Unknown error");
         status.style.color = "#ff6b6b";
       }
     })
     .catch(function() {
-      btn.disabled = false;
-      btn.innerHTML = "&#9654;&nbsp; Run Backtest";
-      status.innerHTML = "\u2717\u2009Request failed \u2014 is the server still running?";
+      btn.disabled   = false;
+      btn.innerHTML  = "&#9654;&nbsp; Run Backtest";
+      status.innerHTML   = "\u2717\u2009Request failed \u2014 is the server still running?";
       status.style.color = "#ff6b6b";
+    });
+}
+
+function pollStatus() {
+  fetch("/status")
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.running) {
+        setTimeout(pollStatus, 2000);
+      } else if (data.ok) {
+        var status = document.getElementById("run-status");
+        status.innerHTML   = "\u2713\u2009Complete \u2014 refreshing\u2026";
+        status.style.color = "#6bcb77";
+        setTimeout(function() { window.location.reload(); }, 900);
+      } else {
+        var btn    = document.getElementById("run-btn");
+        var status = document.getElementById("run-status");
+        btn.disabled   = false;
+        btn.innerHTML  = "&#9654;&nbsp; Run Backtest";
+        status.innerHTML   = "\u2717\u2009" + (data.error || "Unknown error");
+        status.style.color = "#ff6b6b";
+      }
+    })
+    .catch(function() {
+      // Brief hiccup — keep polling
+      setTimeout(pollStatus, 2000);
     });
 }
 </script>
@@ -158,9 +206,8 @@ def serve_css():
     return Response(css_path.read_text(encoding="utf-8"), mimetype="text/css")
 
 
-@app.route("/run", methods=["POST"])
-def run_backtest():
-    """Run strategy.py as a subprocess and return JSON {ok, output|error}."""
+def _backtest_worker():
+    """Run strategy.py in a background thread and update _bt_state when done."""
     try:
         result = subprocess.run(
             [sys.executable, str(STRATEGY_FILE)],
@@ -169,17 +216,47 @@ def run_backtest():
             cwd=str(BASE_DIR),
             timeout=300,        # 5-minute safety timeout
         )
-        if result.returncode == 0:
-            return jsonify({"ok": True, "output": result.stdout})
-        else:
-            # Return the last 800 chars of stderr/stdout so the UI can show it
-            err = (result.stderr or result.stdout or "Non-zero exit code").strip()
-            return jsonify({"ok": False, "error": err[-800:]})
-
+        with _bt_lock:
+            if result.returncode == 0:
+                _bt_state["ok"]    = True
+                _bt_state["error"] = None
+            else:
+                err = (result.stderr or result.stdout or "Non-zero exit code").strip()
+                _bt_state["ok"]    = False
+                _bt_state["error"] = err[-800:]
     except subprocess.TimeoutExpired:
-        return jsonify({"ok": False, "error": "Timed out after 5 minutes"})
+        with _bt_lock:
+            _bt_state["ok"]    = False
+            _bt_state["error"] = "Timed out after 5 minutes"
     except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)})
+        with _bt_lock:
+            _bt_state["ok"]    = False
+            _bt_state["error"] = str(exc)
+    finally:
+        with _bt_lock:
+            _bt_state["running"] = False
+
+
+@app.route("/run", methods=["POST"])
+def run_backtest():
+    """Start strategy.py in a background thread; return immediately."""
+    with _bt_lock:
+        if _bt_state["running"]:
+            return jsonify({"ok": False, "error": "A backtest is already running"})
+        _bt_state["running"] = True
+        _bt_state["ok"]      = None
+        _bt_state["error"]   = None
+
+    t = threading.Thread(target=_backtest_worker, daemon=True)
+    t.start()
+    return jsonify({"ok": True, "started": True})
+
+
+@app.route("/status")
+def backtest_status():
+    """Return the current backtest state for the browser to poll."""
+    with _bt_lock:
+        return jsonify(dict(_bt_state))
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
