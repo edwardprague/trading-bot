@@ -775,7 +775,7 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         best_hour = worst_hour = None
         for hour, grp in t3.groupby("_hour"):
             grp_w = grp[grp.win]
-            net   = round(float(grp.pnl.sum()), 2)
+            tod_net = round(float(grp.pnl.sum()), 2)
             tod_rows.append({
                 "hour":     int(hour),
                 "trades":   int(len(grp)),
