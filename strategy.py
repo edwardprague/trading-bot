@@ -38,7 +38,7 @@ MASSIVE_API_KEY = os.getenv("MASSIVE_API_KEY")
 TICKER          = "EURUSD=X"      # Yahoo Finance ticker (fallback)
 MASSIVE_TICKER  = "C:EURUSD"      # Massive API ticker (primary)
 INTERVAL        = "5m"            # bar interval — used by Massive (primary) and Yahoo (fallback)
-DAYS_BACK       = 60              # 60-day test for regime filter visual verification
+DAYS_BACK       = 730             # Full 730-day run
 STARTING_CASH   = 100_000.0
 
 EMA_SLOW        = 200
