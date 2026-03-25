@@ -63,8 +63,8 @@ REGIME_DISPLACEMENT_THRESHOLD = 0.3 # net displacement must be < ATR * this to c
 
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
-VERSION         = "v3"
-NOTES           = "Regime filter — added net displacement condition to fix inverted detection"
+VERSION = "v4"
+NOTES = "Regime filter full 730 day run — ATR 96 Bars 20 Displacement 0.3"
 STRATEGY        = "Trend Following"
 
 ENTRY_CONDITIONS = [
