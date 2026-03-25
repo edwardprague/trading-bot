@@ -780,13 +780,13 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
                 "hour":     int(hour),
                 "trades":   int(len(grp)),
                 "win_rate": round(len(grp_w) / len(grp) * 100, 1),
-                "net_pnl":  net,
+                "net_pnl":  tod_net,
             })
-            if net > best_pnl:
-                best_pnl  = net
+            if tod_net > best_pnl:
+                best_pnl  = tod_net
                 best_hour = int(hour)
-            if net < worst_pnl:
-                worst_pnl  = net
+            if tod_net < worst_pnl:
+                worst_pnl  = tod_net
                 worst_hour = int(hour)
         time_of_day = {"rows": tod_rows, "best_hour": best_hour, "worst_hour": worst_hour}
     except Exception:
