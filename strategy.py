@@ -445,7 +445,7 @@ def print_results(trades, equity):
 
     wins  = trades[trades.win]
     loss  = trades[~trades.win]
-    net   = trades.pnl.sum()
+    net   = float(equity[-1]) - STARTING_CASH
     pf    = abs(wins.pnl.sum() / loss.pnl.sum()) if not loss.empty else float("inf")
 
     eq    = pd.Series(equity)
@@ -475,7 +475,7 @@ def print_results(trades, equity):
     print(f"  Worst Trade    : ${trades.pnl.min():.2f}")
     print(f"{'─'*52}")
     print(f"  Net Profit     : ${net:+.2f} ({net/STARTING_CASH*100:+.1f}%)")
-    print(f"  Final Equity   : ${STARTING_CASH + net:.2f}")
+    print(f"  Final Equity   : ${float(equity[-1]):.2f}")
     print(f"  Max Drawdown   : {dd:.2f}%")
     print(f"  Sharpe Ratio   : {sharpe:.2f}")
     print(f"{'═'*52}")
