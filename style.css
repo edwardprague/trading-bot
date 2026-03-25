@@ -667,3 +667,18 @@ tbody tr:hover td {
     background: #252540;
     border-radius: 3px;
 }
+
+/* ── Run Backtest button ─────────────────────────────── */
+#run-btn {
+    background: #4cc9f0;
+    color: #0c0c14;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}

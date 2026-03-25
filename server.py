@@ -59,11 +59,7 @@ INJECT_HTML = """
   background: #0c0c18; border-bottom: 1px solid #1e1e32;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 ">
-  <button id="run-btn" onclick="runBacktest()" style="
-    background: #4cc9f0; color: #0c0c14; border: none; border-radius: 6px;
-    padding: 7px 20px; font-size: 13px; font-weight: 700; cursor: pointer;
-    letter-spacing: 0.02em; flex-shrink: 0; transition: background 0.15s;
-  ">&#9654;&nbsp; Run Backtest</button>
+  <button id="run-btn" onclick="runBacktest()">&#9654;&nbsp; Run Backtest</button>
   <span id="run-status" style="font-size: 13px; color: #666690;"></span>
 </div>
 
