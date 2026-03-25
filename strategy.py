@@ -70,49 +70,49 @@ ENTRY_CONDITIONS = [
     {
         "condition":       "Trend Filter",
         "rule":            f"EMA{EMA_FAST} < EMA{EMA_SLOW}",
-        "purpose":         "Confirms downtrend — short only",
+
         "since_version":   "v1",
         "removed_version": None,
     },
     {
         "condition":       "Entry Signal",
         "rule":            f"Price crosses below EMA{EMA_ENTRY}",
-        "purpose":         "Pullback rejection in trend direction",
+
         "since_version":   "v1",
         "removed_version": None,
     },
     {
         "condition":       "Stop Placement",
         "rule":            f"Swing high over {SWING_LOOKBACK} bars",
-        "purpose":         "Structural invalidation level",
+
         "since_version":   "v1",
         "removed_version": None,
     },
     {
         "condition":       "Direction",
         "rule":            "Short only",
-        "purpose":         "Asymmetric edge identified on EURUSD",
+
         "since_version":   "v1",
         "removed_version": None,
     },
     {
         "condition":       "Time Window",
         "rule":            f"UTC {' '.join(f'{h:02d}' for h in sorted(TIME_FILTER_HOURS))}",
-        "purpose":         "High quality session hours",
+
         "since_version":   "v1",
         "removed_version": None,
     },
     {
         "condition":       "Daily Loss Limit",
         "rule":            f"Stop trading if daily loss >= ${MAX_DAILY_LOSS:,.0f}",
-        "purpose":         "Prevents FTMO 3% daily drawdown breach",
+
         "since_version":   "v1",
         "removed_version": None,
     },
     {
         "condition":       "Regime Filter",
         "rule":            f"ATR {REGIME_ATR_LENGTH} / Bars {REGIME_LENGTH}",
-        "purpose":         "Avoid consolidation entries",
+
         "since_version":   "v2",
         "removed_version": None,
     },

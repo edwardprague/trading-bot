@@ -1851,7 +1851,6 @@
         return "<tr" + rowOpacity + ">" +
           "<td class='ec-td-cond'>" + esc(ec.condition) + "</td>" +
           "<td class='ec-td-rule'>" + esc(ec.rule) + "</td>" +
-          "<td class='ec-td-purpose'>" + esc(ec.purpose) + "</td>" +
           "<td class='ec-td-ver'><span class='ec-since-val'>" + esc(addedVal) + "</span></td>" +
           "<td class='ec-td-ver'>" + removedDisp + "</td>" +
           "</tr>";
@@ -1863,7 +1862,6 @@
             "<thead><tr>" +
               "<th " + ecThStyle + ">Condition</th>" +
               "<th " + ecThStyle + ">Rule</th>" +
-              "<th " + ecThStyle + ">Purpose</th>" +
               "<th " + ecThStyle + ">+</th>" +
               "<th " + ecThStyle + ">\u2212</th>" +
             "</tr></thead>" +
@@ -1879,16 +1877,15 @@
             "<thead><tr>" +
               "<th " + ecThStyle + ">Condition</th>" +
               "<th " + ecThStyle + ">Rule</th>" +
-              "<th " + ecThStyle + ">Purpose</th>" +
               "<th " + ecThStyle + ">+</th>" +
               "<th " + ecThStyle + ">\u2212</th>" +
             "</tr></thead>" +
             "<tbody>" +
-            "<tr><td class='ec-td-cond'>Trend Filter</td><td class='ec-td-rule'>EMA" + (p.ema_fast||"50") + " &lt; EMA" + (p.ema_slow||"200") + "</td><td class='ec-td-purpose'>Confirms downtrend \u2014 short only</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Entry Signal</td><td class='ec-td-rule'>Price crosses below EMA" + (p.ema_entry||"20") + "</td><td class='ec-td-purpose'>Pullback rejection in trend direction</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Stop Placement</td><td class='ec-td-rule'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td class='ec-td-purpose'>Structural invalidation level</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'><span class='val-highlight'>Short only</span></td><td class='ec-td-purpose'>Asymmetric edge identified on EURUSD</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Time Window</td><td class='ec-td-rule'>UTC " + (p.time_filter ? tfHoursStr : "<span class='text-dim'>OFF</span>") + "</td><td class='ec-td-purpose'>High quality session hours</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Trend Filter</td><td class='ec-td-rule'>EMA" + (p.ema_fast||"50") + " &lt; EMA" + (p.ema_slow||"200") + "</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Entry Signal</td><td class='ec-td-rule'>Price crosses below EMA" + (p.ema_entry||"20") + "</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Stop Placement</td><td class='ec-td-rule'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'><span class='val-highlight'>Short only</span></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Time Window</td><td class='ec-td-rule'>UTC " + (p.time_filter ? tfHoursStr : "<span class='text-dim'>OFF</span>") + "</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
             "</tbody>" +
           "</table>" +
         "</div>";
@@ -1985,6 +1982,9 @@
       /* ── Section 3: Performance by Direction ──────────────────────────────── */
       dirHtml +
 
+      /* ── RS Diagnostic section ───────────────────────────────────────────── */
+      rsdHtml +
+
       /* ── Section 4: Rolling Profit Factor data ────────────────────────────── */
       rollingPfHtml +
 
@@ -2008,9 +2008,6 @@
 
       /* ── Section 11: Trade Duration + Filter Impact Summary ───────────────── */
       "<div class='two-col'>" + durationHtml + filterImpactHtml + "</div>" +
-
-      /* ── RS Diagnostic section ───────────────────────────────────────────── */
-      rsdHtml +
 
       /* ── Daily Drawdown (worst 5 days) — FTMO tracking ────────────────────── */
       dailyDDHtml +
