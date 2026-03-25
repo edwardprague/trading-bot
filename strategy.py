@@ -59,11 +59,12 @@ MAX_DAILY_LOSS  = 2500.0            # stop trading if day's loss reaches $2,500 
 
 REGIME_ATR_LENGTH = 96              # ATR period for LuxAlgo range detection
 REGIME_LENGTH     = 20              # lookback bars — if all closes within ATR of SMA → ranging
+REGIME_DISPLACEMENT_THRESHOLD = 0.5 # net displacement must be < ATR * this to count as ranging
 
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
 VERSION         = "v3"
-NOTES           = "Regime filter — 60 day test to visually verify range detection before full run"
+NOTES           = "Regime filter — added net displacement condition to fix inverted detection"
 STRATEGY        = "Trend Following"
 
 ENTRY_CONDITIONS = [
@@ -111,7 +112,7 @@ ENTRY_CONDITIONS = [
     },
     {
         "condition":       "Regime Filter",
-        "rule":            f"ATR {REGIME_ATR_LENGTH} / Bars {REGIME_LENGTH}",
+        "rule":            f"ATR {REGIME_ATR_LENGTH} / Bars {REGIME_LENGTH} / Disp {REGIME_DISPLACEMENT_THRESHOLD}",
 
         "since_version":   "v2",
         "removed_version": None,
@@ -227,7 +228,10 @@ def add_indicators(df):
     df["regime_atr"] = _true_range.rolling(REGIME_ATR_LENGTH).mean()
     df["regime_sma"] = df.Close.rolling(REGIME_LENGTH).mean()
     # ── Per-bar regime classification: True = ranging, False = trending ────────
-    # Ranging when ALL closes over REGIME_LENGTH bars stay within ATR of SMA
+    # Ranging requires BOTH conditions to be true:
+    #   1) Volatility containment: all closes over REGIME_LENGTH bars within ATR of SMA
+    #   2) No net displacement: abs(close_now - close_N_bars_ago) < ATR * DISPLACEMENT_THRESHOLD
+    # If EITHER condition is false → trending (entries allowed)
     _ranging = pd.Series(False, index=df.index)
     _ratr = df["regime_atr"].values
     _rsma = df["regime_sma"].values
@@ -235,12 +239,15 @@ def add_indicators(df):
     for _i in range(REGIME_LENGTH, len(df)):
         if np.isnan(_ratr[_i]) or np.isnan(_rsma[_i]):
             continue
+        # Condition 1: volatility containment
         _all_in = True
         for _k in range(REGIME_LENGTH):
             if abs(_close[_i - _k] - _rsma[_i]) > _ratr[_i]:
                 _all_in = False
                 break
-        _ranging.iloc[_i] = _all_in
+        # Condition 2: no net displacement
+        _no_displacement = abs(_close[_i] - _close[_i - REGIME_LENGTH]) < _ratr[_i] * REGIME_DISPLACEMENT_THRESHOLD
+        _ranging.iloc[_i] = _all_in and _no_displacement
     df["regime_ranging"] = _ranging
     df = df.dropna().reset_index()
     # Normalise the datetime column to 'Datetime' regardless of yfinance version
