@@ -59,7 +59,7 @@ MAX_DAILY_LOSS  = 2500.0            # stop trading if day's loss reaches $2,500 
 
 REGIME_ATR_LENGTH = 96              # ATR period for LuxAlgo range detection
 REGIME_LENGTH     = 20              # lookback bars — if all closes within ATR of SMA → ranging
-REGIME_DISPLACEMENT_THRESHOLD = 0.5 # net displacement must be < ATR * this to count as ranging
+REGIME_DISPLACEMENT_THRESHOLD = 0.3 # net displacement must be < ATR * this to count as ranging
 
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
@@ -1849,7 +1849,7 @@ __VERSIONS_JSON__
         "<th>Filter</th><th>Trades Removed</th><th>Win Rate (if kept)</th><th>Net P&amp;L (if kept)</th>" +
         "</tr></thead><tbody>" + fiRows + "</tbody></table></div>";
 
-    /* 9b. RS Diagnostic — Regime Score development */
+    /* 9b. Range Filter development */
     var rsd    = m.rs_diagnostic || {};
     var rsdHtml = "";
     if (rsd.total_signals && rsd.total_signals > 0) {
@@ -1863,7 +1863,7 @@ __VERSIONS_JSON__
         ? "pos" : (rsd.allowed_pf < 1.0 ? "neg" : "neu");
       rsdHtml =
         "<div class='section'>" +
-          "<div class='section-title'>RS Diagnostic — Regime Score</div>" +
+          "<div class='section-title'>Range Filter</div>" +
           "<table><thead><tr>" +
           "<th>Metric</th><th>Filtered (Blocked)</th><th>Allowed (Executed)</th>" +
           "</tr></thead><tbody>" +
@@ -2086,7 +2086,7 @@ __VERSIONS_JSON__
             "<thead><tr>" +
               "<th " + ecThStyle + ">Condition</th>" +
               "<th " + ecThStyle + ">Rule</th>" +
-              "<th " + ecThStyle + ">Purpose</th>" +
+
               "<th " + ecThStyle + ">+</th>" +
               "<th " + ecThStyle + ">\u2212</th>" +
             "</tr></thead>" +
@@ -2102,7 +2102,7 @@ __VERSIONS_JSON__
             "<thead><tr>" +
               "<th " + ecThStyle + ">Condition</th>" +
               "<th " + ecThStyle + ">Rule</th>" +
-              "<th " + ecThStyle + ">Purpose</th>" +
+
               "<th " + ecThStyle + ">+</th>" +
               "<th " + ecThStyle + ">\u2212</th>" +
             "</tr></thead>" +
@@ -2208,6 +2208,9 @@ __VERSIONS_JSON__
       /* ── Section 3: Performance by Direction ──────────────────────────────── */
       dirHtml +
 
+      /* ── Range Filter + Regime Classification (side by side) ────────────── */
+      "<div class='two-col'>" + rsdHtml + regimeHtml + "</div>" +
+
       /* ── Section 4: Rolling Profit Factor data ────────────────────────────── */
       rollingPfHtml +
 
@@ -2226,14 +2229,11 @@ __VERSIONS_JSON__
       /* ── Section 9: Streak Analysis + Stop vs Target ──────────────────────── */
       "<div class='two-col'>" + streakHtml + stopHtml + "</div>" +
 
-      /* ── Section 10: Regime Classification + Win Rate Trend ───────────────── */
-      "<div class='two-col'>" + regimeHtml + winRateTrendHtml + "</div>" +
+      /* ── Win Rate Trend ──────────────────────────────────────────────────── */
+      winRateTrendHtml +
 
       /* ── Section 11: Trade Duration + Filter Impact Summary ───────────────── */
       "<div class='two-col'>" + durationHtml + filterImpactHtml + "</div>" +
-
-      /* ── RS Diagnostic section ───────────────────────────────────────────── */
-      rsdHtml +
 
       /* ── Daily Drawdown (worst 5 days) — FTMO tracking ────────────────────── */
       dailyDDHtml +
