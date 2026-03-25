@@ -1,82 +1,193 @@
-# Trading Bot Project Context
+# Trading Bot Project — Context & Memory
 
-## Project Goal
-Build a systematic trend following trading bot for indices and forex.
-Develop, test and optimise in Python, then deploy as a cTrader Python cBot.
-
-## Development Setup
-- Python scripts live in this repository
-- Test locally using Yahoo Finance data (free)
-- Future: Massive.io Starter plan for 5-minute intraday data
-- Deploy to cTrader using native Python cBot support
+## Project Overview
+Building a systematic algorithmic trading system targeting an FTMO $100k funded account challenge.
+The system is designed to be adaptive, with a Conviction Score as the primary risk management architecture.
 
 ## Three-Part Workflow
-1. **Claude Chat** — strategy decisions, result interpretation, next steps
-2. **Cowork** — writing and editing Python files
-3. **Browser** — run backtests and review results at http://localhost:8080
+1. **Claude Chat (Project)** — Strategy decisions, result interpretation, hypothesis formation, analysis
+2. **Cowork** — Writing and editing Python files, implementing changes (keep sessions short and focused)
+3. **Terminal** — Running backtests with real data, viewing results
 
-## Current Strategy — Baseline
-- Instrument: EURUSD hourly (Yahoo Finance ticker: EURUSD=X)
-- Trend filter: EMA 50 vs EMA 200 (long above, short below)
-- Entry signal: price crosses EMA 20 in trend direction
-- Stop: structural swing high/low over 20 bar lookback
-- Target: 1:2 Risk:Reward ratio
-- Risk per trade: 1% of account
-- Starting capital: $10,000
-- Strategy tag: `STRATEGY = "Trend Following"` (used to group versions in the dashboard)
-- VERSION = "v1", NOTES = "Baseline — 5-minute EURUSD short only time filter hours 01 02 16 17 18"
-- No additional filters — pure EMA crossover + swing stop
+Always begin Cowork sessions with: *"Please read CONTEXT.md"*
 
-## Baseline Results (EURUSD 5-minute, short only, time filter hours 01 02 16 17 18)
-- Not yet established — run the backtest to record v1
+---
 
-## Target Challenge Parameters
-Strategy is being developed and optimised to pass the **FTMO $100k challenge**:
-- Max overall drawdown: 10% ($10,000 on a $100k account)
-- Max daily drawdown: 3% ($3,000 on a $100k account)
-- The dashboard tracks both metrics on every backtest run
+## Technical Setup
 
-## Hypotheses Queue
-- Add ADX filter to avoid ranging markets
-- Test 15-minute timeframe for more trades
-- Add time-of-day filter to avoid low liquidity periods
+### Machines
+- **Desktop**: Edwards-iMac — `~/Documents/GitHub/trading-bot`
+- **Laptop**: Edwards-MacBook-Air — `~/Documents/GitHub/trading-bot`
 
-## Data Sources
-- Yahoo Finance: EURUSD=X hourly, 720 days (free, working)
-- Yahoo Finance: ^GDAXI hourly, 720 days (free, working)
-- Massive.io Starter ($29/mo): 5-min intraday, 5 years history (pending)
+### Repository
+- GitHub: `https://github.com/edwardprague/trading-bot` (public)
+- GitHub Pages: `https://edwardprague.github.io/trading-bot/report.html`
 
-## Files
-- `strategy.py` — main backtest script; run directly or via the dashboard
-- `server.py` — Flask dashboard server; serves report.html with a Run Backtest button; also serves style.css at `/style.css`
-- `report.html` — auto-generated backtest report with version history (do not edit by hand)
-- `style.css` — dashboard stylesheet; extracted from the report template; **never overwritten by strategy.py** — edit freely and changes persist across all future backtest runs
-- `RESULTS_LOG.md` — plain markdown table appended after every backtest run; columns: Version, Date, Strategy, Instrument, Timeframe, Notes, Trades, Win Rate, Profit Factor, Net P&L, Max Drawdown, Sharpe Ratio
-- `results/` — versioned chart images, e.g. `results/v3_EURUSD_2026-03-22.png`
-- `CONTEXT.md` — this file, project memory
+### Starting a Session
+Double-click `start.command` from Finder — auto-pulls latest, starts Flask server.
+Open browser: `http://localhost:8080`
 
-## How to Start a Session
-1. Read this file
-2. Activate virtual environment: `source venv/bin/activate`
-3. Start the dashboard: `python3 server.py`
-4. Open http://localhost:8080 in your browser
-5. Click **Run Backtest** to run strategy.py — the page refreshes automatically when done
-6. Or run strategy directly in the terminal: `python3 strategy.py`
+### Running a Backtest
+Click Run Backtest in browser — results auto-commit and push to GitHub.
+Or run directly: `python3 strategy.py`
 
-## Dashboard Notes
-- `server.py` uses Flask; it installs Flask automatically via pip on first run if missing
-- The Run Backtest button POSTs to `/run`, which runs `strategy.py` as a subprocess
-- Backtests can take 1–2 minutes (data fetch + compute); a spinner shows while running
-- Each run appends a new version to `report.html`; previous versions are never lost
-- The server uses `sys.executable` so it always runs strategy.py with the same Python/venv
+### Data Source
+- Active: Massive.io Starter ($49/month) — C:EURUSD 5-minute bars, 2 years history
+- Fallback: Yahoo Finance (EURUSD=X hourly) — free, used if Massive fails
+- Massive API key stored in .env file (gitignored, never commit)
 
-## Dashboard UI
-- Strategy dropdown at top of sidebar: Trend Following / Counter Trend / Range Trading
-- Version list filters to show only runs for the selected strategy
-- Each version entry shows version name, date, and net P&L coloured green/red
-- Development Log button at sidebar bottom: shows timeline table of all versions for the
-  selected strategy with version, date, change notes, profit factor (with ▲/▼ arrows vs
-  previous version), win rate, and net P&L
-- `STRATEGY` variable in `strategy.py` tags each run as Trend Following / Counter Trend / Range Trading
-- Dashboard and RESULTS_LOG.md reset to clean state; next backtest run records v1 baseline
-- Main content area layout: results + parameters tables at top, chart image below
+### Key Files
+- strategy.py — main backtest engine
+- server.py — Flask web server (localhost:8080) with async backtest execution
+- start.command — double-click startup (auto-pulls + starts server)
+- report.html — auto-generated dashboard (never edit directly)
+- style.css — dashboard styling (safe to edit, never overwritten)
+- RESULTS_LOG.md — master results comparison table
+- .env — API keys (gitignored, never commit)
+- results/ — versioned PNG charts and markdown reports
+
+---
+
+## Current Strategy
+
+### Instrument & Timeframe
+- Instrument: EURUSD (Massive API ticker: C:EURUSD)
+- Timeframe: 5-minute bars
+- History: 730 days (2 years)
+
+### Parameters
+- EMA Slow: 200, EMA Fast: 50, EMA Entry: 20
+- Swing Lookback: 20 bars
+- RRR: 1:2
+- Risk Per Trade: 1.0%
+- Min Stop: 5 pips, Max Stop: 200 pips
+- Direction: short_only
+- Time Filter: ON — UTC hours 1, 2, 16, 17, 18
+- Starting Capital: $100,000
+
+### Entry Conditions
+| Condition | Rule | Purpose |
+|-----------|------|---------|
+| Trend Filter | EMA50 < EMA200 | Confirms downtrend — short only |
+| Entry Signal | Price crosses below EMA20 | Pullback rejection in trend direction |
+| Stop Placement | Swing high over 20 bars | Structural invalidation level |
+| Direction | Short only | Asymmetric edge identified on EURUSD |
+| Time Window | UTC 01, 02, 16, 17, 18 | Quality session hours |
+
+### Current Baseline Results (v1 — 5-minute, 730 days)
+- Total Trades: 382
+- Win Rate: 34.3%
+- Profit Factor: 1.03
+- Net Profit: +$7,413 (+7.4%)
+- Max Drawdown: -$29,243 (-25.36%)
+- Max Daily DD: -$3,415 (-3.42%)
+- Sharpe Ratio: 0.08
+
+### FTMO $100k Alignment
+- Max overall drawdown: 10% = $10,000 — FAIL (current 25.36%)
+- Max daily drawdown: 3% = $3,000 — FAIL (current 3.42%)
+- Profit target 10% = $10,000 — Achievable but needs consistency
+- Main gaps: drawdown too high, daily DD breaching limit
+
+---
+
+## Key Strategic Insights
+
+### Time Filter Development
+Hours selected based on 5-minute performance analysis:
+- Removed: 03:00 (-$8,850), 04:00 (-$7,299) — worst performers
+- Kept: 01, 02, 16, 17, 18
+- Next to test: Remove 17:00 (currently -$879, weakest remaining)
+
+### Win Rate Trend (v1 baseline)
+- Early (Mar-Nov 2024): 36.2%, PF 1.12
+- Mid (Nov 2024-Jul 2025): 30.7%, PF 0.88 — weak period
+- Late (Jul 2025-Mar 2026): 35.9%, PF 1.11
+- Pattern: U-shaped — weak middle, recovering strongly
+
+### Regime Classification
+- Trending (ADX ≥25): PF 1.06
+- Ranging (ADX <25): PF 1.01
+- Both positive — good sign for robustness
+
+### Daily Drawdown Issue
+3 trades in one bad day can breach FTMO 3% daily limit.
+Solution: MAX_TRADES_PER_DAY = 2 to be added in v2.
+
+---
+
+## Conviction Score Architecture (Future)
+
+Position Size = Base Risk % × Conviction Score
+Conviction Score = RPF × Regime × Quality × Context
+
+### Four Dimensions
+| Dimension | Measures | Status |
+|-----------|---------|--------|
+| RPF | Recent strategy health | Visualised, needs position sizing |
+| Regime Score | Market conditions | Planned |
+| Trade Quality | Entry quality | Planned |
+| Market Context | News, session timing | Planned |
+
+### RPF Tiers
+- RPF > 1.3: 1.0% risk (full)
+- RPF 1.0-1.3: 0.5% risk (reduced)
+- RPF < 1.0: 0.25% risk (minimum)
+
+Never stops completely — minimum risk keeps feedback loop alive.
+
+---
+
+## Dashboard Layout (per version)
+1. Summary + Entry Conditions
+2. Results + Parameters
+3. Performance by Direction
+4. Rolling Profit Factor data
+5. RPF chart image
+6. Monthly Performance
+7. Time of Day Performance
+8. Main chart (visual divider)
+9. Streak Analysis + Stop vs Target
+10. Regime Classification + Win Rate Trend
+11. Trade Duration + Filter Impact Summary
+12. RRR Sensitivity + Swing Lookback Sensitivity
+
+---
+
+## Hypothesis Log
+
+### 5-minute Phase
+| Version | Hypothesis | Result |
+|---------|-----------|--------|
+| v1 | Baseline 5min short only hours 01 02 16 17 18 | PF 1.03, +7.4%, DD 25.36% |
+| v2 | Remove hour 17 + max 2 trades/day | TBD |
+
+### Next to Test
+1. Remove hour 17 + MAX_TRADES_PER_DAY=2
+2. Scale EMA periods for 5-minute (200/50/20 may be too small)
+3. RPF position sizing
+4. Regime composite score
+5. Walk-forward validation
+
+---
+
+## Known Bugs Fixed
+- March 25 2026: P&L variable `net` overwritten by `tod_net` in time of day loop — caused Net Profit to show last hour P&L instead of overall result. Fixed via terminal sed commands.
+
+## FTMO Parameters
+- Account: $100,000
+- Max overall drawdown: 10% ($10,000)
+- Max daily drawdown: 3% ($3,000)
+- Profit target: 10% ($10,000)
+- Risk per trade: 1% = $1,000
+
+## Multi-Instrument Plan
+- EURUSD: Primary — currently best performing
+- GBPUSD: Edge confirmed but late period degrading — revisit later
+- Running N instruments: risk = 1% / N to control total exposure
+
+## Next Session Priority
+1. Confirm clean v1 in dashboard
+2. Run v2: remove hour 17 + MAX_TRADES_PER_DAY=2
+3. Analyse drawdown reduction
+4. If drawdown still too high — consider EMA scaling for 5-minute
