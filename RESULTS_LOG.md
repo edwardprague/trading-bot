@@ -36,3 +36,4 @@
 | v23 | 2026-03-25 03:06 | Trend Following | EURUSD=X | 5m | Switched to Massive API — 5-minute EURUSD data | 455 | 33.0% | 0.97 | +$2786.30 | -31.16% | -0.03 |
 | v23 | 2026-03-25 03:16 | Trend Following | EURUSD=X | 5m | Switched to Massive API — 5-minute EURUSD data | 455 | 33.0% | 0.97 | +$2786.30 | -31.16% | -0.03 |
 | v35 | 2026-03-25 03:29 | Trend Following | EURUSD=X | 5m | Fixed P&L reconciliation — consistent compounding calculation | 455 | 33.0% | 0.97 | +$2786.30 | -31.16% | -0.03 |
+| v36 | 2026-03-25 03:40 | Trend Following | EURUSD=X | 5m | Removed misleading direction P&L — replaced with avg P&L per trade and trade share | 455 | 33.0% | 0.97 | +$2786.30 | -31.16% | -0.03 |

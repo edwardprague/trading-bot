@@ -57,8 +57,8 @@ TIME_FILTER_HOURS = [16, 17, 18, 1, 2, 3, 4]   # UTC hours allowed
 
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
-VERSION         = "v35"
-NOTES           = "Fixed P&L reconciliation — consistent compounding calculation"
+VERSION         = "v36"
+NOTES           = "Removed misleading direction P&L — replaced with avg P&L per trade and trade share"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -669,28 +669,14 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         if not sub_l.empty and sub_l.pnl.sum() != 0:
             sub_pf = round(abs(float(sub_w.pnl.sum()) / abs(float(sub_l.pnl.sum()))), 2)
         by_dir[d] = {
-            "count":         int(len(sub)),
-            "win_rate":      round(len(sub_w) / len(sub) * 100, 1),
-            "profit_factor": sub_pf,
-            "avg_win":       round(float(sub_w.pnl.mean()), 2) if not sub_w.empty else None,
-            "avg_loss":      round(float(sub_l.pnl.mean()), 2) if not sub_l.empty else None,
-            "net_pnl":       round(float(sub.pnl.sum()), 2),
+            "count":               int(len(sub)),
+            "win_rate":            round(len(sub_w) / len(sub) * 100, 1),
+            "profit_factor":       sub_pf,
+            "avg_win":             round(float(sub_w.pnl.mean()), 2) if not sub_w.empty else None,
+            "avg_loss":            round(float(sub_l.pnl.mean()), 2) if not sub_l.empty else None,
+            "avg_pnl_per_trade":   round(float(sub.pnl.mean()), 2),
+            "pct_of_total_trades": round(len(sub) / n * 100, 1),
         }
-
-    # ── Reconcile by-direction P&Ls with the equity-curve net ─────────────────
-    # net = equity[-1] - STARTING_CASH  is the authoritative compounding figure.
-    # Direction P&Ls (sub.pnl.sum()) use the same compounding sizes, so their sum
-    # should equal net — but floating-point accumulation order can cause tiny drift.
-    # We reconcile here: long is treated as authoritative, short is derived as the
-    # residual, guaranteeing Long + Short == Net Profit displayed in Results exactly.
-    # For single-direction strategies the active direction is set equal to net directly.
-    _net_rounded = round(net, 2)
-    if by_dir.get("long") is not None and by_dir.get("short") is not None:
-        by_dir["short"]["net_pnl"] = round(_net_rounded - by_dir["long"]["net_pnl"], 2)
-    elif by_dir.get("long") is not None:
-        by_dir["long"]["net_pnl"]  = _net_rounded
-    elif by_dir.get("short") is not None:
-        by_dir["short"]["net_pnl"] = _net_rounded
 
     # ── Monthly performance ────────────────────────────────────────────────────
     monthly = []
@@ -1244,28 +1230,25 @@ __VERSIONS_JSON__
     /* ── Performance by Direction ──────────────────── */
     lines.push("### Performance by Direction");
     lines.push("");
-    lines.push("| Direction | Trades | Win Rate | Profit Factor | Avg Win | Avg Loss | Net P&L |");
-    lines.push("|-----------|--------|----------|---------------|---------|----------|---------|");
+    lines.push("| Direction | Trades | % of Trades | Win Rate | Profit Factor | Avg Win | Avg Loss | Avg P&L/Trade |");
+    lines.push("|-----------|--------|-------------|----------|---------------|---------|----------|---------------|");
     var bd = m.by_direction || {};
     ["long", "short"].forEach(function (d) {
       var data = bd[d];
       if (!data) {
-        lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) + " | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
+        lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) + " | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
         return;
       }
       var dpf = (data.profit_factor === null || data.profit_factor === undefined) ? "\u221e" : mf(data.profit_factor);
       lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) +
         " | " + data.count +
+        " | " + mf(data.pct_of_total_trades, 1) + "%" +
         " | " + mf(data.win_rate, 1) + "%" +
         " | " + dpf +
         " | " + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + mf(data.avg_win)  : "\u2014") +
         " | " + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + mf(Math.abs(data.avg_loss)) : "\u2014") +
-        " | " + mfMoney(data.net_pnl) + " |");
+        " | " + mfMoney(data.avg_pnl_per_trade) + " |");
     });
-    lines.push("");
-    lines.push("> **Calculation method:** **Net Profit** = final equity − starting capital (equity curve, authoritative compounding result). " +
-      "Each direction's Net P&L sums individual trade P&Ls sized at " + mf((p.risk_pct || 0) * 100, 1) + "% of current equity at entry, " +
-      "then reconciled so that **Long + Short Net P&L = Net Profit** exactly.");
     lines.push("");
 
     /* ── Monthly Performance ────────────────────────── */
@@ -1468,38 +1451,30 @@ __VERSIONS_JSON__
     function dirRow(label, data) {
       if (!data) {
         return "<tr><td><strong>" + label + "</strong></td>" +
-               "<td colspan='6' style='color:#404060'>No data</td></tr>";
+               "<td colspan='7' style='color:#404060'>No data</td></tr>";
       }
       var dpf    = (data.profit_factor === null || data.profit_factor === undefined) ? "\u221e" : fmt(data.profit_factor);
       var dpfCls = (data.profit_factor === null || data.profit_factor === undefined || data.profit_factor >= 1.5) ? "pos" : (data.profit_factor < 1.0 ? "neg" : "neu");
       return "<tr>" +
         "<td><strong>" + label + "</strong></td>" +
         "<td>" + data.count + "</td>" +
+        "<td>" + fmt(data.pct_of_total_trades, 1) + "%</td>" +
         "<td class='" + (data.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(data.win_rate, 1) + "%</td>" +
         "<td class='" + dpfCls + "'>" + dpf + "</td>" +
         "<td class='pos'>" + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + fmt(data.avg_win)  : "\u2014") + "</td>" +
         "<td class='neg'>" + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + fmt(Math.abs(data.avg_loss)) : "\u2014") + "</td>" +
-        "<td class='" + pClass(data.net_pnl) + "'>" + fmtMoney(data.net_pnl) + "</td>" +
+        "<td class='" + pClass(data.avg_pnl_per_trade) + "'>" + fmtMoney(data.avg_pnl_per_trade) + "</td>" +
         "</tr>";
     }
     var dirHtml =
       "<div class='section'>" +
         "<div class='section-title'>Performance by Direction</div>" +
         "<table><thead><tr>" +
-        "<th>Direction</th><th>Trades</th><th>Win Rate</th>" +
-        "<th>Profit Factor</th><th>Avg Win</th><th>Avg Loss</th><th>Net P&amp;L</th>" +
+        "<th>Direction</th><th>Trades</th><th>% of Trades</th><th>Win Rate</th>" +
+        "<th>Profit Factor</th><th>Avg Win</th><th>Avg Loss</th><th>Avg P&amp;L/Trade</th>" +
         "</tr></thead><tbody>" +
         dirRow("Long", bdLng) + dirRow("Short", bdSht) +
         "</tbody></table>" +
-        "<p style='font-size:11px;color:#6060a0;margin:8px 4px 2px;line-height:1.6'>" +
-        "<strong style='color:#8080b0'>&#8505; Calculation method:</strong> " +
-        "<strong>Net Profit</strong> is derived from the equity curve " +
-        "(<em>final equity &minus; starting capital</em>), which is the authoritative compounding result. " +
-        "Each direction&rsquo;s P&amp;L sums the individual trade P&amp;Ls sized at " +
-        fmt((p.risk_pct || 0) * 100, 1) + "% of <em>current equity at entry</em>, " +
-        "then is reconciled so that <strong>Long&nbsp;+&nbsp;Short&nbsp;Net&nbsp;P&amp;L&nbsp;" +
-        "always&nbsp;equals&nbsp;Net&nbsp;Profit</strong> exactly." +
-        "</p>" +
       "</div>";
 
     /* 2. Monthly Performance */
