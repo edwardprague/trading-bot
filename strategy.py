@@ -2098,7 +2098,7 @@ __VERSIONS_JSON__
             "<thead><tr>" +
               "<th " + ecThStyle + ">Condition</th>" +
               "<th " + ecThStyle + ">Rule</th>" +
-
+              "<th " + ecThStyle + ">V</th>" +
               "<th " + ecThStyle + ">+</th>" +
               "<th " + ecThStyle + ">\u2212</th>" +
             "</tr></thead>" +
@@ -2114,7 +2114,7 @@ __VERSIONS_JSON__
             "<thead><tr>" +
               "<th " + ecThStyle + ">Condition</th>" +
               "<th " + ecThStyle + ">Rule</th>" +
-
+              "<th " + ecThStyle + ">V</th>" +
               "<th " + ecThStyle + ">+</th>" +
               "<th " + ecThStyle + ">\u2212</th>" +
             "</tr></thead>" +
