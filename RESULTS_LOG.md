@@ -7,3 +7,4 @@
 | v3 | 2026-03-25 17:04 | Trend Following | EURUSD=X | 5m | Regime filter — added net displacement condition to fix inverted detection | 33 | 45.5% | 1.64 | +$12314.56 | -6.79% | 0.96 |
 | v3 | 2026-03-25 17:34 | Trend Following | EURUSD=X | 5m | Regime filter — added net displacement condition to fix inverted detection | 33 | 45.5% | 1.64 | +$12314.56 | -6.79% | 0.96 |
 | v4 | 2026-03-25 17:39 | Trend Following | EURUSD=X | 5m | Regime filter full 730 day run — ATR 96 Bars 20 Displacement 0.3 | 33 | 45.5% | 1.64 | +$12314.56 | -6.79% | 0.96 |
+| v4 | 2026-03-25 17:53 | Trend Following | EURUSD=X | 5m | Regime filter full 730 day run — ATR 96 Bars 20 Displacement 0.3 | 33 | 45.5% | 1.64 | +$12314.56 | -6.79% | 0.96 |

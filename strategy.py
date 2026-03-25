@@ -604,6 +604,10 @@ def print_results(trades, equity):
     print(f"{'─'*52}")
     print(f"  Avg Win        : ${wins.pnl.mean():.2f}" if not wins.empty else "  Avg Win        : N/A")
     print(f"  Avg Loss       : ${loss.pnl.mean():.2f}" if not loss.empty else "  Avg Loss       : N/A")
+    avg_stop_pips_print = abs(trades["entry"] - trades["stop"]).mean() / 0.0001
+    avg_target_pips_print = abs(trades["entry"] - trades["target"]).mean() / 0.0001
+    print(f"  Avg Stop       : {avg_stop_pips_print:.1f} pips")
+    print(f"  Avg Target     : {avg_target_pips_print:.1f} pips")
     print(f"  Best Trade     : ${trades.pnl.max():.2f}")
     print(f"  Worst Trade    : ${trades.pnl.min():.2f}")
     print(f"{'─'*52}")
@@ -1166,6 +1170,8 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         "profit_factor":  pf,
         "avg_win":        round(float(wins.pnl.mean()), 2) if not wins.empty else None,
         "avg_loss":       round(float(loss.pnl.mean()), 2) if not loss.empty else None,
+        "avg_stop_pips":  round(float(abs(trades["entry"] - trades["stop"]).mean() / 0.0001), 1),
+        "avg_target_pips": round(float(abs(trades["entry"] - trades["target"]).mean() / 0.0001), 1),
         "best_trade":     round(float(trades.pnl.max()), 2),
         "worst_trade":    round(float(trades.pnl.min()), 2),
         "net_profit":          round(net, 2),
@@ -1395,6 +1401,8 @@ __VERSIONS_JSON__
     lines.push("| Sharpe Ratio | "    + mf(m.sharpe) + " |");
     lines.push("| Avg Win | "         + (m.avg_win  !== null && m.avg_win  !== undefined ? "$"  + commaFmt(m.avg_win)  : "\u2014") + " |");
     lines.push("| Avg Loss | "        + (m.avg_loss !== null && m.avg_loss !== undefined ? "$"  + commaFmt(m.avg_loss) : "\u2014") + " |");
+    lines.push("| Avg Stop (pips) | " + (m.avg_stop_pips !== null && m.avg_stop_pips !== undefined ? mf(m.avg_stop_pips, 1) : "\u2014") + " |");
+    lines.push("| Avg Target (pips) | " + (m.avg_target_pips !== null && m.avg_target_pips !== undefined ? mf(m.avg_target_pips, 1) : "\u2014") + " |");
     lines.push("| Best Trade | "      + mfMoney(m.best_trade) + " |");
     lines.push("| Worst Trade | "     + mfMoney(m.worst_trade) + " |");
     lines.push("");
@@ -2034,6 +2042,10 @@ __VERSIONS_JSON__
       ? "<span class='pos'>$" + commaFmt(m.avg_win)  + "</span>" : "&#8212;";
     var avgLossHtml = m.avg_loss !== null && m.avg_loss !== undefined
       ? "<span class='neg'>-$" + commaFmt(Math.abs(m.avg_loss)) + "</span>" : "&#8212;";
+    var avgStopPipsHtml = m.avg_stop_pips !== null && m.avg_stop_pips !== undefined
+      ? m.avg_stop_pips.toFixed(1) : "&#8212;";
+    var avgTargetPipsHtml = m.avg_target_pips !== null && m.avg_target_pips !== undefined
+      ? m.avg_target_pips.toFixed(1) : "&#8212;";
 
     var stratBadge = (v.strategy)
       ? "<span class='strat-badge'>" + esc(v.strategy) + "</span>"
@@ -2164,6 +2176,8 @@ __VERSIONS_JSON__
           row("Sharpe Ratio",  "<span class='" + sharpeCls + "'>" + fmt(m.sharpe) + "</span>") +
           row("Avg Win",       avgWinHtml) +
           row("Avg Loss",      avgLossHtml) +
+          row("Avg Stop (pips)",   avgStopPipsHtml) +
+          row("Avg Target (pips)", avgTargetPipsHtml) +
           row("Best Trade",    "<span class='pos'>" + fmtMoney(m.best_trade)  + "</span>") +
           row("Worst Trade",   "<span class='neg'>" + fmtMoney(m.worst_trade) + "</span>") +
           (m.avg_position_size !== null && m.avg_position_size !== undefined
