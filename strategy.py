@@ -57,8 +57,8 @@ TIME_FILTER_HOURS = [16, 17, 18, 1, 2, 3, 4]   # UTC hours allowed
 
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
-VERSION         = "v23"
-NOTES           = "Switched to Massive API — 5-minute EURUSD data"
+VERSION         = "v35"
+NOTES           = "Fixed P&L reconciliation — consistent compounding calculation"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -267,7 +267,7 @@ def _sensitivity_run(df, rrr, swing_lookback):
     tdf  = pd.DataFrame(trades_s)
     wins = tdf[tdf["win"]]
     loss = tdf[~tdf["win"]]
-    net  = float(tdf["pnl"].sum())
+    net  = float(equity_s[-1]) - STARTING_CASH   # equity curve — consistent with compute_metrics
     wr   = round(len(wins) / len(tdf) * 100, 1)
     pf   = round(abs(float(wins["pnl"].sum()) / float(loss["pnl"].sum())), 2) \
            if not loss.empty and float(loss["pnl"].sum()) != 0 else None
@@ -634,7 +634,12 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
 
     wins = trades[trades.win]
     loss = trades[~trades.win]
-    net  = float(trades.pnl.sum())
+    # ── Authoritative net profit: equity curve is the ground truth ─────────────
+    # Using equity[-1] - STARTING_CASH (not trades.pnl.sum()) ensures Net Profit
+    # reflects exactly what the compounding simulation produced.  Direction P&Ls
+    # (sub.pnl.sum()) are each trade's own P&L sized against equity at entry time;
+    # the reconciliation step below forces their total to match this figure exactly.
+    net  = float(equity[-1]) - STARTING_CASH
 
     if not loss.empty and loss.pnl.sum() != 0:
         pf = round(abs(float(wins.pnl.sum()) / abs(float(loss.pnl.sum()))), 2)
@@ -672,11 +677,13 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
             "net_pnl":       round(float(sub.pnl.sum()), 2),
         }
 
-    # ── Reconcile by-direction P&Ls with overall net ───────────────────────────
-    # Rounding each direction's P&L independently can cause long + short ≠ net_profit
-    # by up to $0.01. Fix: treat long as authoritative and derive short as the residual
-    # so that by_dir["long"]["net_pnl"] + by_dir["short"]["net_pnl"] == round(net, 2)
-    # exactly. (Subtracting two already-rounded 2-dp values gives an exact 2-dp result.)
+    # ── Reconcile by-direction P&Ls with the equity-curve net ─────────────────
+    # net = equity[-1] - STARTING_CASH  is the authoritative compounding figure.
+    # Direction P&Ls (sub.pnl.sum()) use the same compounding sizes, so their sum
+    # should equal net — but floating-point accumulation order can cause tiny drift.
+    # We reconcile here: long is treated as authoritative, short is derived as the
+    # residual, guaranteeing Long + Short == Net Profit displayed in Results exactly.
+    # For single-direction strategies the active direction is set equal to net directly.
     _net_rounded = round(net, 2)
     if by_dir.get("long") is not None and by_dir.get("short") is not None:
         by_dir["short"]["net_pnl"] = round(_net_rounded - by_dir["long"]["net_pnl"], 2)
@@ -991,7 +998,7 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         "worst_trade":    round(float(trades.pnl.min()), 2),
         "net_profit":          round(net, 2),
         "net_profit_pct":      round(net / STARTING_CASH * 100, 2),
-        "final_equity":        round(STARTING_CASH + net, 2),
+        "final_equity":        round(float(equity[-1]), 2),  # equity curve; equals STARTING_CASH + net
         "max_drawdown":        round(dd, 2),
         "max_drawdown_dollar": dd_dollar,
         "max_daily_drawdown":  max_daily_drawdown,
@@ -1256,9 +1263,9 @@ __VERSIONS_JSON__
         " | " + mfMoney(data.net_pnl) + " |");
     });
     lines.push("");
-    lines.push("> **Position sizing note:** All P&L figures use **compounding equity** — each trade risks " +
-      mf((p.risk_pct || 0) * 100, 1) + "% of *current* equity, not a fixed dollar amount. " +
-      "Long Net P&L + Short Net P&L = Net Profit.");
+    lines.push("> **Calculation method:** **Net Profit** = final equity − starting capital (equity curve, authoritative compounding result). " +
+      "Each direction's Net P&L sums individual trade P&Ls sized at " + mf((p.risk_pct || 0) * 100, 1) + "% of current equity at entry, " +
+      "then reconciled so that **Long + Short Net P&L = Net Profit** exactly.");
     lines.push("");
 
     /* ── Monthly Performance ────────────────────────── */
@@ -1485,12 +1492,13 @@ __VERSIONS_JSON__
         dirRow("Long", bdLng) + dirRow("Short", bdSht) +
         "</tbody></table>" +
         "<p style='font-size:11px;color:#6060a0;margin:8px 4px 2px;line-height:1.6'>" +
-        "<strong style='color:#8080b0'>&#8505; Position sizing note:</strong> " +
-        "All P&amp;L figures use <strong>compounding equity</strong> &mdash; each trade risks " +
-        fmt((p.risk_pct || 0) * 100, 1) + "% of <em>current</em> equity (not a fixed dollar amount). " +
-        "As equity grows the dollar risk per trade increases; as equity falls it decreases. " +
-        "Long&nbsp;Net&nbsp;P&amp;L&nbsp;+&nbsp;Short&nbsp;Net&nbsp;P&amp;L&nbsp;" +
-        "always equals Net&nbsp;Profit in Results." +
+        "<strong style='color:#8080b0'>&#8505; Calculation method:</strong> " +
+        "<strong>Net Profit</strong> is derived from the equity curve " +
+        "(<em>final equity &minus; starting capital</em>), which is the authoritative compounding result. " +
+        "Each direction&rsquo;s P&amp;L sums the individual trade P&amp;Ls sized at " +
+        fmt((p.risk_pct || 0) * 100, 1) + "% of <em>current equity at entry</em>, " +
+        "then is reconciled so that <strong>Long&nbsp;+&nbsp;Short&nbsp;Net&nbsp;P&amp;L&nbsp;" +
+        "always&nbsp;equals&nbsp;Net&nbsp;Profit</strong> exactly." +
         "</p>" +
       "</div>";
 
