@@ -34,3 +34,4 @@
 | v23 | 2026-03-25 02:17 | Trend Following | EURUSD=X | 5m | Switched to Massive API — 5-minute EURUSD data | 455 | 33.0% | 0.97 | +$2786.30 | -31.16% | -0.03 |
 | v23 | 2026-03-25 02:37 | Trend Following | EURUSD=X | 5m | Switched to Massive API — 5-minute EURUSD data | 455 | 33.0% | 0.97 | +$2786.30 | -31.16% | -0.03 |
 | v23 | 2026-03-25 03:06 | Trend Following | EURUSD=X | 5m | Switched to Massive API — 5-minute EURUSD data | 455 | 33.0% | 0.97 | +$2786.30 | -31.16% | -0.03 |
+| v23 | 2026-03-25 03:16 | Trend Following | EURUSD=X | 5m | Switched to Massive API — 5-minute EURUSD data | 455 | 33.0% | 0.97 | +$2786.30 | -31.16% | -0.03 |

@@ -1856,24 +1856,24 @@ __VERSIONS_JSON__
       "</div>";
 
     /* ── Entry Conditions panel ──────────────────────────────────────────────── */
-    var tfHoursStr = (p.time_filter_hours || []).join(", ");
+    var tfHoursStr = (p.time_filter_hours || []).sort(function(a,b){return a-b;}).map(function(h){return (h<10?"0":"")+h;}).join(" ");
     var entryCondHtml =
       "<div class='section'>" +
         "<div class='section-title'>Entry Conditions</div>" +
-        "<table><tbody>" +
-        row("Instrument",    esc(p.ticker || "") + " &nbsp;&middot;&nbsp; " + esc(p.interval || "") + " &nbsp;&middot;&nbsp; " + (p.days_back || "") + " days") +
-        row("Trend Filter",  "EMA " + (p.ema_fast || "") + " vs EMA " + (p.ema_slow || "")) +
-        row("Entry Signal",  "Price &times; EMA " + (p.ema_entry || "")) +
-        row("Direction",     "<span style='color:#ffd93d;font-weight:600'>" + esc(p.trade_direction || "both") + "</span>") +
-        row("Stop",          "Swing high/low over " + (p.swing_lookback || "") + " bars") +
-        row("Target",        "1&thinsp;:&thinsp;" + (p.rrr || "") + " risk&thinsp;:&thinsp;reward") +
-        row("Risk / Trade",  ((p.risk_pct || 0) * 100).toFixed(1) + "% = $" + ((p.starting_cash || 0) * (p.risk_pct || 0)).toLocaleString()) +
-        row("Stop Range",    ((p.min_stop || 0) * 10000).toFixed(0) + " – " + ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
-        row("Time Filter",   p.time_filter
-          ? "<span class='pos'>ON</span> &mdash; " + esc(tfHoursStr) + " UTC"
-          : "<span style='color:#404060'>OFF</span>") +
-        row("Starting Cash", "$" + (p.starting_cash || 0).toLocaleString()) +
-        "</tbody></table>" +
+        "<table>" +
+          "<thead><tr>" +
+            "<th style='text-align:left;padding:6px 10px;color:#a0a0c0;font-weight:600;font-size:0.8em;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #2a2a4a'>Condition</th>" +
+            "<th style='text-align:left;padding:6px 10px;color:#a0a0c0;font-weight:600;font-size:0.8em;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #2a2a4a'>Rule</th>" +
+            "<th style='text-align:left;padding:6px 10px;color:#a0a0c0;font-weight:600;font-size:0.8em;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #2a2a4a'>Purpose</th>" +
+          "</tr></thead>" +
+          "<tbody>" +
+          "<tr><td style='padding:5px 10px;color:#c8c8e8'>Trend Filter</td><td style='padding:5px 10px'>EMA" + (p.ema_fast||"50") + " &lt; EMA" + (p.ema_slow||"200") + "</td><td style='padding:5px 10px;color:#8888aa'>Confirms downtrend — short only</td></tr>" +
+          "<tr><td style='padding:5px 10px;color:#c8c8e8'>Entry Signal</td><td style='padding:5px 10px'>Price crosses below EMA" + (p.ema_entry||"20") + "</td><td style='padding:5px 10px;color:#8888aa'>Pullback rejection in trend direction</td></tr>" +
+          "<tr><td style='padding:5px 10px;color:#c8c8e8'>Stop Placement</td><td style='padding:5px 10px'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td style='padding:5px 10px;color:#8888aa'>Structural invalidation level</td></tr>" +
+          "<tr><td style='padding:5px 10px;color:#c8c8e8'>Direction</td><td style='padding:5px 10px'><span style='color:#ffd93d;font-weight:600'>Short only</span></td><td style='padding:5px 10px;color:#8888aa'>Asymmetric edge identified on EURUSD</td></tr>" +
+          "<tr><td style='padding:5px 10px;color:#c8c8e8'>Time Window</td><td style='padding:5px 10px'>UTC " + (p.time_filter ? tfHoursStr : "<span style='color:#404060'>OFF</span>") + "</td><td style='padding:5px 10px;color:#8888aa'>High quality session hours</td></tr>" +
+          "</tbody>" +
+        "</table>" +
       "</div>";
 
     document.getElementById("content").innerHTML =
