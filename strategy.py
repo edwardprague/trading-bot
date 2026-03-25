@@ -38,7 +38,7 @@ MASSIVE_API_KEY = os.getenv("MASSIVE_API_KEY")
 TICKER          = "EURUSD=X"      # Yahoo Finance ticker (fallback)
 MASSIVE_TICKER  = "C:EURUSD"      # Massive API ticker (primary)
 INTERVAL        = "5m"            # bar interval — used by Massive (primary) and Yahoo (fallback)
-DAYS_BACK       = 5               # RS development mode — temporarily reduced
+DAYS_BACK       = 60              # 60-day test for regime filter visual verification
 STARTING_CASH   = 100_000.0
 
 EMA_SLOW        = 200
@@ -62,8 +62,8 @@ REGIME_LENGTH     = 20              # lookback bars — if all closes within ATR
 
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
-VERSION         = "v2"
-NOTES           = "Fixed ATR calculation to true ATR high-low-close, fixed chart shading"
+VERSION         = "v3"
+NOTES           = "Regime filter — 60 day test to visually verify range detection before full run"
 STRATEGY        = "Trend Following"
 
 ENTRY_CONDITIONS = [
