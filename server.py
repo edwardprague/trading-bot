@@ -18,6 +18,8 @@ import os
 import sys
 import json
 import re
+import glob
+import shutil
 import subprocess
 import threading
 from pathlib import Path
@@ -304,6 +306,18 @@ def delete_version():
         lines = results_log.read_text(encoding="utf-8").splitlines(keepends=True)
         new_lines = [l for l in lines if not re.match(r'^\|\s*' + re.escape(name) + r'\s*\|', l)]
         results_log.write_text("".join(new_lines), encoding="utf-8")
+
+    # ── Delete version files from results/ folder ─────────────────────────────
+    results_dir = BASE_DIR / "results"
+    if results_dir.is_dir():
+        # Match files starting with the version name followed by _ or .
+        # e.g. v1_EURUSD_2026-03-25.png, v1_EURUSD_2026-03-25_rpf.png
+        for f in results_dir.iterdir():
+            if f.name.startswith(name + "_") or f.name.startswith(name + "."):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass  # best-effort deletion
 
     return jsonify({"ok": True})
 

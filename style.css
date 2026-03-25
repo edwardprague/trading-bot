@@ -478,7 +478,7 @@ tbody tr:hover td {
 
 .ec-td-cond {
     padding: 5px 10px;
-    color: #c8c8e8;
+    color: mediumseagreen;
 }
 
 .ec-td-rule {
@@ -487,7 +487,7 @@ tbody tr:hover td {
 
 .ec-td-purpose {
     padding: 5px 10px;
-    color: #8888aa;
+    color: #aaa;
 }
 
 .ec-td-ver {
@@ -499,7 +499,8 @@ tbody tr:hover td {
 }
 
 .ec-since-val {
-    color: #7070a0;
+    color: #fff;
+    font-size: 12px;
 }
 
 .ec-removed-val {
@@ -544,7 +545,7 @@ tbody tr:hover td {
 
 /* ── Dimmed text (OFF states, no-data, empty notes) ───── */
 .text-dim {
-    color: #404060;
+    color: #888;
 }
 
 /* ── Monthly P&L cell colors ──────────────────────────── */
