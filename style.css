@@ -446,13 +446,14 @@ tbody tr:hover td {
 
 /* ── Strategy version badge ───────────────────────────── */
 .strat-badge {
-    font-size: 11px;
-    background: #1a1a30;
-    border: 1px solid #2a2a44;
+    font-size: 12px;
+    font-weight: normal;
+    background: steelblue;
+    border: 1px solid steelblue;
     border-radius: 4px;
-    padding: 2px 8px;
-    color: #6060a0;
-    margin-left: 8px;
+    padding: 6px 10px;
+    color: #fff;
+    margin-left: 15px;
     vertical-align: middle;
 }
 
@@ -468,7 +469,7 @@ tbody tr:hover td {
 .ec-th {
     text-align: left;
     padding: 6px 10px;
-    color: #a0a0c0;
+    color: #ccc;
     font-weight: 600;
     font-size: 0.8em;
     text-transform: uppercase;

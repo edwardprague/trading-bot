@@ -57,10 +57,13 @@ TIME_FILTER_HOURS = [1, 2, 16, 18]              # UTC hours allowed
 
 MAX_DAILY_LOSS  = 2500.0            # stop trading if day's loss reaches $2,500 (2.5% of capital)
 
+REGIME_ATR_LENGTH = 96              # ATR period for LuxAlgo range detection
+REGIME_LENGTH     = 20              # lookback bars — if all closes within ATR of SMA → ranging
+
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
 VERSION         = "v2"
-NOTES           = "Removed hour 17 and added $2,500 daily loss limit"
+NOTES           = "Added LuxAlgo range detection regime filter ATR 96 Bars 20"
 STRATEGY        = "Trend Following"
 
 ENTRY_CONDITIONS = [
@@ -104,6 +107,13 @@ ENTRY_CONDITIONS = [
         "rule":            f"Stop trading if daily loss >= ${MAX_DAILY_LOSS:,.0f}",
         "purpose":         "Prevents FTMO 3% daily drawdown breach",
         "since_version":   "v1",
+        "removed_version": None,
+    },
+    {
+        "condition":       "Regime Filter",
+        "rule":            f"ATR {REGIME_ATR_LENGTH} / Bars {REGIME_LENGTH}",
+        "purpose":         "Avoid consolidation entries",
+        "since_version":   "v2",
         "removed_version": None,
     },
 ]
@@ -206,6 +216,9 @@ def add_indicators(df):
     _denom   = (_pdi + _mdi).replace(0, np.nan)
     _dx      = 100.0 * (_pdi - _mdi).abs() / _denom
     df["adx"] = _dx.ewm(alpha=_alpha, adjust=False).mean()
+    # ── Regime filter indicators (LuxAlgo Range Detector logic) ─────────────
+    df["regime_atr"] = _tr.rolling(REGIME_ATR_LENGTH).mean()
+    df["regime_sma"] = df.Close.rolling(REGIME_LENGTH).mean()
     df = df.dropna().reset_index()
     # Normalise the datetime column to 'Datetime' regardless of yfinance version
     for _col in ("Datetime", "Date", "index"):
@@ -462,6 +475,34 @@ def run_backtest(df):
                 _daily_loss_pnl = 0.0
             if _daily_loss_pnl <= -MAX_DAILY_LOSS:
                 continue
+
+            # ── Regime filter (LuxAlgo Range Detector logic) ─────────────────
+            if (long_sig or short_sig) and i >= REGIME_LENGTH:
+                _regime_atr = float(df.regime_atr.iloc[i])
+                _regime_sma = float(df.regime_sma.iloc[i])
+                _all_in_range = True
+                for _k in range(REGIME_LENGTH):
+                    _c_k = float(df.Close.iloc[i - _k])
+                    if abs(_c_k - _regime_sma) > _regime_atr:
+                        _all_in_range = False
+                        break
+                if _all_in_range:
+                    # Market is ranging — record blocked signals and skip
+                    if long_sig and not np.isnan(s_lo):
+                        dist_b = c - s_lo
+                        if MIN_STOP <= dist_b <= MAX_STOP:
+                            blocked_signals.append(_scan_outcome(
+                                df, i, "long", c, s_lo, c + dist_b * RRR,
+                                (cash * RISK_PCT) / dist_b, ts, "regime"))
+                    if short_sig and not np.isnan(s_hi):
+                        dist_b = s_hi - c
+                        if MIN_STOP <= dist_b <= MAX_STOP:
+                            blocked_signals.append(_scan_outcome(
+                                df, i, "short", c, s_hi, c - dist_b * RRR,
+                                (cash * RISK_PCT) / dist_b, ts, "regime"))
+                    long_sig  = False
+                    short_sig = False
+                    continue
 
             if long_sig and not np.isnan(s_lo):
                 dist = c - s_lo
