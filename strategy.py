@@ -53,12 +53,14 @@ MAX_STOP        = 0.0200     # 200 pips maximum stop
 TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 
 TIME_FILTER       = True
-TIME_FILTER_HOURS = [1, 2, 16, 17, 18]          # UTC hours allowed
+TIME_FILTER_HOURS = [1, 2, 16, 18]              # UTC hours allowed
+
+MAX_TRADES_PER_DAY = 2              # max entries per calendar day (UTC)
 
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
 
-VERSION         = "v1"
-NOTES           = "Baseline — 5-minute EURUSD short only time filter hours 01 02 16 17 18"
+VERSION         = "v2"
+NOTES           = "Removed hour 17 and added max 2 trades per day to control daily drawdown"
 STRATEGY        = "Trend Following"
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
@@ -294,6 +296,8 @@ def run_backtest(df):
     entry_ts         = None  # timestamp of the entry bar (for time-of-day diagnostics)
     blocked_signals  = []    # signals that were filtered out (for Filter Impact Summary)
     _debug_entries   = 0     # counter for entry timezone debug prints
+    _daily_trade_day = None  # current calendar day (UTC date) for daily trade counter
+    _daily_trade_cnt = 0     # number of trades entered on _daily_trade_day
 
     for i in range(1, len(df)):
         c     = float(df.Close.iloc[i])
@@ -396,6 +400,16 @@ def run_backtest(df):
                     short_sig = False
                     continue
 
+            # ── Daily trade limit ─────────────────────────────────────────────
+            _ts_day = pd.to_datetime(ts)
+            _ts_day_utc = _ts_day.tz_convert('UTC') if _ts_day.tzinfo else _ts_day.tz_localize('UTC')
+            _today = _ts_day_utc.date()
+            if _today != _daily_trade_day:
+                _daily_trade_day = _today
+                _daily_trade_cnt = 0
+            if _daily_trade_cnt >= MAX_TRADES_PER_DAY:
+                continue
+
             if long_sig and not np.isnan(s_lo):
                 dist = c - s_lo
                 if MIN_STOP <= dist <= MAX_STOP:
@@ -409,6 +423,7 @@ def run_backtest(df):
                     entry_ts      = ts
                     worst_adverse = c   # reset MAE tracker to entry price
                     entry_adx     = float(df.adx.iloc[i])
+                    _daily_trade_cnt += 1
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
@@ -428,6 +443,7 @@ def run_backtest(df):
                     entry_ts      = ts
                     worst_adverse = c   # reset MAE tracker to entry price
                     entry_adx     = float(df.adx.iloc[i])
+                    _daily_trade_cnt += 1
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
@@ -1861,6 +1877,7 @@ __VERSIONS_JSON__
           "<tr><td style='padding:5px 10px;color:#c8c8e8'>Stop Placement</td><td style='padding:5px 10px'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td style='padding:5px 10px;color:#8888aa'>Structural invalidation level</td></tr>" +
           "<tr><td style='padding:5px 10px;color:#c8c8e8'>Direction</td><td style='padding:5px 10px'><span style='color:#ffd93d;font-weight:600'>Short only</span></td><td style='padding:5px 10px;color:#8888aa'>Asymmetric edge identified on EURUSD</td></tr>" +
           "<tr><td style='padding:5px 10px;color:#c8c8e8'>Time Window</td><td style='padding:5px 10px'>UTC " + (p.time_filter ? tfHoursStr : "<span style='color:#404060'>OFF</span>") + "</td><td style='padding:5px 10px;color:#8888aa'>High quality session hours</td></tr>" +
+          "<tr><td style='padding:5px 10px;color:#c8c8e8'>Daily Trade Limit</td><td style='padding:5px 10px'>Max " + (p.max_trades_per_day || 2) + " trades per calendar day</td><td style='padding:5px 10px;color:#8888aa'>Prevents daily drawdown limit breach</td></tr>" +
           "</tbody>" +
         "</table>" +
       "</div>";
@@ -2220,6 +2237,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
             "trade_direction":   TRADE_DIRECTION,
             "time_filter":       TIME_FILTER,
             "time_filter_hours": TIME_FILTER_HOURS if TIME_FILTER else [],
+            "max_trades_per_day": MAX_TRADES_PER_DAY,
         },
         "last_trades": last_trades,
         "strategy":    STRATEGY,
