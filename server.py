@@ -231,6 +231,7 @@ function runDateRange() {
   var instrument     = document.getElementById("rb-instrument-range").value;
   var targetVersion  = getCurrentVersionName();
   localStorage.setItem("rb_pending_run_type", "date_range");
+  localStorage.setItem("rb_pending_run_version", targetVersion);
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -239,9 +240,9 @@ function runDateRange() {
   .then(function (r) { return r.json(); })
   .then(function (data) {
     if (data.started) { pollStatus(); }
-    else { localStorage.removeItem("rb_pending_run_type"); resetButtons(); showError(data.error); }
+    else { localStorage.removeItem("rb_pending_run_type"); localStorage.removeItem("rb_pending_run_version"); resetButtons(); showError(data.error); }
   })
-  .catch(function () { localStorage.removeItem("rb_pending_run_type"); resetButtons(); showError("Request failed"); });
+  .catch(function () { localStorage.removeItem("rb_pending_run_type"); localStorage.removeItem("rb_pending_run_version"); resetButtons(); showError("Request failed"); });
 }
 
 function showError(msg) {

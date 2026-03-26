@@ -2457,9 +2457,31 @@ __VERSIONS_JSON__
     var lastIdx = svs[svs.length - 1].idx;
     activeVersionIdx = lastIdx;
     activeRunIdx = 0;
+
+    /* If we just came back from a date-range run, jump to the newest sub-item */
+    var pendingRunType    = localStorage.getItem("rb_pending_run_type");
+    var pendingRunVersion = localStorage.getItem("rb_pending_run_version");
+    if (pendingRunType === "date_range") {
+      localStorage.removeItem("rb_pending_run_type");
+      localStorage.removeItem("rb_pending_run_version");
+      /* Find the version the run was added to */
+      var targetIdx = lastIdx;
+      if (pendingRunVersion) {
+        for (var ti = 0; ti < VERSIONS.length; ti++) {
+          if (VERSIONS[ti].name === pendingRunVersion) { targetIdx = ti; break; }
+        }
+      }
+      activeVersionIdx = targetIdx;
+      expandedVersions[targetIdx] = true;
+      var targetRuns = getRuns(VERSIONS[targetIdx]);
+      if (targetRuns.length > 1) {
+        activeRunIdx = targetRuns.length - 1;
+      }
+    }
+
     expandedVersions[lastIdx] = true;
     renderSidebar();
-    renderContent(lastIdx, 0);
+    renderContent(lastIdx, activeRunIdx);
   }
 })();
 </script>
