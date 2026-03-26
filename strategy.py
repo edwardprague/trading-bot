@@ -1524,10 +1524,12 @@ __VERSIONS_JSON__
         ? fmtSbDate(vRange.start) + " \u2192 " + fmtSbDate(vRange.end) : "";
       var vDur = calcDuration(vRange.start, vRange.end);
 
+      var vInstrument = firstRun.instrument || (v.params && v.params.ticker ? v.params.ticker.replace(/=X$/i, "") : "");
       vItem.innerHTML =
         "<div class='v-item-row'>" +
           "<div class='v-item-content'>" +
             "<div class='v-name'>" + esc(v.name) + "</div>" +
+            (vInstrument ? "<div class='v-instrument'>" + esc(vInstrument) + "</div>" : "") +
             (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "") +
             (vDateRange ? "<div class='v-date'>" + esc(vDateRange) + "</div>" : "") +
             (vDur ? "<div class='v-duration'>" + esc(vDur) + "</div>" : "") +
