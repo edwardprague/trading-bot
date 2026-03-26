@@ -193,6 +193,7 @@ function runDateRange() {
     return;
   }
   var instrument = document.getElementById("rb-instrument-range").value;
+  localStorage.setItem("rb_pending_run_type", "date_range");
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -201,9 +202,9 @@ function runDateRange() {
   .then(function (r) { return r.json(); })
   .then(function (data) {
     if (data.started) { pollStatus(); }
-    else { resetButtons(); showError(data.error); }
+    else { localStorage.removeItem("rb_pending_run_type"); resetButtons(); showError(data.error); }
   })
-  .catch(function () { resetButtons(); showError("Request failed"); });
+  .catch(function () { localStorage.removeItem("rb_pending_run_type"); resetButtons(); showError("Request failed"); });
 }
 
 function showError(msg) {
@@ -222,7 +223,7 @@ function pollStatus() {
         var status = document.getElementById("run-status");
         status.innerHTML   = "\\u2713\\u2009Complete \\u2014 refreshing\\u2026";
         status.style.color = "#6bcb77";
-        setTimeout(function () { window.location.reload(); }, 900);
+        setTimeout(function () { window.location.href = window.location.pathname + "?t=" + Date.now(); }, 900);
       } else {
         resetButtons();
         showError(data.error);

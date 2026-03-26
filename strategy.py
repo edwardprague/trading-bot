@@ -1481,47 +1481,64 @@ __VERSIONS_JSON__
 
       /* version header row */
       var vItem = document.createElement("div");
-      vItem.className = "v-item" + (idx === activeVersionIdx ? " active" : "");
+      vItem.className = "v-item" + (idx === activeVersionIdx && activeRunIdx === 0 ? " active" : "");
       vItem.dataset.idx = idx;
 
-      var chevron = runs.length > 1
-        ? "<span class='v-chevron" + (expandedVersions[idx] ? " expanded" : "") + "'>\u25B6</span> "
+      var hasSubRuns = runs.length > 1;
+
+      var arrowHtml = hasSubRuns
+        ? "<span class='v-expand-arrow" + (expandedVersions[idx] ? " expanded" : "") + "' data-idx='" + idx + "'>\u25B6</span>"
         : "";
 
       vItem.innerHTML =
-        "<div class='v-name'>" + chevron + esc(v.name) + "</div>" +
-        "<div class='v-date'>" + esc(firstRun.date || "") + "</div>" +
-        (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "") +
-        (runs.length > 1 ? "<div class='v-run-count'>" + runs.length + " runs</div>" : "");
+        "<div class='v-item-row'>" +
+          "<div class='v-item-content'>" +
+            "<div class='v-name'>" + esc(v.name) + "</div>" +
+            "<div class='v-date'>" + esc(firstRun.date || "") + "</div>" +
+            (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "") +
+            (hasSubRuns ? "<div class='v-run-count'>" + runs.length + " runs</div>" : "") +
+          "</div>" +
+          arrowHtml +
+        "</div>";
 
-      (function (el, vIdx, numRuns) {
-        el.addEventListener("click", function () {
+      /* Clicking the version row navigates to the full run report */
+      (function (el, vIdx) {
+        el.addEventListener("click", function (e) {
+          /* ignore clicks on the expand arrow */
+          if (e.target.classList.contains("v-expand-arrow")) return;
           devLogOpen = false;
           document.getElementById("devlog-btn").classList.remove("active");
-
-          if (numRuns > 1) {
-            /* toggle expand/collapse */
-            expandedVersions[vIdx] = !expandedVersions[vIdx];
-          }
-
-          /* select the first run (full run) */
           activeVersionIdx = vIdx;
           activeRunIdx = 0;
           renderSidebar();
           renderContent(vIdx, 0);
         });
-      })(vItem, idx, runs.length);
+      })(vItem, idx);
+
+      /* Clicking the arrow icon toggles expand/collapse independently */
+      if (hasSubRuns) {
+        var arrowEl = vItem.querySelector(".v-expand-arrow");
+        if (arrowEl) {
+          (function (arrow, vIdx) {
+            arrow.addEventListener("click", function (e) {
+              e.stopPropagation();
+              expandedVersions[vIdx] = !expandedVersions[vIdx];
+              renderSidebar();
+            });
+          })(arrowEl, idx);
+        }
+      }
 
       list.appendChild(vItem);
 
-      /* ── Sub-runs (expanded) ─────────────────────────── */
+      /* ── Sub-runs (expanded) — skip index 0 (full run, already the version row) */
       if (expandedVersions[idx] && runs.length > 1) {
-        for (var si = 0; si < runs.length; si++) {
+        for (var si = 1; si < runs.length; si++) {
           var run = runs[si];
           var runPnl = run.metrics ? run.metrics.net_profit : null;
           var runPc  = runPnl === null ? "" : (runPnl >= 0 ? "pos" : "neg");
           var runPtxt = runPnl === null ? "" : (runPnl >= 0 ? "+" : "") + "$" + commaFmt(runPnl);
-          var runLabel = run.label || (si === 0 ? "Full run" : "Run " + (si + 1));
+          var runLabel = run.label || ("Run " + si);
 
           var subItem = document.createElement("div");
           subItem.className = "v-item v-sub-item" +
