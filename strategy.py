@@ -1454,6 +1454,38 @@ __VERSIONS_JSON__
     return result;
   }
 
+  /* ── Sidebar helpers ──────────────────────────────────────── */
+  function fmtSbDate(s) {
+    if (!s) return "";
+    var p = s.slice(0, 10).split("-");
+    return parseInt(p[1]) + "-" + p[2] + "-" + p[0].slice(2);
+  }
+  function calcDuration(startStr, endStr) {
+    if (!startStr || !endStr) return "";
+    var s = new Date(startStr.slice(0,10) + "T00:00:00");
+    var e = new Date(endStr.slice(0,10) + "T00:00:00");
+    var days = Math.round((e - s) / 86400000);
+    if (days < 0) days = 0;
+    var months = days / 30.44;
+    if (months < 2) {
+      var weeks = Math.round(days / 7);
+      return weeks + (weeks === 1 ? " week" : " weeks");
+    } else if (months <= 18) {
+      return months.toFixed(1) + " months";
+    } else {
+      return (months / 12).toFixed(1) + " years";
+    }
+  }
+  function fullRunRange(run) {
+    var endStr = run.date ? run.date.slice(0,10) : "";
+    var daysBack = run.days_back || 730;
+    if (!endStr) return { start: "", end: "" };
+    var endDt = new Date(endStr + "T00:00:00");
+    var startDt = new Date(endDt.getTime() - daysBack * 86400000);
+    var sy = startDt.getFullYear(), sm = String(startDt.getMonth()+1).padStart(2,"0"), sd = String(startDt.getDate()).padStart(2,"0");
+    return { start: sy + "-" + sm + "-" + sd, end: endStr };
+  }
+
   /* ── Sidebar ──────────────────────────────────────────────── */
   function renderSidebar() {
     var svs  = getStrategyVersions();
@@ -1490,13 +1522,20 @@ __VERSIONS_JSON__
         ? "<span class='v-expand-arrow" + (expandedVersions[idx] ? " expanded" : "") + "' data-idx='" + idx + "'>\u25B6</span>"
         : "";
 
+      var vRange = firstRun.start_date && firstRun.end_date
+        ? { start: firstRun.start_date, end: firstRun.end_date }
+        : fullRunRange(firstRun);
+      var vDateRange = vRange.start && vRange.end
+        ? fmtSbDate(vRange.start) + " \u2192 " + fmtSbDate(vRange.end) : "";
+      var vDur = calcDuration(vRange.start, vRange.end);
+
       vItem.innerHTML =
         "<div class='v-item-row'>" +
           "<div class='v-item-content'>" +
             "<div class='v-name'>" + esc(v.name) + "</div>" +
-            "<div class='v-date'>" + esc(firstRun.date || "") + "</div>" +
             (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "") +
-            (hasSubRuns ? "<div class='v-run-count'>" + runs.length + " runs</div>" : "") +
+            (vDateRange ? "<div class='v-date'>" + esc(vDateRange) + "</div>" : "") +
+            (vDur ? "<div class='v-duration'>" + esc(vDur) + "</div>" : "") +
           "</div>" +
           arrowHtml +
         "</div>";
@@ -1546,10 +1585,17 @@ __VERSIONS_JSON__
           subItem.dataset.idx = idx;
           subItem.dataset.runIdx = si;
 
+          var subRange = run.start_date && run.end_date
+            ? { start: run.start_date, end: run.end_date }
+            : fullRunRange(run);
+          var subDateRange = subRange.start && subRange.end
+            ? fmtSbDate(subRange.start) + " \u2192 " + fmtSbDate(subRange.end) : "";
+          var subDur = calcDuration(subRange.start, subRange.end);
+
           subItem.innerHTML =
-            "<div class='v-name v-sub-name'>" + esc(runLabel) + "</div>" +
-            "<div class='v-date'>" + esc(run.date || "") + "</div>" +
-            (runPnl !== null ? "<div class='v-pnl " + runPc + "'>" + runPtxt + "</div>" : "");
+            (runPnl !== null ? "<div class='v-pnl " + runPc + "'>" + runPtxt + "</div>" : "") +
+            (subDateRange ? "<div class='v-date v-sub-name'>" + esc(subDateRange) + "</div>" : "") +
+            (subDur ? "<div class='v-duration'>" + esc(subDur) + "</div>" : "");
 
           (function (el, vIdx, rIdx) {
             el.addEventListener("click", function (e) {
