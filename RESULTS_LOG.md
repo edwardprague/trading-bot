@@ -6,8 +6,6 @@
 | v3 | 2026-03-25 16:35 | Trend Following | EURUSD=X | 5m | Regime filter — 60 day test to visually verify range detection before full run | 31 | 41.9% | 1.43 | +$7953.25 | -6.79% | 0.67 |
 | v3 | 2026-03-25 17:04 | Trend Following | EURUSD=X | 5m | Regime filter — added net displacement condition to fix inverted detection | 33 | 45.5% | 1.64 | +$12314.56 | -6.79% | 0.96 |
 | v3 | 2026-03-25 17:34 | Trend Following | EURUSD=X | 5m | Regime filter — added net displacement condition to fix inverted detection | 33 | 45.5% | 1.64 | +$12314.56 | -6.79% | 0.96 |
-| v4 | 2026-03-25 17:39 | Trend Following | EURUSD=X | 5m | Regime filter full 730 day run — ATR 96 Bars 20 Displacement 0.3 | 33 | 45.5% | 1.64 | +$12314.56 | -6.79% | 0.96 |
-| v4 | 2026-03-25 17:53 | Trend Following | EURUSD=X | 5m | Regime filter full 730 day run — ATR 96 Bars 20 Displacement 0.3 | 33 | 45.5% | 1.64 | +$12314.56 | -6.79% | 0.96 |
-| v4 | 2026-03-25 18:23 | Trend Following | EURUSD=X | 5m | Regime filter full 730 day run — ATR 96 Bars 20 Displacement 0.3 | 369 | 33.3% | 0.98 | -$3599.56 | -27.51% | 0.00 |
 | v5 | 2026-03-26 10:13 | Trend Following | EURUSD=X | 5m | Removed regime filter — clean baseline for date range UI rebuild | 33 | 45.5% | 1.64 | +$12314.56 | -6.79% | 0.95 |
 | v5 | 2026-03-26 10:25 | Trend Following | GBPUSD=X | 5m | Removed regime filter — clean baseline for date range UI rebuild | 38 | 31.6% | 0.91 | -$2339.91 | -7.75% | -0.16 |
+| v5 | 2026-03-26 10:28 | Trend Following | GBPUSD=X | 5m | Removed regime filter — clean baseline for date range UI rebuild | 38 | 31.6% | 0.91 | -$2339.91 | -7.75% | -0.16 |
