@@ -1587,8 +1587,10 @@ __VERSIONS_JSON__
             ? fmtSbDate(subRange.start) + " \u2192 " + fmtSbDate(subRange.end) : "";
           var subDur = calcDuration(subRange.start, subRange.end);
 
+          var runInstrument = run.instrument || "";
           subItem.innerHTML =
             (runPnl !== null ? "<div class='v-pnl " + runPc + "'>" + runPtxt + "</div>" : "") +
+            (runInstrument ? "<div class='v-instrument'>" + esc(runInstrument) + "</div>" : "") +
             (subDateRange ? "<div class='v-date v-sub-name'>" + esc(subDateRange) + "</div>" : "") +
             (subDur ? "<div class='v-duration'>" + esc(subDur) + "</div>" : "");
 
@@ -1608,6 +1610,11 @@ __VERSIONS_JSON__
         }
       }
     }
+
+    /* Expose the currently active version name globally for the run-bar */
+    var curV = VERSIONS[activeVersionIdx];
+    window._currentVersionName = curV ? curV.name : "";
+    if (typeof updateRangeButtonLabel === "function") updateRangeButtonLabel();
   }
 
   /* ── Content ──────────────────────────────────────────────── */
@@ -2122,7 +2129,7 @@ __VERSIONS_JSON__
           "</div>" +
         "</div>" +
         (function () {
-          var metaTicker = (p.ticker || "").replace(/=X$/i, "");
+          var metaTicker = run.instrument || (p.ticker || "").replace(/=X$/i, "");
           var metaRange = run.start_date && run.end_date
             ? { start: run.start_date, end: run.end_date }
             : fullRunRange(run);
@@ -2187,7 +2194,7 @@ __VERSIONS_JSON__
         "<div class='section'>" +
           "<div class='section-title'>Parameters</div>" +
           "<table><tbody>" +
-          row("Instrument",     esc((p.ticker || "").replace(/=X$/i, ""))) +
+          row("Instrument",     esc((run.instrument || (p.ticker || "").replace(/=X$/i, "")))) +
           row("Interval",       esc(p.interval || "")) +
           row("History",        (run.days_back || p.days_back || "") + " days") +
           row("Starting Capital", "$" + (p.starting_cash || 0).toLocaleString()) +
@@ -2544,6 +2551,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "end_date":      run_end_date   if run_mode == "date_range" else "",
         "days_back":     DAYS_BACK if run_mode != "date_range" else 0,
         "label":         run_label,
+        "instrument":    _INSTRUMENT,
         "notes":         notes.strip() if notes else "—",
         "chart_b64":     chart_b64,
         "rpf_chart_b64": rpf_chart_b64,
@@ -2571,11 +2579,19 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
     }
 
     if run_mode == "date_range" and existing_versions:
-        # Append run to the most recent version (same strategy)
-        latest = existing_versions[-1]
-        latest["runs"].append(new_run)
+        # Append run to the specified target version (or most recent as fallback)
+        target_version_name = os.environ.get("TARGET_VERSION", "").strip()
+        target = None
+        if target_version_name:
+            for v in existing_versions:
+                if v.get("name") == target_version_name:
+                    target = v
+                    break
+        if target is None:
+            target = existing_versions[-1]
+        target["runs"].append(new_run)
         version_num = len(existing_versions)
-        action = "Added date range run to"
+        action = f"Added date range run to {target.get('name', '?')}"
     else:
         # New version — increment from the highest existing version number
         # so deleted versions are never reused (e.g. v1,v2,v5 → next is v6)

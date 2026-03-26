@@ -61,7 +61,7 @@ INJECT_HTML = """
     <option value="EURUSD" selected>EURUSD</option>
     <option value="GBPUSD">GBPUSD</option>
   </select>
-  <button id="run-new-btn" class="rb-btn rb-btn-green" onclick="runNewVersion()">&#9654;&nbsp; Run New Version</button>
+  <button id="run-new-btn" class="rb-btn rb-btn-green" onclick="runNewVersion()">&#9654;&nbsp; Add New Version</button>
 
   <span id="run-status" style="font-size: 13px; color: #666690; margin-left: 8px;"></span>
 
@@ -75,7 +75,7 @@ INJECT_HTML = """
     <input type="date" id="rb-start" class="rb-date">
     <label class="rb-label" for="rb-end">To</label>
     <input type="date" id="rb-end" class="rb-date">
-    <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Run Date Range</button>
+    <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Add Date Range</button>
   </div>
 </div>
 
@@ -151,6 +151,18 @@ INJECT_HTML = """
       if (data.running) { setRunning(); pollStatus(); }
     })
     .catch(function () {});
+
+  /* ── Update Add Date Range button label on load and on version tab clicks ── */
+  setTimeout(function () {
+    updateRangeButtonLabel();
+    /* Listen for version/run clicks to update the label dynamically */
+    document.addEventListener("click", function (e) {
+      var item = e.target.closest(".v-item");
+      if (item) {
+        setTimeout(updateRangeButtonLabel, 100);
+      }
+    });
+  }, 100);
 })();
 
 function setRunning() {
@@ -165,9 +177,33 @@ function resetButtons() {
   var newBtn   = document.getElementById("run-new-btn");
   var rangeBtn = document.getElementById("run-range-btn");
   newBtn.disabled   = false;
-  newBtn.innerHTML   = "&#9654;&nbsp; Run New Version";
+  newBtn.innerHTML   = "&#9654;&nbsp; Add New Version";
   rangeBtn.disabled = false;
-  rangeBtn.innerHTML = "&#9654;&nbsp; Run Date Range";
+  updateRangeButtonLabel();
+}
+
+function getCurrentVersionName() {
+  /* Use the globally-exposed name set by the dashboard's renderSidebar() */
+  if (window._currentVersionName) return window._currentVersionName;
+  /* Fallback: parse the versions-data JSON for the last version */
+  var script = document.getElementById("versions-data");
+  if (script) {
+    try {
+      var versions = JSON.parse(script.textContent);
+      if (versions.length > 0) return versions[versions.length - 1].name;
+    } catch(e) {}
+  }
+  return "";
+}
+
+function updateRangeButtonLabel() {
+  var name = getCurrentVersionName();
+  var rangeBtn = document.getElementById("run-range-btn");
+  if (name) {
+    rangeBtn.innerHTML = "&#9654;&nbsp; Add Date Range (" + name + ")";
+  } else {
+    rangeBtn.innerHTML = "&#9654;&nbsp; Add Date Range";
+  }
 }
 
 function runNewVersion() {
@@ -192,12 +228,13 @@ function runDateRange() {
     showError("Select both start and end dates");
     return;
   }
-  var instrument = document.getElementById("rb-instrument-range").value;
+  var instrument     = document.getElementById("rb-instrument-range").value;
+  var targetVersion  = getCurrentVersionName();
   localStorage.setItem("rb_pending_run_type", "date_range");
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -361,7 +398,8 @@ def run_date_range():
         _bt_state["ok"]      = None
         _bt_state["error"]   = None
 
-    instrument = (data.get("instrument") or "").strip()
+    instrument     = (data.get("instrument") or "").strip()
+    target_version = (data.get("target_version") or "").strip()
     env_overrides = {
         "RUN_MODE":       "date_range",
         "RUN_START_DATE": start_date,
@@ -369,6 +407,8 @@ def run_date_range():
     }
     if instrument:
         env_overrides["INSTRUMENT"] = instrument
+    if target_version:
+        env_overrides["TARGET_VERSION"] = target_version
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),

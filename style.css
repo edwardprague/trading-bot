@@ -131,6 +131,13 @@ body {
     color: #ddd;
 }
 
+.v-instrument {
+    font-size: 11px;
+    color: #4cc9f0;
+    margin-top: 3px;
+    font-weight: 500;
+}
+
 .v-date {
     font-size: 12px;
     color: #ccc;
