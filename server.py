@@ -59,15 +59,16 @@ INJECT_HTML = """
 ">
   <button id="run-new-btn" class="rb-btn rb-btn-green" onclick="runNewVersion()">&#9654;&nbsp; Run New Version</button>
 
-  <span class="rb-sep"></span>
-
-  <label class="rb-label" for="rb-start">From</label>
-  <input type="date" id="rb-start" class="rb-date">
-  <label class="rb-label" for="rb-end">To</label>
-  <input type="date" id="rb-end" class="rb-date">
-  <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Run Date Range</button>
-
   <span id="run-status" style="font-size: 13px; color: #666690; margin-left: 8px;"></span>
+
+  <div id="rb-range-group" style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+    <span class="rb-sep"></span>
+    <label class="rb-label" for="rb-start">From</label>
+    <input type="date" id="rb-start" class="rb-date">
+    <label class="rb-label" for="rb-end">To</label>
+    <input type="date" id="rb-end" class="rb-date">
+    <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Run Date Range</button>
+  </div>
 </div>
 
 <style>
