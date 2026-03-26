@@ -67,14 +67,14 @@ INJECT_HTML = """
 
   <div id="rb-range-group" style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
     <span class="rb-sep"></span>
-    <label class="rb-label" for="rb-start">From</label>
-    <input type="date" id="rb-start" class="rb-date">
-    <label class="rb-label" for="rb-end">To</label>
-    <input type="date" id="rb-end" class="rb-date">
     <select id="rb-instrument-range" class="rb-select">
       <option value="EURUSD" selected>EURUSD</option>
       <option value="GBPUSD">GBPUSD</option>
     </select>
+    <label class="rb-label" for="rb-start">From</label>
+    <input type="date" id="rb-start" class="rb-date">
+    <label class="rb-label" for="rb-end">To</label>
+    <input type="date" id="rb-end" class="rb-date">
     <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Run Date Range</button>
   </div>
 </div>
