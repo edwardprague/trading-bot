@@ -1471,7 +1471,7 @@ __VERSIONS_JSON__
     } else if (months <= 18) {
       return months.toFixed(1) + " months";
     } else {
-      return (months / 12).toFixed(1) + " years";
+      var yrs = months / 12; return (yrs % 1 === 0 ? yrs.toFixed(0) : yrs.toFixed(1)) + " years";
     }
   }
   function fullRunRange(run) {
