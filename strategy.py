@@ -2423,6 +2423,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
     run_mode="new_version" → increment version, create new entry with first run
     run_mode="date_range"  → append a run to the most recent version
     """
+    global VERSION
     report_path = "report.html"
 
     metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals, df=df)
@@ -2531,7 +2532,15 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         version_num = len(existing_versions)
         action = "Added date range run to"
     else:
-        # New version
+        # New version — increment from the highest existing version number
+        # so deleted versions are never reused (e.g. v1,v2,v5 → next is v6)
+        max_ver = 0
+        for v in existing_versions:
+            m = re.match(r'^v(\d+)$', v.get("name", ""))
+            if m:
+                max_ver = max(max_ver, int(m.group(1)))
+        next_ver = max_ver + 1
+        VERSION = f"v{next_ver}"
         version_num = len(existing_versions) + 1
         new_version = {
             "name":             VERSION,
