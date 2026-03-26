@@ -2249,14 +2249,24 @@ __VERSIONS_JSON__
     (function (ver) {
       var delBtn = document.getElementById("delete-btn");
       if (!delBtn) return;
+      var isDateRange = activeRunIdx > 0;
+      delBtn.textContent = isDateRange ? "Delete Date Range" : "Delete Version";
       delBtn.addEventListener("click", function () {
-        if (!confirm("Are you sure you want to delete this version? This cannot be undone.")) return;
+        var isRange = activeRunIdx > 0;
+        var msg = isRange
+          ? "Are you sure you want to delete this date range run? This cannot be undone."
+          : "Are you sure you want to delete this version and all its date range runs? This cannot be undone.";
+        if (!confirm(msg)) return;
         delBtn.disabled = true;
         delBtn.textContent = "Deleting\u2026";
-        fetch("/delete_version", {
+        var url = isRange ? "/delete_run" : "/delete_version";
+        var body = isRange
+          ? JSON.stringify({ name: ver.name, run_idx: activeRunIdx })
+          : JSON.stringify({ name: ver.name });
+        fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: ver.name })
+          body: body
         })
         .then(function (r) { return r.json(); })
         .then(function (data) {
@@ -2264,13 +2274,13 @@ __VERSIONS_JSON__
             window.location.reload();
           } else {
             delBtn.disabled = false;
-            delBtn.textContent = "Delete Version";
+            delBtn.textContent = isRange ? "Delete Date Range" : "Delete Version";
             alert("Delete failed: " + (data.error || "Unknown error"));
           }
         })
         .catch(function () {
           delBtn.disabled = false;
-          delBtn.textContent = "Delete Version";
+          delBtn.textContent = isRange ? "Delete Date Range" : "Delete Version";
           alert("Delete failed \u2014 is the server running?");
         });
       });
