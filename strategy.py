@@ -2080,8 +2080,7 @@ __VERSIONS_JSON__
         "<div id='v-header-top'>" +
           "<h2>" + esc(v.name) + stratBadge + runSubtitle + "</h2>" +
           "<div class='btn-group'>" +
-            "<button id='copy-version-btn' class='copy-btn'>Copy Version Report</button>" +
-            "<button id='copy-range-btn' class='copy-btn copy-btn-alt'>Copy Range Report</button>" +
+            "<button id='copy-btn' class='copy-btn'>Copy Version Report</button>" +
             "<button id='delete-btn' class='delete-btn'>Delete Version</button>" +
           "</div>" +
         "</div>" +
@@ -2203,44 +2202,27 @@ __VERSIONS_JSON__
       /* ── Section 12: RRR Sensitivity + Swing Lookback Sensitivity ─────────── */
       "<div class='two-col'>" + rrrSensHtml + swingSensHtml + "</div>";
 
-    /* Wire copy version button */
-    (function (ver) {
-      var btn = document.getElementById("copy-version-btn");
-      if (!btn) return;
-      btn.addEventListener("click", function () {
-        var md = buildVersionMarkdown(ver);
-        navigator.clipboard.writeText(md).then(function () {
-          btn.textContent = "\u2713 Copied!";
-          btn.classList.add("copied");
-          showToast("Version report copied");
-          setTimeout(function () {
-            btn.textContent = "Copy Version Report";
-            btn.classList.remove("copied");
-          }, 2200);
-        }).catch(function () {
-          btn.textContent = "Failed";
-          setTimeout(function () { btn.textContent = "Copy Version Report"; }, 2500);
-        });
-      });
-    }(v));
-
-    /* Wire copy range button */
+    /* Wire copy button — context aware */
     (function (ver, runData) {
-      var btn = document.getElementById("copy-range-btn");
+      var btn = document.getElementById("copy-btn");
       if (!btn) return;
+      var isDateRange = activeRunIdx > 0;
+      btn.textContent = isDateRange ? "Copy Range Report" : "Copy Version Report";
       btn.addEventListener("click", function () {
-        var md = buildRunMarkdown(ver, runData);
+        var isRange = activeRunIdx > 0;
+        var md = isRange ? buildRunMarkdown(ver, runData) : buildVersionMarkdown(ver);
+        var label = isRange ? "Copy Range Report" : "Copy Version Report";
         navigator.clipboard.writeText(md).then(function () {
           btn.textContent = "\u2713 Copied!";
           btn.classList.add("copied");
-          showToast("Range report copied");
+          showToast(isRange ? "Range report copied" : "Version report copied");
           setTimeout(function () {
-            btn.textContent = "Copy Range Report";
+            btn.textContent = label;
             btn.classList.remove("copied");
           }, 2200);
         }).catch(function () {
           btn.textContent = "Failed";
-          setTimeout(function () { btn.textContent = "Copy Range Report"; }, 2500);
+          setTimeout(function () { btn.textContent = label; }, 2500);
         });
       });
     }(v, run));
