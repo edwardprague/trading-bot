@@ -668,20 +668,73 @@ tbody tr:hover td {
     border-radius: 3px;
 }
 
-/* ── Run Backtest button ─────────────────────────────── */
-#run-btn {
-    background: green;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 7px 20px;
-    font-size: 13px;
-    cursor: pointer;
-    letter-spacing: 0.02em;
-    flex-shrink: 0;
-    transition: background 0.15s;
+/* ── Sidebar: collapsible versions ───────────────────── */
+.v-chevron {
+    display: inline-block;
+    font-size: 8px;
+    transition: transform 0.15s;
+    color: #505070;
+    margin-right: 4px;
+    vertical-align: middle;
 }
 
-#run-btn:hover {
-    background: #02bc02 !important;
+.v-chevron.expanded {
+    transform: rotate(90deg);
+}
+
+.v-run-count {
+    font-size: 10px;
+    color: #505070;
+    margin-top: 2px;
+}
+
+.v-sub-item {
+    padding-left: 32px !important;
+    background: #0e0e1a;
+    border-left: 3px solid transparent;
+}
+
+.v-sub-item:hover {
+    background: #1a1a2a !important;
+}
+
+.v-sub-item.active {
+    background: #162038 !important;
+    border-left-color: steelblue !important;
+}
+
+.v-sub-name {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    color: #9090b0 !important;
+}
+
+/* ── Run label badge ─────────────────────────────────── */
+.run-label-badge {
+    font-size: 12px;
+    font-weight: normal;
+    background: steelblue;
+    border: 1px solid steelblue;
+    border-radius: 4px;
+    padding: 4px 10px;
+    color: #fff;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+
+/* ── Copy button alt (blue variant) ──────────────────── */
+.copy-btn-alt {
+    background: steelblue !important;
+    border-color: steelblue !important;
+}
+
+.copy-btn-alt:hover {
+    background: #55a0dd !important;
+    border-color: #55a0dd !important;
+}
+
+.copy-btn-alt.copied {
+    background: rgba(107, 203, 119, .12) !important;
+    border-color: #6bcb77 !important;
+    color: #6bcb77 !important;
 }

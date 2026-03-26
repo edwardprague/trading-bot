@@ -1,8 +1,10 @@
 """
 server.py — Trading Bot Dashboard
 ==================================
-Serves report.html at http://localhost:8080 and injects a "Run Backtest"
-button that triggers strategy.py and auto-refreshes the page on completion.
+Serves report.html at http://localhost:8080 and injects a run bar with:
+  • "Run New Version" — increments version, 730-day full run
+  • "Run Date Range"  — runs current version with selected date range
+  • Start/end date pickers that persist via localStorage
 
 Usage:
     source venv/bin/activate
@@ -46,29 +48,58 @@ _bt_lock  = threading.Lock()
 _bt_state = {"running": False, "ok": None, "error": None}
 
 # ── Run-bar HTML (injected into every page response) ──────────────────────────
-#
-#  • Fixed bar across the top (52px tall, z-index 9999)
-#  • "Run Backtest" button POSTs to /run, shows a spinner, reloads on success
-#  • body padding-top pushes all existing content clear of the bar
 
 INJECT_HTML = """
 <div id="run-bar" style="
   position: fixed; top: 0; left: 0; right: 0; height: 52px;
-  z-index: 9999; display: flex; align-items: center; gap: 14px;
+  z-index: 9999; display: flex; align-items: center; gap: 12px;
   padding: 0 20px;
   background: #0c0c18; border-bottom: 1px solid #1e1e32;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 ">
-  <button id="run-btn" onclick="runBacktest()">&#9654;&nbsp; Run Backtest</button>
-  <span id="run-status" style="font-size: 13px; color: #666690;"></span>
+  <button id="run-new-btn" class="rb-btn rb-btn-green" onclick="runNewVersion()">&#9654;&nbsp; Run New Version</button>
+
+  <span class="rb-sep"></span>
+
+  <label class="rb-label" for="rb-start">From</label>
+  <input type="date" id="rb-start" class="rb-date">
+  <label class="rb-label" for="rb-end">To</label>
+  <input type="date" id="rb-end" class="rb-date">
+  <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Run Date Range</button>
+
+  <span id="run-status" style="font-size: 13px; color: #666690; margin-left: 8px;"></span>
 </div>
 
 <style>
-  /* Push page content below the fixed bar */
   body { padding-top: 52px !important; }
 
-  #run-btn:hover:not(:disabled) { background: #74d8f7; }
-  #run-btn:disabled { background: #1e1e38; color: #404060; cursor: not-allowed; }
+  .rb-btn {
+    color: #fff; border: none; border-radius: 6px;
+    padding: 7px 16px; font-size: 12px; cursor: pointer;
+    letter-spacing: 0.02em; flex-shrink: 0; transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .rb-btn-green { background: green; }
+  .rb-btn-green:hover:not(:disabled) { background: #02bc02; }
+  .rb-btn-blue { background: steelblue; }
+  .rb-btn-blue:hover:not(:disabled) { background: #55a0dd; }
+  .rb-btn:disabled { background: #1e1e38 !important; color: #404060; cursor: not-allowed; }
+
+  .rb-sep {
+    width: 1px; height: 28px; background: #1e1e32; flex-shrink: 0;
+  }
+
+  .rb-label {
+    font-size: 11px; color: #505070; flex-shrink: 0;
+  }
+
+  .rb-date {
+    background: #14142a; color: #c0c0e0; border: 1px solid #2a2a44;
+    border-radius: 5px; padding: 5px 8px; font-size: 12px;
+    font-family: inherit; width: 130px; flex-shrink: 0;
+    color-scheme: dark;
+  }
+  .rb-date:focus { border-color: #4cc9f0; outline: none; }
 
   @keyframes rb-spin { to { transform: rotate(360deg); } }
   .rb-spin {
@@ -80,78 +111,105 @@ INJECT_HTML = """
 </style>
 
 <script>
-// On load: if a backtest is already in progress (e.g. page was refreshed
-// mid-run), pick up where we left off and start polling immediately.
-document.addEventListener("DOMContentLoaded", function() {
+(function () {
+  /* ── Persist date pickers via localStorage ─────────────────────── */
+  var startEl = document.getElementById("rb-start");
+  var endEl   = document.getElementById("rb-end");
+  var savedStart = localStorage.getItem("rb_start_date");
+  var savedEnd   = localStorage.getItem("rb_end_date");
+  if (savedStart) startEl.value = savedStart;
+  if (savedEnd)   endEl.value   = savedEnd;
+
+  startEl.addEventListener("change", function () {
+    localStorage.setItem("rb_start_date", startEl.value);
+  });
+  endEl.addEventListener("change", function () {
+    localStorage.setItem("rb_end_date", endEl.value);
+  });
+
+  /* ── On load: resume polling if a backtest is already running ───── */
   fetch("/status")
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.running) {
-        var btn    = document.getElementById("run-btn");
-        var status = document.getElementById("run-status");
-        btn.disabled    = true;
-        btn.textContent = "Running\u2026";
-        status.innerHTML  = '<span class="rb-spin"></span>Running\u2026';
-        status.style.color = "#9090c0";
-        pollStatus();
-      }
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.running) { setRunning(); pollStatus(); }
     })
-    .catch(function() {});
-});
+    .catch(function () {});
+})();
 
-function runBacktest() {
-  var btn    = document.getElementById("run-btn");
+function setRunning() {
+  var btns = [document.getElementById("run-new-btn"), document.getElementById("run-range-btn")];
+  btns.forEach(function (b) { b.disabled = true; });
+  document.getElementById("run-status").innerHTML =
+    '<span class="rb-spin"></span>Running\\u2026';
+  document.getElementById("run-status").style.color = "#9090c0";
+}
+
+function resetButtons() {
+  var newBtn   = document.getElementById("run-new-btn");
+  var rangeBtn = document.getElementById("run-range-btn");
+  newBtn.disabled   = false;
+  newBtn.innerHTML   = "&#9654;&nbsp; Run New Version";
+  rangeBtn.disabled = false;
+  rangeBtn.innerHTML = "&#9654;&nbsp; Run Date Range";
+}
+
+function runNewVersion() {
+  setRunning();
+  fetch("/run", { method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "new_version" })
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    if (data.started) { pollStatus(); }
+    else { resetButtons(); showError(data.error); }
+  })
+  .catch(function () { resetButtons(); showError("Request failed"); });
+}
+
+function runDateRange() {
+  var startDate = document.getElementById("rb-start").value;
+  var endDate   = document.getElementById("rb-end").value;
+  if (!startDate || !endDate) {
+    showError("Select both start and end dates");
+    return;
+  }
+  setRunning();
+  fetch("/run_range", { method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ start_date: startDate, end_date: endDate })
+  })
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    if (data.started) { pollStatus(); }
+    else { resetButtons(); showError(data.error); }
+  })
+  .catch(function () { resetButtons(); showError("Request failed"); });
+}
+
+function showError(msg) {
   var status = document.getElementById("run-status");
-
-  btn.disabled    = true;
-  btn.textContent = "Running\u2026";
-  status.innerHTML  = '<span class="rb-spin"></span>Running\u2026';
-  status.style.color = "#9090c0";
-
-  fetch("/run", { method: "POST" })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.started) {
-        pollStatus();
-      } else {
-        btn.disabled   = false;
-        btn.innerHTML  = "&#9654;&nbsp; Run Backtest";
-        status.innerHTML   = "\u2717\u2009" + (data.error || "Unknown error");
-        status.style.color = "#ff6b6b";
-      }
-    })
-    .catch(function() {
-      btn.disabled   = false;
-      btn.innerHTML  = "&#9654;&nbsp; Run Backtest";
-      status.innerHTML   = "\u2717\u2009Request failed \u2014 is the server still running?";
-      status.style.color = "#ff6b6b";
-    });
+  status.innerHTML   = "\\u2717\\u2009" + (msg || "Unknown error");
+  status.style.color = "#ff6b6b";
 }
 
 function pollStatus() {
   fetch("/status")
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
       if (data.running) {
         setTimeout(pollStatus, 2000);
       } else if (data.ok) {
         var status = document.getElementById("run-status");
-        status.innerHTML   = "\u2713\u2009Complete \u2014 refreshing\u2026";
+        status.innerHTML   = "\\u2713\\u2009Complete \\u2014 refreshing\\u2026";
         status.style.color = "#6bcb77";
-        setTimeout(function() { window.location.reload(); }, 900);
+        setTimeout(function () { window.location.reload(); }, 900);
       } else {
-        var btn    = document.getElementById("run-btn");
-        var status = document.getElementById("run-status");
-        btn.disabled   = false;
-        btn.innerHTML  = "&#9654;&nbsp; Run Backtest";
-        status.innerHTML   = "\u2717\u2009" + (data.error || "Unknown error");
-        status.style.color = "#ff6b6b";
+        resetButtons();
+        showError(data.error);
       }
     })
-    .catch(function() {
-      // Brief hiccup — keep polling
-      setTimeout(pollStatus, 2000);
-    });
+    .catch(function () { setTimeout(pollStatus, 2000); });
 }
 </script>
 """
@@ -175,7 +233,7 @@ EMPTY_PAGE = """<!DOCTYPE html>
   <span style="font-size: 36px; line-height: 1;">&#128202;</span>
   <span style="font-size: 15px; color: #c0c0e0;">No report yet</span>
   <span style="font-size: 13px; color: #505070; max-width: 340px; line-height: 1.6;">
-    Click <strong style="color: #d0d0ee;">&#9654;&nbsp;Run Backtest</strong>
+    Click <strong style="color: #d0d0ee;">&#9654;&nbsp;Run New Version</strong>
     to run <code style="color:#4cc9f0">strategy.py</code>
     and generate the first report.
   </span>
@@ -187,7 +245,7 @@ EMPTY_PAGE = """<!DOCTYPE html>
 
 @app.route("/")
 def index():
-    """Serve report.html with the Run Backtest bar injected."""
+    """Serve report.html with the Run bar injected."""
     if not REPORT_FILE.exists():
         return Response(EMPTY_PAGE, mimetype="text/html")
 
@@ -206,15 +264,19 @@ def serve_css():
     return Response(css_path.read_text(encoding="utf-8"), mimetype="text/css")
 
 
-def _backtest_worker():
+def _backtest_worker(env_overrides=None):
     """Run strategy.py in a background thread and update _bt_state when done."""
     try:
+        env = os.environ.copy()
+        if env_overrides:
+            env.update(env_overrides)
         result = subprocess.run(
             [sys.executable, str(STRATEGY_FILE)],
             capture_output=True,
             text=True,
             cwd=str(BASE_DIR),
             timeout=300,        # 5-minute safety timeout
+            env=env,
         )
         with _bt_lock:
             if result.returncode == 0:
@@ -239,7 +301,7 @@ def _backtest_worker():
 
 @app.route("/run", methods=["POST"])
 def run_backtest():
-    """Start strategy.py in a background thread; return immediately."""
+    """Start strategy.py as a new version run (730 days, version incremented)."""
     with _bt_lock:
         if _bt_state["running"]:
             return jsonify({"ok": False, "error": "A backtest is already running"})
@@ -247,7 +309,43 @@ def run_backtest():
         _bt_state["ok"]      = None
         _bt_state["error"]   = None
 
-    t = threading.Thread(target=_backtest_worker, daemon=True)
+    # RUN_MODE=new_version tells strategy.py to increment version
+    t = threading.Thread(
+        target=_backtest_worker,
+        args=({"RUN_MODE": "new_version"},),
+        daemon=True,
+    )
+    t.start()
+    return jsonify({"ok": True, "started": True})
+
+
+@app.route("/run_range", methods=["POST"])
+def run_date_range():
+    """Start strategy.py as a date-range iteration on the current version."""
+    data = request.get_json(force=True) or {}
+    start_date = (data.get("start_date") or "").strip()
+    end_date   = (data.get("end_date")   or "").strip()
+
+    if not start_date or not end_date:
+        return jsonify({"ok": False, "error": "Start and end dates are required"})
+
+    with _bt_lock:
+        if _bt_state["running"]:
+            return jsonify({"ok": False, "error": "A backtest is already running"})
+        _bt_state["running"] = True
+        _bt_state["ok"]      = None
+        _bt_state["error"]   = None
+
+    env_overrides = {
+        "RUN_MODE":       "date_range",
+        "RUN_START_DATE": start_date,
+        "RUN_END_DATE":   end_date,
+    }
+    t = threading.Thread(
+        target=_backtest_worker,
+        args=(env_overrides,),
+        daemon=True,
+    )
     t.start()
     return jsonify({"ok": True, "started": True})
 
@@ -306,14 +404,12 @@ def delete_version():
     # ── Delete version files from results/ folder ─────────────────────────────
     results_dir = BASE_DIR / "results"
     if results_dir.is_dir():
-        # Match files starting with the version name followed by _ or .
-        # e.g. v1_EURUSD_2026-03-25.png, v1_EURUSD_2026-03-25_rpf.png
         for f in results_dir.iterdir():
             if f.name.startswith(name + "_") or f.name.startswith(name + "."):
                 try:
                     f.unlink()
                 except OSError:
-                    pass  # best-effort deletion
+                    pass
 
     return jsonify({"ok": True})
 
@@ -327,7 +423,4 @@ if __name__ == "__main__":
     print("  Open  →  http://localhost:8080")
     print("  Stop  →  Ctrl+C")
     print()
-    # host="0.0.0.0" binds to all interfaces (IPv4 + IPv6) so that
-    # macOS routing localhost → ::1 still reaches this server.
-    # Port 8080 avoids the macOS AirPlay Receiver conflict on port 5000.
     app.run(host="0.0.0.0", port=8080, debug=False, threaded=True)

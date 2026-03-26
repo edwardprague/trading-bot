@@ -9,3 +9,4 @@
 | v4 | 2026-03-25 17:39 | Trend Following | EURUSD=X | 5m | Regime filter full 730 day run — ATR 96 Bars 20 Displacement 0.3 | 33 | 45.5% | 1.64 | +$12314.56 | -6.79% | 0.96 |
 | v4 | 2026-03-25 17:53 | Trend Following | EURUSD=X | 5m | Regime filter full 730 day run — ATR 96 Bars 20 Displacement 0.3 | 33 | 45.5% | 1.64 | +$12314.56 | -6.79% | 0.96 |
 | v4 | 2026-03-25 18:23 | Trend Following | EURUSD=X | 5m | Regime filter full 730 day run — ATR 96 Bars 20 Displacement 0.3 | 369 | 33.3% | 0.98 | -$3599.56 | -27.51% | 0.00 |
+| v5 | 2026-03-26 04:55 | Trend Following | EURUSD=X | 5m | Removed regime filter — clean baseline for date range UI rebuild | 33 | 45.5% | 1.64 | +$12314.56 | -6.79% | 0.95 |

@@ -117,9 +117,14 @@ ENTRY_CONDITIONS = [
 
 # ── Data fetch ────────────────────────────────────────────────────────────────
 
-def fetch_data(ticker, interval, days_back):
-    end   = datetime.now()
-    start = end - timedelta(days=days_back)
+def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
+    if start_date and end_date:
+        start = datetime.strptime(start_date, "%Y-%m-%d")
+        end   = datetime.strptime(end_date,   "%Y-%m-%d")
+        days_back = (end - start).days
+    else:
+        end   = datetime.now()
+        start = end - timedelta(days=days_back)
 
     # ── Primary: Massive API ───────────────────────────────────────────────────
     if MASSIVE_API_KEY:
@@ -1233,6 +1238,9 @@ __VERSIONS_JSON__
   var VERSIONS = JSON.parse(document.getElementById("versions-data").textContent);
   var currentStrategy = "Trend Following";
   var devLogOpen = false;
+  var expandedVersions = {};  /* track which versions are expanded in sidebar */
+  var activeVersionIdx = -1;
+  var activeRunIdx     = 0;
 
   /* ── Helpers ──────────────────────────────────────────────── */
   function fmt(n, d) {
@@ -1279,24 +1287,38 @@ __VERSIONS_JSON__
     return names[idx] + " " + parts[0];
   }
 
+  /* ── Compat: get run data from version (handles legacy + new format) ──── */
+  function getRuns(v) {
+    if (v.runs && v.runs.length > 0) return v.runs;
+    /* legacy single-run format */
+    return [{
+      date: v.date || "", start_date: "", end_date: "",
+      days_back: (v.params || {}).days_back || 0, label: "",
+      notes: v.notes || "\u2014", chart_b64: v.chart_b64 || "",
+      rpf_chart_b64: v.rpf_chart_b64 || "",
+      metrics: v.metrics || {}, last_trades: v.last_trades || []
+    }];
+  }
+
   /* ── Toast ──────────────────────────────────────────────── */
-  function showToast() {
+  function showToast(msg) {
     var toast = document.getElementById("copy-toast");
+    if (msg) toast.innerHTML = "&#10003;&nbsp; " + msg;
     toast.classList.add("show");
     setTimeout(function () { toast.classList.remove("show"); }, 2200);
   }
 
-  /* ── Markdown builder ───────────────────────────────────── */
-  function buildMarkdown(ver) {
-    var m = ver.metrics || {};
+  /* ── Markdown builder (per run) ────────────────────────────── */
+  function buildRunMarkdown(ver, run) {
+    var m = run.metrics || {};
     var p = ver.params  || {};
 
     function mf(n, d) {
-      if (n === null || n === undefined || (typeof n === "number" && isNaN(n))) return "—";
+      if (n === null || n === undefined || (typeof n === "number" && isNaN(n))) return "\u2014";
       return Number(n).toFixed(d !== undefined ? d : 2);
     }
     function mfMoney(n) {
-      if (n === null || n === undefined) return "—";
+      if (n === null || n === undefined) return "\u2014";
       var f = Number(n);
       return (f >= 0 ? "+" : "-") + "$" + commaFmt(f);
     }
@@ -1308,13 +1330,17 @@ __VERSIONS_JSON__
     }
 
     var lines = [];
-    lines.push("## Backtest Report \u2014 " + (ver.name || "?"));
+    var runLabel = run.label ? " \u2014 " + run.label : "";
+    lines.push("## Backtest Report \u2014 " + (ver.name || "?") + runLabel);
     lines.push("");
     lines.push("**Strategy:** " + (ver.strategy || "\u2014"));
-    lines.push("**Instrument:** " + (p.ticker   || "\u2014") + " \u00b7 " + (p.interval || "\u2014") + " \u00b7 " + (p.days_back || "\u2014") + " days");
-    lines.push("**Date:** "     + (ver.date    || "\u2014"));
-    if (ver.notes && ver.notes !== "\u2014" && ver.notes !== "\u2014") {
-      lines.push("**Notes:** " + ver.notes);
+    lines.push("**Instrument:** " + (p.ticker || "\u2014") + " \u00b7 " + (p.interval || "\u2014") + " \u00b7 " + (run.days_back || p.days_back || "\u2014") + " days");
+    lines.push("**Date:** " + (run.date || "\u2014"));
+    if (run.start_date && run.end_date) {
+      lines.push("**Range:** " + run.start_date + " \u2192 " + run.end_date);
+    }
+    if (run.notes && run.notes !== "\u2014" && run.notes !== "\u2014") {
+      lines.push("**Notes:** " + run.notes);
     }
     lines.push("");
 
@@ -1342,8 +1368,6 @@ __VERSIONS_JSON__
     lines.push("| Sharpe Ratio | "    + mf(m.sharpe) + " |");
     lines.push("| Avg Win | "         + (m.avg_win  !== null && m.avg_win  !== undefined ? "$"  + commaFmt(m.avg_win)  : "\u2014") + " |");
     lines.push("| Avg Loss | "        + (m.avg_loss !== null && m.avg_loss !== undefined ? "$"  + commaFmt(m.avg_loss) : "\u2014") + " |");
-    lines.push("| Avg Stop (pips) | " + (m.avg_stop_pips !== null && m.avg_stop_pips !== undefined ? mf(m.avg_stop_pips, 1) : "\u2014") + " |");
-    lines.push("| Avg Target (pips) | " + (m.avg_target_pips !== null && m.avg_target_pips !== undefined ? mf(m.avg_target_pips, 1) : "\u2014") + " |");
     lines.push("| Best Trade | "      + mfMoney(m.best_trade) + " |");
     lines.push("| Worst Trade | "     + mfMoney(m.worst_trade) + " |");
     lines.push("");
@@ -1354,7 +1378,7 @@ __VERSIONS_JSON__
     lines.push("|-----------|-------|");
     lines.push("| Instrument | "    + (p.ticker    || "\u2014") + " |");
     lines.push("| Interval | "      + (p.interval  || "\u2014") + " |");
-    lines.push("| History | "       + (p.days_back || "\u2014") + " days |");
+    lines.push("| History | "       + (run.days_back || p.days_back || "\u2014") + " days |");
     lines.push("| Starting Cash | $" + (p.starting_cash || 0).toLocaleString() + " |");
     lines.push("| EMA Slow | "      + (p.ema_slow      || "\u2014") + " |");
     lines.push("| EMA Fast | "      + (p.ema_fast      || "\u2014") + " |");
@@ -1362,8 +1386,6 @@ __VERSIONS_JSON__
     lines.push("| Swing Lookback | " + (p.swing_lookback || "\u2014") + " bars |");
     lines.push("| RRR | 1:"         + (p.rrr || "\u2014") + " |");
     lines.push("| Risk / Trade | "  + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
-    lines.push("| Min Stop | "      + ((p.min_stop || 0) * 10000).toFixed(0) + " pips |");
-    lines.push("| Max Stop | "      + ((p.max_stop || 0) * 10000).toFixed(0) + " pips |");
     lines.push("| Direction | "     + (p.trade_direction || "both") + " |");
     var tfHours = (p.time_filter_hours || []).join(", ");
     lines.push("| Time Filter | "   + (p.time_filter ? "ON \u2014 hours " + tfHours : "OFF") + " |");
@@ -1372,24 +1394,14 @@ __VERSIONS_JSON__
     /* ── Performance by Direction ──────────────────── */
     lines.push("### Performance by Direction");
     lines.push("");
-    lines.push("| Direction | Trades | % of Trades | Win Rate | Profit Factor | Avg Win | Avg Loss | Avg P&L/Trade |");
-    lines.push("|-----------|--------|-------------|----------|---------------|---------|----------|---------------|");
+    lines.push("| Direction | Trades | Win Rate | Profit Factor | Net P&L |");
+    lines.push("|-----------|--------|----------|---------------|---------|");
     var bd = m.by_direction || {};
     ["long", "short"].forEach(function (d) {
       var data = bd[d];
-      if (!data) {
-        lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) + " | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
-        return;
-      }
+      if (!data) { lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) + " | \u2014 | \u2014 | \u2014 | \u2014 |"); return; }
       var dpf = (data.profit_factor === null || data.profit_factor === undefined) ? "\u221e" : mf(data.profit_factor);
-      lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) +
-        " | " + data.count +
-        " | " + mf(data.pct_of_total_trades, 1) + "%" +
-        " | " + mf(data.win_rate, 1) + "%" +
-        " | " + dpf +
-        " | " + (data.avg_win  !== null && data.avg_win  !== undefined ? "$" + commaFmt(data.avg_win)  : "\u2014") +
-        " | " + (data.avg_loss !== null && data.avg_loss !== undefined ? "$" + commaFmt(Math.abs(data.avg_loss)) : "\u2014") +
-        " | " + mfMoney(data.avg_pnl_per_trade) + " |");
+      lines.push("| " + d.charAt(0).toUpperCase() + d.slice(1) + " | " + data.count + " | " + mf(data.win_rate, 1) + "% | " + dpf + " | " + mfMoney(data.avg_pnl_per_trade) + " |");
     });
     lines.push("");
 
@@ -1406,109 +1418,22 @@ __VERSIONS_JSON__
         var mnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         var parts  = String(mo.month).split("-");
         var mLabel = parts.length >= 2 ? mnames[parseInt(parts[1], 10) - 1] + " " + parts[0] : mo.month;
-        lines.push("| " + mLabel +
-          " | " + mo.trades +
-          " | " + mo.wins +
-          " | " + mo.losses +
-          " | " + mf(mo.win_rate, 1) + "%" +
-          " | " + mfMoney(mo.net_pnl) + " |");
-      });
-    }
-    lines.push("");
-
-    /* ── Streak Analysis ────────────────────────────── */
-    var str = m.streaks || {};
-    lines.push("### Streak Analysis");
-    lines.push("");
-    lines.push("| Metric | Value |");
-    lines.push("|--------|-------|");
-    lines.push("| Max Win Streak | "  + (str.max_win_streak  !== undefined ? str.max_win_streak  + " trades" : "\u2014") + " |");
-    lines.push("| Max Loss Streak | " + (str.max_loss_streak !== undefined ? str.max_loss_streak + " trades" : "\u2014") + " |");
-    lines.push("| Avg Win Streak | "  + (str.avg_win_streak  !== undefined ? str.avg_win_streak               : "\u2014") + " |");
-    lines.push("| Avg Loss Streak | " + (str.avg_loss_streak !== undefined ? str.avg_loss_streak               : "\u2014") + " |");
-    lines.push("| Current Streak | "  + (str.current_streak  || "\u2014") + " |");
-    lines.push("");
-
-    /* ── Stop vs Target ─────────────────────────────── */
-    var st = m.stop_target || {};
-    lines.push("### Stop vs Target");
-    lines.push("");
-    lines.push("| Metric | Value |");
-    lines.push("|--------|-------|");
-    lines.push("| Hit Stop Loss | "   + (st.pct_sl  !== null && st.pct_sl  !== undefined ? st.pct_sl  + "%" : "\u2014") + " |");
-    lines.push("| Hit Take Profit | " + (st.pct_tp  !== null && st.pct_tp  !== undefined ? st.pct_tp  + "%" : "\u2014") + " |");
-    lines.push("| Avg MAE | "         + (st.avg_mae !== null && st.avg_mae !== undefined ? st.avg_mae + " pips" : "\u2014") + " |");
-    lines.push("");
-
-    /* ── Regime Classification ───────────────────────── */
-    lines.push("### Regime Classification");
-    lines.push("");
-    lines.push("| Regime | Trades | Win Rate | Profit Factor | Net P&L |");
-    lines.push("|--------|--------|----------|---------------|---------|");
-    var mRegime = m.regime || [];
-    if (mRegime.length === 0) {
-      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
-    } else {
-      mRegime.forEach(function (r) {
-        var rpf = (r.profit_factor === null || r.profit_factor === undefined) ? "\u221e" : mf(r.profit_factor);
-        lines.push("| " + r.regime + " | " + r.count + " | " + mf(r.win_rate, 1) + "% | " + rpf + " | " + mfMoney(r.net_pnl) + " |");
-      });
-    }
-    lines.push("");
-
-    /* ── Time of Day Performance ─────────────────────── */
-    lines.push("### Time of Day Performance (UTC)");
-    lines.push("");
-    lines.push("| Hour | Trades | Win Rate | Net P&L |");
-    lines.push("|------|--------|----------|---------|");
-    var mTod     = m.time_of_day || { rows: [], best_hour: null, worst_hour: null };
-    var mTodRows = mTod.rows || [];
-    if (mTodRows.length === 0) {
-      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 |");
-    } else {
-      mTodRows.forEach(function (r) {
-        var hStr = (r.hour < 10 ? "0" : "") + r.hour + ":00";
-        if (mTod.best_hour  !== null && r.hour === mTod.best_hour)  hStr += " \u2605";
-        if (mTod.worst_hour !== null && r.hour === mTod.worst_hour) hStr += " \u25bc";
-        lines.push("| " + hStr + " | " + r.trades + " | " + mf(r.win_rate, 1) + "% | " + mfMoney(r.net_pnl) + " |");
-      });
-    }
-    lines.push("");
-
-    /* ── Win Rate Trend ──────────────────────────────── */
-    lines.push("### Win Rate Trend (3 Equal Periods)");
-    lines.push("");
-    lines.push("| Period | Trades | Win Rate | Profit Factor | Net P&L |");
-    lines.push("|--------|--------|----------|---------------|---------|");
-    var mWrt = m.win_rate_trend || [];
-    if (mWrt.length === 0) {
-      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
-    } else {
-      var segLabels = ["Early", "Mid", "Late"];
-      mWrt.forEach(function (seg, idx) {
-        var spf   = (seg.profit_factor === null || seg.profit_factor === undefined) ? "\u221e" : mf(seg.profit_factor);
-        var label = (segLabels[idx] || ("Seg " + (idx + 1))) + " (" + seg.period + ")";
-        lines.push("| " + label + " | " + seg.trades + " | " + mf(seg.win_rate, 1) + "% | " + spf + " | " + mfMoney(seg.net_pnl) + " |");
-      });
-    }
-    lines.push("");
-
-    /* ── Daily Drawdown (Worst 5 Days) ──────────────────────── */
-    lines.push("### Daily Drawdown — Worst 5 Days");
-    lines.push("");
-    lines.push("| Date | Trades | P&L | Drawdown% |");
-    lines.push("|------|--------|-----|-----------|");
-    var mDailyDD = m.daily_drawdown || [];
-    if (mDailyDD.length === 0) {
-      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 |");
-    } else {
-      mDailyDD.forEach(function (d) {
-        lines.push("| " + d.date + " | " + d.trades + " | -$" + commaFmt(d.pnl) + " | " + mf(d.drawdown_pct, 2) + "% |");
+        lines.push("| " + mLabel + " | " + mo.trades + " | " + mo.wins + " | " + mo.losses + " | " + mf(mo.win_rate, 1) + "% | " + mfMoney(mo.net_pnl) + " |");
       });
     }
     lines.push("");
 
     return lines.join("\n");
+  }
+
+  /* ── Markdown builder (full version = all runs) ───────────── */
+  function buildVersionMarkdown(ver) {
+    var runs = getRuns(ver);
+    var parts = [];
+    for (var i = 0; i < runs.length; i++) {
+      parts.push(buildRunMarkdown(ver, runs[i]));
+    }
+    return parts.join("\n---\n\n");
   }
 
   /* ── Strategy filter ─────────────────────────────────────── */
@@ -1527,7 +1452,7 @@ __VERSIONS_JSON__
   function renderSidebar() {
     var svs  = getStrategyVersions();
     document.getElementById("run-count").textContent =
-      svs.length + " run" + (svs.length !== 1 ? "s" : "");
+      svs.length + " version" + (svs.length !== 1 ? "s" : "");
 
     var list = document.getElementById("version-list");
     list.innerHTML = "";
@@ -1537,46 +1462,99 @@ __VERSIONS_JSON__
       return;
     }
 
+    /* render newest first */
     for (var ri = svs.length - 1; ri >= 0; ri--) {
       var entry = svs[ri];
-      var v    = entry.v;
-      var idx  = entry.idx;
-      var pnl  = v.metrics ? v.metrics.net_profit : null;
+      var v     = entry.v;
+      var idx   = entry.idx;
+      var runs  = getRuns(v);
+      var firstRun = runs[0] || {};
+      var pnl  = firstRun.metrics ? firstRun.metrics.net_profit : null;
       var pc   = pnl === null ? "" : (pnl >= 0 ? "pos" : "neg");
-      var ptxt = pnl === null ? "" :
-        (pnl >= 0 ? "+" : "") + "$" + commaFmt(pnl);
+      var ptxt = pnl === null ? "" : (pnl >= 0 ? "+" : "") + "$" + commaFmt(pnl);
 
-      var item = document.createElement("div");
-      item.className     = "v-item";
-      item.dataset.idx   = idx;
-      item.innerHTML     =
-        "<div class='v-name'>" + esc(v.name) + "</div>" +
-        "<div class='v-date'>" + esc(v.date) + "</div>" +
-        (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "");
+      /* version header row */
+      var vItem = document.createElement("div");
+      vItem.className = "v-item" + (idx === activeVersionIdx ? " active" : "");
+      vItem.dataset.idx = idx;
 
-      (function (el, origIdx) {
+      var chevron = runs.length > 1
+        ? "<span class='v-chevron" + (expandedVersions[idx] ? " expanded" : "") + "'>\u25B6</span> "
+        : "";
+
+      vItem.innerHTML =
+        "<div class='v-name'>" + chevron + esc(v.name) + "</div>" +
+        "<div class='v-date'>" + esc(firstRun.date || "") + "</div>" +
+        (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "") +
+        (runs.length > 1 ? "<div class='v-run-count'>" + runs.length + " runs</div>" : "");
+
+      (function (el, vIdx, numRuns) {
         el.addEventListener("click", function () {
           devLogOpen = false;
           document.getElementById("devlog-btn").classList.remove("active");
-          document.querySelectorAll(".v-item").forEach(function (e) {
-            e.classList.remove("active");
-          });
-          el.classList.add("active");
-          renderContent(origIdx);
-        });
-      })(item, idx);
 
-      list.appendChild(item);
+          if (numRuns > 1) {
+            /* toggle expand/collapse */
+            expandedVersions[vIdx] = !expandedVersions[vIdx];
+          }
+
+          /* select the first run (full run) */
+          activeVersionIdx = vIdx;
+          activeRunIdx = 0;
+          renderSidebar();
+          renderContent(vIdx, 0);
+        });
+      })(vItem, idx, runs.length);
+
+      list.appendChild(vItem);
+
+      /* ── Sub-runs (expanded) ─────────────────────────── */
+      if (expandedVersions[idx] && runs.length > 1) {
+        for (var si = 0; si < runs.length; si++) {
+          var run = runs[si];
+          var runPnl = run.metrics ? run.metrics.net_profit : null;
+          var runPc  = runPnl === null ? "" : (runPnl >= 0 ? "pos" : "neg");
+          var runPtxt = runPnl === null ? "" : (runPnl >= 0 ? "+" : "") + "$" + commaFmt(runPnl);
+          var runLabel = run.label || (si === 0 ? "Full run" : "Run " + (si + 1));
+
+          var subItem = document.createElement("div");
+          subItem.className = "v-item v-sub-item" +
+            (idx === activeVersionIdx && si === activeRunIdx ? " active" : "");
+          subItem.dataset.idx = idx;
+          subItem.dataset.runIdx = si;
+
+          subItem.innerHTML =
+            "<div class='v-name v-sub-name'>" + esc(runLabel) + "</div>" +
+            "<div class='v-date'>" + esc(run.date || "") + "</div>" +
+            (runPnl !== null ? "<div class='v-pnl " + runPc + "'>" + runPtxt + "</div>" : "");
+
+          (function (el, vIdx, rIdx) {
+            el.addEventListener("click", function (e) {
+              e.stopPropagation();
+              devLogOpen = false;
+              document.getElementById("devlog-btn").classList.remove("active");
+              activeVersionIdx = vIdx;
+              activeRunIdx = rIdx;
+              renderSidebar();
+              renderContent(vIdx, rIdx);
+            });
+          })(subItem, idx, si);
+
+          list.appendChild(subItem);
+        }
+      }
     }
   }
 
   /* ── Content ──────────────────────────────────────────────── */
-  function renderContent(idx) {
-    var v = VERSIONS[idx];
+  function renderContent(vIdx, runIdx) {
+    var v = VERSIONS[vIdx];
     if (!v) return;
 
-    var m = v.metrics || {};
-    var p = v.params  || {};
+    var runs = getRuns(v);
+    var run  = runs[runIdx] || runs[0];
+    var m    = run.metrics || {};
+    var p    = v.params  || {};
 
     /* profit factor display */
     var pfTxt = (m.profit_factor === null || m.profit_factor === undefined)
@@ -1773,7 +1751,6 @@ __VERSIONS_JSON__
     var fi     = m.filter_impact || [];
     var fiRows = "";
     fi.forEach(function (f) {
-      var savedAmt = commaFmt(-f.net_pnl);
       var noteCol;
       if (f.net_pnl < 0) {
         noteCol = "<span class='badge-pos'>\u2713 filter saved $" + commaFmt(-f.net_pnl) + "</span>";
@@ -1843,12 +1820,12 @@ __VERSIONS_JSON__
     if (!ddDayRows) ddDayRows = "<tr><td colspan='4' class='td-empty-sm'>No data</td></tr>";
     var dailyDDHtml =
       "<div class='section'>" +
-        "<div class='section-title'>Daily Drawdown — Worst 5 Days</div>" +
+        "<div class='section-title'>Daily Drawdown \u2014 Worst 5 Days</div>" +
         "<table><thead><tr>" +
         "<th>Date (UTC)</th><th>Trades</th><th>P&amp;L</th><th>Drawdown %</th>" +
         "</tr></thead><tbody>" + ddDayRows + "</tbody></table></div>";
 
-    /* 11. Rolling Profit Factor (with per-tier trades and P&L) */
+    /* 11. Rolling Profit Factor */
     var rpf     = m.rolling_pf || {};
     var rpfWin  = rpf.window || 10;
     var rpfCur  = rpf.current !== null && rpf.current !== undefined ? fmt(rpf.current) : "&#8212;";
@@ -1856,11 +1833,9 @@ __VERSIONS_JSON__
     var rpfMax  = rpf.max     !== null && rpf.max     !== undefined ? fmt(rpf.max)     : "&#8212;";
     var rpfCurClass = (rpf.current !== null && rpf.current !== undefined)
       ? (rpf.current >= 1.3 ? "pos" : (rpf.current < 1.0 ? "neg" : "neu")) : "";
-    /* tier rows with trades + net P&L */
     var rpfTierRows = "";
     var rpfTiers = rpf.tiers || [];
     if (rpfTiers.length === 0) {
-      /* fallback: old-format data (no tier breakdown) */
       rpfTierRows =
         "<tr><td><span class='pos'>&#9679; Full Risk</span></td><td>&ge; 1.3</td>" +
         "<td><span class='pos'>" + (rpf.pct_above_1_3  !== null && rpf.pct_above_1_3  !== undefined ? fmt(rpf.pct_above_1_3, 1)  + "%" : "&#8212;") + "</span></td>" +
@@ -1908,9 +1883,9 @@ __VERSIONS_JSON__
       "</div>";
 
     /* 12. RPF Chart image */
-    var rpfChartHtml = v.rpf_chart_b64
+    var rpfChartHtml = run.rpf_chart_b64
       ? "<div class='section'><div class='section-title'>Rolling Profit Factor Chart</div>" +
-        "<img id='rpf-chart-img' src='data:image/png;base64," + v.rpf_chart_b64 + "' alt='RPF Chart'/></div>"
+        "<img id='rpf-chart-img' src='data:image/png;base64," + run.rpf_chart_b64 + "' alt='RPF Chart'/></div>"
       : "";
 
     /* 13. RRR Sensitivity */
@@ -1967,13 +1942,13 @@ __VERSIONS_JSON__
         "<th>Swing Bars</th><th>Trades</th><th>Win Rate</th><th>Profit Factor</th><th>Net P&amp;L</th><th>Max DD</th>" +
         "</tr></thead><tbody>" + swingSensRows + "</tbody></table></div>";
 
-    var chartHtml = v.chart_b64
+    var chartHtml = run.chart_b64
       ? "<div class='section'><div class='section-title'>Chart</div>" +
-        "<img id='chart-img' src='data:image/png;base64," + v.chart_b64 + "' alt='Backtest Chart'/></div>"
+        "<img id='chart-img' src='data:image/png;base64," + run.chart_b64 + "' alt='Backtest Chart'/></div>"
       : "";
 
-    var notesHtml = (v.notes && v.notes !== "&#8212;" && v.notes !== "\u2014" && v.notes !== "—")
-      ? "<div class='v-notes'>&#128221;&nbsp; " + esc(v.notes) + "</div>"
+    var notesHtml = (run.notes && run.notes !== "&#8212;" && run.notes !== "\u2014" && run.notes !== "\u2014")
+      ? "<div class='v-notes'>&#128221;&nbsp; " + esc(run.notes) + "</div>"
       : "";
 
     var winRateCls = m.win_rate >= 50 ? "pos" : "neg";
@@ -1992,7 +1967,13 @@ __VERSIONS_JSON__
       ? "<span class='strat-badge'>" + esc(v.strategy) + "</span>"
       : "";
 
-    /* ── Summary panel (5 hero metrics) ─────────────────────────────────────── */
+    /* run label for header */
+    var runSubtitle = "";
+    if (run.label) {
+      runSubtitle = " <span class='run-label-badge'>" + esc(run.label) + "</span>";
+    }
+
+    /* ── Summary panel ─────────────────────────────────────── */
     var mddS = m.max_daily_drawdown || {};
     var mddSStr = (mddS.dollar !== null && mddS.dollar !== undefined)
       ? "<span class='neg'>-$" + commaFmt(mddS.dollar) + " (" + fmt(mddS.pct, 2) + "%)</span>"
@@ -2074,16 +2055,19 @@ __VERSIONS_JSON__
       /* header */
       "<div id='v-header'>" +
         "<div id='v-header-top'>" +
-          "<h2>" + esc(v.name) + stratBadge + "</h2>" +
+          "<h2>" + esc(v.name) + stratBadge + runSubtitle + "</h2>" +
           "<div class='btn-group'>" +
-            "<button id='copy-btn' class='copy-btn'>Copy Report</button>" +
+            "<button id='copy-version-btn' class='copy-btn'>Copy Version Report</button>" +
+            "<button id='copy-range-btn' class='copy-btn copy-btn-alt'>Copy Range Report</button>" +
             "<button id='delete-btn' class='delete-btn'>Delete Version</button>" +
           "</div>" +
         "</div>" +
-        "<div class='v-meta'>Run on " + esc(v.date) +
+        "<div class='v-meta'>Run on " + esc(run.date || "") +
           " &nbsp;&middot;&nbsp; " + esc(p.ticker || "") +
           " " + esc(p.interval || "") +
-          " &nbsp;&middot;&nbsp; " + (p.days_back || "") + " days</div>" +
+          " &nbsp;&middot;&nbsp; " + (run.days_back || p.days_back || "") + " days" +
+          (run.start_date && run.end_date ? " &nbsp;&middot;&nbsp; " + esc(run.start_date) + " \u2192 " + esc(run.end_date) : "") +
+          "</div>" +
         notesHtml +
       "</div>" +
 
@@ -2138,7 +2122,7 @@ __VERSIONS_JSON__
           "<table><tbody>" +
           row("Instrument",     esc(p.ticker || "")) +
           row("Interval",       esc(p.interval || "")) +
-          row("History",        (p.days_back || "") + " days") +
+          row("History",        (run.days_back || p.days_back || "") + " days") +
           row("Starting Capital", "$" + (p.starting_cash || 0).toLocaleString()) +
           row("EMA Slow",       p.ema_slow) +
           row("EMA Fast",       p.ema_fast) +
@@ -2190,32 +2174,53 @@ __VERSIONS_JSON__
       /* ── Section 11: Trade Duration + Filter Impact Summary ───────────────── */
       "<div class='two-col'>" + durationHtml + filterImpactHtml + "</div>" +
 
-      /* ── Daily Drawdown (worst 5 days) — FTMO tracking ────────────────────── */
+      /* ── Daily Drawdown ────────────────────────────────────────────────────── */
       dailyDDHtml +
 
       /* ── Section 12: RRR Sensitivity + Swing Lookback Sensitivity ─────────── */
       "<div class='two-col'>" + rrrSensHtml + swingSensHtml + "</div>";
 
-    /* Wire copy button */
+    /* Wire copy version button */
     (function (ver) {
-      var btn = document.getElementById("copy-btn");
+      var btn = document.getElementById("copy-version-btn");
       if (!btn) return;
       btn.addEventListener("click", function () {
-        var md = buildMarkdown(ver);
+        var md = buildVersionMarkdown(ver);
         navigator.clipboard.writeText(md).then(function () {
           btn.textContent = "\u2713 Copied!";
           btn.classList.add("copied");
-          showToast();
+          showToast("Version report copied");
           setTimeout(function () {
-            btn.textContent = "Copy Report";
+            btn.textContent = "Copy Version Report";
             btn.classList.remove("copied");
           }, 2200);
         }).catch(function () {
           btn.textContent = "Failed";
-          setTimeout(function () { btn.textContent = "Copy Report"; }, 2500);
+          setTimeout(function () { btn.textContent = "Copy Version Report"; }, 2500);
         });
       });
     }(v));
+
+    /* Wire copy range button */
+    (function (ver, runData) {
+      var btn = document.getElementById("copy-range-btn");
+      if (!btn) return;
+      btn.addEventListener("click", function () {
+        var md = buildRunMarkdown(ver, runData);
+        navigator.clipboard.writeText(md).then(function () {
+          btn.textContent = "\u2713 Copied!";
+          btn.classList.add("copied");
+          showToast("Range report copied");
+          setTimeout(function () {
+            btn.textContent = "Copy Range Report";
+            btn.classList.remove("copied");
+          }, 2200);
+        }).catch(function () {
+          btn.textContent = "Failed";
+          setTimeout(function () { btn.textContent = "Copy Range Report"; }, 2500);
+        });
+      });
+    }(v, run));
 
     /* Wire delete button */
     (function (ver) {
@@ -2268,13 +2273,14 @@ __VERSIONS_JSON__
     for (var i = 0; i < svs.length; i++) {
       var entry = svs[i];
       var v = entry.v;
-      var m = v.metrics || {};
+      var runs = getRuns(v);
+      var firstRun = runs[0] || {};
+      var m = firstRun.metrics || {};
 
       var pf = (m.profit_factor !== null && m.profit_factor !== undefined) ? m.profit_factor : null;
       var wr = (m.win_rate !== null && m.win_rate !== undefined) ? m.win_rate : null;
       var np = (m.net_profit !== null && m.net_profit !== undefined) ? m.net_profit : null;
 
-      /* PF change arrow */
       var arrowHtml = "";
       if (prevPF !== null && pf !== null) {
         if (pf > prevPF + 0.005) {
@@ -2296,12 +2302,12 @@ __VERSIONS_JSON__
       var npDisp = (np === null) ? "&#8212;" :
         "<span class='" + (np >= 0 ? "pos" : "neg") + "'>" + fmtMoney(np) + "</span>";
 
-      var notes = (v.notes && v.notes !== "—" && v.notes !== "\u2014") ? esc(v.notes) : "<span class='text-dim'>—</span>";
+      var notes = (firstRun.notes && firstRun.notes !== "\u2014" && firstRun.notes !== "\u2014") ? esc(firstRun.notes) : "<span class='text-dim'>\u2014</span>";
 
       dlRowArr.push(
         "<tr>" +
-        "<td class='dl-version'>" + esc(v.name) + "</td>" +
-        "<td class='dl-date'>" + esc(v.date) + "</td>" +
+        "<td class='dl-version'>" + esc(v.name) + (runs.length > 1 ? " <span class='text-dim'>(" + runs.length + " runs)</span>" : "") + "</td>" +
+        "<td class='dl-date'>" + esc(firstRun.date || "") + "</td>" +
         "<td class='dl-notes'>" + notes + "</td>" +
         "<td class='dl-td-right'>" + pfDisp + "</td>" +
         "<td class='dl-td-right'>" + wrDisp + "</td>" +
@@ -2314,7 +2320,7 @@ __VERSIONS_JSON__
     document.getElementById("content").innerHTML =
       "<div id='devlog-header'>" +
         "<h2>Development Log</h2>" +
-        "<div class='v-meta'>" + esc(currentStrategy) + " &mdash; " + svs.length + " run" + (svs.length !== 1 ? "s" : "") + "</div>" +
+        "<div class='v-meta'>" + esc(currentStrategy) + " &mdash; " + svs.length + " version" + (svs.length !== 1 ? "s" : "") + "</div>" +
       "</div>" +
       "<div class='section'>" +
         "<table class='devlog-table'>" +
@@ -2336,13 +2342,14 @@ __VERSIONS_JSON__
     document.getElementById("devlog-btn").classList.remove("active");
     renderSidebar();
 
-    /* auto-select most recent version for new strategy */
     var svs = getStrategyVersions();
     if (svs.length > 0) {
       var lastIdx = svs[svs.length - 1].idx;
-      var firstItem = document.querySelector(".v-item");
-      if (firstItem) firstItem.classList.add("active");
-      renderContent(lastIdx);
+      activeVersionIdx = lastIdx;
+      activeRunIdx = 0;
+      expandedVersions[lastIdx] = true;
+      renderSidebar();
+      renderContent(lastIdx, 0);
     } else {
       document.getElementById("content").innerHTML =
         "<div id='empty-state'>" +
@@ -2364,13 +2371,13 @@ __VERSIONS_JSON__
     if (devLogOpen) {
       showDevLog();
     } else {
-      /* re-select most recent version */
       var svs = getStrategyVersions();
       if (svs.length > 0) {
         var lastIdx = svs[svs.length - 1].idx;
-        var firstItem = document.querySelector(".v-item");
-        if (firstItem) firstItem.classList.add("active");
-        renderContent(lastIdx);
+        activeVersionIdx = lastIdx;
+        activeRunIdx = 0;
+        renderSidebar();
+        renderContent(lastIdx, 0);
       }
     }
   });
@@ -2379,9 +2386,11 @@ __VERSIONS_JSON__
   var svs = getStrategyVersions();
   if (svs.length > 0) {
     var lastIdx = svs[svs.length - 1].idx;
-    var firstItem = document.querySelector(".v-item");
-    if (firstItem) firstItem.classList.add("active");
-    renderContent(lastIdx);
+    activeVersionIdx = lastIdx;
+    activeRunIdx = 0;
+    expandedVersions[lastIdx] = true;
+    renderSidebar();
+    renderContent(lastIdx, 0);
   }
 })();
 </script>
@@ -2392,8 +2401,13 @@ __VERSIONS_JSON__
 
 
 def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes="",
-                         blocked_signals=None, df=None, rpf_chart_path=None):
-    """Create or update report.html with the new backtest version appended."""
+                         blocked_signals=None, df=None, rpf_chart_path=None,
+                         run_mode="new_version", run_start_date="", run_end_date=""):
+    """Create or update report.html.
+
+    run_mode="new_version" → increment version, create new entry with first run
+    run_mode="date_range"  → append a run to the most recent version
+    """
     report_path = "report.html"
 
     metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals, df=df)
@@ -2439,39 +2453,80 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
             except (json.JSONDecodeError, ValueError):
                 existing_versions = []
 
-    # ── Assemble new version entry ─────────────────────────────────────────────
-    version_num = len(existing_versions) + 1
-    new_version = {
-        "name":          f"v{version_num}",
+    # ── Migrate old versions: ensure every version has a runs[] array ─────────
+    for v in existing_versions:
+        if "runs" not in v:
+            # Migrate legacy single-run format into runs[]
+            v["runs"] = [{
+                "date":          v.get("date", ""),
+                "start_date":    "",
+                "end_date":      "",
+                "days_back":     v.get("params", {}).get("days_back", DAYS_BACK),
+                "notes":         v.get("notes", "—"),
+                "chart_b64":     v.get("chart_b64", ""),
+                "rpf_chart_b64": v.get("rpf_chart_b64", ""),
+                "metrics":       v.get("metrics", {}),
+                "last_trades":   v.get("last_trades", []),
+            }]
+            # Remove legacy top-level run data (keep name, params, strategy, etc.)
+            for key in ["date", "notes", "chart_b64", "rpf_chart_b64",
+                        "metrics", "last_trades"]:
+                v.pop(key, None)
+
+    # ── Build a run object ─────────────────────────────────────────────────────
+    run_label = ""
+    if run_mode == "date_range" and run_start_date and run_end_date:
+        run_label = f"{run_start_date} → {run_end_date}"
+    new_run = {
         "date":          datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "start_date":    run_start_date if run_mode == "date_range" else "",
+        "end_date":      run_end_date   if run_mode == "date_range" else "",
+        "days_back":     DAYS_BACK if run_mode != "date_range" else 0,
+        "label":         run_label,
         "notes":         notes.strip() if notes else "—",
         "chart_b64":     chart_b64,
         "rpf_chart_b64": rpf_chart_b64,
         "metrics":       metrics,
-        "params": {
-            "ticker":         TICKER,
-            "interval":       INTERVAL,
-            "days_back":      DAYS_BACK,
-            "starting_cash":  STARTING_CASH,
-            "ema_slow":       EMA_SLOW,
-            "ema_fast":       EMA_FAST,
-            "ema_entry":      EMA_ENTRY,
-            "swing_lookback": SWING_LOOKBACK,
-            "rrr":            RRR,
-            "risk_pct":          RISK_PCT,
-            "min_stop":          MIN_STOP,
-            "max_stop":          MAX_STOP,
-            "trade_direction":   TRADE_DIRECTION,
-            "time_filter":       TIME_FILTER,
-            "time_filter_hours": TIME_FILTER_HOURS if TIME_FILTER else [],
-            "max_daily_loss": MAX_DAILY_LOSS,
-        },
-        "last_trades":      last_trades,
-        "strategy":         STRATEGY,
-        "entry_conditions": ENTRY_CONDITIONS,
+        "last_trades":   last_trades,
     }
 
-    existing_versions.append(new_version)
+    params_dict = {
+        "ticker":         TICKER,
+        "interval":       INTERVAL,
+        "days_back":      DAYS_BACK,
+        "starting_cash":  STARTING_CASH,
+        "ema_slow":       EMA_SLOW,
+        "ema_fast":       EMA_FAST,
+        "ema_entry":      EMA_ENTRY,
+        "swing_lookback": SWING_LOOKBACK,
+        "rrr":            RRR,
+        "risk_pct":          RISK_PCT,
+        "min_stop":          MIN_STOP,
+        "max_stop":          MAX_STOP,
+        "trade_direction":   TRADE_DIRECTION,
+        "time_filter":       TIME_FILTER,
+        "time_filter_hours": TIME_FILTER_HOURS if TIME_FILTER else [],
+        "max_daily_loss": MAX_DAILY_LOSS,
+    }
+
+    if run_mode == "date_range" and existing_versions:
+        # Append run to the most recent version (same strategy)
+        latest = existing_versions[-1]
+        latest["runs"].append(new_run)
+        version_num = len(existing_versions)
+        action = "Added date range run to"
+    else:
+        # New version
+        version_num = len(existing_versions) + 1
+        new_version = {
+            "name":             VERSION,
+            "strategy":         STRATEGY,
+            "entry_conditions": ENTRY_CONDITIONS,
+            "params":           params_dict,
+            "runs":             [new_run],
+        }
+        existing_versions.append(new_version)
+        action = "Created" if version_num == 1 else "Updated"
 
     # ── Write HTML ─────────────────────────────────────────────────────────────
     versions_json = json.dumps(existing_versions, indent=2, ensure_ascii=False)
@@ -2480,7 +2535,6 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
     with open(report_path, "w", encoding="utf-8") as fh:
         fh.write(html)
 
-    action = "Updated" if version_num > 1 else "Created"
     print(f"  Report {action} → {report_path}  ({version_num} version{'s' if version_num > 1 else ''})")
     print(f"  Open with:    open {report_path}\n")
 
@@ -2598,7 +2652,18 @@ if __name__ == "__main__":
     # NOTES constant is used by default; a CLI argument overrides it if supplied
     cli_notes       = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else ""
     run_notes       = cli_notes if cli_notes else NOTES
-    df              = fetch_data(TICKER, INTERVAL, DAYS_BACK)
+
+    # ── Run mode (set by server.py via environment variables) ─────────────────
+    run_mode       = os.environ.get("RUN_MODE", "new_version")
+    run_start_date = os.environ.get("RUN_START_DATE", "")
+    run_end_date   = os.environ.get("RUN_END_DATE", "")
+
+    if run_mode == "date_range" and run_start_date and run_end_date:
+        df = fetch_data(TICKER, INTERVAL, DAYS_BACK,
+                        start_date=run_start_date, end_date=run_end_date)
+    else:
+        df = fetch_data(TICKER, INTERVAL, DAYS_BACK)
+
     df              = add_indicators(df)
     trades, equity, blocked_signals = run_backtest(df)
     print_results(trades, equity)
@@ -2607,7 +2672,10 @@ if __name__ == "__main__":
     chart_path, rpf_chart_path = save_charts(df, trades, equity)
     generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes,
                          blocked_signals=blocked_signals, df=df,
-                         rpf_chart_path=rpf_chart_path)
+                         rpf_chart_path=rpf_chart_path,
+                         run_mode=run_mode,
+                         run_start_date=run_start_date,
+                         run_end_date=run_end_date)
     metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals, df=df)
     update_results_log(metrics, notes=run_notes)
     git_commit_and_push(metrics, VERSION, TICKER, INTERVAL)
