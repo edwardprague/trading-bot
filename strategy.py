@@ -1207,8 +1207,6 @@ def _build_html(versions_json):
 
 <div id="sidebar">
   <div id="sidebar-header">
-    <h1>Backtest History</h1>
-    <div id="run-count"></div>
     <div class="sb-label">Strategy</div>
     <select id="strategy-select">
       <option value="Trend Following">Trend Following</option>
@@ -1489,9 +1487,6 @@ __VERSIONS_JSON__
   /* ── Sidebar ──────────────────────────────────────────────── */
   function renderSidebar() {
     var svs  = getStrategyVersions();
-    document.getElementById("run-count").textContent =
-      svs.length + " version" + (svs.length !== 1 ? "s" : "");
-
     var list = document.getElementById("version-list");
     list.innerHTML = "";
 
@@ -2036,11 +2031,7 @@ __VERSIONS_JSON__
       ? "<span class='strat-badge'>" + esc(v.strategy) + "</span>"
       : "";
 
-    /* run label for header */
-    var runSubtitle = "";
-    if (run.label) {
-      runSubtitle = " <span class='run-label-badge'>" + esc(run.label) + "</span>";
-    }
+
 
     /* ── Summary panel ─────────────────────────────────────── */
     var mddS = m.max_daily_drawdown || {};
@@ -2124,18 +2115,26 @@ __VERSIONS_JSON__
       /* header */
       "<div id='v-header'>" +
         "<div id='v-header-top'>" +
-          "<h2>" + esc(v.name) + stratBadge + runSubtitle + "</h2>" +
+          "<h2>" + esc(v.name) + stratBadge + "</h2>" +
           "<div class='btn-group'>" +
             "<button id='copy-btn' class='copy-btn'>Copy Version Report</button>" +
             "<button id='delete-btn' class='delete-btn'>Delete Version</button>" +
           "</div>" +
         "</div>" +
-        "<div class='v-meta'>Run on " + esc(run.date || "") +
-          " &nbsp;&middot;&nbsp; " + esc(p.ticker || "") +
-          " " + esc(p.interval || "") +
-          " &nbsp;&middot;&nbsp; " + (run.days_back || p.days_back || "") + " days" +
-          (run.start_date && run.end_date ? " &nbsp;&middot;&nbsp; " + esc(run.start_date) + " \u2192 " + esc(run.end_date) : "") +
-          "</div>" +
+        (function () {
+          var metaTicker = (p.ticker || "").replace(/=X$/i, "");
+          var metaRange = run.start_date && run.end_date
+            ? { start: run.start_date, end: run.end_date }
+            : fullRunRange(run);
+          var metaDateStr = metaRange.start && metaRange.end
+            ? fmtSbDate(metaRange.start) + " \u2192 " + fmtSbDate(metaRange.end) : "";
+          var metaDur = calcDuration(metaRange.start, metaRange.end);
+          return "<div class='v-meta'>Run on " + esc(run.date || "") +
+            (metaTicker ? " &nbsp;&middot;&nbsp; " + esc(metaTicker) : "") +
+            (metaDateStr ? " &nbsp;&middot;&nbsp; " + metaDateStr : "") +
+            (metaDur ? " &nbsp;&middot;&nbsp; " + esc(metaDur) : "") +
+            "</div>";
+        }()) +
         notesHtml +
       "</div>" +
 
@@ -2188,7 +2187,7 @@ __VERSIONS_JSON__
         "<div class='section'>" +
           "<div class='section-title'>Parameters</div>" +
           "<table><tbody>" +
-          row("Instrument",     esc(p.ticker || "")) +
+          row("Instrument",     esc((p.ticker || "").replace(/=X$/i, ""))) +
           row("Interval",       esc(p.interval || "")) +
           row("History",        (run.days_back || p.days_back || "") + " days") +
           row("Starting Capital", "$" + (p.starting_cash || 0).toLocaleString()) +
