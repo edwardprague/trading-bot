@@ -35,8 +35,14 @@ MASSIVE_API_KEY = os.getenv("MASSIVE_API_KEY")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-TICKER          = "EURUSD=X"      # Yahoo Finance ticker (fallback)
-MASSIVE_TICKER  = "C:EURUSD"      # Massive API ticker (primary)
+# Instrument mapping: INSTRUMENT env var → (Yahoo ticker, Massive ticker)
+_INSTRUMENT_MAP = {
+    "EURUSD": ("EURUSD=X", "C:EURUSD"),
+    "GBPUSD": ("GBPUSD=X", "C:GBPUSD"),
+}
+_INSTRUMENT     = os.environ.get("INSTRUMENT", "EURUSD")
+TICKER          = _INSTRUMENT_MAP.get(_INSTRUMENT, _INSTRUMENT_MAP["EURUSD"])[0]
+MASSIVE_TICKER  = _INSTRUMENT_MAP.get(_INSTRUMENT, _INSTRUMENT_MAP["EURUSD"])[1]
 INTERVAL        = "5m"            # bar interval — used by Massive (primary) and Yahoo (fallback)
 DAYS_BACK       = 730             # Full 730-day run
 STARTING_CASH   = 100_000.0

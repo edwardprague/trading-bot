@@ -57,6 +57,10 @@ INJECT_HTML = """
   background: #0c0c18; border-bottom: 1px solid #1e1e32;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 ">
+  <select id="rb-instrument-new" class="rb-select">
+    <option value="EURUSD" selected>EURUSD</option>
+    <option value="GBPUSD">GBPUSD</option>
+  </select>
   <button id="run-new-btn" class="rb-btn rb-btn-green" onclick="runNewVersion()">&#9654;&nbsp; Run New Version</button>
 
   <span id="run-status" style="font-size: 13px; color: #666690; margin-left: 8px;"></span>
@@ -67,6 +71,10 @@ INJECT_HTML = """
     <input type="date" id="rb-start" class="rb-date">
     <label class="rb-label" for="rb-end">To</label>
     <input type="date" id="rb-end" class="rb-date">
+    <select id="rb-instrument-range" class="rb-select">
+      <option value="EURUSD" selected>EURUSD</option>
+      <option value="GBPUSD">GBPUSD</option>
+    </select>
     <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Run Date Range</button>
   </div>
 </div>
@@ -101,6 +109,14 @@ INJECT_HTML = """
     color-scheme: dark;
   }
   .rb-date:focus { border-color: #4cc9f0; outline: none; }
+
+  .rb-select {
+    background: #14142a; color: #c0c0e0; border: 1px solid #2a2a44;
+    border-radius: 5px; padding: 5px 8px; font-size: 12px;
+    font-family: inherit; flex-shrink: 0; cursor: pointer;
+    color-scheme: dark; outline: none;
+  }
+  .rb-select:focus { border-color: #4cc9f0; }
 
   @keyframes rb-spin { to { transform: rotate(360deg); } }
   .rb-spin {
@@ -155,10 +171,11 @@ function resetButtons() {
 }
 
 function runNewVersion() {
+  var instrument = document.getElementById("rb-instrument-new").value;
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version" })
+    body: JSON.stringify({ mode: "new_version", instrument: instrument })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -175,10 +192,11 @@ function runDateRange() {
     showError("Select both start and end dates");
     return;
   }
+  var instrument = document.getElementById("rb-instrument-range").value;
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -311,9 +329,14 @@ def run_backtest():
         _bt_state["error"]   = None
 
     # RUN_MODE=new_version tells strategy.py to increment version
+    data = request.get_json(force=True) or {}
+    instrument = (data.get("instrument") or "").strip()
+    env_overrides = {"RUN_MODE": "new_version"}
+    if instrument:
+        env_overrides["INSTRUMENT"] = instrument
     t = threading.Thread(
         target=_backtest_worker,
-        args=({"RUN_MODE": "new_version"},),
+        args=(env_overrides,),
         daemon=True,
     )
     t.start()
@@ -337,11 +360,14 @@ def run_date_range():
         _bt_state["ok"]      = None
         _bt_state["error"]   = None
 
+    instrument = (data.get("instrument") or "").strip()
     env_overrides = {
         "RUN_MODE":       "date_range",
         "RUN_START_DATE": start_date,
         "RUN_END_DATE":   end_date,
     }
+    if instrument:
+        env_overrides["INSTRUMENT"] = instrument
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),
@@ -411,6 +437,61 @@ def delete_version():
                     f.unlink()
                 except OSError:
                     pass
+
+    return jsonify({"ok": True})
+
+
+@app.route("/delete_run", methods=["POST"])
+def delete_run():
+    """Remove a single run (date-range iteration) from a version in report.html."""
+    try:
+        data = request.get_json(force=True)
+        name     = (data.get("name") or "").strip()
+        run_idx  = data.get("run_idx")
+        if not name or run_idx is None:
+            return jsonify({"ok": False, "error": "Version name and run_idx are required"})
+        run_idx = int(run_idx)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)})
+
+    if not REPORT_FILE.exists():
+        return jsonify({"ok": False, "error": "report.html not found"})
+
+    html = REPORT_FILE.read_text(encoding="utf-8")
+    match = re.search(
+        r'(<script[^>]+id=["\']versions-data["\'][^>]*>)([\s\S]*?)(</script>)',
+        html
+    )
+    if not match:
+        return jsonify({"ok": False, "error": "Could not parse versions data in report.html"})
+
+    try:
+        versions = json.loads(match.group(2).strip())
+    except (json.JSONDecodeError, ValueError) as exc:
+        return jsonify({"ok": False, "error": f"JSON parse error: {exc}"})
+
+    # Find the version
+    target = None
+    for v in versions:
+        if v.get("name") == name:
+            target = v
+            break
+    if target is None:
+        return jsonify({"ok": False, "error": f"Version '{name}' not found"})
+
+    runs = target.get("runs", [])
+    if not runs or run_idx < 0 or run_idx >= len(runs):
+        return jsonify({"ok": False, "error": f"Run index {run_idx} out of range"})
+
+    # Don't allow deleting the last remaining run — that's a full version delete
+    if len(runs) <= 1:
+        return jsonify({"ok": False, "error": "Cannot delete the only run; use Delete Version instead"})
+
+    runs.pop(run_idx)
+
+    new_json = json.dumps(versions, indent=2, ensure_ascii=False)
+    new_html = html[:match.start(2)] + "\n" + new_json + "\n" + html[match.end(2):]
+    REPORT_FILE.write_text(new_html, encoding="utf-8")
 
     return jsonify({"ok": True})
 
