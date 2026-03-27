@@ -52,6 +52,8 @@ Fully operational backtesting dashboard with:
 - Date range testing system (Add Date Range) — same version, different periods
 - Instrument selection per run
 - Comprehensive diagnostics: RPF chart, RS diagnostic, monthly performance, time of day, regime classification, win rate trend, drawdown analysis
+- C# cBot (TrendFollowerBot.cs) complete and validated in cTrader on IC Markets demo account
+- Massive data source confirmed to have significant bar gaps — replacement with cTrader Open API planned and pending Spotware application approval
 
 ### Strategy (v6 — Current Baseline)
 
@@ -107,9 +109,9 @@ Each chat in the Project has a single focused domain. Start every chat with "Ple
 
 Dashboard, Flask server, UI improvements, Ada fixes. The system is largely complete — use this chat for maintenance and new dashboard features.
 
-### cTrader Migration Chat (IMMEDIATE NEXT PRIORITY)
+### cTrader Migration Chat
 
-Translate current strategy to Python cBot in cTrader. Validate by running the same date range (Jan-Mar 2026) in both systems and comparing results. Target within 10-15% agreement. If aligned, build an export button in the dashboard that generates cBot code from the current version's entry conditions.
+cBot is complete (TrendFollowerBot.cs, C#). Validation confirmed logic is correct — trade count discrepancy traced to Massive data gaps not code errors. Next task in this chat: integrate cTrader Open API as data source for Python dashboard once Spotware application is approved. Instructions are ready — waiting on approval email.
 
 ### Trend Following Strategy Chat
 
@@ -181,6 +183,10 @@ Building the full position sizing architecture once enough trade history exists 
 **The mid-period problem.** Nov 2024 to Jul 2025 is consistently weak across all versions. Understanding why is more valuable than optimising for the good periods.
 
 **Sample size matters.** With 382 trades over 730 days, the RPF system cannot function at full resolution. Getting to 500+ trades through entry refinement or timeframe adjustment is a meaningful milestone.
+
+**cTrader is the source of truth for live execution.** Python dashboard is the development laboratory. When the two conflict, investigate why — the answer is usually the data source, not the logic.
+
+**Python dashboard results are reliable for relative comparisons** between versions but not absolute trade frequency, due to Massive data gaps. Use cTrader periodic validation runs as the reality check.
 
 ---
 

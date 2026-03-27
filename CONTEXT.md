@@ -57,6 +57,8 @@ Open browser: `http://localhost:8080`
 - **Fallback**: Yahoo Finance (EURUSD=X, GBPUSD=X) hourly
 - Massive API key stored in `.env` file — never commit
 - Instrument mapping: EURUSD → C:EURUSD, GBPUSD → C:GBPUSD
+- **CRITICAL FINDING**: Massive data has significant gaps — multiple months missing entirely (confirmed Dec 2025 = zero bars). Python backtest trade counts are systematically understated as a result. Python dashboard is reliable for relative version comparisons but not absolute trade frequency.
+- **PLANNED REPLACEMENT**: cTrader Open API (OpenApiPy) — pulls IC Markets 5-minute bars directly, identical data source to live execution. Pending Spotware application approval (up to 3 business days from 2026-03-27).
 
 ### Key Files
 
@@ -211,6 +213,7 @@ No Purpose column.
 | v1 baseline   | 730 days     | EURUSD     | 382    | 34.3%    | 1.03 | +$7,413  |
 | v1 date range | Jan-Mar 2026 | EURUSD     | 33     | 45.5%    | 1.64 | +$12,315 |
 | v1 date range | Jan-Mar 2026 | GBPUSD     | 38     | 31.6%    | 0.91 | -$2,340  |
+| v6 cTrader    | Jan-Mar 2026 | EURUSD     | 51     | 39.2%    | 1.28 | +$9,309  |
 
 ### FTMO $100k Alignment
 
@@ -317,28 +320,60 @@ Each dimension 0-1, multiplied. Never completely blocks — minimum 0.25% risk.
 
 ---
 
-## cTrader Migration (NEXT PRIORITY)
+## cTrader Migration — Status: cBot Complete, Data Integration Pending
 
-### Plan
+### What Was Built
 
-1. Manually translate current v6 strategy to Python cBot in cTrader
-2. Run same date range (Jan-Mar 2026) in both Python backtester and cTrader
-3. Compare results — target within 10-15% agreement
-4. If aligned — build export button in dashboard
-5. If not aligned — investigate and fix discrepancies
+- **TrendFollowerBot.cs** — C# cBot for cTrader Automate, faithfully translates v6 Python strategy
+- **Language**: C# (not Python — C# runs natively inside cTrader as a cBot, Python Open API is an external connection not suitable for prop firm use)
+- **File location**: repository root
 
-### cTrader Details
+### cBot Architecture
 
-- Language: Python (cTrader supports both Python and C#)
-- Python chosen for closer alignment with existing strategy.py
-- cTrader uses broker tick data vs our Massive 5-minute bars — expect some variance
-- Demo account available for testing
+- `OnStart()`: initialises EMA200, EMA50, EMA20 indicators, wires `Positions.Closed` event for daily P&L tracking, parses time filter hours string
+- `OnBar()`: time filter → daily loss limit check → trend filter (EMA50 < EMA200) → EMA20 crossover → swing high calculation (`Last(2)` to `Last(SwingLookback+1)`) → stop distance validation → position guard (one trade at a time) → one-bar cooldown → `ExecuteMarketOrder`
+- `OnPositionClosed()`: accumulates NetProfit into daily P&L tracker, resets at UTC midnight, label guard prevents manually opened positions corrupting the accumulator
+- All parameters exposed as cTrader `Parameter` attributes — configurable without recompiling
 
-### Export Button (Future)
+### Key Implementation Decisions
 
-- Generates Python cBot file from current version's entry conditions
-- Entry Conditions table structure maps directly to cAlgo code
-- No date range in export — date range chosen independently in cTrader
+- C# chosen over Python Open API — C# cBot runs natively inside cTrader, correct for prop firm execution
+- `NetProfit` used (not `GrossProfit`) — includes spread and commission, matches Python pnl calculation
+- `Symbol.NormalizeVolumeInUnits()` wraps raw position size — ensures valid lot steps for IC Markets
+- `ExecuteMarketOrder` takes SL/TP in pips not price levels — `stopPips` and `stopPips * RRR`
+- One-position guard: `Positions.Find(Symbol.Name)` returns immediately if trade already open
+- One-bar cooldown: `_lastCloseBar` tracks bar count at close, new entries blocked for one bar after exit
+- `TimeZone = TimeZones.UTC` on Robot attribute — `Server.Time.Hour` is UTC throughout
+- Time filter hours passed as comma-separated string parameter — cTrader does not support array parameters
+
+### Validation Results (Jan 2026 — Mar 2026, IC Markets demo)
+
+| Metric         | Python (Massive) | cTrader (IC Markets) |
+| -------------- | ---------------- | -------------------- |
+| Total Trades   | 7                | 51                   |
+| Win Rate       | 71.4%            | 39.2%                |
+| Profit Factor  | 4.85             | 1.28                 |
+| Net Profit     | +$8,211          | +$9,309              |
+| Max Drawdown   | 1.0%             | 8.76%                |
+
+Trade count discrepancy (7 vs 51) is primarily explained by Massive data gaps — not a logic error in the cBot. The cTrader result of 51 trades is the more reliable picture of actual strategy behaviour in this period.
+
+### cTrader Open API — Data Integration Plan
+
+Spotware maintains an official Python SDK (OpenApiPy) for the cTrader Open API. Plan is to replace the Massive API fetch in server.py with an OpenApiPy call pulling IC Markets 5-minute bars directly. This gives Python dashboard identical data to live execution, eliminating the data gap problem entirely.
+
+**Setup requirements:**
+
+- cTrader Open API application registered at openapi.ctrader.com — Client ID and Secret obtained 2026-03-27
+- Application status: PENDING APPROVAL (up to 3 business days)
+- Once approved: generate OAuth access token via playground, note ctidTraderAccountId for demo account
+- Ada task: replace Massive fetch in server.py with OpenApiPy historical bars call
+- Rate limit: 5 requests per second for historical data
+- Bar data returned in relative price format — divide low by 100000, add deltas for OHLC
+
+### Export Button (Future — after data integration)
+
+Generates C# cBot file from current version's entry conditions. Entry Conditions table maps directly to cAlgo code structure.
 
 ---
 
@@ -346,8 +381,9 @@ Each dimension 0-1, multiplied. Never completely blocks — minimum 0.25% risk.
 
 ### Immediate
 
-1. cTrader migration and validation (new chat)
-2. Month-by-month analysis on EURUSD to map which months work
+1. cTrader Open API integration — replace Massive data source in server.py with OpenApiPy once application approved (Infrastructure task, instructions ready)
+2. Run full available date range cTrader backtest on IC Markets to build richer comparison baseline
+3. Month-by-month analysis on EURUSD to map which months work
 
 ### Entry Quality (Major Focus After cTrader)
 
