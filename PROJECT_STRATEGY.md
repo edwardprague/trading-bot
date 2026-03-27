@@ -101,11 +101,11 @@ Tested same strategy on GBPUSD. Edge confirmed but performance varies significan
 
 ## Chat Organisation
 
-Each chat in the Project has a single focused domain. Start every chat with "Please read CONTEXT.md" if using Cowork, or paste the relevant section of PROJECT_STRATEGY.md for Claude context.
+Each chat in the Project has a single focused domain. Start every chat with "Please read CONTEXT.md" if using Ada, or paste the relevant section of PROJECT_STRATEGY.md for Claude context.
 
 ### Infrastructure Chat
 
-Dashboard, Flask server, UI improvements, Cowork fixes. The system is largely complete — use this chat for maintenance and new dashboard features.
+Dashboard, Flask server, UI improvements, Ada fixes. The system is largely complete — use this chat for maintenance and new dashboard features.
 
 ### cTrader Migration Chat (IMMEDIATE NEXT PRIORITY)
 
@@ -186,10 +186,10 @@ Building the full position sizing architecture once enough trade history exists 
 
 ## Workflow Reminders
 
-- **Cowork** = Cowork (the agentic coding assistant)
-- Keep Cowork sessions short — one task per session
-- Always start Cowork with "Please read CONTEXT.md"
+- **Ada** = Cowork (the agentic coding assistant)
+- Keep Ada sessions short — one task per session
+- Always start Ada with "Please read CONTEXT.md"
 - After meaningful progress — update both CONTEXT.md and PROJECT_STRATEGY.md
-- This chat = strategy thinking. Cowork = implementation. Terminal = execution.
+- This chat = strategy thinking. Ada = implementation. Terminal = execution.
 - Update CONTEXT.md after every significant code change
 - Update PROJECT_STRATEGY.md after every significant strategic decision
