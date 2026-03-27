@@ -226,7 +226,15 @@ namespace TrendFollower
             double lots          = volume / 100_000.0;   // for log readability only
 
 
-            // ── 8. Place market sell order ────────────────────────────────────
+            // ── 8. One-position-at-a-time guard ──────────────────────────────────
+            // Python: the backtest loop sets in_trade = True and skips all entry
+            // logic until the position closes. Replicate that here by checking
+            // whether a position labelled with Symbol.Name already exists.
+            if (Positions.Find(Symbol.Name) != null)
+                return;
+
+
+            // ── 9. Place market sell order ────────────────────────────────────
             // ExecuteMarketOrder takes SL and TP in pips (not price levels).
             // Label = Symbol.Name so OnPositionClosed can identify our positions.
             // Python equivalent: direction="short", entry_p=c, sl=s_hi, tp=c-dist*RRR
