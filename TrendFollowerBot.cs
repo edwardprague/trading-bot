@@ -13,8 +13,8 @@
 //   Time filter: UTC hours 1, 2, 16, 17, 18
 //   Daily limit: No new entries once realised loss >= $2,500
 //
-// This version: structure and signal detection only.
-// OnBar() detects and logs signals — no orders are placed yet.
+// Session 1: signal detection and logging only.
+// Session 2: order execution + daily P&L tracking added.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using System;
@@ -103,7 +103,11 @@ namespace TrendFollower
             _currentDay       = Server.Time.Date;
             _dailyRealizedPnl = 0.0;
 
-            Print("TrendFollowerBot started — signal detection only (no orders)");
+            // Subscribe to the position closed event for daily P&L tracking.
+            // Equivalent to Python updating _daily_loss_pnl on every trade exit.
+            Positions.Closed += OnPositionClosed;
+
+            Print("TrendFollowerBot started — live order execution mode");
             Print($"  EMA {EmaSlowPeriod}/{EmaFastPeriod}/{EmaEntryPeriod}  |  " +
                   $"Swing {SwingLookback} bars  |  Stop {MinStopPips}–{MaxStopPips} pips  |  " +
                   $"RRR 1:{Rrr}  |  Risk {RiskPercent}%  |  Max daily loss ${MaxDailyLoss}");
@@ -128,7 +132,7 @@ namespace TrendFollower
 
             // ── 2. Daily loss limit ───────────────────────────────────────────
             // Python resets _daily_loss_pnl to 0 when the UTC date changes.
-            // _dailyRealizedPnl is updated in OnTrade() once orders are added.
+            // _dailyRealizedPnl is maintained by OnPositionClosed.
             DateTime today = Server.Time.Date;
             if (today != _currentDay)
             {
@@ -211,40 +215,60 @@ namespace TrendFollower
             //   sl   = s_hi
             //   tp   = c - dist * RRR
             //   size = (cash * RISK_PCT) / dist
-            double stopLevel       = swingHigh;
-            double takeProfitLevel = entryPrice - stopDistance * Rrr;
             double stopPips        = stopDistance / Symbol.PipSize;
+            double takeProfitPips  = stopPips * Rrr;
 
             // Position size in units (same formula as Python).
-            // Convert to standard lots (1 lot = 100,000 units) for reference.
+            // NormalizeVolumeInUnits rounds to the broker's nearest valid lot step.
             double riskAmount    = Account.Equity * (RiskPercent / 100.0);
             double positionUnits = riskAmount / stopDistance;
-            double lots          = positionUnits / 100_000.0;
+            double volume        = Symbol.NormalizeVolumeInUnits(positionUnits);
+            double lots          = volume / 100_000.0;   // for log readability only
 
 
-            // ── 8. Log signal — no order placed yet ───────────────────────────
-            Print($"───── SHORT SIGNAL ─────────────────────────────────────");
-            Print($"  Time      : {Server.Time:yyyy-MM-dd HH:mm} UTC");
-            Print($"  Entry     : {entryPrice:F5}");
-            Print($"  Swing High: {swingHigh:F5}");
-            Print($"  Stop      : {stopLevel:F5}  ({stopPips:F1} pips above entry)");
-            Print($"  Target    : {takeProfitLevel:F5}  (RRR 1:{Rrr})");
-            Print($"  Risk $    : {riskAmount:F2}  |  Size: {positionUnits:F0} units  ({lots:F2} lots)");
-            Print($"  EMA50={emaFastNow:F5}  EMA200={emaSlowNow:F5}  EMA20={ema20Current:F5}");
-            Print($"────────────────────────────────────────────────────────");
+            // ── 8. Place market sell order ────────────────────────────────────
+            // ExecuteMarketOrder takes SL and TP in pips (not price levels).
+            // Label = Symbol.Name so OnPositionClosed can identify our positions.
+            // Python equivalent: direction="short", entry_p=c, sl=s_hi, tp=c-dist*RRR
+            var result = ExecuteMarketOrder(
+                TradeType.Sell,
+                Symbol.Name,
+                volume,
+                Symbol.Name,        // label — used to match positions in OnPositionClosed
+                stopPips,           // stop loss distance in pips  (= swingHigh - entry)
+                takeProfitPips      // take profit distance in pips (= stopPips × RRR)
+            );
+
+            if (result.IsSuccessful)
+            {
+                Print($"[SHORT] {Server.Time:yyyy-MM-dd HH:mm} UTC | " +
+                      $"Entry ~{entryPrice:F5} | SL {stopPips:F1} pips | " +
+                      $"TP {takeProfitPips:F1} pips | {volume:F0} units ({lots:F2} lots) | " +
+                      $"Risk ${riskAmount:F2} | DailyPnL ${_dailyRealizedPnl:F2}");
+            }
+            else
+            {
+                Print($"[ORDER FAILED] {Server.Time:yyyy-MM-dd HH:mm} UTC — {result.Error}");
+            }
         }
 
 
         // ── Daily P&L tracking ────────────────────────────────────────────────
-        // Placeholder — wired up here so the daily loss limit has a data source
-        // once order execution is added in the next session.
-        // Python updates _daily_loss_pnl inside the trade exit block.
-        // In cTrader this will be driven by OnTrade() or Position.NetProfit.
-        protected override void OnTrade(TradeResult tradeResult)
+        // Subscribed in OnStart() via Positions.Closed += OnPositionClosed.
+        // Fires every time any position closes on this account.
+        //
+        // Python equivalent — inside the trade exit block:
+        //   _daily_loss_pnl += pnl
+        private void OnPositionClosed(PositionClosedEventArgs args)
         {
-            // When orders are added: accumulate closed P&L into _dailyRealizedPnl here.
-            // e.g. if (tradeResult.IsSuccessful && tradeResult.Position != null)
-            //          _dailyRealizedPnl += tradeResult.Position.GrossProfit;
+            // Guard: only count positions opened by this bot instance.
+            // We label orders with Symbol.Name, so filter on that.
+            if (args.Position.Label != Symbol.Name)
+                return;
+
+            // Accumulate realised net profit (includes spread/commission).
+            // Python uses raw pnl; NetProfit is the closest cTrader equivalent.
+            _dailyRealizedPnl += args.Position.NetProfit;
         }
 
 
