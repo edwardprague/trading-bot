@@ -632,6 +632,44 @@ def save_charts(df, trades, equity):
 
     dates = pd.to_datetime(df['Datetime'])
 
+    # ── Downsample helper for smooth chart rendering ──────────────────────────
+    # With 150k+ 5-minute bars, plotting every point creates jagged lines at
+    # chart resolution.  Downsample to ~3000 points and interpolate for smooth
+    # EMA curves that look realistic.
+    MAX_CHART_PTS = 3000
+    step = max(1, len(dates) // MAX_CHART_PTS)
+
+    ds_idx   = np.arange(0, len(dates), step)          # sampled indices
+    ds_dates = dates.iloc[ds_idx]
+    ds_close = df.Close.values[ds_idx]
+    ds_slow  = df.ema_slow.values[ds_idx]
+    ds_fast  = df.ema_fast.values[ds_idx]
+    ds_entry = df.ema_entry.values[ds_idx]
+
+    # Cubic interpolation for silky-smooth EMA curves
+    try:
+        from scipy.interpolate import make_interp_spline
+        _has_scipy = True
+    except ImportError:
+        _has_scipy = False
+
+    _numx      = mdates.date2num(ds_dates)
+    _numx_fine = np.linspace(_numx[0], _numx[-1], MAX_CHART_PTS * 2)
+    _fine_dates = mdates.num2date(_numx_fine)
+
+    def _smooth(y_sampled):
+        """Cubic B-spline through downsampled points → dense smooth curve."""
+        mask = ~np.isnan(y_sampled)
+        if not _has_scipy or mask.sum() < 4:
+            # Fallback: linear interpolation (still smoother than raw 5-min)
+            return _fine_dates, np.interp(_numx_fine, _numx, np.nan_to_num(y_sampled))
+        spl = make_interp_spline(_numx[mask], y_sampled[mask], k=3)
+        return _fine_dates, spl(_numx_fine)
+
+    sm_dates_slow,  sm_slow  = _smooth(ds_slow)
+    sm_dates_fast,  sm_fast  = _smooth(ds_fast)
+    sm_dates_entry, sm_entry = _smooth(ds_entry)
+
     # ── Main chart: Price / Equity / Drawdown (3 panels) ──────────────────────
     fig, axes = plt.subplots(3, 1, figsize=(16, 12),
                               gridspec_kw={"height_ratios": [3, 1, 1]})
@@ -641,10 +679,10 @@ def save_charts(df, trades, equity):
 
     # Price chart with EMAs
     ax1 = axes[0]
-    ax1.plot(dates, df.Close,     color="#e0e0e0", linewidth=0.8, label="Price")
-    ax1.plot(dates, df.ema_slow,  color="#ff6b6b", linewidth=1.2, label=f"EMA {EMA_SLOW}")
-    ax1.plot(dates, df.ema_fast,  color="#ffd93d", linewidth=1.0, label=f"EMA {EMA_FAST}")
-    ax1.plot(dates, df.ema_entry, color="#6bcb77", linewidth=0.8, label=f"EMA {EMA_ENTRY}")
+    ax1.plot(ds_dates, ds_close, color="#e0e0e0", linewidth=0.5, label="Price", alpha=0.7)
+    ax1.plot(sm_dates_slow,  sm_slow,  color="#ff6b6b", linewidth=1.4, label=f"EMA {EMA_SLOW}")
+    ax1.plot(sm_dates_fast,  sm_fast,  color="#ffd93d", linewidth=1.2, label=f"EMA {EMA_FAST}")
+    ax1.plot(sm_dates_entry, sm_entry, color="#6bcb77", linewidth=1.0, label=f"EMA {EMA_ENTRY}")
 
     # ── Range detection shading (subtle grey background when ranging) ──────
     if "regime_ranging" in df.columns:
