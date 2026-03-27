@@ -501,22 +501,23 @@ def run_backtest(df):
                         _debug_entries += 1
 
             elif short_sig and not np.isnan(s_hi):
-                dist = s_hi - c
-                if MIN_STOP <= dist <= MAX_STOP:
+                dist = s_hi - c                          # stop distance: signal bar close → swing high
+                if MIN_STOP <= dist <= MAX_STOP and i + 1 < len(df):
+                    fill          = float(df.Open.iloc[i + 1])   # fill on next bar's open
                     direction     = "short"
-                    entry_p       = c
+                    entry_p       = fill
                     sl            = s_hi
-                    tp            = c - dist * RRR
+                    tp            = fill - dist * RRR
                     size          = (cash * RISK_PCT) / dist
                     in_trade      = True
-                    entry_idx     = i
-                    entry_ts      = ts
-                    worst_adverse = c   # reset MAE tracker to entry price
+                    entry_idx     = i + 1
+                    entry_ts      = df['Datetime'].iloc[i + 1]
+                    worst_adverse = fill   # reset MAE tracker to fill price
                     entry_adx     = float(df.adx.iloc[i])
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
-                        print(f"  [DBG entry {_debug_entries+1}] raw={ts}  tz={getattr(ts,'tzinfo',None)}  utc_hour={_ts_utc_dbg.hour}  direction=short")
+                        print(f"  [DBG entry {_debug_entries+1}] raw={ts}  tz={getattr(ts,'tzinfo',None)}  utc_hour={_ts_utc_dbg.hour}  direction=short  fill={fill:.5f}")
                         _debug_entries += 1
 
     return pd.DataFrame(trades), equity, blocked_signals
