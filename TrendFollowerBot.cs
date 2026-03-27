@@ -84,6 +84,7 @@ namespace TrendFollower
         private int[]    _allowedHours;         // parsed from TimeFilterHours parameter
         private double   _dailyRealizedPnl;     // closed-trade P&L accumulated for _currentDay
         private DateTime _currentDay;           // UTC date currently being tracked
+        private int      _lastCloseBar = 0;     // bar index when the last position closed (cooldown)
 
 
         // ── Lifecycle: OnStart ────────────────────────────────────────────────
@@ -233,6 +234,13 @@ namespace TrendFollower
             if (Positions.Find(Symbol.Name) != null)
                 return;
 
+            // ── 8b. One-bar cooldown after close ──────────────────────────────
+            // In Python the exit and the next entry cannot happen on the same bar
+            // because in_trade is cleared and entry logic runs on the following
+            // iteration. Skip the bar immediately after a close to match that.
+            if (Bars.Count <= _lastCloseBar + 1)
+                return;
+
 
             // ── 9. Place market sell order ────────────────────────────────────
             // ExecuteMarketOrder takes SL and TP in pips (not price levels).
@@ -273,6 +281,9 @@ namespace TrendFollower
             // We label orders with Symbol.Name, so filter on that.
             if (args.Position.Label != Symbol.Name)
                 return;
+
+            // Record the bar index at close for the one-bar cooldown in OnBar().
+            _lastCloseBar = Bars.Count;
 
             // Accumulate realised net profit (includes spread/commission).
             // Python uses raw pnl; NetProfit is the closest cTrader equivalent.
