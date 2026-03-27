@@ -59,6 +59,7 @@ Open browser: `http://localhost:8080`
 - Instrument mapping: EURUSD → C:EURUSD, GBPUSD → C:GBPUSD
 - **CRITICAL FINDING**: Massive data has significant gaps — multiple months missing entirely (confirmed Dec 2025 = zero bars). Python backtest trade counts are systematically understated as a result. Python dashboard is reliable for relative version comparisons but not absolute trade frequency.
 - **PLANNED REPLACEMENT**: cTrader Open API (OpenApiPy) — pulls IC Markets 5-minute bars directly, identical data source to live execution. Pending Spotware application approval (up to 3 business days from 2026-03-27).
+- **CRITICAL FINDING**: Python dashboard was returning zero results for many date ranges when run on the Desktop machine. All reliable backtest results should be run from the Laptop until the desktop issue is diagnosed and fixed. This is a known bug flagged for the Infrastructure chat.
 
 ### Key Files
 
@@ -208,12 +209,12 @@ No Purpose column.
 
 ### Key Results
 
-| Version       | Period       | Instrument | Trades | Win Rate | PF   | Net P&L  |
-| ------------- | ------------ | ---------- | ------ | -------- | ---- | -------- |
-| v1 baseline   | 730 days     | EURUSD     | 382    | 34.3%    | 1.03 | +$7,413  |
-| v1 date range | Jan-Mar 2026 | EURUSD     | 33     | 45.5%    | 1.64 | +$12,315 |
-| v1 date range | Jan-Mar 2026 | GBPUSD     | 38     | 31.6%    | 0.91 | -$2,340  |
-| v6 cTrader    | Jan-Mar 2026 | EURUSD     | 51     | 39.2%    | 1.28 | +$9,309  |
+| Version        | Period            | Instrument | Trades | Win Rate | PF   | Net P&L  |
+| -------------- | ----------------- | ---------- | ------ | -------- | ---- | -------- |
+| v6 2yr baseline | Mar 2024-Mar 2026 | EURUSD     | 383    | 34.5%    | 1.04 | +$9,561  |
+| v6 Jan-Mar 2026 | Jan-Mar 2026      | EURUSD     | 50     | 38.0%    | 1.22 | +$6,909  |
+| v6 cTrader tick | Jan-Mar 2026      | EURUSD     | 51     | 39.2%    | 1.28 | +$9,309  |
+| v6 cTrader M1   | Jan-Mar 2026      | EURUSD     | 52     | 34.6%    | 1.02 | +$621    |
 
 ### FTMO $100k Alignment
 
@@ -230,6 +231,19 @@ No Purpose column.
 - 10.9 pip stops are too tight — normal 5-minute noise clips stops before genuine invalidation
 - Swing high over 20 bars on 5-minute produces structurally weak levels
 - **This is the primary area for strategy improvement**
+
+---
+
+## Simulation Realism Improvements
+
+Two changes made to strategy.py to bring Python simulation closer to live execution:
+
+- **Fill price**: entry uses next bar's open (`df.Open.iloc[i+1]`) not signal bar close. Minimal impact on 5-minute bars as consecutive bar gaps are negligible.
+- **Intrabar stop/target checking**: stops checked against bar high, targets against bar low. If both triggered on same bar, stop takes priority (conservative). This was the primary source of Python optimism — now fixed.
+
+Simulation realism ranking: Live execution → cTrader tick data → Python dashboard (new) → cTrader M1 bars → Python dashboard (old).
+
+The Python dashboard is now a conservative but realistic simulation. Strategy decisions made using the dashboard translate reliably to cTrader tick results.
 
 ---
 
@@ -320,7 +334,7 @@ Each dimension 0-1, multiplied. Never completely blocks — minimum 0.25% risk.
 
 ---
 
-## cTrader Migration — Status: cBot Complete, Data Integration Pending
+## cTrader Migration & Integration — Status: cBot Complete, Simulation Improved, Data Integration Pending
 
 ### What Was Built
 
@@ -415,3 +429,11 @@ Generates C# cBot file from current version's entry conditions. Entry Conditions
 - Version numbering — always increments from highest, never reuses deleted numbers
 - Date range runs — added to selected version not always latest
 - Instrument selection — date range uses its own instrument selector independently
+- Intrabar stop checking — stops now checked against bar high/low, not just close price
+- Entry fill price — now uses next bar open not signal bar close
+
+---
+
+## Known Bugs Pending
+
+- Desktop machine returns zero results for many date ranges — cause unknown, all backtesting should use laptop until fixed. Flagged for Infrastructure chat.

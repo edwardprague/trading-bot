@@ -54,6 +54,8 @@ Fully operational backtesting dashboard with:
 - Comprehensive diagnostics: RPF chart, RS diagnostic, monthly performance, time of day, regime classification, win rate trend, drawdown analysis
 - C# cBot (TrendFollowerBot.cs) complete and validated in cTrader on IC Markets demo account
 - Massive data source confirmed to have significant bar gaps — replacement with cTrader Open API planned and pending Spotware application approval
+- Python simulation improved with intrabar stop/target checking and next-bar fill price — now closely matches cTrader tick data results
+- Desktop machine has a bug returning zero results for certain date ranges — all development should use laptop until fixed
 
 ### Strategy (v6 — Current Baseline)
 
@@ -65,9 +67,10 @@ Fully operational backtesting dashboard with:
 
 ### Key Results
 
-- Full 730-day run: 382 trades, 34.3% WR, PF 1.03, +$7,413
-- Jan-Mar 2026 EURUSD: 33 trades, 45.5% WR, PF 1.64, +$12,315
-- Jan-Mar 2026 GBPUSD: 38 trades, 31.6% WR, PF 0.91, -$2,340
+- Full 730-day run: 383 trades, 34.5% WR, PF 1.04, +$9,561
+- Jan-Mar 2026 EURUSD (Python): 50 trades, 38.0% WR, PF 1.22, +$6,909
+- Jan-Mar 2026 EURUSD (cTrader tick): 51 trades, 39.2% WR, PF 1.28, +$9,309
+- Jan-Mar 2026 EURUSD (cTrader M1): 52 trades, 34.6% WR, PF 1.02, +$621
 
 ### Critical Finding
 
@@ -143,6 +146,7 @@ Building the full position sizing architecture once enough trade history exists 
 
 1. cTrader validation — does our Python backtest translate to live results?
 2. Month-by-month EURUSD analysis — which months/conditions work?
+3. Diagnose why desktop returns zero trades for certain date ranges — check .env file, Massive API error handling, and whether API errors are being swallowed silently. Infrastructure chat task.
 
 ### Entry Quality (Most Important)
 
@@ -187,6 +191,10 @@ Building the full position sizing architecture once enough trade history exists 
 **cTrader is the source of truth for live execution.** Python dashboard is the development laboratory. When the two conflict, investigate why — the answer is usually the data source, not the logic.
 
 **Python dashboard results are reliable for relative comparisons** between versions but not absolute trade frequency, due to Massive data gaps. Use cTrader periodic validation runs as the reality check.
+
+**Python dashboard is now a conservative simulation.** Results should be treated as realistic estimates, not optimistic ones. A strategy that looks strong in Python and strong in cTrader tick data has genuine edge.
+
+**Always run validation tests from the laptop, not the desktop,** until the desktop data issue is resolved.
 
 ---
 
