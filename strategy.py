@@ -285,10 +285,25 @@ def _sensitivity_run(df, rrr, swing_lookback):
         ts   = df2["Datetime"].iloc[i]
 
         if in_trade:
-            hit_sl = (direction == "long"  and c <= sl) or \
-                     (direction == "short" and c >= sl)
-            hit_tp = (direction == "long"  and c >= tp) or \
-                     (direction == "short" and c <= tp)
+            bar_hi = float(df2["High"].iloc[i])
+            bar_lo = float(df2["Low"].iloc[i])
+            if direction == "long":
+                intra_sl = bar_lo <= sl
+                intra_tp = bar_hi >= tp
+            else:
+                intra_sl = bar_hi >= sl
+                intra_tp = bar_lo <= tp
+            if intra_sl and intra_tp:
+                hit_sl, hit_tp = True, False
+            elif intra_sl:
+                hit_sl, hit_tp = True, False
+            elif intra_tp:
+                hit_sl, hit_tp = False, True
+            else:
+                hit_sl = (direction == "long"  and c <= sl) or \
+                         (direction == "short" and c >= sl)
+                hit_tp = (direction == "long"  and c >= tp) or \
+                         (direction == "short" and c <= tp)
             if hit_sl or hit_tp:
                 exit_p = sl if hit_sl else tp
                 pnl    = (exit_p - entry_p) * size if direction == "long" \
@@ -375,16 +390,36 @@ def run_backtest(df):
 
         # ── Check exits ───────────────────────────────────────────────────────
         if in_trade:
+            bar_hi = float(df.High.iloc[i])
+            bar_lo = float(df.Low.iloc[i])
+
             # Update MAE: track worst adverse intra-bar price before exit check
             if direction == "long":
-                worst_adverse = min(worst_adverse, float(df.Low.iloc[i]))
+                worst_adverse = min(worst_adverse, bar_lo)
             else:
-                worst_adverse = max(worst_adverse, float(df.High.iloc[i]))
+                worst_adverse = max(worst_adverse, bar_hi)
 
-            hit_sl = (direction == "long"  and c <= sl) or \
-                     (direction == "short" and c >= sl)
-            hit_tp = (direction == "long"  and c >= tp) or \
-                     (direction == "short" and c <= tp)
+            # Intrabar check: high/low hit SL or TP before close is evaluated
+            if direction == "long":
+                intra_sl = bar_lo <= sl
+                intra_tp = bar_hi >= tp
+            else:
+                intra_sl = bar_hi >= sl
+                intra_tp = bar_lo <= tp
+
+            # If both hit on same bar, SL takes priority (conservative)
+            if intra_sl and intra_tp:
+                hit_sl, hit_tp = True, False
+            elif intra_sl:
+                hit_sl, hit_tp = True, False
+            elif intra_tp:
+                hit_sl, hit_tp = False, True
+            else:
+                # Fall through to close-price logic
+                hit_sl = (direction == "long"  and c <= sl) or \
+                         (direction == "short" and c >= sl)
+                hit_tp = (direction == "long"  and c >= tp) or \
+                         (direction == "short" and c <= tp)
 
             if hit_sl or hit_tp:
                 exit_p  = sl if hit_sl else tp
