@@ -343,7 +343,7 @@ tbody tr:hover td {
     align-items: center;
     justify-content: center;
     height: 80vh;
-    color: #303050;
+    color: #aaa;
     font-size: 15px;
     gap: 10px;
 }
