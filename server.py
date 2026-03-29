@@ -72,9 +72,9 @@ INJECT_HTML = """
       <option value="GBPUSD">GBPUSD</option>
     </select>
     <label class="rb-label" for="rb-start">From</label>
-    <input type="date" id="rb-start" class="rb-date">
+    <span class="rb-date-wrap"><input type="date" id="rb-start" class="rb-date"><span class="rb-date-overlay" id="rb-start-overlay"></span></span>
     <label class="rb-label" for="rb-end">To</label>
-    <input type="date" id="rb-end" class="rb-date">
+    <span class="rb-date-wrap"><input type="date" id="rb-end" class="rb-date"><span class="rb-date-overlay" id="rb-end-overlay"></span></span>
     <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Add Date Range</button>
   </div>
 </div>
@@ -102,13 +102,23 @@ INJECT_HTML = """
     font-size: 11px; color: #505070; flex-shrink: 0;
   }
 
+  .rb-date-wrap {
+    position: relative; display: inline-block; width: 130px; flex-shrink: 0;
+  }
   .rb-date {
-    background: #14142a; color: #c0c0e0; border: 1px solid #2a2a44;
+    background: #14142a; color: transparent; border: 1px solid #2a2a44;
     border-radius: 5px; padding: 5px 8px; font-size: 12px;
-    font-family: inherit; width: 130px; flex-shrink: 0;
-    color-scheme: dark;
+    font-family: inherit; width: 100%; flex-shrink: 0;
+    color-scheme: dark; position: relative; z-index: 1;
   }
   .rb-date:focus { border-color: #4cc9f0; outline: none; }
+  .rb-date-overlay {
+    position: absolute; top: 0; left: 0; right: 22px; bottom: 0;
+    display: flex; align-items: center;
+    padding: 5px 8px; font-size: 12px; font-family: inherit;
+    color: #c0c0e0; pointer-events: none; z-index: 2;
+    white-space: nowrap;
+  }
 
   .rb-select {
     background: #14142a; color: #c0c0e0; border: 1px solid #2a2a44;
@@ -129,19 +139,36 @@ INJECT_HTML = """
 
 <script>
 (function () {
+  /* ── Date overlay helper: show MM.DD.YYYY on top of native date input ── */
+  function updateOverlay(inputEl, overlayEl) {
+    var v = inputEl.value;  /* native value is always YYYY-MM-DD */
+    if (!v) { overlayEl.textContent = ""; return; }
+    var p = v.split("-");
+    if (p.length === 3) overlayEl.textContent = p[1] + "." + p[2] + "." + p[0];
+    else overlayEl.textContent = "";
+  }
+
   /* ── Persist date pickers via localStorage ─────────────────────── */
-  var startEl = document.getElementById("rb-start");
-  var endEl   = document.getElementById("rb-end");
+  var startEl      = document.getElementById("rb-start");
+  var endEl        = document.getElementById("rb-end");
+  var startOverlay = document.getElementById("rb-start-overlay");
+  var endOverlay   = document.getElementById("rb-end-overlay");
+
   var savedStart = localStorage.getItem("rb_start_date");
   var savedEnd   = localStorage.getItem("rb_end_date");
   if (savedStart) startEl.value = savedStart;
   if (savedEnd)   endEl.value   = savedEnd;
 
+  updateOverlay(startEl, startOverlay);
+  updateOverlay(endEl, endOverlay);
+
   startEl.addEventListener("change", function () {
     localStorage.setItem("rb_start_date", startEl.value);
+    updateOverlay(startEl, startOverlay);
   });
   endEl.addEventListener("change", function () {
     localStorage.setItem("rb_end_date", endEl.value);
+    updateOverlay(endEl, endOverlay);
   });
 
   /* ── On load: resume polling if a backtest is already running ───── */
