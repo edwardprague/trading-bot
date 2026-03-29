@@ -1365,6 +1365,15 @@ __VERSIONS_JSON__
     return names[idx] + " " + parts[0];
   }
 
+  /* Convert "YYYY-MM-DD HH:MM" to "MM-DD-YYYY HH:MM" */
+  function fmtRunDate(s) {
+    if (!s) return "";
+    var parts = String(s).split(" ");
+    var d = parts[0].split("-");
+    if (d.length !== 3) return s;
+    return d[1] + "-" + d[2] + "-" + d[0] + (parts[1] ? " " + parts[1] : "");
+  }
+
   /* ── Compat: get run data from version (handles legacy + new format) ──── */
   function getRuns(v) {
     if (v.runs && v.runs.length > 0) return v.runs;
@@ -1413,7 +1422,7 @@ __VERSIONS_JSON__
     lines.push("");
     lines.push("**Strategy:** " + (ver.strategy || "\u2014"));
     lines.push("**Instrument:** " + (p.ticker || "\u2014") + " \u00b7 " + (p.interval || "\u2014") + " \u00b7 " + (run.days_back || p.days_back || "\u2014") + " days");
-    lines.push("**Date:** " + (run.date || "\u2014"));
+    lines.push("**Date:** " + (fmtRunDate(run.date) || "\u2014"));
     if (run.start_date && run.end_date) {
       lines.push("**Range:** " + run.start_date + " \u2192 " + run.end_date);
     }
@@ -2212,7 +2221,7 @@ __VERSIONS_JSON__
           var metaDateStr = metaRange.start && metaRange.end
             ? fmtSbDate(metaRange.start) + " \u2192 " + fmtSbDate(metaRange.end) : "";
           var metaDur = calcDuration(metaRange.start, metaRange.end);
-          return "<div class='v-meta'>Run on " + esc(run.date || "") +
+          return "<div class='v-meta'>Run on " + esc(fmtRunDate(run.date || "")) +
             (metaTicker ? " &nbsp;&middot;&nbsp; " + esc(metaTicker) : "") +
             (metaDateStr ? " &nbsp;&middot;&nbsp; " + metaDateStr : "") +
             (metaDur ? " &nbsp;&middot;&nbsp; " + esc(metaDur) : "") +
@@ -2450,7 +2459,7 @@ __VERSIONS_JSON__
       dlRowArr.push(
         "<tr>" +
         "<td class='dl-version'>" + esc(v.name) + (runs.length > 1 ? " <span class='text-dim'>(" + runs.length + " runs)</span>" : "") + "</td>" +
-        "<td class='dl-date'>" + esc(firstRun.date || "") + "</td>" +
+        "<td class='dl-date'>" + esc(fmtRunDate(firstRun.date || "")) + "</td>" +
         "<td class='dl-notes'>" + notes + "</td>" +
         "<td class='dl-td-right'>" + pfDisp + "</td>" +
         "<td class='dl-td-right'>" + wrDisp + "</td>" +
