@@ -726,6 +726,29 @@ def save_charts(df, trades, equity):
                 _bw, max(abs(_c - _o), 1e-7),
                 facecolor=_clr, edgecolor=_clr, linewidth=0.0, zorder=3
             ))
+        # ── Pivot point markers (1-day only) ─────────────────────────────────
+        _pvd = compute_pivot_diagnostics(df)
+        if _pvd and _pvd.get('is_single_day') and _pvd.get('pivots'):
+            _price_range   = _highs.max() - _lows.min()
+            _pivot_offset  = max(_price_range * 0.008, 1e-5)
+            _pivot_colors  = {
+                'CH': '#ef5350', 'CL': '#ef5350',   # red   — consolidation
+                'HH': '#4cc9f0', 'HL': '#4cc9f0',   # blue  — uptrend structure
+                'LH': '#6bcb77', 'LL': '#6bcb77',   # green — downtrend structure
+            }
+            for _pv in _pvd['pivots']:
+                _bar_i  = _pv['bar']
+                _pv_clr = _pivot_colors.get(_pv['label'], '#ffffff')
+                if _pv['kind'] == 'H':
+                    _pv_y = _pv['price'] + _pivot_offset
+                else:
+                    _pv_y = _pv['price'] - _pivot_offset
+                ax1.scatter(
+                    _dt_nums[_bar_i], _pv_y,
+                    color=_pv_clr, marker='o', s=18, zorder=6,
+                    edgecolors='none',
+                )
+
         ax1.set_xlim(
             mdates.num2date(_dt_nums[0]  - _bw),
             mdates.num2date(_dt_nums[-1] + _bw)
@@ -950,6 +973,8 @@ def compute_pivot_diagnostics(df):
                 'time':       pv['time'],
                 'vert_dist':  vert_dist,
                 'horiz_dist': horiz_dist,
+                'bar':        pv['bar'],
+                'kind':       pv['kind'],
             })
             prev_high = pv
 
@@ -975,6 +1000,8 @@ def compute_pivot_diagnostics(df):
                 'time':       pv['time'],
                 'vert_dist':  vert_dist,
                 'horiz_dist': horiz_dist,
+                'bar':        pv['bar'],
+                'kind':       pv['kind'],
             })
             prev_low = pv
 
