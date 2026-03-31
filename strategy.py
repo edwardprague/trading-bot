@@ -1794,8 +1794,8 @@ __VERSIONS_JSON__
     if (!startStr || !endStr) return "";
     var s = new Date(startStr.slice(0,10) + "T00:00:00");
     var e = new Date(endStr.slice(0,10) + "T00:00:00");
-    var days = Math.round((e - s) / 86400000);
-    if (days < 0) days = 0;
+    var days = Math.round((e - s) / 86400000) + 1;
+    if (days < 1) days = 1;
     var months = days / 30.44;
     if (months >= 12) {
       var yrs = months / 12;
