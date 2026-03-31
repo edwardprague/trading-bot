@@ -2878,7 +2878,7 @@ __VERSIONS_JSON__
 
     expandedVersions[lastIdx] = true;
     renderSidebar();
-    renderContent(lastIdx, activeRunIdx);
+    renderContent(activeVersionIdx, activeRunIdx);
   }
 })();
 </script>
