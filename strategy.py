@@ -1676,8 +1676,6 @@ __VERSIONS_JSON__
           lines.push("| " + (idx + 1) + " | " + (pv.label || "\u2014") + " | " +
             mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + vertD + " | " + horizD + " |");
         });
-        lines.push("");
-        lines.push("**Current Structure: " + (pvd.structure || "Consolidating") + "**");
       }
       lines.push("");
     }
@@ -2329,12 +2327,6 @@ __VERSIONS_JSON__
           "<th>Vert Distance (pips)</th>" +
           "<th>Horiz Distance (bars)</th>" +
           "</tr></thead><tbody>" + pvRows + "</tbody></table>" +
-          "<div style='margin-top:10px;padding:6px 0;font-size:13px;'>" +
-            "Current Structure: <strong><span class='" + structCls + "'>" + esc(structure) + "</span></strong>" +
-            "<span style='margin-left:14px;color:var(--text-dim,#888);font-size:12px;'>" +
-              "CH/CL&nbsp;=&nbsp;consolidating &nbsp;|&nbsp; LH/LL&nbsp;=&nbsp;trending down &nbsp;|&nbsp; HH/HL&nbsp;=&nbsp;trending up" +
-            "</span>" +
-          "</div>" +
         "</div>";
     }());
 
