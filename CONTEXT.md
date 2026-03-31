@@ -294,6 +294,64 @@ Strategy parameters are currently displayed in the following table example:
 - Target: 2x stop distance (RRR 1:2)
 - 1% risk per trade, $100k starting capital
 
+## Pivot Structure Diagnostics
+
+### Overview
+
+A diagnostic table that appears only for 1-day date range tests. Detects and classifies pivot points (fractals) in the price data, providing a numerical breakdown of market structure for that day.
+
+### Pivot Detection
+
+Standard fractal definition — N=2 bars each side:
+
+- **Pivot High**: bar whose high is higher than the 2 bars on either side
+- **Pivot Low**: bar whose low is lower than the 2 bars on either side
+
+### Pivot Classification
+
+Each pivot is compared to the previous same-type pivot using a threshold of 0.5 x ATR(14):
+
+**Highs:**
+
+- **CH** — Consolidation High: difference from previous high < 0.5 ATR
+- **LH** — Lower High: difference > 0.5 ATR and lower than previous high
+- **HH** — Higher High: difference > 0.5 ATR and higher than previous high
+- First pivot high defaults to CH
+
+**Lows:**
+
+- **CL** — Consolidation Low: difference from previous low < 0.5 ATR
+- **LL** — Lower Low: difference > 0.5 ATR and lower than previous low
+- **HL** — Higher Low: difference > 0.5 ATR and higher than previous low
+- First pivot low defaults to CL
+
+### Table Columns
+
+| Column                | Description                                    |
+| --------------------- | ---------------------------------------------- |
+| #                     | Chronological pivot number for the day         |
+| Type                  | CH / LH / HH / CL / LL / HL                    |
+| Price                 | Price level of the pivot                       |
+| Time                  | UTC time of the pivot bar                      |
+| Vert Distance (pips)  | Distance from previous same-type pivot in pips |
+| Horiz Distance (bars) | Number of bars since previous same-type pivot  |
+
+### Row Color Coding
+
+- **Muted red** — CH / CL (consolidation)
+- **Muted green** — LH / LL (downtrend structure)
+- **Muted blue** — HH / HL (uptrend structure)
+
+### Availability
+
+Only displayed and included in Copy Range Report when date range is exactly 1 calendar day. Not shown for longer date ranges.
+
+### Future Development
+
+- Pivot labels and markers to be added to 1-day candlestick chart
+- Multi-timeframe pivot levels (1h, 4h) to be added as horizontal lines
+- Pivot-based entry conditions to be developed using this structure
+
 **Entry Conditions**
 
 Our next phase will be concerned with developing the nuances of our entry conditions, such as the following qualities to be initially explored:
