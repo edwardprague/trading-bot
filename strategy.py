@@ -805,6 +805,149 @@ def save_charts(df, trades, equity):
 
     return main_path, rpf_path
 
+# ── Pivot Structure Diagnostics ───────────────────────────────────────────────
+
+def compute_pivot_diagnostics(df):
+    """Detect fractal pivot highs/lows and classify market structure.
+    Returns None if df is None or spans more than 1 calendar day.
+    Only intended for single-day (intraday) date range runs."""
+    if df is None or len(df) < 10:
+        return None
+
+    # ── Determine if the data spans exactly 1 calendar day ────────────────────
+    try:
+        dts = pd.to_datetime(df['Datetime'])
+        if dts.dt.tz is not None:
+            dts_utc = dts.dt.tz_convert('UTC')
+        else:
+            dts_utc = dts.dt.tz_localize('UTC')
+        dates = dts_utc.dt.date
+        times_str = dts_utc.dt.strftime('%H:%M')
+    except Exception:
+        return None
+
+    if dates.min() != dates.max():
+        return {"is_single_day": False, "pivots": [], "structure": None}
+
+    # ── Compute ATR(14) using Wilder's smoothing ───────────────────────────────
+    _n     = 14
+    _alpha = 1.0 / _n
+    _cp    = df['Close'].shift(1)
+    _tr    = pd.concat([
+        (df['High'] - df['Low']),
+        (df['High'] - _cp).abs(),
+        (df['Low']  - _cp).abs(),
+    ], axis=1).max(axis=1)
+    atr14  = _tr.ewm(alpha=_alpha, adjust=False).mean()
+
+    highs = df['High'].values
+    lows  = df['Low'].values
+    n_bars = len(df)
+
+    # ── Detect fractal pivots (need 2 bars on each side) ─────────────────────
+    raw_pivots = []
+    for i in range(2, n_bars - 2):
+        h_i = highs[i]
+        l_i = lows[i]
+        t_str  = times_str.iloc[i]
+        atr_i  = float(atr14.iloc[i])
+
+        is_ph = (h_i > highs[i-1] and h_i > highs[i-2] and
+                 h_i > highs[i+1] and h_i > highs[i+2])
+        is_pl = (l_i < lows[i-1]  and l_i < lows[i-2]  and
+                 l_i < lows[i+1]  and l_i < lows[i+2])
+
+        if is_ph:
+            raw_pivots.append({'kind': 'H', 'price': float(h_i),
+                                'time': t_str, 'bar': i, 'atr': atr_i})
+        if is_pl:
+            raw_pivots.append({'kind': 'L', 'price': float(l_i),
+                                'time': t_str, 'bar': i, 'atr': atr_i})
+
+    # Sort by bar index so they appear in chronological order
+    raw_pivots.sort(key=lambda x: x['bar'])
+
+    # ── Classify each pivot vs previous same-type pivot ───────────────────────
+    classified = []
+    prev_high = None
+    prev_low  = None
+
+    for pv in raw_pivots:
+        price     = pv['price']
+        threshold = 0.5 * pv['atr']
+
+        if pv['kind'] == 'H':
+            if prev_high is None:
+                label      = 'H'          # first pivot high — no classification
+                vert_dist  = None
+                horiz_dist = None
+            else:
+                diff = price - prev_high['price']
+                if abs(diff) < threshold:
+                    label = 'CH'
+                elif diff < 0:
+                    label = 'LH'
+                else:
+                    label = 'HH'
+                vert_dist  = round(abs(diff) * 10000, 1)   # pips
+                horiz_dist = pv['bar'] - prev_high['bar']
+
+            classified.append({
+                'label':      label,
+                'price':      price,
+                'time':       pv['time'],
+                'vert_dist':  vert_dist,
+                'horiz_dist': horiz_dist,
+            })
+            prev_high = pv
+
+        else:  # kind == 'L'
+            if prev_low is None:
+                label      = 'L'          # first pivot low — no classification
+                vert_dist  = None
+                horiz_dist = None
+            else:
+                diff = price - prev_low['price']
+                if abs(diff) < threshold:
+                    label = 'CL'
+                elif diff > 0:
+                    label = 'HL'
+                else:
+                    label = 'LL'
+                vert_dist  = round(abs(diff) * 10000, 1)
+                horiz_dist = pv['bar'] - prev_low['bar']
+
+            classified.append({
+                'label':      label,
+                'price':      price,
+                'time':       pv['time'],
+                'vert_dist':  vert_dist,
+                'horiz_dist': horiz_dist,
+            })
+            prev_low = pv
+
+    # ── Determine market structure from last 3 classified pivots ──────────────
+    # Exclude the "H"/"L" first-of-type entries (no structural meaning yet)
+    labeled = [p for p in classified if p['label'] not in ('H', 'L')]
+    last_3  = labeled[-3:] if len(labeled) >= 3 else labeled
+
+    structure = "Consolidating"
+    if len(last_3) >= 2:
+        hh_hl = sum(1 for p in last_3 if p['label'] in ('HH', 'HL'))
+        lh_ll = sum(1 for p in last_3 if p['label'] in ('LH', 'LL'))
+        ch_cl = sum(1 for p in last_3 if p['label'] in ('CH', 'CL'))
+        if hh_hl > lh_ll and hh_hl > ch_cl:
+            structure = "Trending Up"
+        elif lh_ll > hh_hl and lh_ll > ch_cl:
+            structure = "Trending Down"
+
+    return {
+        "is_single_day": True,
+        "pivots":         classified,
+        "structure":      structure,
+    }
+
+
 # ── HTML Report ───────────────────────────────────────────────────────────────
 
 def compute_metrics(trades, equity, blocked_signals=None, df=None):
@@ -1234,6 +1377,7 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         "rs_diagnostic":     rs_diagnostic,
         "rrr_sensitivity":   [],
         "swing_sensitivity": [],
+        "pivot_diagnostics": None,
     }
 
     # ── Sensitivity sweeps (requires original df) ──────────────────────────────
@@ -1242,6 +1386,13 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
             rrr_rows, swing_rows = compute_sensitivity(df)
             result["rrr_sensitivity"]   = rrr_rows
             result["swing_sensitivity"] = swing_rows
+        except Exception:
+            pass
+
+    # ── Pivot structure diagnostics (single-day ranges only) ──────────────────
+    if df is not None:
+        try:
+            result["pivot_diagnostics"] = compute_pivot_diagnostics(df)
         except Exception:
             pass
 
@@ -2098,6 +2249,74 @@ __VERSIONS_JSON__
         "<th>Swing Bars</th><th>Trades</th><th>Win Rate</th><th>Profit Factor</th><th>Net P&amp;L</th><th>Max DD</th>" +
         "</tr></thead><tbody>" + swingSensRows + "</tbody></table></div>";
 
+    /* ── Pivot Structure Diagnostics (single-day date ranges only) ──────────── */
+    var pivotDiagHtml = "";
+    (function () {
+      var pvd = m.pivot_diagnostics;
+      if (!pvd || !pvd.is_single_day) return;
+
+      var pvRows = "";
+      var pivotList = pvd.pivots || [];
+
+      if (pivotList.length === 0) {
+        pivotDiagHtml =
+          "<div class='section'>" +
+            "<div class='section-title'>Pivot Structure Diagnostics</div>" +
+            "<div style='padding:10px;color:var(--text-dim,#888);font-size:13px;'>" +
+              "No fractal pivot points detected in this date range." +
+            "</div>" +
+          "</div>";
+        return;
+      }
+
+      pivotList.forEach(function (pv, idx) {
+        var lbl  = pv.label || "\u2014";
+        var bgStyle = "";
+        if (lbl === "CH" || lbl === "CL") {
+          bgStyle = " style='background:rgba(180,60,60,0.13)'";
+        } else if (lbl === "LH" || lbl === "LL") {
+          bgStyle = " style='background:rgba(50,150,50,0.13)'";
+        } else if (lbl === "HH" || lbl === "HL") {
+          bgStyle = " style='background:rgba(55,110,200,0.13)'";
+        }
+        var vertD  = (pv.vert_dist  !== null && pv.vert_dist  !== undefined) ? fmt(pv.vert_dist, 1)  : "\u2014";
+        var horizD = (pv.horiz_dist !== null && pv.horiz_dist !== undefined) ? pv.horiz_dist : "\u2014";
+        pvRows +=
+          "<tr" + bgStyle + ">" +
+          "<td>" + (idx + 1) + "</td>" +
+          "<td><strong>" + esc(lbl) + "</strong></td>" +
+          "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
+          "<td class='nowrap'>" + esc(pv.time || "\u2014") + "</td>" +
+          "<td>" + vertD + "</td>" +
+          "<td>" + horizD + "</td>" +
+          "</tr>";
+      });
+
+      var structure  = pvd.structure || "Consolidating";
+      var structCls  = structure === "Trending Up"   ? "pos"
+                     : structure === "Trending Down" ? "neg"
+                     : "neu";
+
+      pivotDiagHtml =
+        "<div class='section'>" +
+          "<div class='section-title'>Pivot Structure Diagnostics</div>" +
+          "<table><thead><tr>" +
+          "<th style='width:36px'>#</th>" +
+          "<th>Type</th>" +
+          "<th>Price</th>" +
+          "<th>Time</th>" +
+          "<th>Vert Distance (pips)</th>" +
+          "<th>Horiz Distance (bars)</th>" +
+          "</tr></thead><tbody>" + pvRows + "</tbody></table>" +
+          "<div style='margin-top:10px;padding:6px 0;font-size:13px;'>" +
+            "Current Structure: <strong><span class='" + structCls + "'>" + esc(structure) + "</span></strong>" +
+            "<span style='margin-left:14px;color:var(--text-dim,#888);font-size:12px;'>" +
+              "CH/CL&nbsp;=&nbsp;consolidating &nbsp;|&nbsp; LH/LL&nbsp;=&nbsp;trending down &nbsp;|&nbsp; HH/HL&nbsp;=&nbsp;trending up" +
+            "</span>" +
+          "</div>" +
+        "</div>";
+    }());
+
     var chartHtml = run.chart_b64
       ? "<div class='section'><div class='section-title'>Chart</div>" +
         "<img id='chart-img' src='data:image/png;base64," + run.chart_b64 + "' alt='Backtest Chart'/></div>"
@@ -2337,7 +2556,10 @@ __VERSIONS_JSON__
       dailyDDHtml +
 
       /* ── Section 12: RRR Sensitivity + Swing Lookback Sensitivity ─────────── */
-      "<div class='two-col'>" + rrrSensHtml + swingSensHtml + "</div>";
+      "<div class='two-col'>" + rrrSensHtml + swingSensHtml + "</div>" +
+
+      /* ── Pivot Structure Diagnostics (single-day date ranges only) ──────── */
+      pivotDiagHtml;
 
     /* Wire copy button — context aware */
     (function (ver, runData) {
