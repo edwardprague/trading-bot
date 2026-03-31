@@ -878,7 +878,7 @@ def compute_pivot_diagnostics(df):
 
         if pv['kind'] == 'H':
             if prev_high is None:
-                label      = 'H'          # first pivot high — no classification
+                label      = 'CH'         # first pivot high — no prior to compare, treat as consolidating
                 vert_dist  = None
                 horiz_dist = None
             else:
@@ -903,7 +903,7 @@ def compute_pivot_diagnostics(df):
 
         else:  # kind == 'L'
             if prev_low is None:
-                label      = 'L'          # first pivot low — no classification
+                label      = 'CL'         # first pivot low — no prior to compare, treat as consolidating
                 vert_dist  = None
                 horiz_dist = None
             else:
@@ -927,9 +927,7 @@ def compute_pivot_diagnostics(df):
             prev_low = pv
 
     # ── Determine market structure from last 3 classified pivots ──────────────
-    # Exclude the "H"/"L" first-of-type entries (no structural meaning yet)
-    labeled = [p for p in classified if p['label'] not in ('H', 'L')]
-    last_3  = labeled[-3:] if len(labeled) >= 3 else labeled
+    last_3 = classified[-3:] if len(classified) >= 3 else classified
 
     structure = "Consolidating"
     if len(last_3) >= 2:
@@ -1660,6 +1658,29 @@ __VERSIONS_JSON__
       });
     }
     lines.push("");
+
+    /* ── Pivot Structure Diagnostics (single-day ranges only) ──── */
+    var pvd = m.pivot_diagnostics;
+    if (pvd && pvd.is_single_day) {
+      lines.push("### Pivot Structure Diagnostics");
+      lines.push("");
+      var pvList = pvd.pivots || [];
+      if (pvList.length === 0) {
+        lines.push("No fractal pivot points detected in this date range.");
+      } else {
+        lines.push("| # | Type | Price | Time | Vert Distance (pips) | Horiz Distance (bars) |");
+        lines.push("|---|------|-------|------|----------------------|----------------------|");
+        pvList.forEach(function (pv, idx) {
+          var vertD  = (pv.vert_dist  !== null && pv.vert_dist  !== undefined) ? mf(pv.vert_dist, 1) : "\u2014";
+          var horizD = (pv.horiz_dist !== null && pv.horiz_dist !== undefined) ? String(pv.horiz_dist) : "\u2014";
+          lines.push("| " + (idx + 1) + " | " + (pv.label || "\u2014") + " | " +
+            mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + vertD + " | " + horizD + " |");
+        });
+        lines.push("");
+        lines.push("**Current Structure: " + (pvd.structure || "Consolidating") + "**");
+      }
+      lines.push("");
+    }
 
     return lines.join("\n");
   }
