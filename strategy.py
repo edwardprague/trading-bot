@@ -1923,8 +1923,8 @@ __VERSIONS_JSON__
 
           var runInstrument = run.instrument || "";
           subItem.innerHTML =
-            (runPnl !== null ? "<div class='v-pnl " + runPc + "'>" + runPtxt + "</div>" : "") +
             (runInstrument ? "<div class='v-instrument'>" + esc(runInstrument) + "</div>" : "") +
+            (runPnl !== null ? "<div class='v-pnl " + runPc + "'>" + runPtxt + "</div>" : "") +
             (subDateRange ? "<div class='v-date v-sub-name'>" + esc(subDateRange) + "</div>" : "") +
             (subDur ? "<div class='v-duration'>" + esc(subDur) + "</div>" : "");
 
