@@ -1797,13 +1797,13 @@ __VERSIONS_JSON__
     var days = Math.round((e - s) / 86400000);
     if (days < 0) days = 0;
     var months = days / 30.44;
-    if (months < 2) {
-      var weeks = Math.round(days / 7);
-      return weeks + (weeks === 1 ? " week" : " weeks");
-    } else if (months <= 18) {
+    if (months >= 12) {
+      var yrs = months / 12;
+      return yrs.toFixed(1) + " years";
+    } else if (months >= 1) {
       return months.toFixed(1) + " months";
     } else {
-      var yrs = months / 12; return (yrs % 1 === 0 ? yrs.toFixed(0) : yrs.toFixed(1)) + " years";
+      return days + (days === 1 ? " day" : " days");
     }
   }
   function fullRunRange(run) {
