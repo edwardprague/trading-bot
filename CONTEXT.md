@@ -1,67 +1,74 @@
-# Trading Bot Project — Master Context & Memory
-
 ## Project Overview
 
-Building a systematic algorithmic trading system targeting an FTMO $100k funded account challenge.
-Core architecture: Conviction Score (4-dimensional position sizing) with Rolling Profit Factor as primary risk control.
+Building a systematic algorithmic trading system.
 
 ## Terminology
 
-- **Ada** — refers to Cowork (the agentic coding assistant). Always use "Ada" not "Cowork" going forward.
-- **Claude** — the strategy thinking and analysis chat (this chat)
-- **Terminal** — for running backtests, git operations, direct code inspection
+- **Ada** — refers to Cowork (the agentic coding assistant) for typing brevity. Always use "Ada" not "Cowork".
 
 ## Three-Part Workflow
 
-1. **Claude Chat** — strategy decisions, result interpretation, hypothesis formation, analysis
-2. **Ada** — writing and editing Python files, implementing changes (keep sessions short, one task per session)
-3. **Terminal** — running backtests, git operations, direct code fixes
+1. **Claude (Chat)** — strategy decisions, result interpretation, hypothesis formation, analysis
+2. **Ada (Cowork)** — writing and editing Python files, implementing changes (keep sessions short, one task per session)
+3. **Edward (User)** — strategy decisions, result interpretation, hypothesis formation, analysis
 
-Always begin Ada sessions with: _"Please read CONTEXT.md. [single focused task]."_
+When tasks are decided upon for Ada, Claude will provide instructions and Edward will copy and paste them to Ada.
 
----
+- Always provide instructions for Ada in one paragraph of text, in itallics.
 
-## Project Chat Structure (Claude Project)
-
-Organised as separate focused chats:
-
-- **Infrastructure** — dashboard, Flask server, UI, Ada fixes
-- **cTrader Migration** — translating strategy to cBot, validation testing (NEXT PRIORITY)
-- **Trend Following Strategy** — EURUSD/GBPUSD development, backtesting, parameter tuning
-- **Counter Trend Strategy** — separate strategy development when ready
-- **Range Trading Strategy** — separate strategy development when ready
-- **RPF & Conviction Score** — building the position sizing architecture
+- Always start Ada instructions with "Please read CONTEXT.md"
 
 ---
 
 ## Technical Setup
 
-### Machines
+#### Machines
 
 - **Desktop**: Edwards-iMac — `~/Documents/GitHub/trading-bot`
 - **Laptop**: Edwards-MacBook-Air — `~/Documents/GitHub/trading-bot`
 
-### Repository
+#### Repository
 
 - GitHub: `https://github.com/edwardprague/trading-bot` (public)
 - GitHub Pages: `https://edwardprague.github.io/trading-bot/report.html`
 
-### Starting a Session
+#### Starting a Session
 
 Double-click `start.command` from Finder — auto-pulls latest, starts Flask server.
 Open browser: `http://localhost:8080`
 
-### Data Source
+#### Data Source
 
 - **Active**: Massive.io Starter ($49/month) — C:EURUSD and C:GBPUSD, 5-minute bars, 730 days
 - **Fallback**: Yahoo Finance (EURUSD=X, GBPUSD=X) hourly
 - Massive API key stored in `.env` file — never commit
-- Instrument mapping: EURUSD → C:EURUSD, GBPUSD → C:GBPUSD
-- **CRITICAL FINDING**: Massive data has significant gaps — multiple months missing entirely (confirmed Dec 2025 = zero bars). Python backtest trade counts are systematically understated as a result. Python dashboard is reliable for relative version comparisons but not absolute trade frequency.
-- **PLANNED REPLACEMENT**: cTrader Open API (OpenApiPy) — pulls IC Markets 5-minute bars directly, identical data source to live execution. Pending Spotware application approval (up to 3 business days from 2026-03-27).
-- **CRITICAL FINDING**: Python dashboard was returning zero results for many date ranges when run on the Desktop machine. All reliable backtest results should be run from the Laptop until the desktop issue is diagnosed and fixed. This is a known bug flagged for the Infrastructure chat.
 
-### Key Files
+## Infrastructure
+
+### Python Environment
+
+- Python 3 (via Homebrew)
+- Virtual environment (`venv`) in the trading-bot folder
+- `pip` for package management
+
+### Python Packages
+
+- `flask` — web server framework
+- `pandas` — data manipulation
+- `numpy` — numerical calculations
+- `yfinance` — Yahoo Finance data (fallback)
+- `massive` — Massive.io API client (primary data source)
+- `python-dotenv` — loads API keys from .env file
+- `matplotlib` — chart generation
+- `ta` / `pandas-ta` — technical indicators (ADX, EMA calculations)
+- `requests` — HTTP requests
+
+### Infrastructure Files
+
+- `server.py` — Flask web server
+- `start.command` — double-click startup script (runs git pull + Flask)
+- `.env` — stores Massive API key (gitignored)
+- `.gitignore` — excludes .env, venv, **pycache**
 
 - `strategy.py` — main backtest engine + HTML report template generator
 - `server.py` — Flask web server with async backtest execution
@@ -71,270 +78,40 @@ Open browser: `http://localhost:8080`
 - `RESULTS_LOG.md` — master results table
 - `.env` — API keys (gitignored, never commit)
 - `results/` — versioned PNG charts and reports
+- `TrendFollowerBot.cs` — cBot script in C# for cTrader
 
-### Critical Note
+### External Services
+
+- GitHub — version control and auto-push after each backtest
+- GitHub Pages — hosts report.html publicly
+- Massive.io Starter — 5-minute forex data feed ($49/month)
+
+### Desktop Setup Notes
+
+- After cloning on a new machine run: `pip install flask pandas numpy yfinance massive python-dotenv matplotlib ta requests`
+- Create `.env` manually with: `MASSIVE_API_KEY=yourkey`
+- `.env` is gitignored and must be created on each machine manually
+
+### Desktop Setup Checklist
+
+After git clone on new machine:
+
+1. cd trading-bot
+2. python3 -m venv venv
+3. source venv/bin/activate
+4. pip install [packages]
+5. Create .env with MASSIVE_API_KEY=yourkey
+6. chmod +x start.command
+
+#### Critical Note
 
 `report.html` is regenerated from the template in `strategy.py` on every backtest run. Always fix JavaScript and HTML in `strategy.py` not `report.html` directly.
 
 ---
 
-## Dashboard Architecture
+## cTrader Migration and Integration
 
-### Version Control vs Date Range Testing
-
-Two fundamentally different operations:
-
-**Version** = change to entry conditions or strategy logic
-
-- Collaborative decision between user and Claude
-- Triggered by **Add New Version** button
-- Defaults to full 730-day run
-- Increments from highest existing version number (never reuses deleted version numbers)
-
-**Date Range Test** = same version, different time period
-
-- User runs independently
-- Triggered by **Add Date Range (vX)** button — label shows current version
-- Uses selected start/end date pickers + selected instrument
-- Added to whichever version is currently selected/viewed
-- Does NOT increment version number
-
-### Button Labels
-
-- **Add New Version** — left side, green
-- **Add Date Range (vX)** — right side, blue, X = current version number
-- Both have instrument selector dropdowns immediately to their left
-- Instruments available: EURUSD, GBPUSD
-
-### Date Pickers
-
-- From / To date pickers persist between runs until modified
-- Located between instrument selector and Add Date Range button
-
-### Sidebar Structure
-
-```
-v6
-+$7,412.88
-3-26-24 → 3-26-26
-2.0 years
-
-  +$3,854.12          ← date range iteration
-  2-26-26 → 3-26-26
-  1 month
-
-v5 ►
-v4 ►
-```
-
-Sidebar display rules:
-
-- Version row shows: version number, P&L, date range (M-DD-YY format), duration
-- Date range rows show: P&L, date range, duration
-- No created-at timestamps, no run count, no Backtest History title
-- Collapse/expand arrow on RIGHT side of version row — independent from row click
-- Clicking version row loads full run report
-- Clicking arrow toggles date range iterations
-
-### Date/Duration Formatting
-
-- Date format: M-DD-YY, single digit month, no leading zero (e.g. 3-26-26)
-- Duration logic: under 2 months = weeks, 2-18 months = months (1 decimal), over 18 months = years (1 decimal)
-- Duration calculated from actual start/end dates, not DAYS_BACK
-
-### Copy Button (single context-aware button)
-
-- Shows "Copy Version Report" on full version view → copies all iterations
-- Shows "Copy Range Report" on date range view → copies that iteration only
-
-### Delete Button (single context-aware button)
-
-- Shows "Delete Version" on full version view → deletes version + all iterations
-- Shows "Delete Date Range" on date range view → deletes only that iteration
-
-### Version Header Area
-
-- Row 1: Version number + Strategy badge (no blue date range badge)
-- Row 2: Run date/time · Instrument (no =X suffix) · Date range · Duration
-- No interval display
-
-### Parameters Section
-
-- Instrument displays without =X suffix (EURUSD not EURUSD=X)
-- Min Stop, Max Stop included
-- Avg Stop (pips) and Avg Target (pips) included
-
-### Entry Conditions Table
-
-| Condition | Rule | + | - |
-Columns: Condition, Rule, + (version added), - (version removed)
-No Purpose column.
-
----
-
-## Current Strategy (v6 — Clean Baseline)
-
-### Instrument & Timeframe
-
-- Primary: EURUSD, 5-minute bars, 730 days
-- Secondary: GBPUSD (available, tested)
-- Starting capital: $100,000
-
-### Parameters
-
-| Parameter      | Value                           |
-| -------------- | ------------------------------- |
-| EMA Slow       | 200                             |
-| EMA Fast       | 50                              |
-| EMA Entry      | 20                              |
-| Swing Lookback | 20 bars                         |
-| RRR            | 1:2                             |
-| Risk Per Trade | 1.0%                            |
-| Min Stop       | 5 pips                          |
-| Max Stop       | 200 pips                        |
-| Direction      | short_only                      |
-| Time Filter    | ON — UTC hours 1, 2, 16, 17, 18 |
-
-### Entry Conditions
-
-| Condition        | Rule                         | +   | -   |
-| ---------------- | ---------------------------- | --- | --- |
-| Trend Filter     | EMA50 < EMA200               | v1  | —   |
-| Entry Signal     | Price crosses below EMA20    | v1  | —   |
-| Stop Placement   | Swing high over 20 bars      | v1  | —   |
-| Direction        | Short only                   | v1  | —   |
-| Time Window      | UTC 01 02 16 17 18           | v1  | —   |
-| Daily Loss Limit | Stop if daily loss >= $2,500 | v1  | —   |
-| Regime Filter    | ATR range detection          | v2  | v5  |
-
-### Key Results
-
-| Version        | Period            | Instrument | Trades | Win Rate | PF   | Net P&L  |
-| -------------- | ----------------- | ---------- | ------ | -------- | ---- | -------- |
-| v6 2yr baseline | Mar 2024-Mar 2026 | EURUSD     | 383    | 34.5%    | 1.04 | +$9,561  |
-| v6 Jan-Mar 2026 | Jan-Mar 2026      | EURUSD     | 50     | 38.0%    | 1.22 | +$6,909  |
-| v6 cTrader tick | Jan-Mar 2026      | EURUSD     | 51     | 39.2%    | 1.28 | +$9,309  |
-| v6 cTrader M1   | Jan-Mar 2026      | EURUSD     | 52     | 34.6%    | 1.02 | +$621    |
-
-### FTMO $100k Alignment
-
-- Max overall drawdown limit 10% — FAIL (current ~25%)
-- Max daily drawdown limit 3% — borderline
-- Main gaps: drawdown too high, entry quality needs improvement
-
----
-
-## Critical Finding — Stop Distance
-
-- Avg Stop: 10.9 pips on 5-minute EURUSD
-- Avg Target: 21.8 pips
-- 10.9 pip stops are too tight — normal 5-minute noise clips stops before genuine invalidation
-- Swing high over 20 bars on 5-minute produces structurally weak levels
-- **This is the primary area for strategy improvement**
-
----
-
-## Simulation Realism Improvements
-
-Two changes made to strategy.py to bring Python simulation closer to live execution:
-
-- **Fill price**: entry uses next bar's open (`df.Open.iloc[i+1]`) not signal bar close. Minimal impact on 5-minute bars as consecutive bar gaps are negligible.
-- **Intrabar stop/target checking**: stops checked against bar high, targets against bar low. If both triggered on same bar, stop takes priority (conservative). This was the primary source of Python optimism — now fixed.
-
-Simulation realism ranking: Live execution → cTrader tick data → Python dashboard (new) → cTrader M1 bars → Python dashboard (old).
-
-The Python dashboard is now a conservative but realistic simulation. Strategy decisions made using the dashboard translate reliably to cTrader tick results.
-
----
-
-## Key Strategic Insights
-
-### Direction Asymmetry
-
-Short trades significantly outperform long trades on EURUSD. Running short_only.
-
-### Time of Day (UTC) — 5-minute
-
-Best: 02:00, 16:00, 17:00, 18:00
-Decent: 01:00
-Removed: 03:00, 04:00
-
-### Instrument Comparison (Jan-Mar 2026)
-
-- EURUSD: PF 1.64, 45.5% WR — strong
-- GBPUSD: PF 0.91, 31.6% WR — weak in this period
-
----
-
-## Regime Filter — Research Notes (Removed in v5)
-
-### What Was Built
-
-LuxAlgo Range Detector inspired filter. Two conditions required for "ranging":
-
-1. All closes over REGIME_LENGTH bars within ATR of SMA
-2. Net displacement: abs(close_now - close_N_bars_ago) < ATR \* threshold
-
-Parameters tested: REGIME_ATR_LENGTH=96, REGIME_LENGTH=20, REGIME_DISPLACEMENT_THRESHOLD=0.3
-
-### Key Learnings
-
-- Initial ATR calculation was wrong (close-to-close) — fixed to true ATR (high-low-close)
-- Initial filter was inverted — blocking trends, allowing ranges
-- Displacement condition fixed the inversion
-- RS Diagnostic section added — shows filtered vs allowed trade stats with simulated outcomes
-- On 730-day run: 13 trades filtered, results worse than baseline
-- Binary filter too crude for this stage — removes trades entirely rather than scaling size
-
-### Future Consideration
-
-- Better as continuous Conviction Score dimension than binary filter
-- Needs better entry/stop foundation first
-- Consider position size reducer rather than hard veto
-
----
-
-## Conviction Score Architecture (Future)
-
-```
-Position Size = Base Risk × RPF × Regime × Trade Quality × Market Context
-```
-
-Each dimension 0-1, multiplied. Never completely blocks — minimum 0.25% risk.
-
-### RPF Tiers
-
-| Rolling PF (10-trade window) | Risk           |
-| ---------------------------- | -------------- |
-| Above 1.3                    | 1.0% full risk |
-| 1.0 to 1.3                   | 0.5% reduced   |
-| Below 1.0                    | 0.25% minimum  |
-
-### Two-Speed RPF
-
-- Fast RPF (5-trade): detects sharp drops
-- Slow RPF (20-trade): detects gradual erosion
-
----
-
-## Dashboard Sections (Display Order)
-
-1. Summary + Entry Conditions (side by side)
-2. Results + Parameters (side by side)
-3. Performance by Direction
-4. Range Filter diagnostic + Regime Classification (side by side)
-5. RPF section + RPF chart
-6. Monthly Performance
-7. Time of Day Performance
-8. Main chart image (visual divider)
-9. Streak Analysis + Stop vs Target (side by side)
-10. Regime Classification + Win Rate Trend (side by side)
-11. Trade Duration + Filter Impact (side by side)
-12. RRR Sensitivity + Swing Lookback Sensitivity (side by side)
-
----
-
-## cTrader Migration & Integration — Status: cBot Complete, Simulation Improved, Data Integration Pending
+The cTrader migration and integration has been completed, and the following notes are available for reference if needed:
 
 ### What Was Built
 
@@ -360,80 +137,222 @@ Each dimension 0-1, multiplied. Never completely blocks — minimum 0.25% risk.
 - `TimeZone = TimeZones.UTC` on Robot attribute — `Server.Time.Hour` is UTC throughout
 - Time filter hours passed as comma-separated string parameter — cTrader does not support array parameters
 
-### Validation Results (Jan 2026 — Mar 2026, IC Markets demo)
+---
 
-| Metric         | Python (Massive) | cTrader (IC Markets) |
-| -------------- | ---------------- | -------------------- |
-| Total Trades   | 7                | 51                   |
-| Win Rate       | 71.4%            | 39.2%                |
-| Profit Factor  | 4.85             | 1.28                 |
-| Net Profit     | +$8,211          | +$9,309              |
-| Max Drawdown   | 1.0%             | 8.76%                |
+## Dashboard Architecture
 
-Trade count discrepancy (7 vs 51) is primarily explained by Massive data gaps — not a logic error in the cBot. The cTrader result of 51 trades is the more reliable picture of actual strategy behaviour in this period.
+### Version Testing
 
-### cTrader Open API — Data Integration Plan
+New version testing denotes a change in entry conditions, which must be recorded
 
-Spotware maintains an official Python SDK (OpenApiPy) for the cTrader Open API. Plan is to replace the Massive API fetch in server.py with an OpenApiPy call pulling IC Markets 5-minute bars directly. This gives Python dashboard identical data to live execution, eliminating the data gap problem entirely.
-
-**Setup requirements:**
-
-- cTrader Open API application registered at openapi.ctrader.com — Client ID and Secret obtained 2026-03-27
-- Application status: PENDING APPROVAL (up to 3 business days)
-- Once approved: generate OAuth access token via playground, note ctidTraderAccountId for demo account
-- Ada task: replace Massive fetch in server.py with OpenApiPy historical bars call
-- Rate limit: 5 requests per second for historical data
-- Bar data returned in relative price format — divide low by 100000, add deltas for OHLC
-
-### Export Button (Future — after data integration)
-
-Generates C# cBot file from current version's entry conditions. Entry Conditions table maps directly to cAlgo code structure.
+**Version Test** = change to entry conditions or strategy logic
 
 ---
 
-## Next Development Priorities
+#### Entry Conditions Section
 
-### Immediate
+**Entry Conditions Table Example**
 
-1. cTrader Open API integration — replace Massive data source in server.py with OpenApiPy once application approved (Infrastructure task, instructions ready)
-2. Run full available date range cTrader backtest on IC Markets to build richer comparison baseline
-3. Month-by-month analysis on EURUSD to map which months work
+| Condition        | Rule                         | +   | -   |
+| ---------------- | ---------------------------- | --- | --- |
+| Trend Filter     | EMA50 < EMA200               | v1  | —   |
+| Entry Signal     | Price crosses below EMA20    | v1  | —   |
+| Stop Placement   | Swing high over 20 bars      | v1  | —   |
+| Direction        | Short only                   | v1  | —   |
+| Time Window      | UTC 01 02 16 17 18           | v1  | —   |
+| Daily Loss Limit | Stop if daily loss >= $2,500 | v1  | —   |
 
-### Entry Quality (Major Focus After cTrader)
+**Entry conditions modifications between versions**
+Each time a new version is added the entry conditions table should be modified in the following ways:
 
-- Avg stop of 10.9 pips is too tight for 5-minute bars
-- Use higher timeframe swing highs for stop placement
-- Minimum stop distance filter — reject entries with stops under 15 pips
-- Pullback depth requirement
-- Candle quality filter
+1. New Condition
+2. Rule
+3. Added (+)
+4. Removed (-)
 
-### Take Profit Improvement
-
-- Currently arbitrary 2x stop distance
-- Better: next structural support level, ATR-based target, partial exits
-
-### Multi-Instrument
-
-- EURUSD primary
-- GBPUSD secondary — same strategy, test when entry improvements done
-- Risk scaling: 1% / N instruments simultaneously
+- If adding a new condition, display which version it was added on in the + column.
+- If removing a condition, display which version is was removed on in the - column.
+- When a condition is removed it will remain in the list, with the version it was removed on displayed.
 
 ---
 
-## Known Bugs Fixed
+### Date Range Testing
 
-- tod_net variable naming — net profit overwritten by time-of-day loop
-- True ATR calculation — fixed to high-low-close based
-- Delete button — correctly deletes version or date range based on context
-- Copy button — context aware, single button
-- Version numbering — always increments from highest, never reuses deleted numbers
-- Date range runs — added to selected version not always latest
-- Instrument selection — date range uses its own instrument selector independently
-- Intrabar stop checking — stops now checked against bar high/low, not just close price
-- Entry fill price — now uses next bar open not signal bar close
+New date range testing denotes the testing of date range iterations of a specific version.
+
+**Date Range Test** = same version, different time period
+
+- Edward (user) runs independently
+- Triggered by **Add Date Range (vX)** button — label shows current version
+- Uses selected from/to date pickers + selected instrument
+- Added to whichever version is currently selected/viewed
 
 ---
 
-## Known Bugs Pending
+### Sidebar Structure
 
-- Desktop machine returns zero results for many date ranges — cause unknown, all backtesting should use laptop until fixed. Flagged for Infrastructure chat.
+The sidebar is where the versions and date ranges are navigated from.
+
+#### Version Rows (parent) (top tier)
+
+**Structure**
+
+- Version #
+- Instrument
+- PL
+- Date Range
+- Duration
+
+**Example**
+
+- v6
+- EURUSD
+- +$7,412.88
+- 3-26-24 → 3-26-26
+- 2.0 years
+
+#### Date Range Rows (children) (lower tier)
+
+**Structure**
+
+- Instrument
+- PL
+- Date Range
+- Duration
+
+**Example**
+
+- EURUSD
+- +$3,854.12
+- 2-26-26 → 3-26-26
+- 2.0 weeks
+
+#### Duration Formatting
+
+- over 12 months = years (1 decimal)
+- 1-12 months = months (1 decimal)
+- under 1 month = days
+
+###
+
+---
+
+### Parameters
+
+Strategy parameters are currently displayed in the following table example:
+
+| Parameter      | Value                           |
+| -------------- | ------------------------------- |
+| EMA Slow       | 200                             |
+| EMA Fast       | 50                              |
+| EMA Entry      | 20                              |
+| Swing Lookback | 20 bars                         |
+| RRR            | 1:2                             |
+| Risk Per Trade | 1.0%                            |
+| Min Stop       | 5 pips                          |
+| Max Stop       | 200 pips                        |
+| Direction      | short_only                      |
+| Time Filter    | ON — UTC hours 1, 2, 16, 17, 18 |
+
+---
+
+## Dashboard Sections (Display Order)
+
+1. Summary + Entry Conditions (side by side)
+2. Results + Parameters (side by side)
+3. Performance by Direction
+4. Range Filter diagnostic + Regime Classification (side by side)
+5. RPF section
+6. RPF chart image
+7. Monthly Performance
+8. Time of Day Performance
+9. Daily Draw Down - Worst 5 Days
+10. Main chart image
+11. Streak Analysis + Stop vs Target (side by side)
+12. Regime Classification
+13. Win Rate Trend
+14. Trade Duration + Filter Impact (side by side)
+15. RRR Sensitivity + Swing Lookback Sensitivity (side by side)
+
+---
+
+# Trading Bot - Strategy Development
+
+### Phase 1 - Strategy Development
+
+**Capital Management**
+
+- Starting capital: $100,000
+- Max daily drawdown (2%): $2,000
+- Max drawdown (6%): $6,000
+
+**Strategy (Current Baseline)**
+
+- Short only, 5-minute, EMA 20/50/200
+- Time filter: UTC hours 1, 2, 16, 17, 18
+- Stop: swing high over 20 bars
+- Target: 2x stop distance (RRR 1:2)
+- 1% risk per trade, $100k starting capital
+
+**Entry Conditions**
+
+Our next phase will be concerned with developing the nuances of our entry conditions, such as the following qualities to be initially explored:
+
+**Entry Qualities (Current)**
+
+- Pivot Points
+
+**Entry Qualities (After Current)**
+
+- Pullback depth
+- Candle confirmation
+- Volume at entry
+- Stop distance quality
+
+---
+
+### Phase 2 - Conviction Score Architecture
+
+Conviction Score (4-dimensional position sizing) with Rolling Profit Factor as primary risk control.
+
+The conviction score is a functionality to be developed after strategy development.
+
+The conviction score will aim to give a score which denotes the amount of risk on a given trade, and will be as important or more than the strategy.
+
+**Conviction Score Calculation**
+
+- Position Size = Base Risk × RPF × Regime × Trade Quality × Market Context
+- Each dimension 0-1, multiplied. Never completely blocks — minimum 0.25% risk.
+
+**Conviction Score Components**
+
+These components are initial ideas to be explored at a later time.
+
+1. Rotating Profit Factor
+
+- Profit factor from last number of trades
+
+2. Market Context
+
+- Blocks of news time
+- Session open
+- Recent spike or strong move
+
+3. Regime Score
+
+- Bollinger bands
+- ADX
+- ATR
+
+**Conviction Score Components Itemized**
+
+**1. Rolling Profit Factor (RPF)**
+There is already a panel in the dashboard concerning the RPF displaying the following information, but not currently being analized.
+
+| Rolling PF (10-trade window) | Risk           |
+| ---------------------------- | -------------- |
+| Above 1.3                    | 1.0% full risk |
+| 1.0 to 1.3                   | 0.5% reduced   |
+| Below 1.0                    | 0.25% minimum  |
+
+Items 2 - 4 have not been explored yet.
