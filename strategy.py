@@ -632,6 +632,24 @@ def save_charts(df, trades, equity):
 
     dates = pd.to_datetime(df['Datetime'])
 
+    # ── Date range detection for chart style selection ────────────────────────
+    _date_min  = dates.min().date()
+    _date_max  = dates.max().date()
+    _day_span  = (_date_max - _date_min).days
+    is_one_day     = _day_span == 0
+    is_short_range = 0 < _day_span < 7
+
+    def _set_x_fmt(ax):
+        """Apply appropriate x-axis date format based on span of date range."""
+        if is_one_day:
+            ax.xaxis.set_major_locator(mdates.HourLocator(interval=4))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        elif is_short_range:
+            ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b %H:%M"))
+        else:
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+
     # ── Downsample helper for smooth chart rendering ──────────────────────────
     # With 150k+ 5-minute bars, plotting every point creates jagged lines at
     # chart resolution.  Downsample to ~3000 points and interpolate for smooth
@@ -679,10 +697,44 @@ def save_charts(df, trades, equity):
 
     # Price chart with EMAs
     ax1 = axes[0]
-    ax1.plot(ds_dates, ds_close, color="#e0e0e0", linewidth=0.5, label="Price", alpha=0.7)
-    ax1.plot(sm_dates_slow,  sm_slow,  color="#ff6b6b", linewidth=1.4, label=f"EMA {EMA_SLOW}")
-    ax1.plot(sm_dates_fast,  sm_fast,  color="#ffd93d", linewidth=1.2, label=f"EMA {EMA_FAST}")
-    ax1.plot(sm_dates_entry, sm_entry, color="#6bcb77", linewidth=1.0, label=f"EMA {EMA_ENTRY}")
+
+    if is_one_day:
+        # ── 1-day: full-resolution OHLC candlestick chart ────────────────────
+        # Plot EMA lines first to initialise the datetime x-axis scale
+        ax1.plot(dates, df.ema_slow.values,  color="#ff6b6b", linewidth=1.4,
+                 label=f"EMA {EMA_SLOW}", zorder=4)
+        ax1.plot(dates, df.ema_fast.values,  color="#ffd93d", linewidth=1.2,
+                 label=f"EMA {EMA_FAST}", zorder=4)
+        ax1.plot(dates, df.ema_entry.values, color="#6bcb77", linewidth=1.0,
+                 label=f"EMA {EMA_ENTRY}", zorder=4)
+        # Draw OHLC candlesticks using date-number coordinates
+        _dt_nums = mdates.date2num(dates)
+        _bw      = ((_dt_nums[1] - _dt_nums[0]) * 0.8) if len(_dt_nums) > 1 else (5 / 1440 * 0.8)
+        _opens   = df.Open.values
+        _highs   = df.High.values
+        _lows    = df.Low.values
+        _closes  = df.Close.values
+        for _i in range(len(_dt_nums)):
+            _o, _h, _l, _c = _opens[_i], _highs[_i], _lows[_i], _closes[_i]
+            _clr = "#26a69a" if _c >= _o else "#ef5350"   # green up / red down
+            # Wick: high–low line
+            ax1.plot([_dt_nums[_i], _dt_nums[_i]], [_l, _h],
+                     color=_clr, linewidth=0.6, zorder=2)
+            # Body: open–close rectangle
+            ax1.add_patch(plt.Rectangle(
+                (_dt_nums[_i] - _bw / 2, min(_o, _c)),
+                _bw, max(abs(_c - _o), 1e-7),
+                facecolor=_clr, edgecolor=_clr, linewidth=0.0, zorder=3
+            ))
+        ax1.set_xlim(
+            mdates.num2date(_dt_nums[0]  - _bw),
+            mdates.num2date(_dt_nums[-1] + _bw)
+        )
+    else:
+        ax1.plot(ds_dates, ds_close, color="#e0e0e0", linewidth=0.5, label="Price", alpha=0.7)
+        ax1.plot(sm_dates_slow,  sm_slow,  color="#ff6b6b", linewidth=1.4, label=f"EMA {EMA_SLOW}")
+        ax1.plot(sm_dates_fast,  sm_fast,  color="#ffd93d", linewidth=1.2, label=f"EMA {EMA_FAST}")
+        ax1.plot(sm_dates_entry, sm_entry, color="#6bcb77", linewidth=1.0, label=f"EMA {EMA_ENTRY}")
 
     # ── Range detection shading (subtle grey background when ranging) ──────
     if "regime_ranging" in df.columns:
@@ -718,7 +770,7 @@ def save_charts(df, trades, equity):
     ax1.legend(loc="upper left", facecolor="#1a1a2e",
                labelcolor="white", fontsize=8)
     ax1.set_ylabel("Price", color="white")
-    ax1.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+    _set_x_fmt(ax1)
 
     # Equity curve
     ax2 = axes[1]
@@ -733,7 +785,7 @@ def save_charts(df, trades, equity):
                      eq_series, where=eq_series < STARTING_CASH,
                      alpha=0.2, color="#ff6b6b")
     ax2.set_ylabel("Equity ($)", color="white")
-    ax2.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+    _set_x_fmt(ax2)
 
     # Drawdown
     ax3 = axes[2]
@@ -743,7 +795,7 @@ def save_charts(df, trades, equity):
     ax3.fill_between(eq_dates[:len(dd)], dd, 0, color="#ff6b6b", alpha=0.6)
     ax3.set_ylabel("Drawdown %", color="white")
     ax3.set_xlabel("Date", color="white")
-    ax3.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+    _set_x_fmt(ax3)
 
     plt.tight_layout(pad=2.0)
     main_path = os.path.join("results", f"{VERSION}_{ticker_clean}_{date_str}.png")
@@ -795,7 +847,7 @@ def save_charts(df, trades, equity):
                   color="white", fontsize=12, pad=8)
     ax4.set_ylabel(f"Rolling PF ({ROLLING_PF_WINDOW})", color="white")
     ax4.set_xlabel("Date", color="white")
-    ax4.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+    _set_x_fmt(ax4)
 
     plt.tight_layout(pad=1.5)
     rpf_path = os.path.join("results", f"{VERSION}_{ticker_clean}_{date_str}_rpf.png")
