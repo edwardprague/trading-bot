@@ -2594,17 +2594,17 @@ __VERSIONS_JSON__
 
       pivotList.forEach(function (pv, idx) {
         var lbl  = pv.label || "\u2014";
-        var bgStyle = "";
+        var bgClass = "";
         if (lbl === "CH" || lbl === "CL") {
-          bgStyle = " style='background:rgba(180,60,60,0.13)'";
+          bgClass = " class='fractal-row-consolidation'";
         } else if (lbl === "LH" || lbl === "LL" || lbl === "HH" || lbl === "HL") {
-          bgStyle = " style='background:rgba(50,150,50,0.13)'";
+          bgClass = " class='fractal-row-directional'";
         }
         var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? fmt(pv.vert_dist, 1)  : "\u2014";
         var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "\u2014";
         var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "\u2014";
         pvRows +=
-          "<tr" + bgStyle + ">" +
+          "<tr" + bgClass + ">" +
           "<td>" + (idx + 1) + "</td>" +
           "<td><strong>" + esc(lbl) + "</strong></td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +

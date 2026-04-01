@@ -241,7 +241,7 @@ The sidebar is where the versions and date ranges are navigated from.
 ## Keyboard Shortcuts
 
 Sidebar item level up: `shift+up arrow`
-Sidebar item level down: `shift+up arrow`
+Sidebar item level down: `shift+down arrow`
 Quick Links: `shift+1,2,3...`
 Scroll to top: `shift+t and t`
 Add new version: `shift+v and v`

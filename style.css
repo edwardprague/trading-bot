@@ -866,3 +866,12 @@ tbody tr:hover td {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
 }
+
+/* ── Fractal Diagnostics row backgrounds ────────────── */
+.fractal-row-consolidation {
+    background: rgba(180, 60, 60, 0.13);
+}
+
+.fractal-row-directional {
+    background: rgba(50, 150, 50, 0.13);
+}
