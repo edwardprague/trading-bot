@@ -24,8 +24,12 @@ When tasks are decided upon for Ada, Claude will provide instructions and Edward
 
 #### Machines
 
-- **Desktop**: Edwards-iMac — `~/Documents/GitHub/trading-bot`
-- **Laptop**: Edwards-MacBook-Air — `~/Documents/GitHub/trading-bot`
+- **Desktop**: Edwards-iMac - `~/Documents/GitHub/trading-bot`
+- **Laptop**: Edwards-MacBook-Air - `~/Documents/GitHub/trading-bot`
+
+#### Virtual Environment
+
+Terminal command - `source venv/bin/activate`
 
 #### Repository
 
@@ -273,23 +277,7 @@ Strategy parameters are currently displayed in the following table example:
 
 ---
 
-# Trading Bot - Strategy Development
-
-### Phase 1 - Strategy Development
-
-**Capital Management**
-
-- Starting capital: $100,000
-- Max daily drawdown (2%): $2,000
-- Max drawdown (6%): $6,000
-
-**Strategy (Current Baseline)**
-
-- Short only, 5-minute, EMA 20/50/200
-- Time filter: UTC hours 1, 2, 16, 17, 18
-- Stop: swing high over 20 bars
-- Target: 2x stop distance (RRR 1:2)
-- 1% risk per trade, $100k starting capital
+# 5. Trading Bot Development
 
 ## Pivot Structure Diagnostics
 
@@ -349,6 +337,24 @@ Only displayed and included in Copy Range Report when date range is exactly 1 ca
 - Multi-timeframe pivot levels (1h, 4h) to be added as horizontal lines
 - Pivot-based entry conditions to be developed using this structure
 
+---
+
+## Strategy Development
+
+**Capital Management**
+
+- Starting capital: $100,000
+- Max daily drawdown (2%): $2,000
+- Max drawdown (6%): $6,000
+
+**Strategy (Current Baseline)**
+
+- Short only, 5-minute, EMA 20/50/200
+- Time filter: UTC hours 1, 2, 16, 17, 18
+- Stop: swing high over 20 bars
+- Target: 2x stop distance (RRR 1:2)
+- 1% risk per trade, $100k starting capital
+
 **Entry Conditions**
 
 Our next phase will be concerned with developing the nuances of our entry conditions, such as the following qualities to be initially explored:
@@ -366,7 +372,7 @@ Our next phase will be concerned with developing the nuances of our entry condit
 
 ---
 
-### Phase 2 - Conviction Score Architecture
+## Conviction Score Architecture
 
 Conviction Score (4-dimensional position sizing) with Rolling Profit Factor as primary risk control.
 
