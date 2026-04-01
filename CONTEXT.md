@@ -1,4 +1,4 @@
-# Project Overview
+# 1. Project Overview
 
 Building a systematic algorithmic trading system.
 
@@ -20,7 +20,7 @@ When tasks are decided upon for Ada, Claude will provide instructions and Edward
 
 ---
 
-# Technical Setup
+# 2. Technical Setup
 
 #### Machines
 
@@ -109,7 +109,7 @@ After git clone on new machine:
 
 ---
 
-# cTrader Migration and Integration
+# 3. cTrader Integration
 
 The cTrader migration and integration has been completed, and the following notes are available for reference if needed:
 
@@ -139,15 +139,16 @@ The cTrader migration and integration has been completed, and the following note
 
 ---
 
-## Dashboard Architecture
+# 4. Dashboard Architecture
 
-### Version Testing
-
-New version testing denotes a change in entry conditions, which must be recorded
+The dashboard runs 2 types of backtests, Version Testing and Date Range Testing.
 
 **Version Test** = change to entry conditions or strategy logic
+**Date Range Test** = same version, different time period
 
----
+## Version Testing
+
+New version testing denotes a change in entry conditions, which must be recorded
 
 #### Entry Conditions Section
 
@@ -174,13 +175,9 @@ Each time a new version is added the entry conditions table should be modified i
 - If removing a condition, display which version is was removed on in the - column.
 - When a condition is removed it will remain in the list, with the version it was removed on displayed.
 
----
-
-### Date Range Testing
+## Date Range Testing
 
 New date range testing denotes the testing of date range iterations of a specific version.
-
-**Date Range Test** = same version, different time period
 
 - Edward (user) runs independently
 - Triggered by **Add Date Range (vX)** button — label shows current version
@@ -189,7 +186,7 @@ New date range testing denotes the testing of date range iterations of a specifi
 
 ---
 
-### Sidebar Structure
+## Sidebar Structure
 
 The sidebar is where the versions and date ranges are navigated from.
 
