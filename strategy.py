@@ -739,7 +739,7 @@ def save_charts(df, trades, equity):
             _pivot_offset  = max(_price_range * 0.008, 1e-5)
             _pivot_colors  = {
                 'CH': '#ef5350', 'CL': '#ef5350',   # red   — consolidation
-                'HH': '#4cc9f0', 'HL': '#4cc9f0',   # blue  — uptrend structure
+                'HH': '#6bcb77', 'HL': '#6bcb77',   # green — uptrend structure
                 'LH': '#6bcb77', 'LL': '#6bcb77',   # green — downtrend structure
             }
             for _pv in _pvd['pivots']:

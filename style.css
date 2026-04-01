@@ -869,9 +869,9 @@ tbody tr:hover td {
 
 /* ── Fractal Diagnostics row backgrounds ────────────── */
 .fractal-row-consolidation {
-    background: rgba(180, 60, 60, 0.13);
+    background: rgba(180, 60, 60, 0.30);
 }
 
 .fractal-row-directional {
-    background: rgba(50, 150, 50, 0.13);
+    background: rgba(50, 150, 50, 0.30);
 }
