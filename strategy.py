@@ -915,6 +915,9 @@ def compute_pivot_diagnostics(df):
     ], axis=1).max(axis=1)
     atr14  = _tr.ewm(alpha=_alpha, adjust=False).mean()
 
+    # ── Compute EMA(200) for pullback % EMA filter ────────────────────────────
+    ema200 = df['Close'].ewm(span=200, adjust=False).mean()
+
     highs = df['High'].values
     lows  = df['Low'].values
     n_bars = len(df)
@@ -1004,6 +1007,67 @@ def compute_pivot_diagnostics(df):
                 'kind':       pv['kind'],
             })
             prev_low = pv
+
+    # ── Compute pullback % for each classified pivot ──────────────────────────
+    _prev_lh = None   # price of previous LH pivot
+    _prev_ll = None   # price of previous LL pivot
+    _prev_hh = None   # price of previous HH pivot
+    _prev_hl = None   # price of previous HL pivot
+    _prev_ch = None   # price of previous CH pivot
+    _prev_cl = None   # price of previous CL pivot
+
+    for pv in classified:
+        lbl   = pv['label']
+        price = pv['price']
+        bidx  = pv['bar']
+
+        pb = None  # default: dash (None → "—" in UI)
+
+        if lbl == 'LH':
+            if _prev_lh is not None and _prev_ll is not None:
+                denom = _prev_lh - _prev_ll
+                if abs(denom) > 1e-10:
+                    pb = (price - _prev_ll) / denom * 100
+            _prev_lh = price
+
+        elif lbl == 'HL':
+            if _prev_hh is not None and _prev_hl is not None:
+                denom = _prev_hh - _prev_hl
+                if abs(denom) > 1e-10:
+                    pb = (_prev_hh - price) / denom * 100
+            _prev_hl = price
+
+        elif lbl == 'HH':
+            _prev_hh = price          # continuation — dash
+
+        elif lbl == 'LL':
+            _prev_ll = price          # continuation — dash
+
+        elif lbl == 'CH':
+            try:
+                close_val = float(df['Close'].iloc[bidx])
+                ema_val   = float(ema200.iloc[bidx])
+                if close_val > ema_val and _prev_ch is not None and _prev_cl is not None:
+                    denom = _prev_ch - _prev_cl
+                    if abs(denom) > 1e-10:
+                        pb = (price - _prev_cl) / denom * 100
+            except Exception:
+                pass
+            _prev_ch = price
+
+        elif lbl == 'CL':
+            try:
+                close_val = float(df['Close'].iloc[bidx])
+                ema_val   = float(ema200.iloc[bidx])
+                if close_val < ema_val and _prev_ch is not None and _prev_cl is not None:
+                    denom = _prev_ch - _prev_cl
+                    if abs(denom) > 1e-10:
+                        pb = (_prev_ch - price) / denom * 100
+            except Exception:
+                pass
+            _prev_cl = price
+
+        pv['pullback_pct'] = round(pb, 1) if pb is not None else None
 
     # ── Determine market structure from last 3 classified pivots ──────────────
     last_3 = classified[-3:] if len(classified) >= 3 else classified
@@ -1747,13 +1811,14 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type | Price | Time | Vert Distance (pips) | Horiz Distance (bars) |");
-        lines.push("|---|------|-------|------|----------------------|----------------------|");
+        lines.push("| # | Type | Price | Time | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
+        lines.push("|---|------|-------|------|----------------------|-----------------------|------------|");
         pvList.forEach(function (pv, idx) {
-          var vertD  = (pv.vert_dist  !== null && pv.vert_dist  !== undefined) ? mf(pv.vert_dist, 1) : "\u2014";
-          var horizD = (pv.horiz_dist !== null && pv.horiz_dist !== undefined) ? String(pv.horiz_dist) : "\u2014";
+          var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? mf(pv.vert_dist, 1) : "\u2014";
+          var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "\u2014";
+          var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? mf(pv.pullback_pct, 1) + "%" : "\u2014";
           lines.push("| " + (idx + 1) + " | " + (pv.label || "\u2014") + " | " +
-            mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + vertD + " | " + horizD + " |");
+            mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
         });
       }
       lines.push("");
@@ -2377,8 +2442,9 @@ __VERSIONS_JSON__
         } else if (lbl === "HH" || lbl === "HL") {
           bgStyle = " style='background:rgba(55,110,200,0.13)'";
         }
-        var vertD  = (pv.vert_dist  !== null && pv.vert_dist  !== undefined) ? fmt(pv.vert_dist, 1)  : "\u2014";
-        var horizD = (pv.horiz_dist !== null && pv.horiz_dist !== undefined) ? pv.horiz_dist : "\u2014";
+        var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? fmt(pv.vert_dist, 1)  : "\u2014";
+        var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "\u2014";
+        var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "\u2014";
         pvRows +=
           "<tr" + bgStyle + ">" +
           "<td>" + (idx + 1) + "</td>" +
@@ -2387,6 +2453,7 @@ __VERSIONS_JSON__
           "<td class='nowrap'>" + esc(pv.time || "\u2014") + "</td>" +
           "<td>" + vertD + "</td>" +
           "<td>" + horizD + "</td>" +
+          "<td>" + pullbackD + "</td>" +
           "</tr>";
       });
 
@@ -2405,6 +2472,7 @@ __VERSIONS_JSON__
           "<th>Time</th>" +
           "<th>Vert Distance (pips)</th>" +
           "<th>Horiz Distance (bars)</th>" +
+          "<th>Pullback %</th>" +
           "</tr></thead><tbody>" + pvRows + "</tbody></table>" +
         "</div>";
     }());
