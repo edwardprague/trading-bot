@@ -3198,6 +3198,18 @@ __VERSIONS_JSON__
     e.preventDefault();
     links[idx].click();
   });
+
+  /* ── Keyboard shortcut: T to scroll to top ──────────────── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "t" && e.key !== "T") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    /* Ignore when typing in an input field */
+    var tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
+    e.preventDefault();
+    var main = document.getElementById("main");
+    if (main) main.scrollTo({ top: 0, behavior: "smooth" });
+  });
 })();
 </script>
 
