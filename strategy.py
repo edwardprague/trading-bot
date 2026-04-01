@@ -1193,7 +1193,7 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
     daily_perf = []
     try:
         t_daily = trades.copy()
-        _td_ts = pd.to_datetime(t_daily["timestamp"])
+        _td_ts = pd.to_datetime(t_daily["entry_ts"])
         if _td_ts.dt.tz is not None:
             _td_ts = _td_ts.dt.tz_convert("UTC")
         else:
