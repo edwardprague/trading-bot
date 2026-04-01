@@ -3141,9 +3141,10 @@ __VERSIONS_JSON__
     renderContent(activeVersionIdx, activeRunIdx);
   }
 
-  /* ── Keyboard shortcuts: Fn+Up / Fn+Down sidebar navigation ── */
+  /* ── Keyboard shortcuts: Shift+Up / Shift+Down sidebar navigation ── */
   document.addEventListener("keydown", function (e) {
-    if (e.key !== "PageUp" && e.key !== "PageDown") return;
+    if (!e.shiftKey) return;
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
     if (devLogOpen) return;
 
     /* Build flat list of visible sidebar items in render order (newest first) */
@@ -3172,8 +3173,8 @@ __VERSIONS_JSON__
     }
 
     var newPos = curPos;
-    if (e.key === "PageUp")   newPos = curPos <= 0 ? 0 : curPos - 1;
-    if (e.key === "PageDown") newPos = curPos >= items.length - 1 ? items.length - 1 : curPos + 1;
+    if (e.key === "ArrowUp")   newPos = curPos <= 0 ? 0 : curPos - 1;
+    if (e.key === "ArrowDown") newPos = curPos >= items.length - 1 ? items.length - 1 : curPos + 1;
     if (newPos === curPos) return;
 
     e.preventDefault();
@@ -3188,20 +3189,22 @@ __VERSIONS_JSON__
     if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
   });
 
-  /* ── Keyboard shortcuts: F1/F2/F3… for quick-nav links ──── */
+  /* ── Keyboard shortcuts: Shift+1/2/3… for quick-nav links ── */
   document.addEventListener("keydown", function (e) {
+    if (!e.shiftKey) return;
     var m = e.key.match(/^F(\d+)$/);
     if (!m) return;
-    var idx = parseInt(m[1], 10) - 1; /* F1 = index 0, F2 = index 1, … */
+    var idx = parseInt(m[1], 10) - 1; /* Shift+F1 = index 0, Shift+F2 = index 1, … */
     var links = document.querySelectorAll(".quick-nav-link[data-anchor]");
     if (idx < 0 || idx >= links.length) return;
     e.preventDefault();
     links[idx].click();
   });
 
-  /* ── Keyboard shortcut: T to scroll to top ──────────────── */
+  /* ── Keyboard shortcut: Shift+T to scroll to top ─────────── */
   document.addEventListener("keydown", function (e) {
-    if (e.key !== "t" && e.key !== "T") return;
+    if (!e.shiftKey) return;
+    if (e.key !== "T" && e.key !== "t") return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     /* Ignore when typing in an input field */
     var tag = (e.target.tagName || "").toLowerCase();
