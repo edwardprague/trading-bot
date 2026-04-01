@@ -3192,19 +3192,20 @@ __VERSIONS_JSON__
   /* ── Keyboard shortcuts: Shift+1/2/3… for quick-nav links ── */
   document.addEventListener("keydown", function (e) {
     if (!e.shiftKey) return;
-    var m = e.key.match(/^F(\d+)$/);
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var m = (e.code || "").match(/^Digit(\d)$/);
     if (!m) return;
-    var idx = parseInt(m[1], 10) - 1; /* Shift+F1 = index 0, Shift+F2 = index 1, … */
+    var idx = parseInt(m[1], 10) - 1; /* Shift+1 = index 0, Shift+2 = index 1, … */
+    if (idx < 0) return;
     var links = document.querySelectorAll(".quick-nav-link[data-anchor]");
-    if (idx < 0 || idx >= links.length) return;
+    if (idx >= links.length) return;
     e.preventDefault();
     links[idx].click();
   });
 
-  /* ── Keyboard shortcut: Shift+T to scroll to top ─────────── */
+  /* ── Keyboard shortcut: T or Shift+T to scroll to top ────── */
   document.addEventListener("keydown", function (e) {
-    if (!e.shiftKey) return;
-    if (e.key !== "T" && e.key !== "t") return;
+    if (e.key !== "t" && e.key !== "T") return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     /* Ignore when typing in an input field */
     var tag = (e.target.tagName || "").toLowerCase();
