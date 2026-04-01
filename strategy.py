@@ -129,9 +129,11 @@ def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
         end   = datetime.strptime(end_date,   "%Y-%m-%d")
         # Fetch extra history so indicators (EMA200 etc.) are properly warmed up;
         # the caller's post-filter trims to the exact requested range afterwards.
+        # Also fetch 7 days AFTER end so trades entered near the end of the range
+        # have enough future bars to hit their SL/TP and resolve properly.
         start = start - timedelta(days=30)
+        end = end + timedelta(days=7)
         days_back = max(1, (end - start).days + 1)
-        end = end + timedelta(days=1)  # make end date inclusive
     else:
         end   = datetime.now()
         start = end - timedelta(days=days_back)
@@ -3310,8 +3312,41 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
 
     metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals, df=df)
     if metrics is None:
-        print("  No trades generated — skipping HTML report.")
-        return
+        print("  No trades generated — creating report with 0-trade metrics.")
+        metrics = {
+            "trades":              0,
+            "wins":                0,
+            "losses":              0,
+            "win_rate":            0.0,
+            "profit_factor":       None,
+            "avg_win":             0.0,
+            "avg_loss":            0.0,
+            "best_trade":          0.0,
+            "worst_trade":         0.0,
+            "net_profit":          0.0,
+            "net_profit_pct":      0.0,
+            "final_equity":        float(STARTING_CASH),
+            "max_drawdown":        0.0,
+            "max_drawdown_dollar": 0.0,
+            "max_daily_drawdown":  0.0,
+            "daily_drawdown":      [],
+            "sharpe":              0.0,
+            "avg_position_size":   0.0,
+            "min_position_size":   0.0,
+            "max_position_size":   0.0,
+            "by_direction":        [],
+            "monthly":             [],
+            "daily":               [],
+            "streaks":             {"max_win_streak": 0, "max_loss_streak": 0,
+                                    "avg_win_streak": 0.0, "avg_loss_streak": 0.0,
+                                    "current_streak": "\u2014"},
+            "stop_target":         {"pct_sl": None, "pct_tp": None, "avg_mae": None},
+            "regime":              [],
+            "time_of_day":         [],
+            "rolling_pf":          [],
+            "blocked_signals":     [],
+            "pivot_diagnostics":   None,
+        }
 
     # ── Load main chart as base64 ──────────────────────────────────────────────
     chart_b64 = ""
@@ -3581,10 +3616,15 @@ if __name__ == "__main__":
 
     df              = add_indicators(df)
 
-    # ── Filter dataframe to requested date range (with 1-day buffer for state) ─
+    # ── Filter dataframe to requested date range (with buffers for state) ──────
+    # Pre-start buffer (1 day): so the backtest carries forward any open-position
+    # state from the prior session.
+    # Post-end buffer (7 days): so trades entered near the end of the requested
+    # range have enough future bars to hit their SL/TP and resolve properly.
+    # Both buffers are trimmed after the backtest — only trades whose entry falls
+    # within the requested range are kept in the final results.
     _range_start  = None
     _range_end    = None
-    _buffer_count = 0
     if run_mode == "date_range" and run_start_date and run_end_date:
         _range_start = pd.Timestamp(run_start_date, tz="UTC")
         _range_end   = pd.Timestamp(run_end_date,   tz="UTC") + pd.Timedelta(days=1)
@@ -3594,26 +3634,26 @@ if __name__ == "__main__":
                 _dts_utc = _dts.dt.tz_convert("UTC")
             else:
                 _dts_utc = _dts.dt.tz_localize("UTC")
-            # Include 1-day buffer before start so the backtest carries forward
-            # any open-position state from the prior session, matching the
-            # behaviour of a longer (e.g. month-long) run.
             _bt_start = _range_start - pd.Timedelta(days=1)
-            _mask     = (_dts_utc >= _bt_start) & (_dts_utc < _range_end)
+            _bt_end   = _range_end   + pd.Timedelta(days=7)
+            _mask     = (_dts_utc >= _bt_start) & (_dts_utc < _bt_end)
             df        = df[_mask].reset_index(drop=True)
-            # Count how many bars fall in the buffer (before the requested start)
-            _dts_f = pd.to_datetime(df["Datetime"])
-            _dts_f_utc = (_dts_f.dt.tz_convert("UTC")
-                          if _dts_f.dt.tz is not None
-                          else _dts_f.dt.tz_localize("UTC"))
-            _buffer_count = int((_dts_f_utc < _range_start).sum())
         except Exception as _e:
             print(f"  Date filter error: {_e}")
     trades, equity, blocked_signals = run_backtest(df)
 
     # ── Trim buffer bars from date-range results ────────────────────────────
-    if _buffer_count > 0 and _range_start is not None:
-        # Trim df to the exact requested range
-        df = df.iloc[_buffer_count:].reset_index(drop=True)
+    # Both pre-start and post-end buffers are trimmed here so the df, trades,
+    # equity curve, and charts reflect only the requested date range.
+    if _range_start is not None and _range_end is not None:
+        # Trim df to the exact requested range (remove pre-start and post-end buffers)
+        _dts_trim = pd.to_datetime(df["Datetime"])
+        _dts_trim_utc = (_dts_trim.dt.tz_convert("UTC")
+                         if _dts_trim.dt.tz is not None
+                         else _dts_trim.dt.tz_localize("UTC"))
+        _range_mask = (_dts_trim_utc >= _range_start) & (_dts_trim_utc < _range_end)
+        _pre_buffer = int((_dts_trim_utc < _range_start).sum())
+        df = df[_range_mask].reset_index(drop=True)
 
         # Keep only trades whose entry falls within the requested range
         if not trades.empty:
@@ -3623,8 +3663,8 @@ if __name__ == "__main__":
                         else _t_entry.dt.tz_localize("UTC"))
             _t_mask = (_t_entry >= _range_start) & (_t_entry < _range_end)
             trades  = trades[_t_mask].copy()
-            trades["entry_idx"] = trades["entry_idx"] - _buffer_count
-            trades["exit_idx"]  = trades["exit_idx"]  - _buffer_count
+            trades["entry_idx"] = trades["entry_idx"] - _pre_buffer
+            trades["exit_idx"]  = trades["exit_idx"]  - _pre_buffer
             trades = trades.reset_index(drop=True)
 
         # Filter blocked signals to the requested range
@@ -3640,10 +3680,14 @@ if __name__ == "__main__":
 
         # Recompute bar-by-bar equity from filtered trades so that the curve,
         # drawdown, and net-P&L reflect only the requested date range.
+        # Trades whose exit falls in the post-end buffer (exit_idx >= len(df))
+        # have their P&L added at the last visible bar so totals remain correct.
         _eq_exits = {}
         for _, _t in trades.iterrows():
             _eidx = int(_t.exit_idx)
-            if 0 <= _eidx < len(df):
+            if _eidx >= len(df):
+                _eidx = len(df) - 1   # clamp to last visible bar
+            if 0 <= _eidx:
                 _eq_exits.setdefault(_eidx, []).append(float(_t.pnl))
         _eq_cash = STARTING_CASH
         equity   = [_eq_cash]
