@@ -3140,6 +3140,53 @@ __VERSIONS_JSON__
     renderSidebar();
     renderContent(activeVersionIdx, activeRunIdx);
   }
+
+  /* ── Keyboard shortcuts: Fn+Up / Fn+Down sidebar navigation ── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "PageUp" && e.key !== "PageDown") return;
+    if (devLogOpen) return;
+
+    /* Build flat list of visible sidebar items in render order (newest first) */
+    var svs = getStrategyVersions();
+    if (svs.length === 0) return;
+    var items = []; /* { vIdx, runIdx } */
+    for (var ri = svs.length - 1; ri >= 0; ri--) {
+      var entry = svs[ri];
+      var vIdx  = entry.idx;
+      var runs  = getRuns(entry.v);
+      items.push({ vIdx: vIdx, runIdx: 0 });
+      if (expandedVersions[vIdx] && runs.length > 1) {
+        for (var si = 1; si < runs.length; si++) {
+          items.push({ vIdx: vIdx, runIdx: si });
+        }
+      }
+    }
+    if (items.length === 0) return;
+
+    /* Find current position */
+    var curPos = -1;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].vIdx === activeVersionIdx && items[i].runIdx === activeRunIdx) {
+        curPos = i; break;
+      }
+    }
+
+    var newPos = curPos;
+    if (e.key === "PageUp")   newPos = curPos <= 0 ? 0 : curPos - 1;
+    if (e.key === "PageDown") newPos = curPos >= items.length - 1 ? items.length - 1 : curPos + 1;
+    if (newPos === curPos) return;
+
+    e.preventDefault();
+    var target = items[newPos];
+    activeVersionIdx = target.vIdx;
+    activeRunIdx     = target.runIdx;
+    renderSidebar();
+    renderContent(activeVersionIdx, activeRunIdx);
+
+    /* Scroll active item into view */
+    var activeEl = document.querySelector("#version-list .v-item.active");
+    if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  });
 })();
 </script>
 
