@@ -1188,6 +1188,25 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
     except Exception:
         monthly = []
 
+    # ── Daily performance ──────────────────────────────────────────────────────
+    daily_perf = []
+    try:
+        t_daily = trades.copy()
+        t_daily["_date"] = pd.to_datetime(t_daily["timestamp"]).dt.strftime("%Y-%m-%d")
+        for date_str, grp in t_daily.groupby("_date"):
+            grp_w = grp[grp.win]
+            grp_l = grp[~grp.win]
+            daily_perf.append({
+                "date":     date_str,
+                "trades":   int(len(grp)),
+                "wins":     int(len(grp_w)),
+                "losses":   int(len(grp_l)),
+                "win_rate": round(len(grp_w) / len(grp) * 100, 1),
+                "net_pnl":  round(float(grp.pnl.sum()), 2),
+            })
+    except Exception:
+        daily_perf = []
+
     # ── Streak analysis ────────────────────────────────────────────────────────
     results = trades["win"].tolist()
     max_win_streak = max_loss_streak = 0
@@ -1524,6 +1543,7 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         "max_position_size": max_pos_size,
         "by_direction":   by_dir,
         "monthly":        monthly,
+        "daily":          daily_perf,
         "streaks": {
             "max_win_streak":  max_win_streak,
             "max_loss_streak": max_loss_streak,
@@ -2119,6 +2139,65 @@ __VERSIONS_JSON__
         "<th>Month</th><th>Trades</th><th>Wins</th><th>Losses</th>" +
         "<th>Win Rate</th><th>Net P&amp;L</th>" +
         "</tr></thead><tbody>" + mRows + "</tbody></table></div>";
+
+    /* 2b. Daily Performance (≤ 31 day ranges only) */
+    var dailyPerfHtml = "";
+    (function () {
+      var sd = run.start_date;
+      var ed = run.end_date;
+      if (!sd || !ed) return;
+      var startDt = new Date(sd + "T00:00:00Z");
+      var endDt   = new Date(ed + "T00:00:00Z");
+      var totalDays = Math.round((endDt - startDt) / 86400000) + 1;
+      if (totalDays > 31) return;
+
+      var dailyData = m.daily || [];
+      var dailyLookup = {};
+      dailyData.forEach(function (d) { dailyLookup[d.date] = d; });
+
+      var dRows = "";
+      var cur = new Date(startDt.getTime());
+      while (cur <= endDt) {
+        var uy  = cur.getUTCFullYear();
+        var um  = cur.getUTCMonth() + 1;
+        var ud  = cur.getUTCDate();
+        var ds  = uy + "-" + (um < 10 ? "0" : "") + um + "-" + (ud < 10 ? "0" : "") + ud;
+        var yy  = String(uy).slice(-2);
+        var dateLabel = um + "-" + (ud < 10 ? "0" : "") + ud + "-" + yy;
+        var d   = dailyLookup[ds];
+        if (d) {
+          var dPnlCls = d.net_pnl >= 0 ? "mo-pnl-pos" : "mo-pnl-neg";
+          dRows +=
+            "<tr>" +
+            "<td>" + dateLabel + "</td>" +
+            "<td>" + d.trades + "</td>" +
+            "<td class='pos'>" + d.wins + "</td>" +
+            "<td class='neg'>" + d.losses + "</td>" +
+            "<td class='" + (d.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(d.win_rate, 1) + "%</td>" +
+            "<td class='" + dPnlCls + "'>" + fmtMoney(d.net_pnl) + "</td>" +
+            "</tr>";
+        } else {
+          dRows +=
+            "<tr>" +
+            "<td>" + dateLabel + "</td>" +
+            "<td>0</td>" +
+            "<td>\u2014</td>" +
+            "<td>\u2014</td>" +
+            "<td>\u2014</td>" +
+            "<td>\u2014</td>" +
+            "</tr>";
+        }
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+
+      dailyPerfHtml =
+        "<div class='section'>" +
+          "<div class='section-title'>Daily Performance</div>" +
+          "<table><thead><tr>" +
+          "<th>Date</th><th>Trades</th><th>Wins</th><th>Losses</th>" +
+          "<th>Win Rate</th><th>Net P&amp;L</th>" +
+          "</tr></thead><tbody>" + dRows + "</tbody></table></div>";
+    }());
 
     /* 3. Streak Analysis */
     var str = m.streaks || {};
@@ -2723,6 +2802,9 @@ __VERSIONS_JSON__
 
       /* ── Section 6: Monthly Performance ──────────────────────────────────── */
       monthHtml +
+
+      /* ── Section 6b: Daily Performance (≤ 31 day ranges only) ────────────── */
+      dailyPerfHtml +
 
       /* ── Section 7: Time of Day Performance ──────────────────────────────── */
       timeOfDayHtml +
