@@ -127,7 +127,8 @@ def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
     if start_date and end_date:
         start = datetime.strptime(start_date, "%Y-%m-%d")
         end   = datetime.strptime(end_date,   "%Y-%m-%d")
-        days_back = (end - start).days
+        days_back = max(1, (end - start).days + 1)
+        end = end + timedelta(days=1)  # make end date inclusive
     else:
         end   = datetime.now()
         start = end - timedelta(days=days_back)
