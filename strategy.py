@@ -2737,10 +2737,6 @@ __VERSIONS_JSON__
       "<div id='v-header'>" +
         "<div id='v-header-top'>" +
           "<h2>" + esc(v.name) + stratBadge + "</h2>" +
-          "<div class='btn-group'>" +
-            "<button id='copy-btn' class='copy-btn'>Copy Version Report</button>" +
-            "<button id='delete-btn' class='delete-btn'>Delete Version</button>" +
-          "</div>" +
         "</div>" +
         (function () {
           var metaTicker = run.instrument || (p.ticker || "").replace(/=X$/i, "");
@@ -2874,13 +2870,18 @@ __VERSIONS_JSON__
       /* ── Pivot Structure Diagnostics (single-day date ranges only) ──────── */
       pivotDiagHtml;
 
-    /* Wire copy button — context aware */
+    /* Wire copy button — context aware (lives in the run bar) */
     (function (ver, runData) {
       var btn = document.getElementById("copy-btn");
+      var sep = document.getElementById("rb-act-sep");
       if (!btn) return;
       var isDateRange = activeRunIdx > 0;
+      btn.style.display = "";
+      btn.disabled = false;
+      btn.classList.remove("copied");
+      if (sep) sep.style.display = "";
       btn.textContent = isDateRange ? "Copy Range Report" : "Copy Version Report";
-      btn.addEventListener("click", function () {
+      btn.onclick = function () {
         var isRange = activeRunIdx > 0;
         var md = isRange ? buildRunMarkdown(ver, runData) : buildVersionMarkdown(ver);
         var label = isRange ? "Copy Range Report" : "Copy Version Report";
@@ -2896,16 +2897,18 @@ __VERSIONS_JSON__
           btn.textContent = "Failed";
           setTimeout(function () { btn.textContent = label; }, 2500);
         });
-      });
+      };
     }(v, run));
 
-    /* Wire delete button */
+    /* Wire delete button (lives in the run bar) */
     (function (ver) {
       var delBtn = document.getElementById("delete-btn");
       if (!delBtn) return;
       var isDateRange = activeRunIdx > 0;
+      delBtn.style.display = "";
+      delBtn.disabled = false;
       delBtn.textContent = isDateRange ? "Delete Date Range" : "Delete Version";
-      delBtn.addEventListener("click", function () {
+      delBtn.onclick = function () {
         var isRange = activeRunIdx > 0;
         var msg = isRange
           ? "Are you sure you want to delete this date range run? This cannot be undone."
@@ -2937,12 +2940,23 @@ __VERSIONS_JSON__
           delBtn.textContent = isRange ? "Delete Date Range" : "Delete Version";
           alert("Delete failed \u2014 is the server running?");
         });
-      });
+      };
     }(v));
+  }
+
+  /* ── Hide run-bar action buttons (Copy/Delete) ───────────── */
+  function hideActionButtons() {
+    var btn    = document.getElementById("copy-btn");
+    var delBtn = document.getElementById("delete-btn");
+    var sep    = document.getElementById("rb-act-sep");
+    if (btn)    { btn.style.display = "none";    btn.onclick = null; }
+    if (delBtn) { delBtn.style.display = "none"; delBtn.onclick = null; }
+    if (sep)    { sep.style.display = "none"; }
   }
 
   /* ── Dev Log ──────────────────────────────────────────────── */
   function showDevLog() {
+    hideActionButtons();
     var svs = getStrategyVersions();
 
     if (svs.length === 0) {
@@ -3038,6 +3052,7 @@ __VERSIONS_JSON__
       renderSidebar();
       renderContent(lastIdx, 0);
     } else {
+      hideActionButtons();
       document.getElementById("content").innerHTML =
         "<div id='empty-state'>" +
           "<span class='empty-icon'>&#128202;</span>" +

@@ -76,6 +76,9 @@ INJECT_HTML = """
     <label class="rb-label" for="rb-end">To</label>
     <span class="rb-date-wrap"><input type="date" id="rb-end" class="rb-date"><span class="rb-date-overlay" id="rb-end-overlay"></span></span>
     <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Add Date Range</button>
+    <span class="rb-sep" id="rb-act-sep" style="display:none;"></span>
+    <button id="copy-btn" class="rb-btn rb-btn-copy" style="display:none;">Copy Version Report</button>
+    <button id="delete-btn" class="rb-btn rb-btn-delete" style="display:none;">Delete Version</button>
   </div>
 </div>
 
@@ -127,6 +130,12 @@ INJECT_HTML = """
     color-scheme: dark; outline: none;
   }
   .rb-select:focus { border-color: #4cc9f0; }
+
+  .rb-btn-copy { background: green; }
+  .rb-btn-copy:hover:not(:disabled) { background: #02bc02; }
+  .rb-btn-copy.copied { background: transparent !important; color: #6bcb77; border: 1px solid #6bcb77; }
+  .rb-btn-delete { background: crimson; }
+  .rb-btn-delete:hover:not(:disabled) { background: #f4254e; }
 
   @keyframes rb-spin { to { transform: rotate(360deg); } }
   .rb-spin {
@@ -193,8 +202,9 @@ INJECT_HTML = """
 })();
 
 function setRunning() {
-  var btns = [document.getElementById("run-new-btn"), document.getElementById("run-range-btn")];
-  btns.forEach(function (b) { b.disabled = true; });
+  var btns = [document.getElementById("run-new-btn"), document.getElementById("run-range-btn"),
+              document.getElementById("copy-btn"), document.getElementById("delete-btn")];
+  btns.forEach(function (b) { if (b) b.disabled = true; });
   document.getElementById("run-status").innerHTML =
     '<span class="rb-spin"></span>Running\\u2026';
   document.getElementById("run-status").style.color = "#9090c0";
