@@ -62,6 +62,7 @@ INJECT_HTML = """
     <option value="GBPUSD">GBPUSD</option>
   </select>
   <button id="run-new-btn" class="rb-btn rb-btn-green" onclick="runNewVersion()">&#9654;&nbsp; Add New Version</button>
+  <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Add Date Range</button>
 
   <span id="run-status" style="font-size: 13px; color: #666690; margin-left: 8px;"></span>
 
@@ -75,7 +76,6 @@ INJECT_HTML = """
     <span class="rb-date-wrap"><input type="date" id="rb-start" class="rb-date"><span class="rb-date-overlay" id="rb-start-overlay"></span></span>
     <label class="rb-label" for="rb-end">To</label>
     <span class="rb-date-wrap"><input type="date" id="rb-end" class="rb-date"><span class="rb-date-overlay" id="rb-end-overlay"></span></span>
-    <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Add Date Range</button>
   </div>
 </div>
 

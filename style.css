@@ -703,7 +703,7 @@ tbody tr:hover td {
 /* ── Scroll-to-top button ────────────────────────────── */
 #scroll-top-btn {
     position: fixed;
-    bottom: 200px;
+    bottom: 400px;
     right: 28px;
     width: 40px;
     height: 40px;
