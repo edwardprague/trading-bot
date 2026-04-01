@@ -392,7 +392,7 @@ tbody tr:hover td {
     margin-left: 5px;
 }
 
-/* ── Copy button ──────────────────────────────────────── */
+/* ── Version header top row ───────────────────────────── */
 #v-header-top {
     display: flex;
     align-items: flex-start;
@@ -405,57 +405,52 @@ tbody tr:hover td {
     min-width: 0;
 }
 
-.copy-btn {
+/* ── Run-bar Copy & Delete buttons ───────────────────── */
+#copy-btn.rb-btn-copy {
     flex-shrink: 0;
     background: green;
     color: #fff;
-    border: 1px solid green;
-    border-radius: 5px;
-    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 16px;
     font-size: 12px;
     font-family: inherit;
     cursor: pointer;
     white-space: nowrap;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
-    margin-top: 4px;
 }
 
-.copy-btn:hover {
+#copy-btn.rb-btn-copy:hover:not(:disabled) {
     background: #02bc02;
-    color: #fff;
-    border-color: #02bc02;
 }
 
-.copy-btn.copied {
-    background: rgba(107, 203, 119, .12);
-    border-color: #6bcb77;
+#copy-btn.rb-btn-copy.copied {
+    background: rgba(107, 203, 119, .12) !important;
+    border: 1px solid #6bcb77;
     color: #6bcb77;
 }
 
-/* ── Delete Version button ────────────────────────────── */
-.delete-btn {
+#delete-btn.rb-btn-delete {
     flex-shrink: 0;
     background: crimson;
     color: #fff;
-    border: 1px solid crimson;
-    border-radius: 5px;
-    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 16px;
     font-size: 12px;
     font-family: inherit;
     cursor: pointer;
     white-space: nowrap;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
-    margin-top: 4px;
 }
 
-.delete-btn:hover {
+#delete-btn.rb-btn-delete:hover:not(:disabled) {
     background: #f4254e;
-    color: #fff;
-    border-color: #f4254e;
 }
 
-.delete-btn:disabled {
-    opacity: 0.5;
+#delete-btn.rb-btn-delete:disabled {
+    background: #1e1e38 !important;
+    color: #404060;
     cursor: not-allowed;
 }
 

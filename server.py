@@ -150,7 +150,7 @@ INJECT_HTML = """
   var _actSep  = document.getElementById("rb-act-sep");
   var _copyBtn = document.getElementById("copy-btn");
   var _delBtn  = document.getElementById("delete-btn");
-  if (_rbGroup) {
+  if (_rbGroup && _rbGroup.parentNode) {
     if (_actSep)  { _actSep.className = "rb-sep";  _rbGroup.appendChild(_actSep); }
     if (_copyBtn) { _copyBtn.className = "rb-btn rb-btn-copy"; _rbGroup.appendChild(_copyBtn); }
     if (_delBtn)  { _delBtn.className = "rb-btn rb-btn-delete"; _rbGroup.appendChild(_delBtn); }
