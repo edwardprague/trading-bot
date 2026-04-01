@@ -45,7 +45,7 @@ app = Flask(__name__)
 
 # ── Backtest state (shared between the Flask thread and the worker thread) ─────
 _bt_lock  = threading.Lock()
-_bt_state = {"running": False, "ok": None, "error": None}
+_bt_state = {"running": False, "ok": None, "error": None, "no_data": False}
 
 # ── Run-bar HTML (injected into every page response) ──────────────────────────
 
@@ -305,6 +305,10 @@ function pollStatus() {
     .then(function (data) {
       if (data.running) {
         setTimeout(pollStatus, 2000);
+      } else if (data.ok && data.no_data) {
+        resetButtons();
+        document.getElementById("run-status").innerHTML = "";
+        showNoDataNotification();
       } else if (data.ok) {
         var status = document.getElementById("run-status");
         status.innerHTML   = "\\u2713\\u2009Complete \\u2014 refreshing\\u2026";
@@ -316,6 +320,22 @@ function pollStatus() {
       }
     })
     .catch(function () { setTimeout(pollStatus, 2000); });
+}
+
+function showNoDataNotification() {
+  var existing = document.getElementById("no-data-toast");
+  if (existing) existing.remove();
+  var toast = document.createElement("div");
+  toast.id = "no-data-toast";
+  toast.textContent = "No Data Available";
+  document.body.appendChild(toast);
+  /* Trigger reflow so the initial opacity:0 state is rendered before adding .show */
+  toast.offsetHeight;
+  toast.classList.add("show");
+  setTimeout(function () {
+    toast.classList.remove("show");
+    setTimeout(function () { toast.remove(); }, 600);
+  }, 3000);
 }
 </script>
 """
@@ -386,12 +406,20 @@ def _backtest_worker(env_overrides=None):
         )
         with _bt_lock:
             if result.returncode == 0:
-                _bt_state["ok"]    = True
-                _bt_state["error"] = None
+                # Check if strategy.py reported no trades (NO_DATA marker)
+                if "NO_DATA" in (result.stdout or ""):
+                    _bt_state["ok"]      = True
+                    _bt_state["no_data"] = True
+                    _bt_state["error"]   = None
+                else:
+                    _bt_state["ok"]      = True
+                    _bt_state["no_data"] = False
+                    _bt_state["error"]   = None
             else:
                 err = (result.stderr or result.stdout or "Non-zero exit code").strip()
-                _bt_state["ok"]    = False
-                _bt_state["error"] = err[-800:]
+                _bt_state["ok"]      = False
+                _bt_state["no_data"] = False
+                _bt_state["error"]   = err[-800:]
     except subprocess.TimeoutExpired:
         with _bt_lock:
             _bt_state["ok"]    = False
@@ -414,6 +442,7 @@ def run_backtest():
         _bt_state["running"] = True
         _bt_state["ok"]      = None
         _bt_state["error"]   = None
+        _bt_state["no_data"] = False
 
     # RUN_MODE=new_version tells strategy.py to increment version
     data = request.get_json(force=True) or {}
@@ -446,6 +475,7 @@ def run_date_range():
         _bt_state["running"] = True
         _bt_state["ok"]      = None
         _bt_state["error"]   = None
+        _bt_state["no_data"] = False
 
     instrument     = (data.get("instrument") or "").strip()
     target_version = (data.get("target_version") or "").strip()

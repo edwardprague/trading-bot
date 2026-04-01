@@ -886,7 +886,7 @@ def save_charts(df, trades, equity):
 
     return main_path, rpf_path
 
-# ── Pivot Structure Diagnostics ───────────────────────────────────────────────
+# ── Fractal Diagnostics ───────────────────────────────────────────────────────
 
 def compute_pivot_diagnostics(df):
     """Detect fractal pivot highs/lows and classify market structure.
@@ -1903,10 +1903,10 @@ __VERSIONS_JSON__
       lines.push("");
     }());
 
-    /* ── Pivot Structure Diagnostics (single-day ranges only) ──── */
+    /* ── Fractal Diagnostics (single-day ranges only) ──── */
     var pvd = m.pivot_diagnostics;
     if (pvd && pvd.is_single_day) {
-      lines.push("### Pivot Structure Diagnostics");
+      lines.push("### Fractal Diagnostics");
       lines.push("");
       var pvList = pvd.pivots || [];
       if (pvList.length === 0) {
@@ -2572,7 +2572,7 @@ __VERSIONS_JSON__
         "<th>Swing Bars</th><th>Trades</th><th>Win Rate</th><th>Profit Factor</th><th>Net P&amp;L</th><th>Max DD</th>" +
         "</tr></thead><tbody>" + swingSensRows + "</tbody></table></div>";
 
-    /* ── Pivot Structure Diagnostics (single-day date ranges only) ──────────── */
+    /* ── Fractal Diagnostics (single-day date ranges only) ──────────── */
     var pivotDiagHtml = "";
     (function () {
       var pvd = m.pivot_diagnostics;
@@ -2583,8 +2583,8 @@ __VERSIONS_JSON__
 
       if (pivotList.length === 0) {
         pivotDiagHtml =
-          "<div class='section'>" +
-            "<div class='section-title'>Pivot Structure Diagnostics</div>" +
+          "<div class='section' id='anchor-fractal-diag'>" +
+            "<div class='section-title'>Fractal Diagnostics</div>" +
             "<div style='padding:10px;color:var(--text-dim,#888);font-size:13px;'>" +
               "No fractal pivot points detected in this date range." +
             "</div>" +
@@ -2623,8 +2623,8 @@ __VERSIONS_JSON__
                      : "neu";
 
       pivotDiagHtml =
-        "<div class='section'>" +
-          "<div class='section-title'>Pivot Structure Diagnostics</div>" +
+        "<div class='section' id='anchor-fractal-diag'>" +
+          "<div class='section-title'>Fractal Diagnostics</div>" +
           "<table><thead><tr>" +
           "<th style='width:36px'>#</th>" +
           "<th>Type</th>" +
@@ -2750,6 +2750,7 @@ __VERSIONS_JSON__
           "<div class='quick-nav'>" +
             "<a href='#anchor-chart' class='quick-nav-link' data-anchor='anchor-chart'>Chart</a>" +
             "<a href='#anchor-daily-perf' class='quick-nav-link' data-anchor='anchor-daily-perf'>Daily Performance</a>" +
+            "<a href='#anchor-fractal-diag' class='quick-nav-link' data-anchor='anchor-fractal-diag'>Fractal Diagnostics</a>" +
           "</div>" +
         "</div>" +
         (function () {
@@ -2881,7 +2882,7 @@ __VERSIONS_JSON__
       /* ── Section 12: RRR Sensitivity + Swing Lookback Sensitivity ─────────── */
       "<div class='two-col'>" + rrrSensHtml + swingSensHtml + "</div>" +
 
-      /* ── Pivot Structure Diagnostics (single-day date ranges only) ──────── */
+      /* ── Fractal Diagnostics (single-day date ranges only) ──────── */
       pivotDiagHtml;
 
     /* Wire quick-nav links — smooth scroll inside #main container */
@@ -3312,41 +3313,9 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
 
     metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals, df=df)
     if metrics is None:
-        print("  No trades generated — creating report with 0-trade metrics.")
-        metrics = {
-            "trades":              0,
-            "wins":                0,
-            "losses":              0,
-            "win_rate":            0.0,
-            "profit_factor":       None,
-            "avg_win":             0.0,
-            "avg_loss":            0.0,
-            "best_trade":          0.0,
-            "worst_trade":         0.0,
-            "net_profit":          0.0,
-            "net_profit_pct":      0.0,
-            "final_equity":        float(STARTING_CASH),
-            "max_drawdown":        0.0,
-            "max_drawdown_dollar": 0.0,
-            "max_daily_drawdown":  0.0,
-            "daily_drawdown":      [],
-            "sharpe":              0.0,
-            "avg_position_size":   0.0,
-            "min_position_size":   0.0,
-            "max_position_size":   0.0,
-            "by_direction":        [],
-            "monthly":             [],
-            "daily":               [],
-            "streaks":             {"max_win_streak": 0, "max_loss_streak": 0,
-                                    "avg_win_streak": 0.0, "avg_loss_streak": 0.0,
-                                    "current_streak": "\u2014"},
-            "stop_target":         {"pct_sl": None, "pct_tp": None, "avg_mae": None},
-            "regime":              [],
-            "time_of_day":         [],
-            "rolling_pf":          [],
-            "blocked_signals":     [],
-            "pivot_diagnostics":   None,
-        }
+        print("  No trades generated — skipping HTML report.")
+        print("NO_DATA")
+        return
 
     # ── Load main chart as base64 ──────────────────────────────────────────────
     chart_b64 = ""

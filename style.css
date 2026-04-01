@@ -842,3 +842,27 @@ tbody tr:hover td {
     border-color: #6bcb77 !important;
     color: #6bcb77 !important;
 }
+
+/* ── No-data floating notification ───────────────────── */
+#no-data-toast {
+    position: fixed;
+    top: 72px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: steelblue;
+    color: #fff;
+    border-radius: 7px;
+    padding: 12px 28px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    z-index: 10000;
+}
+
+#no-data-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
