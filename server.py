@@ -145,15 +145,15 @@ INJECT_HTML = """
 
 <script>
 (function () {
-  /* ── Move action buttons into the run bar ──────────────────────── */
+  /* ── Move action buttons into the run bar (preserve visibility set by strategy.py) ── */
   var _rbGroup = document.getElementById("rb-range-group");
   var _actSep  = document.getElementById("rb-act-sep");
   var _copyBtn = document.getElementById("copy-btn");
   var _delBtn  = document.getElementById("delete-btn");
   if (_rbGroup) {
     if (_actSep)  { _actSep.className = "rb-sep";  _rbGroup.appendChild(_actSep); }
-    if (_copyBtn) { _copyBtn.className = "rb-btn rb-btn-copy"; _copyBtn.style.display = "none"; _rbGroup.appendChild(_copyBtn); }
-    if (_delBtn)  { _delBtn.className = "rb-btn rb-btn-delete"; _delBtn.style.display = "none"; _rbGroup.appendChild(_delBtn); }
+    if (_copyBtn) { _copyBtn.className = "rb-btn rb-btn-copy"; _rbGroup.appendChild(_copyBtn); }
+    if (_delBtn)  { _delBtn.className = "rb-btn rb-btn-delete"; _rbGroup.appendChild(_delBtn); }
   }
 
   /* ── Date overlay helper: show MM.DD.YYYY on top of native date input ── */

@@ -2240,7 +2240,7 @@ __VERSIONS_JSON__
       }
 
       dailyPerfHtml =
-        "<div class='section'>" +
+        "<div class='section' id='anchor-daily-perf'>" +
           "<div class='section-title'>Daily Performance</div>" +
           "<table><thead><tr>" +
           "<th>Date</th><th>Trades</th><th>Wins</th><th>Losses</th>" +
@@ -2633,7 +2633,7 @@ __VERSIONS_JSON__
     }());
 
     var chartHtml = run.chart_b64
-      ? "<div class='section'><div class='section-title'>Chart</div>" +
+      ? "<div class='section' id='anchor-chart'><div class='section-title'>Chart</div>" +
         "<img id='chart-img' src='data:image/png;base64," + run.chart_b64 + "' alt='Backtest Chart'/></div>"
       : "";
 
@@ -2742,6 +2742,10 @@ __VERSIONS_JSON__
       "<div id='v-header'>" +
         "<div id='v-header-top'>" +
           "<h2>" + esc(v.name) + stratBadge + "</h2>" +
+          "<div class='quick-nav'>" +
+            "<a href='#anchor-chart' class='quick-nav-link' data-anchor='anchor-chart'>Chart</a>" +
+            "<a href='#anchor-daily-perf' class='quick-nav-link' data-anchor='anchor-daily-perf'>Daily Performance</a>" +
+          "</div>" +
         "</div>" +
         (function () {
           var metaTicker = run.instrument || (p.ticker || "").replace(/=X$/i, "");
@@ -2874,6 +2878,18 @@ __VERSIONS_JSON__
 
       /* ── Pivot Structure Diagnostics (single-day date ranges only) ──────── */
       pivotDiagHtml;
+
+    /* Wire quick-nav links — smooth scroll with offset for fixed run bar */
+    document.querySelectorAll(".quick-nav-link[data-anchor]").forEach(function (link) {
+      link.addEventListener("click", function (e) {
+        e.preventDefault();
+        var target = document.getElementById(link.dataset.anchor);
+        if (!target) return;
+        var offset = 68;  /* run bar height + breathing room */
+        var top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+        window.scrollTo({ top: top, behavior: "smooth" });
+      });
+    });
 
     /* Wire copy button — context aware (lives in the run bar) */
     (function (ver, runData) {
