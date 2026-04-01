@@ -708,14 +708,14 @@ tbody tr:hover td {
 /* ── Scroll-to-top button ────────────────────────────── */
 #scroll-top-btn {
     position: fixed;
-    bottom: 28px;
+    bottom: 200px;
     right: 28px;
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    border: 1px solid #2a2a4a;
+    border: 1px solid #aaa;
     background: #14142a;
-    color: #6080b0;
+    color: #aaa;
     font-size: 18px;
     line-height: 1;
     cursor: pointer;
@@ -735,7 +735,7 @@ tbody tr:hover td {
 
 #scroll-top-btn:hover {
     color: #90c0f0;
-    border-color: #4a4a6a;
+    border-color: #90c0f0;
 }
 
 /* ── Scrollbars ───────────────────────────────────────── */
