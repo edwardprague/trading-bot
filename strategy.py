@@ -742,17 +742,26 @@ def save_charts(df, trades, equity):
                 'HH': '#6bcb77', 'HL': '#6bcb77',   # green — uptrend structure
                 'LH': '#6bcb77', 'LL': '#6bcb77',   # green — downtrend structure
             }
-            for _pv in _pvd['pivots']:
+            _label_offset = max(_price_range * 0.018, 2e-5)
+            for _pv_idx, _pv in enumerate(_pvd['pivots']):
                 _bar_i  = _pv['bar']
                 _pv_clr = _pivot_colors.get(_pv['label'], '#ffffff')
                 if _pv['kind'] == 'H':
                     _pv_y = _pv['price'] + _pivot_offset
+                    _lbl_y = _pv_y + _label_offset
                 else:
                     _pv_y = _pv['price'] - _pivot_offset
+                    _lbl_y = _pv_y - _label_offset
                 ax1.scatter(
                     _dt_nums[_bar_i], _pv_y,
                     color=_pv_clr, marker='o', s=18, zorder=6,
                     edgecolors='none',
+                )
+                ax1.text(
+                    _dt_nums[_bar_i], _lbl_y, str(_pv_idx + 1),
+                    color=_pv_clr, fontsize=6, fontweight='bold',
+                    ha='center', va='bottom' if _pv['kind'] == 'H' else 'top',
+                    zorder=7,
                 )
 
         ax1.set_xlim(
