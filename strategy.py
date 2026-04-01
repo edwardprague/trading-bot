@@ -1091,7 +1091,7 @@ def compute_pivot_diagnostics(df):
                 pass
 
         # Cap to valid range 0–150%; outside this range indicates bad prior data
-        if pb is not None and (pb < 0 or pb > 150):
+        if pb is not None and pb < 0:
             pb = None
 
         pv['pullback_pct'] = round(pb, 1) if pb is not None else None
