@@ -1650,6 +1650,11 @@ def _build_html(versions_json):
 
 <div id="copy-toast">&#10003;&nbsp; Copied to clipboard!</div>
 
+<!-- Action buttons: hidden by default, moved into the run bar by server.py -->
+<span class="rb-sep" id="rb-act-sep" style="display:none;"></span>
+<button id="copy-btn" style="display:none;">Copy Version Report</button>
+<button id="delete-btn" style="display:none;">Delete Version</button>
+
 <script type="application/json" id="versions-data">
 __VERSIONS_JSON__
 </script>

@@ -76,9 +76,6 @@ INJECT_HTML = """
     <label class="rb-label" for="rb-end">To</label>
     <span class="rb-date-wrap"><input type="date" id="rb-end" class="rb-date"><span class="rb-date-overlay" id="rb-end-overlay"></span></span>
     <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Add Date Range</button>
-    <span class="rb-sep" id="rb-act-sep" style="display:none;"></span>
-    <button id="copy-btn" class="rb-btn rb-btn-copy" style="display:none;">Copy Version Report</button>
-    <button id="delete-btn" class="rb-btn rb-btn-delete" style="display:none;">Delete Version</button>
   </div>
 </div>
 
@@ -148,6 +145,17 @@ INJECT_HTML = """
 
 <script>
 (function () {
+  /* ── Move action buttons into the run bar ──────────────────────── */
+  var _rbGroup = document.getElementById("rb-range-group");
+  var _actSep  = document.getElementById("rb-act-sep");
+  var _copyBtn = document.getElementById("copy-btn");
+  var _delBtn  = document.getElementById("delete-btn");
+  if (_rbGroup) {
+    if (_actSep)  { _actSep.className = "rb-sep";  _rbGroup.appendChild(_actSep); }
+    if (_copyBtn) { _copyBtn.className = "rb-btn rb-btn-copy"; _copyBtn.style.display = "none"; _rbGroup.appendChild(_copyBtn); }
+    if (_delBtn)  { _delBtn.className = "rb-btn rb-btn-delete"; _delBtn.style.display = "none"; _rbGroup.appendChild(_delBtn); }
+  }
+
   /* ── Date overlay helper: show MM.DD.YYYY on top of native date input ── */
   function updateOverlay(inputEl, overlayEl) {
     var v = inputEl.value;  /* native value is always YYYY-MM-DD */
