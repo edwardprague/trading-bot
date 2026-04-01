@@ -502,10 +502,10 @@ tbody tr:hover td {
 
 .quick-nav-link {
     font-size: 12px;
-    color: #6080b0;
+    color: #ccc;
     text-decoration: none;
     padding: 5px 12px;
-    border: 1px solid #2a2a4a;
+    border: 1px solid #4a4a6a;
     border-radius: 5px;
     white-space: nowrap;
     transition: color 0.15s, border-color 0.15s;
@@ -513,7 +513,7 @@ tbody tr:hover td {
 
 .quick-nav-link:hover {
     color: #90c0f0;
-    border-color: #4a4a6a;
+    border-color: #90c0f0;
 }
 
 /* ── Entry conditions table ───────────────────────────── */
@@ -703,6 +703,39 @@ tbody tr:hover td {
 #copy-toast.show {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* ── Scroll-to-top button ────────────────────────────── */
+#scroll-top-btn {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid #2a2a4a;
+    background: #14142a;
+    color: #6080b0;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, color 0.15s, border-color 0.15s;
+    z-index: 9998;
+}
+
+#scroll-top-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#scroll-top-btn:hover {
+    color: #90c0f0;
+    border-color: #4a4a6a;
 }
 
 /* ── Scrollbars ───────────────────────────────────────── */

@@ -3140,6 +3140,21 @@ __VERSIONS_JSON__
 })();
 </script>
 
+<button id="scroll-top-btn" aria-label="Scroll to top">&#9650;</button>
+<script>
+(function () {
+  var btn  = document.getElementById("scroll-top-btn");
+  var main = document.getElementById("main");
+  if (!btn || !main) return;
+  main.addEventListener("scroll", function () {
+    btn.classList.toggle("visible", main.scrollTop > 120);
+  });
+  btn.addEventListener("click", function () {
+    main.scrollTo({ top: 0, behavior: "smooth" });
+  });
+})();
+</script>
+
 </body>
 </html>"""
     return template.replace("__VERSIONS_JSON__", versions_json)
