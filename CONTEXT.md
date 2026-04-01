@@ -288,25 +288,26 @@ Strategy parameters are currently displayed in the following table example:
 13. Win Rate Trend
 14. Trade Duration + Filter Impact (side by side)
 15. RRR Sensitivity + Swing Lookback Sensitivity (side by side)
+16. Fractal Diagnostics
 
 ---
 
 # 5. Trading Bot Development
 
-## Pivot Structure Diagnostics
+## Fractal Structure Diagnostics
 
 ### Overview
 
 A diagnostic table that appears only for 1-day date range tests. Detects and classifies pivot points (fractals) in the price data, providing a numerical breakdown of market structure for that day.
 
-### Pivot Detection
+### Fractal Detection
 
 Standard fractal definition — N=2 bars each side:
 
 - **Pivot High**: bar whose high is higher than the 2 bars on either side
 - **Pivot Low**: bar whose low is lower than the 2 bars on either side
 
-### Pivot Classification
+### Fractal Classification
 
 Each pivot is compared to the previous same-type pivot using a threshold of 0.5 x ATR(14):
 
@@ -324,6 +325,12 @@ Each pivot is compared to the previous same-type pivot using a threshold of 0.5 
 - **HL** — Higher Low: difference > 0.5 ATR and higher than previous low
 - First pivot low defaults to CL
 
+### Fractal Distance Measurements
+
+- Vertical - Vertical distance betwen the last 2 fractals
+- Horizontal - Horizontal distance betwen the last 2 fractals
+- Pullback - Distance between an HL and the preceding HH, or distance between an LL and the preceding LH. Displayed as a %
+
 ### Table Columns
 
 | Column                | Description                                    |
@@ -334,12 +341,6 @@ Each pivot is compared to the previous same-type pivot using a threshold of 0.5 
 | Time                  | UTC time of the pivot bar                      |
 | Vert Distance (pips)  | Distance from previous same-type pivot in pips |
 | Horiz Distance (bars) | Number of bars since previous same-type pivot  |
-
-### Row Color Coding
-
-- **Muted red** — CH / CL (consolidation)
-- **Muted green** — LH / LL (downtrend structure)
-- **Muted blue** — HH / HL (uptrend structure)
 
 ### Availability
 
@@ -361,6 +362,8 @@ Only displayed and included in Copy Range Report when date range is exactly 1 ca
 - Max daily drawdown (2%): $2,000
 - Max drawdown (6%): $6,000
 
+#### Trend Following Strategy
+
 **Strategy (Current Baseline)**
 
 - Short only, 5-minute, EMA 20/50/200
@@ -370,8 +373,7 @@ Only displayed and included in Copy Range Report when date range is exactly 1 ca
 - 1% risk per trade, $100k starting capital
 
 **Entry Conditions**
-
-Our next phase will be concerned with developing the nuances of our entry conditions, such as the following qualities to be initially explored:
+TBD
 
 **Entry Qualities (Current)**
 
