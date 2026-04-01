@@ -2879,15 +2879,15 @@ __VERSIONS_JSON__
       /* ── Pivot Structure Diagnostics (single-day date ranges only) ──────── */
       pivotDiagHtml;
 
-    /* Wire quick-nav links — smooth scroll with offset for fixed run bar */
+    /* Wire quick-nav links — smooth scroll inside #main container */
+    var mainEl = document.getElementById("main");
     document.querySelectorAll(".quick-nav-link[data-anchor]").forEach(function (link) {
       link.addEventListener("click", function (e) {
         e.preventDefault();
         var target = document.getElementById(link.dataset.anchor);
-        if (!target) return;
-        var offset = 68;  /* run bar height + breathing room */
-        var top = target.getBoundingClientRect().top + window.pageYOffset - offset;
-        window.scrollTo({ top: top, behavior: "smooth" });
+        if (!target || !mainEl) return;
+        var top = target.offsetTop - mainEl.offsetTop - 16;
+        mainEl.scrollTo({ top: top, behavior: "smooth" });
       });
     });
 
