@@ -3203,16 +3203,76 @@ __VERSIONS_JSON__
     links[idx].click();
   });
 
+  /* ── Helper: check if focus is in a form field ──────────── */
+  function isInputFocused(e) {
+    var tag = (e.target.tagName || "").toLowerCase();
+    return tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable;
+  }
+
   /* ── Keyboard shortcut: T or Shift+T to scroll to top ────── */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "t" && e.key !== "T") return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    /* Ignore when typing in an input field */
-    var tag = (e.target.tagName || "").toLowerCase();
-    if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
+    if (isInputFocused(e)) return;
     e.preventDefault();
     var main = document.getElementById("main");
     if (main) main.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  /* ── Keyboard shortcut: V or Shift+V — Add New Version ───── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "v" && e.key !== "V") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isInputFocused(e)) return;
+    var btn = document.getElementById("run-new-btn");
+    if (!btn || btn.disabled) return;
+    e.preventDefault();
+    btn.click();
+  });
+
+  /* ── Keyboard shortcut: D or Shift+D — Add Date Range ────── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "d" && e.key !== "D") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isInputFocused(e)) return;
+    var btn = document.getElementById("run-range-btn");
+    if (!btn || btn.disabled) return;
+    e.preventDefault();
+    btn.click();
+  });
+
+  /* ── Keyboard shortcut: C or Shift+C — Copy Report ────────── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "c" && e.key !== "C") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isInputFocused(e)) return;
+    var btn = document.getElementById("copy-btn");
+    if (!btn || btn.disabled || btn.style.display === "none") return;
+    e.preventDefault();
+    btn.click();
+  });
+
+  /* ── Keyboard shortcut: Shift+Delete — Delete ──────────── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Delete" && e.key !== "Backspace") return;
+    if (!e.shiftKey) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isInputFocused(e)) return;
+    var btn = document.getElementById("delete-btn");
+    if (!btn || btn.disabled || btn.style.display === "none") return;
+    e.preventDefault();
+    btn.click();
+  });
+
+  /* ── Keyboard shortcut: L or Shift+L — Development Log ───── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "l" && e.key !== "L") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isInputFocused(e)) return;
+    var btn = document.getElementById("devlog-btn");
+    if (!btn) return;
+    e.preventDefault();
+    btn.click();
   });
 })();
 </script>
