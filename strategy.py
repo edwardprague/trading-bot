@@ -3187,6 +3187,17 @@ __VERSIONS_JSON__
     var activeEl = document.querySelector("#version-list .v-item.active");
     if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
   });
+
+  /* ── Keyboard shortcuts: F1/F2/F3… for quick-nav links ──── */
+  document.addEventListener("keydown", function (e) {
+    var m = e.key.match(/^F(\d+)$/);
+    if (!m) return;
+    var idx = parseInt(m[1], 10) - 1; /* F1 = index 0, F2 = index 1, … */
+    var links = document.querySelectorAll(".quick-nav-link[data-anchor]");
+    if (idx < 0 || idx >= links.length) return;
+    e.preventDefault();
+    links[idx].click();
+  });
 })();
 </script>
 
