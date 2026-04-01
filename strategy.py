@@ -1849,6 +1849,44 @@ __VERSIONS_JSON__
     }
     lines.push("");
 
+    /* ── Daily Performance (≤ 31 day ranges only) ──────────────── */
+    (function () {
+      var sd = run.start_date;
+      var ed = run.end_date;
+      if (!sd || !ed) return;
+      var startDt  = new Date(sd + "T00:00:00Z");
+      var endDt    = new Date(ed + "T00:00:00Z");
+      var totalDays = Math.round((endDt - startDt) / 86400000) + 1;
+      if (totalDays > 31) return;
+
+      var dailyData = m.daily || [];
+      var dailyLookup = {};
+      dailyData.forEach(function (d) { dailyLookup[d.date] = d; });
+
+      lines.push("### Daily Performance");
+      lines.push("");
+      lines.push("| Date | Trades | Wins | Losses | Win Rate | Net P&L |");
+      lines.push("|------|--------|------|--------|----------|---------|");
+
+      var cur = new Date(startDt.getTime());
+      while (cur <= endDt) {
+        var uy = cur.getUTCFullYear();
+        var um = cur.getUTCMonth() + 1;
+        var ud = cur.getUTCDate();
+        var ds = uy + "-" + (um < 10 ? "0" : "") + um + "-" + (ud < 10 ? "0" : "") + ud;
+        var yy = String(uy).slice(-2);
+        var dateLabel = um + "-" + (ud < 10 ? "0" : "") + ud + "-" + yy;
+        var d = dailyLookup[ds];
+        if (d) {
+          lines.push("| " + dateLabel + " | " + d.trades + " | " + d.wins + " | " + d.losses + " | " + mf(d.win_rate, 1) + "% | " + mfMoney(d.net_pnl) + " |");
+        } else {
+          lines.push("| " + dateLabel + " | 0 | \u2014 | \u2014 | \u2014 | \u2014 |");
+        }
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+      lines.push("");
+    }());
+
     /* ── Pivot Structure Diagnostics (single-day ranges only) ──── */
     var pvd = m.pivot_diagnostics;
     if (pvd && pvd.is_single_day) {
