@@ -1,4 +1,4 @@
-## Project Overview
+# Project Overview
 
 Building a systematic algorithmic trading system.
 
@@ -20,7 +20,7 @@ When tasks are decided upon for Ada, Claude will provide instructions and Edward
 
 ---
 
-## Technical Setup
+# Technical Setup
 
 #### Machines
 
@@ -45,13 +45,13 @@ Open browser: `http://localhost:8080`
 
 ## Infrastructure
 
-### Python Environment
+#### Python Environment
 
 - Python 3 (via Homebrew)
 - Virtual environment (`venv`) in the trading-bot folder
 - `pip` for package management
 
-### Python Packages
+#### Python Packages
 
 - `flask` — web server framework
 - `pandas` — data manipulation
@@ -63,7 +63,7 @@ Open browser: `http://localhost:8080`
 - `ta` / `pandas-ta` — technical indicators (ADX, EMA calculations)
 - `requests` — HTTP requests
 
-### Infrastructure Files
+#### Infrastructure Files
 
 - `server.py` — Flask web server
 - `start.command` — double-click startup script (runs git pull + Flask)
@@ -80,7 +80,7 @@ Open browser: `http://localhost:8080`
 - `results/` — versioned PNG charts and reports
 - `TrendFollowerBot.cs` — cBot script in C# for cTrader
 
-### External Services
+#### External Services
 
 - GitHub — version control and auto-push after each backtest
 - GitHub Pages — hosts report.html publicly
@@ -92,7 +92,7 @@ Open browser: `http://localhost:8080`
 - Create `.env` manually with: `MASSIVE_API_KEY=yourkey`
 - `.env` is gitignored and must be created on each machine manually
 
-### Desktop Setup Checklist
+#### Desktop Setup Checklist
 
 After git clone on new machine:
 
@@ -109,7 +109,7 @@ After git clone on new machine:
 
 ---
 
-## cTrader Migration and Integration
+# cTrader Migration and Integration
 
 The cTrader migration and integration has been completed, and the following notes are available for reference if needed:
 

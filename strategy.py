@@ -1009,77 +1009,88 @@ def compute_pivot_diagnostics(df):
             prev_low = pv
 
     # ── Compute pullback % for each classified pivot ──────────────────────────
-    # Tracker variables — updated AFTER each pivot's calculation so the "previous"
-    # values seen during calculation are always the ones that came before this pivot.
-    _prev_lh = None   # price of most recent LH pivot
-    _prev_ll = None   # price of most recent LL pivot
-    _prev_hh = None   # price of most recent HH pivot
-    _prev_hl = None   # price of most recent HL pivot
-    _prev_ch = None   # price of most recent CH pivot
-    _prev_cl = None   # price of most recent CL pivot
+    # Helper: scan backwards through history to find the most recent pivot of a
+    # given label, returning its price or None.  No ordering assumptions are made
+    # about how high and low pivots interleave chronologically.
+    def _last_price(label, history):
+        for p in reversed(history):
+            if p['label'] == label:
+                return p['price']
+        return None
 
-    for pv in classified:
+    for i, pv in enumerate(classified):
         lbl   = pv['label']
         price = pv['price']
         bidx  = pv['bar']
+        prior = classified[:i]   # all pivots that preceded this one
 
         pb = None  # default → "—" in UI
 
         if lbl == 'LH':
-            # Prior range = prev LH − prev LL  |  Pullback = LH − prev LL
-            if _prev_lh is not None and _prev_ll is not None:
-                prior_range = _prev_lh - _prev_ll
-                pullback    = price    - _prev_ll
+            # Prior range = most recent LH − most recent LL
+            # Pullback    = this LH − most recent LL
+            ref_lh = _last_price('LH', prior)
+            ref_ll = _last_price('LL', prior)
+            if ref_lh is not None and ref_ll is not None:
+                prior_range = ref_lh - ref_ll
+                pullback    = price  - ref_ll
                 if abs(prior_range) > 1e-10:
                     pb = pullback / prior_range * 100
-            _prev_lh = price
 
         elif lbl == 'HL':
-            # Prior range = prev HH − prev HL  |  Pullback = prev HH − HL
-            if _prev_hh is not None and _prev_hl is not None:
-                prior_range = _prev_hh - _prev_hl
-                pullback    = _prev_hh - price
+            # Prior range = most recent HH − most recent HL
+            # Pullback    = most recent HH − this HL
+            ref_hh = _last_price('HH', prior)
+            ref_hl = _last_price('HL', prior)
+            if ref_hh is not None and ref_hl is not None:
+                prior_range = ref_hh - ref_hl
+                pullback    = ref_hh - price
                 if abs(prior_range) > 1e-10:
                     pb = pullback / prior_range * 100
-            _prev_hl = price
 
         elif lbl == 'HH':
-            _prev_hh = price          # continuation pivot — always dash
+            pass   # continuation pivot — always dash
 
         elif lbl == 'LL':
-            _prev_ll = price          # continuation pivot — always dash
+            pass   # continuation pivot — always dash
 
         elif lbl == 'CH':
             # Only calculate when bar's close is BELOW EMA200
-            # Prior range = prev CH − prev CL  |  Pullback = CH − prev CL
+            # Prior range = most recent CH − most recent CL
+            # Pullback    = this CH − most recent CL
             try:
                 close_val = float(df['Close'].iloc[bidx])
                 ema_val   = float(ema200.iloc[bidx])
-                if close_val < ema_val and _prev_ch is not None and _prev_cl is not None:
-                    prior_range = _prev_ch - _prev_cl
-                    pullback    = price    - _prev_cl
-                    if abs(prior_range) > 1e-10:
-                        pb = pullback / prior_range * 100
+                if close_val < ema_val:
+                    ref_ch = _last_price('CH', prior)
+                    ref_cl = _last_price('CL', prior)
+                    if ref_ch is not None and ref_cl is not None:
+                        prior_range = ref_ch - ref_cl
+                        pullback    = price  - ref_cl
+                        if abs(prior_range) > 1e-10:
+                            pb = pullback / prior_range * 100
             except Exception:
                 pass
-            _prev_ch = price
 
         elif lbl == 'CL':
             # Only calculate when bar's close is ABOVE EMA200
-            # Prior range = prev CH − prev CL  |  Pullback = prev CH − CL
+            # Prior range = most recent CH − most recent CL
+            # Pullback    = most recent CH − this CL
             try:
                 close_val = float(df['Close'].iloc[bidx])
                 ema_val   = float(ema200.iloc[bidx])
-                if close_val > ema_val and _prev_ch is not None and _prev_cl is not None:
-                    prior_range = _prev_ch - _prev_cl
-                    pullback    = _prev_ch - price
-                    if abs(prior_range) > 1e-10:
-                        pb = pullback / prior_range * 100
+                if close_val > ema_val:
+                    ref_ch = _last_price('CH', prior)
+                    ref_cl = _last_price('CL', prior)
+                    if ref_ch is not None and ref_cl is not None:
+                        prior_range = ref_ch - ref_cl
+                        pullback    = ref_ch - price
+                        if abs(prior_range) > 1e-10:
+                            pb = pullback / prior_range * 100
             except Exception:
                 pass
-            _prev_cl = price
 
-        # Cap to valid range 0–150%; anything outside indicates bad prior pivot data
+        # Cap to valid range 0–150%; outside this range indicates bad prior data
         if pb is not None and (pb < 0 or pb > 150):
             pb = None
 
