@@ -1193,7 +1193,12 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
     daily_perf = []
     try:
         t_daily = trades.copy()
-        t_daily["_date"] = pd.to_datetime(t_daily["timestamp"]).dt.strftime("%Y-%m-%d")
+        _td_ts = pd.to_datetime(t_daily["timestamp"])
+        if _td_ts.dt.tz is not None:
+            _td_ts = _td_ts.dt.tz_convert("UTC")
+        else:
+            _td_ts = _td_ts.dt.tz_localize("UTC")
+        t_daily["_date"] = _td_ts.dt.strftime("%Y-%m-%d")
         for date_str, grp in t_daily.groupby("_date"):
             grp_w = grp[grp.win]
             grp_l = grp[~grp.win]
