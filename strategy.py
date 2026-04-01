@@ -3392,6 +3392,21 @@ if __name__ == "__main__":
         df = fetch_data(TICKER, INTERVAL, DAYS_BACK)
 
     df              = add_indicators(df)
+
+    # ── Filter dataframe to exact requested date range ────────────────────────
+    if run_mode == "date_range" and run_start_date and run_end_date:
+        try:
+            _dts = pd.to_datetime(df["Datetime"])
+            if _dts.dt.tz is not None:
+                _dts_utc = _dts.dt.tz_convert("UTC")
+            else:
+                _dts_utc = _dts.dt.tz_localize("UTC")
+            _start_dt = pd.Timestamp(run_start_date, tz="UTC")
+            _end_dt   = pd.Timestamp(run_end_date,   tz="UTC") + pd.Timedelta(days=1)
+            _mask     = (_dts_utc >= _start_dt) & (_dts_utc < _end_dt)
+            df        = df[_mask].reset_index(drop=True)
+        except Exception as _e:
+            print(f"  Date filter error: {_e}")
     trades, equity, blocked_signals = run_backtest(df)
     print_results(trades, equity)
     time_blocked = sum(1 for s in blocked_signals if s["reason"] == "time")
