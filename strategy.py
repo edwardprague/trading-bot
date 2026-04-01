@@ -127,6 +127,9 @@ def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
     if start_date and end_date:
         start = datetime.strptime(start_date, "%Y-%m-%d")
         end   = datetime.strptime(end_date,   "%Y-%m-%d")
+        # Fetch extra history so indicators (EMA200 etc.) are properly warmed up;
+        # the caller's post-filter trims to the exact requested range afterwards.
+        start = start - timedelta(days=30)
         days_back = max(1, (end - start).days + 1)
         end = end + timedelta(days=1)  # make end date inclusive
     else:
@@ -3444,21 +3447,78 @@ if __name__ == "__main__":
 
     df              = add_indicators(df)
 
-    # ── Filter dataframe to exact requested date range ────────────────────────
+    # ── Filter dataframe to requested date range (with 1-day buffer for state) ─
+    _range_start  = None
+    _range_end    = None
+    _buffer_count = 0
     if run_mode == "date_range" and run_start_date and run_end_date:
+        _range_start = pd.Timestamp(run_start_date, tz="UTC")
+        _range_end   = pd.Timestamp(run_end_date,   tz="UTC") + pd.Timedelta(days=1)
         try:
             _dts = pd.to_datetime(df["Datetime"])
             if _dts.dt.tz is not None:
                 _dts_utc = _dts.dt.tz_convert("UTC")
             else:
                 _dts_utc = _dts.dt.tz_localize("UTC")
-            _start_dt = pd.Timestamp(run_start_date, tz="UTC")
-            _end_dt   = pd.Timestamp(run_end_date,   tz="UTC") + pd.Timedelta(days=1)
-            _mask     = (_dts_utc >= _start_dt) & (_dts_utc < _end_dt)
+            # Include 1-day buffer before start so the backtest carries forward
+            # any open-position state from the prior session, matching the
+            # behaviour of a longer (e.g. month-long) run.
+            _bt_start = _range_start - pd.Timedelta(days=1)
+            _mask     = (_dts_utc >= _bt_start) & (_dts_utc < _range_end)
             df        = df[_mask].reset_index(drop=True)
+            # Count how many bars fall in the buffer (before the requested start)
+            _dts_f = pd.to_datetime(df["Datetime"])
+            _dts_f_utc = (_dts_f.dt.tz_convert("UTC")
+                          if _dts_f.dt.tz is not None
+                          else _dts_f.dt.tz_localize("UTC"))
+            _buffer_count = int((_dts_f_utc < _range_start).sum())
         except Exception as _e:
             print(f"  Date filter error: {_e}")
     trades, equity, blocked_signals = run_backtest(df)
+
+    # ── Trim buffer bars from date-range results ────────────────────────────
+    if _buffer_count > 0 and _range_start is not None:
+        # Trim df to the exact requested range
+        df = df.iloc[_buffer_count:].reset_index(drop=True)
+
+        # Keep only trades whose entry falls within the requested range
+        if not trades.empty:
+            _t_entry = pd.to_datetime(trades["entry_ts"])
+            _t_entry = (_t_entry.dt.tz_convert("UTC")
+                        if _t_entry.dt.tz is not None
+                        else _t_entry.dt.tz_localize("UTC"))
+            _t_mask = (_t_entry >= _range_start) & (_t_entry < _range_end)
+            trades  = trades[_t_mask].copy()
+            trades["entry_idx"] = trades["entry_idx"] - _buffer_count
+            trades["exit_idx"]  = trades["exit_idx"]  - _buffer_count
+            trades = trades.reset_index(drop=True)
+
+        # Filter blocked signals to the requested range
+        _filtered_bs = []
+        for _s in blocked_signals:
+            _s_ts  = pd.Timestamp(_s["timestamp"])
+            _s_utc = (_s_ts.tz_convert("UTC")
+                      if _s_ts.tzinfo is not None
+                      else _s_ts.tz_localize("UTC"))
+            if _range_start <= _s_utc < _range_end:
+                _filtered_bs.append(_s)
+        blocked_signals = _filtered_bs
+
+        # Recompute bar-by-bar equity from filtered trades so that the curve,
+        # drawdown, and net-P&L reflect only the requested date range.
+        _eq_exits = {}
+        for _, _t in trades.iterrows():
+            _eidx = int(_t.exit_idx)
+            if 0 <= _eidx < len(df):
+                _eq_exits.setdefault(_eidx, []).append(float(_t.pnl))
+        _eq_cash = STARTING_CASH
+        equity   = [_eq_cash]
+        for _bi in range(1, len(df)):
+            if _bi in _eq_exits:
+                for _pnl in _eq_exits[_bi]:
+                    _eq_cash += _pnl
+            equity.append(_eq_cash)
+
     print_results(trades, equity)
     time_blocked = sum(1 for s in blocked_signals if s["reason"] == "time")
     print(f"  Time filter blocked : {time_blocked} signal(s)")
