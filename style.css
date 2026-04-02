@@ -511,6 +511,46 @@ tbody tr:hover td {
     border-color: #90c0f0;
 }
 
+/* ── Report tabs ─────────────────────────────────────── */
+.report-tabs {
+    display: inline-flex;
+    gap: 6px;
+    margin-left: 16px;
+    vertical-align: middle;
+}
+
+.report-tab {
+    font-size: 12px;
+    color: #999;
+    background: transparent;
+    border: 1px solid #444;
+    border-radius: 5px;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    font-family: inherit;
+}
+
+.report-tab:hover {
+    color: #ccc;
+    border-color: #666;
+}
+
+.report-tab.active {
+    color: #fff;
+    border-color: #90c0f0;
+    background: rgba(144, 192, 240, 0.1);
+}
+
+/* ── Tab content panels ─────────────────────────────── */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
 /* ── Entry conditions table ───────────────────────────── */
 .ec-th {
     text-align: left;

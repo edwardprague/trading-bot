@@ -2844,8 +2844,14 @@ __VERSIONS_JSON__
       /* header */
       "<div id='v-header'>" +
         "<div id='v-header-top'>" +
-          "<h2>" + esc(v.name) + stratBadge + "</h2>" +
-          "<div class='quick-nav'>" +
+          "<h2>" + esc(v.name) + stratBadge +
+            "<span class='report-tabs'>" +
+              "<button class='report-tab active' data-tab='general'>General</button>" +
+              "<button class='report-tab' data-tab='rpf'>Rolling Profit Factor</button>" +
+              "<button class='report-tab' data-tab='advanced'>Advanced</button>" +
+            "</span>" +
+          "</h2>" +
+          "<div class='quick-nav' id='quick-nav-bar'>" +
             "<a href='#anchor-chart' class='quick-nav-link' data-anchor='anchor-chart'>Chart</a>" +
             "<a href='#anchor-daily-perf' class='quick-nav-link' data-anchor='anchor-daily-perf'>Daily Performance</a>" +
             "<a href='#anchor-intraday-perf' class='quick-nav-link' data-anchor='anchor-intraday-perf'>Intraday Performance</a>" +
@@ -2868,6 +2874,9 @@ __VERSIONS_JSON__
         }()) +
         notesHtml +
       "</div>" +
+
+      /* ── TAB: General ──────────────────────────────────────────────────────── */
+      "<div class='tab-content active' data-tab-content='general'>" +
 
       /* ── Section 1: Summary + Entry Conditions ────────────────────────────── */
       "<div class='two-col'>" + summaryHtml + entryCondHtml + "</div>" +
@@ -2945,15 +2954,6 @@ __VERSIONS_JSON__
       /* ── Section 3: Performance by Direction ──────────────────────────────── */
       dirHtml +
 
-      /* ── Range Filter + Regime Classification (side by side) ────────────── */
-      "<div class='two-col'>" + rsdHtml + regimeHtml + "</div>" +
-
-      /* ── Section 4: Rolling Profit Factor data ────────────────────────────── */
-      rollingPfHtml +
-
-      /* ── Section 5: RPF chart image ───────────────────────────────────────── */
-      rpfChartHtml +
-
       /* ── Section 6: Monthly Performance ──────────────────────────────────── */
       monthHtml +
 
@@ -2966,26 +2966,47 @@ __VERSIONS_JSON__
       /* ── Section 7: Time of Day Performance ──────────────────────────────── */
       timeOfDayHtml +
 
-      /* ── Section 8: Main chart (visual divider) ───────────────────────────── */
+      /* ── Main chart ───────────────────────────────────────────────────────── */
       chartHtml +
 
-      /* ── Section 9: Streak Analysis + Stop vs Target ──────────────────────── */
+      /* ── Fractal Diagnostics (single-day date ranges only) ──────── */
+      pivotDiagHtml +
+
+      "</div>" + /* end General tab */
+
+      /* ── TAB: Rolling Profit Factor ──────────────────────────────────────── */
+      "<div class='tab-content' data-tab-content='rpf'>" +
+
+      /* ── Rolling Profit Factor data ───────────────────────────────────────── */
+      rollingPfHtml +
+
+      /* ── RPF chart image ──────────────────────────────────────────────────── */
+      rpfChartHtml +
+
+      "</div>" + /* end RPF tab */
+
+      /* ── TAB: Advanced ───────────────────────────────────────────────────── */
+      "<div class='tab-content' data-tab-content='advanced'>" +
+
+      /* ── Range Filter + Regime Classification (side by side) ────────────── */
+      "<div class='two-col'>" + rsdHtml + regimeHtml + "</div>" +
+
+      /* ── Streak Analysis + Stop vs Target ─────────────────────────────────── */
       "<div class='two-col'>" + streakHtml + stopHtml + "</div>" +
 
       /* ── Win Rate Trend ──────────────────────────────────────────────────── */
       winRateTrendHtml +
 
-      /* ── Section 11: Trade Duration + Filter Impact Summary ───────────────── */
+      /* ── Trade Duration + Filter Impact Summary ───────────────────────────── */
       "<div class='two-col'>" + durationHtml + filterImpactHtml + "</div>" +
 
       /* ── Daily Drawdown ────────────────────────────────────────────────────── */
       dailyDDHtml +
 
-      /* ── Section 12: RRR Sensitivity + Swing Lookback Sensitivity ─────────── */
+      /* ── RRR Sensitivity + Swing Lookback Sensitivity ─────────────────────── */
       "<div class='two-col'>" + rrrSensHtml + swingSensHtml + "</div>" +
 
-      /* ── Fractal Diagnostics (single-day date ranges only) ──────── */
-      pivotDiagHtml;
+      "</div>"; /* end Advanced tab */
 
     /* Wire quick-nav links — smooth scroll inside #main container */
     var mainEl = document.getElementById("main");
@@ -2998,6 +3019,25 @@ __VERSIONS_JSON__
         mainEl.scrollTo({ top: top, behavior: "smooth" });
       });
     });
+
+    /* Wire report tabs */
+    (function () {
+      var tabs = document.querySelectorAll(".report-tab");
+      var panels = document.querySelectorAll(".tab-content");
+      var quickNav = document.getElementById("quick-nav-bar");
+      tabs.forEach(function (tab) {
+        tab.addEventListener("click", function () {
+          var target = tab.dataset.tab;
+          tabs.forEach(function (t) { t.classList.remove("active"); });
+          panels.forEach(function (p) { p.classList.remove("active"); });
+          tab.classList.add("active");
+          var panel = document.querySelector(".tab-content[data-tab-content='" + target + "']");
+          if (panel) panel.classList.add("active");
+          if (quickNav) quickNav.style.display = (target === "general") ? "" : "none";
+          if (mainEl) mainEl.scrollTop = 0;
+        });
+      });
+    }());
 
     /* Wire copy button — context aware (lives in the run bar) */
     (function (ver, runData) {
