@@ -1923,8 +1923,8 @@ __VERSIONS_JSON__
         var um = cur.getUTCMonth() + 1;
         var ud = cur.getUTCDate();
         var ds = uy + "-" + (um < 10 ? "0" : "") + um + "-" + (ud < 10 ? "0" : "") + ud;
-        var yy = String(uy).slice(-2);
-        var dateLabel = um + "-" + (ud < 10 ? "0" : "") + ud + "-" + yy;
+        var mdMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var dateLabel = mdMnames[um - 1] + " " + ud + " " + uy;
         var d = dailyLookup[ds];
         if (d) {
           lines.push("| " + dateLabel + " | " + d.trades + " | " + d.wins + " | " + d.losses + " | " + mf(d.win_rate, 1) + "% | " + mfMoney(d.net_pnl) + " |");
@@ -1944,9 +1944,12 @@ __VERSIONS_JSON__
       lines.push("");
       lines.push("| Date | Trade Time | Trade Direction | P&L |");
       lines.push("|------|------------|-----------------|-----|");
+      var mdIMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       intradayData.forEach(function (t) {
         var dir = t.direction.charAt(0).toUpperCase() + t.direction.slice(1);
-        lines.push("| " + t.date + " | " + t.time + " UTC | " + dir + " | " + mfMoney(t.pnl) + " |");
+        var idp = t.date.split("-");
+        var iDateLabel = mdIMnames[parseInt(idp[1], 10) - 1] + " " + parseInt(idp[2], 10) + " " + idp[0];
+        lines.push("| " + iDateLabel + " | " + t.time + " UTC | " + dir + " | " + mfMoney(t.pnl) + " |");
       });
       lines.push("");
     }());
@@ -2264,8 +2267,8 @@ __VERSIONS_JSON__
         var um  = cur.getUTCMonth() + 1;
         var ud  = cur.getUTCDate();
         var ds  = uy + "-" + (um < 10 ? "0" : "") + um + "-" + (ud < 10 ? "0" : "") + ud;
-        var yy  = String(uy).slice(-2);
-        var dateLabel = um + "-" + (ud < 10 ? "0" : "") + ud + "-" + yy;
+        var dMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        var dateLabel = dMnames[um - 1] + " " + ud + " " + uy;
         var d   = dailyLookup[ds];
         if (d) {
           var dPnlCls = d.net_pnl >= 0 ? "mo-pnl-pos" : "mo-pnl-neg";
@@ -2307,13 +2310,16 @@ __VERSIONS_JSON__
       var intradayData = m.intraday || [];
       if (intradayData.length === 0) return;
 
+      var iMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       var iRows = "";
       intradayData.forEach(function (t) {
         var pnlCls = t.pnl >= 0 ? "mo-pnl-pos" : "mo-pnl-neg";
         var dirCls = t.direction === "short" ? "intraday-dir-short" : "intraday-dir-long";
+        var dp = t.date.split("-");
+        var iDateLabel = iMnames[parseInt(dp[1], 10) - 1] + " " + parseInt(dp[2], 10) + " " + dp[0];
         iRows +=
           "<tr>" +
-          "<td>" + esc(t.date) + "</td>" +
+          "<td>" + esc(iDateLabel) + "</td>" +
           "<td>" + esc(t.time) + " UTC</td>" +
           "<td class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
           "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
