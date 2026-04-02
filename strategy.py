@@ -1231,21 +1231,30 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
     intraday_trades = []
     try:
         t_intra = trades.copy()
-        _ti_ts = pd.to_datetime(t_intra["entry_ts"])
-        if _ti_ts.dt.tz is not None:
-            _ti_ts = _ti_ts.dt.tz_convert("UTC")
+        _ti_entry = pd.to_datetime(t_intra["entry_ts"])
+        _ti_exit  = pd.to_datetime(t_intra["timestamp"])
+        if _ti_entry.dt.tz is not None:
+            _ti_entry = _ti_entry.dt.tz_convert("UTC")
         else:
-            _ti_ts = _ti_ts.dt.tz_localize("UTC")
-        t_intra["_date"] = _ti_ts.dt.strftime("%Y-%m-%d")
-        t_intra["_time"] = _ti_ts.dt.strftime("%H:%M")
+            _ti_entry = _ti_entry.dt.tz_localize("UTC")
+        if _ti_exit.dt.tz is not None:
+            _ti_exit = _ti_exit.dt.tz_convert("UTC")
+        else:
+            _ti_exit = _ti_exit.dt.tz_localize("UTC")
+        t_intra["_date"]       = _ti_entry.dt.strftime("%Y-%m-%d")
+        t_intra["_entry_time"] = _ti_entry.dt.strftime("%H:%M")
+        t_intra["_exit_time"]  = _ti_exit.dt.strftime("%H:%M")
+        t_intra["_duration"]   = ((_ti_exit - _ti_entry).dt.total_seconds() / 60).round(0).astype(int)
         unique_dates = t_intra["_date"].unique()
         if len(unique_dates) == 1:
             for _, row_t in t_intra.iterrows():
                 intraday_trades.append({
-                    "date":      row_t["_date"],
-                    "time":      row_t["_time"],
-                    "direction": row_t["direction"],
-                    "pnl":       round(float(row_t["pnl"]), 2),
+                    "date":       row_t["_date"],
+                    "entry_time": row_t["_entry_time"],
+                    "exit_time":  row_t["_exit_time"],
+                    "duration":   int(row_t["_duration"]),
+                    "direction":  row_t["direction"],
+                    "pnl":        round(float(row_t["pnl"]), 2),
                 })
     except Exception:
         intraday_trades = []
@@ -1942,14 +1951,14 @@ __VERSIONS_JSON__
       if (intradayData.length === 0) return;
       lines.push("### Intraday Performance");
       lines.push("");
-      lines.push("| Date | Trade Time | Trade Direction | P&L |");
-      lines.push("|------|------------|-----------------|-----|");
+      lines.push("| Date | Entry Time | Exit Time | Duration | Trade Direction | P&L |");
+      lines.push("|------|------------|-----------|----------|-----------------|-----|");
       var mdIMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       intradayData.forEach(function (t) {
         var dir = t.direction.charAt(0).toUpperCase() + t.direction.slice(1);
         var idp = t.date.split("-");
         var iDateLabel = mdIMnames[parseInt(idp[1], 10) - 1] + " " + parseInt(idp[2], 10) + " " + idp[0];
-        lines.push("| " + iDateLabel + " | " + t.time + " UTC | " + dir + " | " + mfMoney(t.pnl) + " |");
+        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + t.exit_time + " UTC | " + t.duration + " min | " + dir + " | " + mfMoney(t.pnl) + " |");
       });
       lines.push("");
     }());
@@ -2320,7 +2329,9 @@ __VERSIONS_JSON__
         iRows +=
           "<tr>" +
           "<td>" + esc(iDateLabel) + "</td>" +
-          "<td>" + esc(t.time) + " UTC</td>" +
+          "<td>" + esc(t.entry_time) + " UTC</td>" +
+          "<td>" + esc(t.exit_time) + " UTC</td>" +
+          "<td>" + t.duration + " min</td>" +
           "<td class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
           "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
           "</tr>";
@@ -2330,7 +2341,7 @@ __VERSIONS_JSON__
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
           "<table><thead><tr>" +
-          "<th>Date</th><th>Trade Time</th><th>Trade Direction</th><th>P&amp;L</th>" +
+          "<th>Date</th><th>Entry Time</th><th>Exit Time</th><th>Duration</th><th>Trade Direction</th><th>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 

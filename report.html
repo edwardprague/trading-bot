@@ -3648,7 +3648,7 @@
         ]
       },
       {
-        "date": "2026-04-02 10:42",
+        "date": "2026-04-02 10:47",
         "start_date": "2026-02-04",
         "end_date": "2026-02-04",
         "days_back": 0,
@@ -3725,7 +3725,9 @@
           "intraday": [
             {
               "date": "2026-02-04",
-              "time": "17:35",
+              "entry_time": "17:35",
+              "exit_time": "09:55",
+              "duration": 980,
               "direction": "short",
               "pnl": 1979.79
             }
@@ -4640,14 +4642,14 @@
       if (intradayData.length === 0) return;
       lines.push("### Intraday Performance");
       lines.push("");
-      lines.push("| Date | Trade Time | Trade Direction | P&L |");
-      lines.push("|------|------------|-----------------|-----|");
+      lines.push("| Date | Entry Time | Exit Time | Duration | Trade Direction | P&L |");
+      lines.push("|------|------------|-----------|----------|-----------------|-----|");
       var mdIMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       intradayData.forEach(function (t) {
         var dir = t.direction.charAt(0).toUpperCase() + t.direction.slice(1);
         var idp = t.date.split("-");
         var iDateLabel = mdIMnames[parseInt(idp[1], 10) - 1] + " " + parseInt(idp[2], 10) + " " + idp[0];
-        lines.push("| " + iDateLabel + " | " + t.time + " UTC | " + dir + " | " + mfMoney(t.pnl) + " |");
+        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + t.exit_time + " UTC | " + t.duration + " min | " + dir + " | " + mfMoney(t.pnl) + " |");
       });
       lines.push("");
     }());
@@ -5018,7 +5020,9 @@
         iRows +=
           "<tr>" +
           "<td>" + esc(iDateLabel) + "</td>" +
-          "<td>" + esc(t.time) + " UTC</td>" +
+          "<td>" + esc(t.entry_time) + " UTC</td>" +
+          "<td>" + esc(t.exit_time) + " UTC</td>" +
+          "<td>" + t.duration + " min</td>" +
           "<td class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
           "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
           "</tr>";
@@ -5028,7 +5032,7 @@
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
           "<table><thead><tr>" +
-          "<th>Date</th><th>Trade Time</th><th>Trade Direction</th><th>P&amp;L</th>" +
+          "<th>Date</th><th>Entry Time</th><th>Exit Time</th><th>Duration</th><th>Trade Direction</th><th>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 
