@@ -623,7 +623,7 @@ def print_results(trades, equity):
 # ── Charts ────────────────────────────────────────────────────────────────────
 
 def save_charts(df, trades, equity):
-    """Save two chart images and return (main_path, rpf_path)."""
+    """Save three chart images and return (main_path, rpf_path, eq_dd_path)."""
     os.makedirs("results", exist_ok=True)
     ticker_clean = TICKER.split("=")[0].replace("^", "")
     date_str     = datetime.now().strftime("%Y-%m-%d")
@@ -694,15 +694,10 @@ def save_charts(df, trades, equity):
     sm_dates_fast,  sm_fast  = _smooth(ds_fast)
     sm_dates_entry, sm_entry = _smooth(ds_entry)
 
-    # ── Main chart: Price / Equity / Drawdown (3 panels) ──────────────────────
-    fig, axes = plt.subplots(3, 1, figsize=(16, 12),
-                              gridspec_kw={"height_ratios": [3, 1, 1]})
+    # ── Main chart: Price only (1 panel) ───────────────────────────────────────
+    fig, ax1 = plt.subplots(1, 1, figsize=(16, 6))
     fig.patch.set_facecolor("#1a1a2e")
-    for ax in axes:
-        _style_ax(ax)
-
-    # Price chart with EMAs
-    ax1 = axes[0]
+    _style_ax(ax1)
 
     if is_one_day:
         # ── 1-day: full-resolution OHLC candlestick chart ────────────────────
@@ -808,12 +803,26 @@ def save_charts(df, trades, equity):
     ax1.legend(loc="upper left", facecolor="#1a1a2e",
                labelcolor="white", fontsize=8)
     ax1.set_ylabel("Price", color="white")
+    ax1.set_xlabel("Date", color="white")
     _set_x_fmt(ax1)
 
-    # Equity curve
-    ax2 = axes[1]
+    plt.tight_layout(pad=2.0)
+    main_path = os.path.join("results", f"{VERSION}_{ticker_clean}_{date_str}.png")
+    plt.savefig(main_path, dpi=130, bbox_inches="tight", facecolor="#1a1a2e")
+    plt.close()
+    print(f"  Main chart saved → {main_path}")
+
+    # ── Equity & Drawdown chart (2 panels) ───────────────────────────────────
     eq_dates  = dates.iloc[:len(equity)] if len(equity) <= len(dates) else dates
     eq_series = pd.Series(equity[:len(eq_dates)])
+
+    fig_eq, (ax2, ax3) = plt.subplots(2, 1, figsize=(16, 6),
+                                       gridspec_kw={"height_ratios": [1, 1]})
+    fig_eq.patch.set_facecolor("#1a1a2e")
+    _style_ax(ax2)
+    _style_ax(ax3)
+
+    # Equity curve
     ax2.plot(eq_dates[:len(eq_series)], eq_series, color="#4cc9f0", linewidth=1.2)
     ax2.axhline(STARTING_CASH, color="#666", linestyle="--", linewidth=0.8)
     ax2.fill_between(eq_dates[:len(eq_series)], STARTING_CASH,
@@ -822,24 +831,25 @@ def save_charts(df, trades, equity):
     ax2.fill_between(eq_dates[:len(eq_series)], STARTING_CASH,
                      eq_series, where=eq_series < STARTING_CASH,
                      alpha=0.2, color="#ff6b6b")
+    ax2.set_title("Equity Curve", color="white", fontsize=12, pad=8)
     ax2.set_ylabel("Equity ($)", color="white")
     _set_x_fmt(ax2)
 
     # Drawdown
-    ax3 = axes[2]
     eq_s = pd.Series(equity)
     peak = eq_s.cummax()
     dd   = (eq_s - peak) / peak * 100
     ax3.fill_between(eq_dates[:len(dd)], dd, 0, color="#ff6b6b", alpha=0.6)
+    ax3.set_title("Drawdown", color="white", fontsize=12, pad=8)
     ax3.set_ylabel("Drawdown %", color="white")
     ax3.set_xlabel("Date", color="white")
     _set_x_fmt(ax3)
 
     plt.tight_layout(pad=2.0)
-    main_path = os.path.join("results", f"{VERSION}_{ticker_clean}_{date_str}.png")
-    plt.savefig(main_path, dpi=130, bbox_inches="tight", facecolor="#1a1a2e")
+    eq_dd_path = os.path.join("results", f"{VERSION}_{ticker_clean}_{date_str}_eq_dd.png")
+    plt.savefig(eq_dd_path, dpi=130, bbox_inches="tight", facecolor="#1a1a2e")
     plt.close()
-    print(f"  Main chart saved → {main_path}")
+    print(f"  Equity/DD chart saved → {eq_dd_path}")
 
     # ── RPF chart: Rolling Profit Factor (1 panel) ────────────────────────────
     fig2, ax4 = plt.subplots(1, 1, figsize=(16, 4))
@@ -893,7 +903,7 @@ def save_charts(df, trades, equity):
     plt.close()
     print(f"  RPF chart saved  → {rpf_path}\n")
 
-    return main_path, rpf_path
+    return main_path, rpf_path, eq_dd_path
 
 # ── Fractal Diagnostics ───────────────────────────────────────────────────────
 
@@ -1780,6 +1790,7 @@ __VERSIONS_JSON__
       days_back: (v.params || {}).days_back || 0, label: "",
       notes: v.notes || "\u2014", chart_b64: v.chart_b64 || "",
       rpf_chart_b64: v.rpf_chart_b64 || "",
+      eq_dd_chart_b64: v.eq_dd_chart_b64 || "",
       metrics: v.metrics || {}, last_trades: v.last_trades || []
     }];
   }
@@ -2740,6 +2751,11 @@ __VERSIONS_JSON__
         "<img id='chart-img' src='data:image/png;base64," + run.chart_b64 + "' alt='Backtest Chart'/></div>"
       : "";
 
+    var eqDdChartHtml = run.eq_dd_chart_b64
+      ? "<div class='section'><div class='section-title'>Equity and Drawdown</div>" +
+        "<img id='eq-dd-chart-img' src='data:image/png;base64," + run.eq_dd_chart_b64 + "' alt='Equity and Drawdown'/></div>"
+      : "";
+
     var notesHtml = (run.notes && run.notes !== "&#8212;" && run.notes !== "\u2014" && run.notes !== "\u2014")
       ? "<div class='v-notes'>&#128221;&nbsp; " + esc(run.notes) + "</div>"
       : "";
@@ -3005,6 +3021,9 @@ __VERSIONS_JSON__
 
       /* ── RRR Sensitivity + Swing Lookback Sensitivity ─────────────────────── */
       "<div class='two-col'>" + rrrSensHtml + swingSensHtml + "</div>" +
+
+      /* ── Equity and Drawdown ──────────────────────────────────────────────── */
+      eqDdChartHtml +
 
       "</div>"; /* end Advanced tab */
 
@@ -3444,6 +3463,7 @@ __VERSIONS_JSON__
 
 def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes="",
                          blocked_signals=None, df=None, rpf_chart_path=None,
+                         eq_dd_chart_path=None,
                          run_mode="new_version", run_start_date="", run_end_date=""):
     """Create or update report.html.
 
@@ -3470,6 +3490,12 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
     if rpf_chart_path and os.path.exists(rpf_chart_path):
         with open(rpf_chart_path, "rb") as fh:
             rpf_chart_b64 = base64.b64encode(fh.read()).decode("utf-8")
+
+    # ── Load Equity/Drawdown chart as base64 ─────────────────────────────────
+    eq_dd_chart_b64 = ""
+    if eq_dd_chart_path and os.path.exists(eq_dd_chart_path):
+        with open(eq_dd_chart_path, "rb") as fh:
+            eq_dd_chart_b64 = base64.b64encode(fh.read()).decode("utf-8")
 
     # ── Build last-10-trades list ──────────────────────────────────────────────
     last_trades = []
@@ -3509,12 +3535,13 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
                 "notes":         v.get("notes", "—"),
                 "chart_b64":     v.get("chart_b64", ""),
                 "rpf_chart_b64": v.get("rpf_chart_b64", ""),
+                "eq_dd_chart_b64": v.get("eq_dd_chart_b64", ""),
                 "metrics":       v.get("metrics", {}),
                 "last_trades":   v.get("last_trades", []),
             }]
             # Remove legacy top-level run data (keep name, params, strategy, etc.)
             for key in ["date", "notes", "chart_b64", "rpf_chart_b64",
-                        "metrics", "last_trades"]:
+                        "eq_dd_chart_b64", "metrics", "last_trades"]:
                 v.pop(key, None)
 
     # ── Build a run object ─────────────────────────────────────────────────────
@@ -3529,10 +3556,11 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "label":         run_label,
         "instrument":    _INSTRUMENT,
         "notes":         notes.strip() if notes else "—",
-        "chart_b64":     chart_b64,
-        "rpf_chart_b64": rpf_chart_b64,
-        "metrics":       metrics,
-        "last_trades":   last_trades,
+        "chart_b64":        chart_b64,
+        "rpf_chart_b64":    rpf_chart_b64,
+        "eq_dd_chart_b64":  eq_dd_chart_b64,
+        "metrics":          metrics,
+        "last_trades":      last_trades,
     }
 
     params_dict = {
@@ -3811,10 +3839,11 @@ if __name__ == "__main__":
     print_results(trades, equity)
     time_blocked = sum(1 for s in blocked_signals if s["reason"] == "time")
     print(f"  Time filter blocked : {time_blocked} signal(s)")
-    chart_path, rpf_chart_path = save_charts(df, trades, equity)
+    chart_path, rpf_chart_path, eq_dd_chart_path = save_charts(df, trades, equity)
     generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes,
                          blocked_signals=blocked_signals, df=df,
                          rpf_chart_path=rpf_chart_path,
+                         eq_dd_chart_path=eq_dd_chart_path,
                          run_mode=run_mode,
                          run_start_date=run_start_date,
                          run_end_date=run_end_date)
