@@ -1954,11 +1954,15 @@ __VERSIONS_JSON__
       lines.push("| Date | Entry Time | Exit Time | Duration | Trade Direction | P&L |");
       lines.push("|------|------------|-----------|----------|-----------------|-----|");
       var mdIMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      function mdFmtDur(mins) {
+        if (mins < 60) return mins + " min";
+        return (mins / 60).toFixed(1).replace(".", ",") + " hrs";
+      }
       intradayData.forEach(function (t) {
         var dir = t.direction.charAt(0).toUpperCase() + t.direction.slice(1);
         var idp = t.date.split("-");
         var iDateLabel = mdIMnames[parseInt(idp[1], 10) - 1] + " " + parseInt(idp[2], 10) + " " + idp[0];
-        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + t.exit_time + " UTC | " + t.duration + " min | " + dir + " | " + mfMoney(t.pnl) + " |");
+        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + t.exit_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + mfMoney(t.pnl) + " |");
       });
       lines.push("");
     }());
@@ -2320,6 +2324,10 @@ __VERSIONS_JSON__
       if (intradayData.length === 0) return;
 
       var iMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      function fmtDur(mins) {
+        if (mins < 60) return mins + " min";
+        return (mins / 60).toFixed(1).replace(".", ",") + " hrs";
+      }
       var iRows = "";
       intradayData.forEach(function (t) {
         var pnlCls = t.pnl >= 0 ? "mo-pnl-pos" : "mo-pnl-neg";
@@ -2331,7 +2339,7 @@ __VERSIONS_JSON__
           "<td>" + esc(iDateLabel) + "</td>" +
           "<td>" + esc(t.entry_time) + " UTC</td>" +
           "<td>" + esc(t.exit_time) + " UTC</td>" +
-          "<td>" + t.duration + " min</td>" +
+          "<td>" + fmtDur(t.duration) + "</td>" +
           "<td class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
           "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
           "</tr>";
