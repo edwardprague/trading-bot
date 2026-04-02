@@ -3149,15 +3149,6 @@ __VERSIONS_JSON__
           row("Avg Target (pips)", avgTargetPipsHtml) +
           row("Best Trade",    "<span class='pos'>" + fmtMoney(m.best_trade)  + "</span>") +
           row("Worst Trade",   "<span class='neg'>" + fmtMoney(m.worst_trade) + "</span>") +
-          (m.avg_position_size !== null && m.avg_position_size !== undefined
-            ? row("Avg Position Size", Math.round(m.avg_position_size).toLocaleString() + " units")
-            : "") +
-          (m.min_position_size !== null && m.min_position_size !== undefined
-            ? row("Min Position Size", Math.round(m.min_position_size).toLocaleString() + " units")
-            : "") +
-          (m.max_position_size !== null && m.max_position_size !== undefined
-            ? row("Max Position Size", Math.round(m.max_position_size).toLocaleString() + " units")
-            : "") +
           "</tbody></table>" +
         "</div>" +
 
@@ -3174,9 +3165,6 @@ __VERSIONS_JSON__
           row("Swing Lookback", (p.swing_lookback || "") + " bars") +
           row("RRR",            "1&thinsp;:&thinsp;" + (p.rrr || "")) +
           row("Risk / Trade",   ((p.risk_pct || 0) * 100).toFixed(1) + "% = $" + ((p.starting_cash || 0) * (p.risk_pct || 0)).toLocaleString()) +
-          (m.avg_position_size !== null && m.avg_position_size !== undefined
-            ? row("Avg Position Size", Math.round(m.avg_position_size).toLocaleString() + " units")
-            : "") +
           row("Min Stop",       ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Max Stop",       ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Direction",      "<span class='val-highlight'>" + esc(p.trade_direction || "both") + "</span>") +
