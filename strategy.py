@@ -1227,6 +1227,29 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
     except Exception:
         daily_perf = []
 
+    # ── Intraday trade list (for single-day ranges) ─────────────────────────────
+    intraday_trades = []
+    try:
+        t_intra = trades.copy()
+        _ti_ts = pd.to_datetime(t_intra["entry_ts"])
+        if _ti_ts.dt.tz is not None:
+            _ti_ts = _ti_ts.dt.tz_convert("UTC")
+        else:
+            _ti_ts = _ti_ts.dt.tz_localize("UTC")
+        t_intra["_date"] = _ti_ts.dt.strftime("%Y-%m-%d")
+        t_intra["_time"] = _ti_ts.dt.strftime("%H:%M")
+        unique_dates = t_intra["_date"].unique()
+        if len(unique_dates) == 1:
+            for _, row_t in t_intra.iterrows():
+                intraday_trades.append({
+                    "date":      row_t["_date"],
+                    "time":      row_t["_time"],
+                    "direction": row_t["direction"],
+                    "pnl":       round(float(row_t["pnl"]), 2),
+                })
+    except Exception:
+        intraday_trades = []
+
     # ── Streak analysis ────────────────────────────────────────────────────────
     results = trades["win"].tolist()
     max_win_streak = max_loss_streak = 0
@@ -1564,6 +1587,7 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         "by_direction":   by_dir,
         "monthly":        monthly,
         "daily":          daily_perf,
+        "intraday":       intraday_trades,
         "streaks": {
             "max_win_streak":  max_win_streak,
             "max_loss_streak": max_loss_streak,
@@ -1909,6 +1933,21 @@ __VERSIONS_JSON__
         }
         cur.setUTCDate(cur.getUTCDate() + 1);
       }
+      lines.push("");
+    }());
+
+    /* ── Intraday Performance (single-day ranges only) ──── */
+    (function () {
+      var intradayData = m.intraday || [];
+      if (intradayData.length === 0) return;
+      lines.push("### Intraday Performance");
+      lines.push("");
+      lines.push("| Date | Trade Time | Trade Direction | P&L |");
+      lines.push("|------|------------|-----------------|-----|");
+      intradayData.forEach(function (t) {
+        var dir = t.direction.charAt(0).toUpperCase() + t.direction.slice(1);
+        lines.push("| " + t.date + " | " + t.time + " UTC | " + dir + " | " + mfMoney(t.pnl) + " |");
+      });
       lines.push("");
     }());
 
@@ -2260,6 +2299,33 @@ __VERSIONS_JSON__
           "<th>Date</th><th>Trades</th><th>Wins</th><th>Losses</th>" +
           "<th>Win Rate</th><th>Net P&amp;L</th>" +
           "</tr></thead><tbody>" + dRows + "</tbody></table></div>";
+    }());
+
+    /* 2c. Intraday Performance (single-day ranges only) */
+    var intradayPerfHtml = "";
+    (function () {
+      var intradayData = m.intraday || [];
+      if (intradayData.length === 0) return;
+
+      var iRows = "";
+      intradayData.forEach(function (t) {
+        var pnlCls = t.pnl >= 0 ? "mo-pnl-pos" : "mo-pnl-neg";
+        var dirCls = t.direction === "short" ? "intraday-dir-short" : "intraday-dir-long";
+        iRows +=
+          "<tr>" +
+          "<td>" + esc(t.date) + "</td>" +
+          "<td>" + esc(t.time) + " UTC</td>" +
+          "<td class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
+          "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
+          "</tr>";
+      });
+
+      intradayPerfHtml =
+        "<div class='section' id='anchor-intraday-perf'>" +
+          "<div class='section-title'>Intraday Performance</div>" +
+          "<table><thead><tr>" +
+          "<th>Date</th><th>Trade Time</th><th>Trade Direction</th><th>P&amp;L</th>" +
+          "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 
     /* 3. Streak Analysis */
@@ -2757,6 +2823,7 @@ __VERSIONS_JSON__
           "<div class='quick-nav'>" +
             "<a href='#anchor-chart' class='quick-nav-link' data-anchor='anchor-chart'>Chart</a>" +
             "<a href='#anchor-daily-perf' class='quick-nav-link' data-anchor='anchor-daily-perf'>Daily Performance</a>" +
+            "<a href='#anchor-intraday-perf' class='quick-nav-link' data-anchor='anchor-intraday-perf'>Intraday Performance</a>" +
             "<a href='#anchor-fractal-diag' class='quick-nav-link' data-anchor='anchor-fractal-diag'>Fractal Diagnostics</a>" +
           "</div>" +
         "</div>" +
@@ -2867,6 +2934,9 @@ __VERSIONS_JSON__
 
       /* ── Section 6b: Daily Performance (≤ 31 day ranges only) ────────────── */
       dailyPerfHtml +
+
+      /* ── Section 6c: Intraday Performance (single-day ranges only) ─────── */
+      intradayPerfHtml +
 
       /* ── Section 7: Time of Day Performance ──────────────────────────────── */
       timeOfDayHtml +

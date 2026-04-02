@@ -609,6 +609,17 @@ tbody tr:hover td {
     font-weight: 600;
 }
 
+/* ── Intraday Performance direction colors ───────────── */
+.intraday-dir-short {
+    color: #ff6b6b;
+    font-weight: 600;
+}
+
+.intraday-dir-long {
+    color: #6bcb77;
+    font-weight: 600;
+}
+
 /* ── Time-of-day best / worst row highlight ───────────── */
 .tod-row-best {
     background: rgba(107, 203, 119, 0.07);
