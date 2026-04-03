@@ -58,9 +58,6 @@ MAX_STOP        = 0.0200     # 200 pips maximum stop
 
 TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 
-TIME_FILTER       = True
-TIME_FILTER_HOURS = [1, 2, 16, 17, 18]           # UTC hours allowed
-
 MAX_DAILY_LOSS  = 2500.0            # stop trading if day's loss reaches $2,500 (2.5% of capital)
 
 ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
@@ -297,15 +294,6 @@ def _sensitivity_run(df, rrr, swing_lookback):
             long_sig   = trend_up   and cp < enp and c > en and (TRADE_DIRECTION != "short_only")
             short_sig  = trend_down and cp > enp and c < en and (TRADE_DIRECTION != "long_only")
 
-            if TIME_FILTER:
-                _ts_u = pd.to_datetime(ts)
-                if _ts_u.tzinfo is not None:
-                    _ts_u = _ts_u.tz_convert("UTC")
-                else:
-                    _ts_u = _ts_u.tz_localize("UTC")
-                if _ts_u.hour not in TIME_FILTER_HOURS:
-                    continue
-
             if long_sig and not np.isnan(s_lo):
                 dist = c - s_lo
                 if MIN_STOP <= dist <= MAX_STOP:
@@ -457,31 +445,6 @@ def run_backtest(df):
             # Apply direction filter
             long_sig  = long_sig_raw  and (TRADE_DIRECTION != "short_only")
             short_sig = short_sig_raw and (TRADE_DIRECTION != "long_only")
-
-            # ── Apply time filter and track blocked signals ────────────────────
-            if TIME_FILTER:
-                _ts_utc    = pd.to_datetime(ts)
-                if _ts_utc.tzinfo is not None:
-                    _ts_utc = _ts_utc.tz_convert('UTC')
-                else:
-                    _ts_utc = _ts_utc.tz_localize('UTC')
-                entry_hour = _ts_utc.hour
-                if entry_hour not in TIME_FILTER_HOURS:
-                    if long_sig and not np.isnan(s_lo):
-                        dist_b = c - s_lo
-                        if MIN_STOP <= dist_b <= MAX_STOP:
-                            blocked_signals.append(_scan_outcome(
-                                df, i, "long", c, s_lo, c + dist_b * RRR,
-                                (cash * RISK_PCT) / dist_b, ts, "time"))
-                    if short_sig and not np.isnan(s_hi):
-                        dist_b = s_hi - c
-                        if MIN_STOP <= dist_b <= MAX_STOP:
-                            blocked_signals.append(_scan_outcome(
-                                df, i, "short", c, s_hi, c - dist_b * RRR,
-                                (cash * RISK_PCT) / dist_b, ts, "time"))
-                    long_sig  = False
-                    short_sig = False
-                    continue
 
             # ── Daily loss limit ──────────────────────────────────────────────
             _ts_day = pd.to_datetime(ts)
@@ -1859,8 +1822,6 @@ __VERSIONS_JSON__
     lines.push("| RRR | 1:"         + (p.rrr || "\u2014") + " |");
     lines.push("| Risk / Trade | "  + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
     lines.push("| Direction | "     + (p.trade_direction || "both") + " |");
-    var tfHours = (p.time_filter_hours || []).join(", ");
-    lines.push("| Time Filter | "   + (p.time_filter ? "ON \u2014 hours " + tfHours : "OFF") + " |");
     lines.push("");
 
     /* ── Performance by Direction ──────────────────── */
@@ -3130,9 +3091,6 @@ __VERSIONS_JSON__
           row("Min Stop",       ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Max Stop",       ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Direction",      "<span class='val-highlight'>" + esc(p.trade_direction || "both") + "</span>") +
-          row("Time Filter",    p.time_filter
-            ? "<span class='pos'>ON</span> &mdash; " + esc((p.time_filter_hours || []).join(", ")) + " UTC"
-            : "<span class='text-dim'>OFF</span>") +
           "</tbody></table>" +
         "</div>" +
 
@@ -3748,8 +3706,6 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "min_stop":          MIN_STOP,
         "max_stop":          MAX_STOP,
         "trade_direction":   TRADE_DIRECTION,
-        "time_filter":       TIME_FILTER,
-        "time_filter_hours": TIME_FILTER_HOURS if TIME_FILTER else [],
         "max_daily_loss": MAX_DAILY_LOSS,
     }
 

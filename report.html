@@ -80,14 +80,6 @@
       "min_stop": 0.0005,
       "max_stop": 0.02,
       "trade_direction": "short_only",
-      "time_filter": true,
-      "time_filter_hours": [
-        1,
-        2,
-        16,
-        17,
-        18
-      ],
       "max_daily_loss": 2500.0
     },
     "runs": [
@@ -5438,8 +5430,6 @@
     lines.push("| RRR | 1:"         + (p.rrr || "\u2014") + " |");
     lines.push("| Risk / Trade | "  + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
     lines.push("| Direction | "     + (p.trade_direction || "both") + " |");
-    var tfHours = (p.time_filter_hours || []).join(", ");
-    lines.push("| Time Filter | "   + (p.time_filter ? "ON \u2014 hours " + tfHours : "OFF") + " |");
     lines.push("");
 
     /* ── Performance by Direction ──────────────────── */
@@ -6709,9 +6699,6 @@
           row("Min Stop",       ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Max Stop",       ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Direction",      "<span class='val-highlight'>" + esc(p.trade_direction || "both") + "</span>") +
-          row("Time Filter",    p.time_filter
-            ? "<span class='pos'>ON</span> &mdash; " + esc((p.time_filter_hours || []).join(", ")) + " UTC"
-            : "<span class='text-dim'>OFF</span>") +
           "</tbody></table>" +
         "</div>" +
 
