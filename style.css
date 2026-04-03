@@ -987,6 +987,34 @@ tbody tr:hover td {
     color: #9090b0 !important;
 }
 
+/* ── Sub-item top row (instrument + delete) ─────────── */
+.v-sub-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 3px;
+}
+.v-sub-top-row .v-instrument {
+    margin-top: 0;
+}
+.v-sub-delete-btn {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+}
+.v-sub-item:hover .v-sub-delete-btn {
+    opacity: 1;
+}
+.v-sub-delete-btn:hover {
+    color: #e74c3c;
+}
+
 /* ── Run label badge ─────────────────────────────────── */
 .run-label-badge {
     font-size: 12px;

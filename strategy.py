@@ -2175,12 +2175,15 @@ __VERSIONS_JSON__
 
           var runInstrument = run.instrument || "";
           subItem.innerHTML =
-            (runInstrument ? "<div class='v-instrument'>" + esc(runInstrument) + "</div>" : "") +
+            "<div class='v-sub-top-row'>" +
+              (runInstrument ? "<span class='v-instrument'>" + esc(runInstrument) + "</span>" : "") +
+              "<button class='v-sub-delete-btn' title='Delete date range'>&times;</button>" +
+            "</div>" +
             (runPnl !== null ? "<div class='v-pnl " + runPc + "'>" + runPtxt + "</div>" : "") +
             (subDateRange ? "<div class='v-date v-sub-name'>" + esc(subDateRange) + "</div>" : "") +
             (subDur ? "<div class='v-duration'>" + esc(subDur) + "</div>" : "");
 
-          (function (el, vIdx, rIdx) {
+          (function (el, vIdx, rIdx, verName) {
             el.addEventListener("click", function (e) {
               e.stopPropagation();
               devLogOpen = false;
@@ -2190,7 +2193,35 @@ __VERSIONS_JSON__
               renderSidebar();
               renderContent(vIdx, rIdx);
             });
-          })(subItem, idx, si);
+            /* Wire inline delete button */
+            var delBtn = el.querySelector(".v-sub-delete-btn");
+            if (delBtn) delBtn.addEventListener("click", function (e) {
+              e.stopPropagation();
+              if (!confirm("Delete this date range run?")) return;
+              delBtn.disabled = true;
+              fetch("/delete_run", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: verName, run_idx: rIdx })
+              })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.ok) {
+                  localStorage.setItem("rb_pending_delete_version", verName);
+                  var focusIdx = rIdx - 1;
+                  localStorage.setItem("rb_pending_delete_run_idx", String(focusIdx < 1 ? 0 : focusIdx));
+                  window.location.reload();
+                } else {
+                  delBtn.disabled = false;
+                  alert("Delete failed: " + (data.error || "Unknown error"));
+                }
+              })
+              .catch(function () {
+                delBtn.disabled = false;
+                alert("Delete failed — is the server running?");
+              });
+            });
+          })(subItem, idx, si, VERSIONS[idx].name);
 
           list.appendChild(subItem);
         }
