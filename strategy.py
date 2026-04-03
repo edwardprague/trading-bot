@@ -3457,6 +3457,10 @@ __VERSIONS_JSON__
     expandedVersions[lastIdx] = true;
     renderSidebar();
     renderContent(activeVersionIdx, activeRunIdx);
+
+    /* Scroll the active sidebar item into view (e.g. after date-range add) */
+    var activeEl = document.querySelector("#version-list .v-item.active");
+    if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
   } else {
     renderEmptyState();
   }
