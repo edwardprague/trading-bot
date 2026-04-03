@@ -260,13 +260,21 @@ function getSelectedInstrument() {
   return stored || "EURUSD";
 }
 
+function getSelectedInterval() {
+  var el = document.getElementById("ec-interval-select");
+  if (el) return el.value;
+  var stored = localStorage.getItem("ec_interval");
+  return stored || "5m";
+}
+
 function runNewVersion() {
   var instrument = getSelectedInstrument();
   var direction  = getSelectedDirection();
+  var interval   = getSelectedInterval();
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction })
+    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -290,7 +298,7 @@ function runDateRange() {
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, direction: getSelectedDirection() })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, direction: getSelectedDirection(), interval: getSelectedInterval() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -457,11 +465,14 @@ def run_backtest():
     data = request.get_json(force=True) or {}
     instrument = (data.get("instrument") or "").strip()
     direction  = (data.get("direction") or "").strip()
+    interval   = (data.get("interval") or "").strip()
     env_overrides = {"RUN_MODE": "new_version"}
     if instrument:
         env_overrides["INSTRUMENT"] = instrument
     if direction:
         env_overrides["TRADE_DIRECTION"] = direction
+    if interval:
+        env_overrides["INTERVAL"] = interval
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),
@@ -492,6 +503,7 @@ def run_date_range():
     instrument     = (data.get("instrument") or "").strip()
     target_version = (data.get("target_version") or "").strip()
     direction      = (data.get("direction") or "").strip()
+    interval       = (data.get("interval") or "").strip()
     env_overrides = {
         "RUN_MODE":       "date_range",
         "RUN_START_DATE": start_date,
@@ -503,6 +515,8 @@ def run_date_range():
         env_overrides["TARGET_VERSION"] = target_version
     if direction:
         env_overrides["TRADE_DIRECTION"] = direction
+    if interval:
+        env_overrides["INTERVAL"] = interval
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),

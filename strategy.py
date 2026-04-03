@@ -43,7 +43,7 @@ _INSTRUMENT_MAP = {
 _INSTRUMENT     = os.environ.get("INSTRUMENT", "EURUSD")
 TICKER          = _INSTRUMENT_MAP.get(_INSTRUMENT, _INSTRUMENT_MAP["EURUSD"])[0]
 MASSIVE_TICKER  = _INSTRUMENT_MAP.get(_INSTRUMENT, _INSTRUMENT_MAP["EURUSD"])[1]
-INTERVAL        = "5m"            # bar interval — used by Massive (primary) and Yahoo (fallback)
+INTERVAL        = os.environ.get("INTERVAL", "5m")  # bar interval — used by Massive (primary) and Yahoo (fallback)
 DAYS_BACK       = 730             # Full 730-day run
 STARTING_CASH   = 100_000.0
 
@@ -83,6 +83,11 @@ ENTRY_CONDITIONS = [
     {
         "condition":       "Instrument",
         "rule":            _INSTRUMENT,
+        "since_version":   "v1",
+    },
+    {
+        "condition":       "Interval",
+        "rule":            INTERVAL,
         "since_version":   "v1",
     },
     {
@@ -1512,10 +1517,6 @@ def _build_html(versions_json):
 
 <div id="main">
   <div id="content">
-    <div id="empty-state">
-      <span class="empty-icon">&#128202;</span>
-      <span>Select a version to view results</span>
-    </div>
   </div>
 </div>
 
@@ -2752,6 +2753,19 @@ __VERSIONS_JSON__
         return "<option value='" + o.value + "'" + (o.value === savedInstr ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
 
+    var intervalOptions = [
+      { value: "1m", label: "1m" },
+      { value: "5m", label: "5m" },
+      { value: "15m", label: "15m" },
+      { value: "30m", label: "30m" },
+      { value: "60m", label: "60m" }
+    ];
+    var savedInterval = p.interval || "5m";
+    var intervalSelectHtml = "<select id='ec-interval-select' class='ec-select'>" +
+      intervalOptions.map(function(o) {
+        return "<option value='" + o.value + "'" + (o.value === savedInterval ? " selected" : "") + ">" + o.label + "</option>";
+      }).join("") + "</select>";
+
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.map(function(ec) {
         var addedVal = ec.since_version || "v1";
@@ -2759,6 +2773,8 @@ __VERSIONS_JSON__
           ? dirSelectHtml
           : ec.condition === "Instrument"
           ? instrSelectHtml
+          : ec.condition === "Interval"
+          ? intervalSelectHtml
           : esc(ec.rule);
         return "<tr>" +
           "<td class='ec-td-cond'>" + esc(ec.condition) + "</td>" +
@@ -2796,6 +2812,7 @@ __VERSIONS_JSON__
             "<tr><td class='ec-td-cond'>Entry Signal</td><td class='ec-td-rule'>Price crosses below EMA" + (p.ema_entry||"20") + "</td><td class='ec-td-purpose'>Pullback rejection in trend direction</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "<tr><td class='ec-td-cond'>Stop Placement</td><td class='ec-td-rule'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td class='ec-td-purpose'>Structural invalidation level</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + instrSelectHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + intervalSelectHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + dirSelectHtml + "</td><td class='ec-td-purpose'>Asymmetric edge identified on EURUSD</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "</tbody>" +
           "</table>" +
@@ -2880,7 +2897,7 @@ __VERSIONS_JSON__
           "<div class='section-title'>Parameters</div>" +
           "<table><tbody>" +
           row("Instrument",     "<span class='val-highlight'>" + esc(savedInstr) + "</span>") +
-          row("Interval",       esc(p.interval || "")) +
+          row("Interval",       "<span class='val-highlight'>" + esc(savedInterval) + "</span>") +
           row("History",        (run.days_back || p.days_back || "") + " days") +
           row("Starting Capital", "$" + (p.starting_cash || 0).toLocaleString()) +
           row("EMA Slow",       p.ema_slow) +
@@ -2996,6 +3013,17 @@ __VERSIONS_JSON__
       if (stored) instrEl.value = stored;
       instrEl.addEventListener("change", function () {
         localStorage.setItem("ec_instrument", instrEl.value);
+      });
+    }());
+
+    /* Wire interval select — persist to localStorage on change */
+    (function () {
+      var intEl = document.getElementById("ec-interval-select");
+      if (!intEl) return;
+      var stored = localStorage.getItem("ec_interval");
+      if (stored) intEl.value = stored;
+      intEl.addEventListener("change", function () {
+        localStorage.setItem("ec_interval", intEl.value);
       });
     }());
 
@@ -3165,6 +3193,75 @@ __VERSIONS_JSON__
       "</div>";
   }
 
+  /* ── Empty state — show Entry Conditions selects when no versions exist ── */
+  function renderEmptyState() {
+    hideActionButtons();
+    var ecThStyle = "class='ec-th'";
+
+    var _dirOptions = [
+      { value: "short_only", label: "Short only" },
+      { value: "long_only",  label: "Long only" },
+      { value: "both",       label: "Both" }
+    ];
+    var _savedDir = localStorage.getItem("ec_direction") || "short_only";
+    var _dirSelectHtml = "<select id='ec-direction-select' class='ec-select'>" +
+      _dirOptions.map(function(o) {
+        return "<option value='" + o.value + "'" + (o.value === _savedDir ? " selected" : "") + ">" + o.label + "</option>";
+      }).join("") + "</select>";
+
+    var _instrOptions = [
+      { value: "EURUSD", label: "EURUSD" },
+      { value: "GBPUSD", label: "GBPUSD" }
+    ];
+    var _savedInstr = localStorage.getItem("ec_instrument") || "EURUSD";
+    var _instrSelectHtml = "<select id='ec-instrument-select' class='ec-select'>" +
+      _instrOptions.map(function(o) {
+        return "<option value='" + o.value + "'" + (o.value === _savedInstr ? " selected" : "") + ">" + o.label + "</option>";
+      }).join("") + "</select>";
+
+    var _intervalOptions = [
+      { value: "1m", label: "1m" },
+      { value: "5m", label: "5m" },
+      { value: "15m", label: "15m" },
+      { value: "30m", label: "30m" },
+      { value: "60m", label: "60m" }
+    ];
+    var _savedInterval = localStorage.getItem("ec_interval") || "5m";
+    var _intervalSelectHtml = "<select id='ec-interval-select' class='ec-select'>" +
+      _intervalOptions.map(function(o) {
+        return "<option value='" + o.value + "'" + (o.value === _savedInterval ? " selected" : "") + ">" + o.label + "</option>";
+      }).join("") + "</select>";
+
+    document.getElementById("content").innerHTML =
+      "<div class='section'>" +
+        "<div class='section-title'>Entry Conditions</div>" +
+        "<table>" +
+          "<thead><tr>" +
+            "<th " + ecThStyle + ">Condition</th>" +
+            "<th " + ecThStyle + ">Rule</th>" +
+            "<th " + ecThStyle + "></th>" +
+            "<th " + ecThStyle + ">+</th>" +
+          "</tr></thead>" +
+          "<tbody>" +
+          "<tr><td class='ec-td-cond'>Trend Filter</td><td class='ec-td-rule'>EMA50 &lt; EMA200</td><td class='ec-td-purpose'>Confirms downtrend — short only</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+          "<tr><td class='ec-td-cond'>Entry Signal</td><td class='ec-td-rule'>Price crosses below EMA20</td><td class='ec-td-purpose'>Pullback rejection in trend direction</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+          "<tr><td class='ec-td-cond'>Stop Placement</td><td class='ec-td-rule'>Swing high over 20 bars</td><td class='ec-td-purpose'>Structural invalidation level</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+          "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + _instrSelectHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+          "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + _intervalSelectHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+          "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + _dirSelectHtml + "</td><td class='ec-td-purpose'>Asymmetric edge identified on EURUSD</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+          "</tbody>" +
+        "</table>" +
+      "</div>";
+
+    /* Wire localStorage persistence for the empty-state selects */
+    var _dirEl = document.getElementById("ec-direction-select");
+    if (_dirEl) _dirEl.addEventListener("change", function () { localStorage.setItem("ec_direction", _dirEl.value); });
+    var _instrEl = document.getElementById("ec-instrument-select");
+    if (_instrEl) _instrEl.addEventListener("change", function () { localStorage.setItem("ec_instrument", _instrEl.value); });
+    var _intEl = document.getElementById("ec-interval-select");
+    if (_intEl) _intEl.addEventListener("change", function () { localStorage.setItem("ec_interval", _intEl.value); });
+  }
+
   /* ── Strategy change ─────────────────────────────────────── */
   function onStrategyChange() {
     currentStrategy = document.getElementById("strategy-select").value;
@@ -3181,12 +3278,7 @@ __VERSIONS_JSON__
       renderSidebar();
       renderContent(lastIdx, 0);
     } else {
-      hideActionButtons();
-      document.getElementById("content").innerHTML =
-        "<div id='empty-state'>" +
-          "<span class='empty-icon'>&#128202;</span>" +
-          "<span>No runs for <strong>" + esc(currentStrategy) + "</strong> yet</span>" +
-        "</div>";
+      renderEmptyState();
     }
   }
 
@@ -3244,6 +3336,8 @@ __VERSIONS_JSON__
     expandedVersions[lastIdx] = true;
     renderSidebar();
     renderContent(activeVersionIdx, activeRunIdx);
+  } else {
+    renderEmptyState();
   }
 
   /* ── Keyboard shortcuts: Shift+Up / Shift+Down sidebar navigation ── */
