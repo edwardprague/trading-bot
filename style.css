@@ -625,7 +625,7 @@ tbody tr:hover td {
 
 .ec-td-cond {
     padding: 5px 10px;
-    color: mediumseagreen;
+    color: #fff;
     width: 180px;
 }
 
@@ -994,10 +994,12 @@ tbody tr:hover td {
     justify-content: space-between;
     margin-top: 3px;
 }
+
 .v-sub-top-row .v-instrument {
     margin-top: 0;
     flex: 1;
 }
+
 .v-sub-delete-btn {
     background: none;
     border: none;
@@ -1009,9 +1011,11 @@ tbody tr:hover td {
     opacity: 0;
     transition: opacity 0.15s, color 0.15s;
 }
+
 .v-sub-item:hover .v-sub-delete-btn {
     opacity: 1;
 }
+
 .v-sub-delete-btn:hover {
     color: #e74c3c;
 }
@@ -1020,16 +1024,20 @@ tbody tr:hover td {
 .v-sub-item {
     cursor: grab;
 }
+
 .v-sub-item:active {
     cursor: grabbing;
 }
+
 .v-sub-item.dragging {
     opacity: 0.35;
 }
+
 .v-sub-item.drag-over-above {
     margin-top: 20px !important;
     position: relative;
 }
+
 .v-sub-item.drag-over-above::before {
     content: "";
     position: absolute;
@@ -1040,10 +1048,12 @@ tbody tr:hover td {
     background: rgba(70, 130, 180, 0.25);
     border-radius: 3px;
 }
+
 .v-sub-item.drag-over-below {
     margin-bottom: 20px !important;
     position: relative;
 }
+
 .v-sub-item.drag-over-below::after {
     content: "";
     position: absolute;
