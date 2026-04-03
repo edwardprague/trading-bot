@@ -2178,7 +2178,6 @@ __VERSIONS_JSON__
           var runInstrument = run.instrument || "";
           subItem.innerHTML =
             "<div class='v-sub-top-row'>" +
-              "<span class='v-drag-handle' title='Drag to reorder'>&#x2261;</span>" +
               (runInstrument ? "<span class='v-instrument'>" + esc(runInstrument) + "</span>" : "") +
               "<button class='v-sub-delete-btn' title='Delete date range'>&times;</button>" +
             "</div>" +
