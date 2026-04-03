@@ -57,19 +57,11 @@ INJECT_HTML = """
   background: #0c0c18; border-bottom: 1px solid #1e1e32;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 ">
-  <select id="rb-instrument-new" class="rb-select">
-    <option value="EURUSD" selected>EURUSD</option>
-    <option value="GBPUSD">GBPUSD</option>
-  </select>
   <button id="run-new-btn" class="rb-btn rb-btn-green" onclick="runNewVersion()">&#9654;&nbsp; Add New Version</button>
 
   <span class="rb-sep"></span>
 
   <div id="rb-range-group" style="display: flex; align-items: center; gap: 12px;">
-    <select id="rb-instrument-range" class="rb-select">
-      <option value="EURUSD" selected>EURUSD</option>
-      <option value="GBPUSD">GBPUSD</option>
-    </select>
     <label class="rb-label" for="rb-start">From</label>
     <span class="rb-date-wrap"><input type="date" id="rb-start" class="rb-date"><span class="rb-date-overlay" id="rb-start-overlay"></span></span>
     <label class="rb-label" for="rb-end">To</label>
@@ -261,8 +253,15 @@ function getSelectedDirection() {
   return stored || "short_only";
 }
 
+function getSelectedInstrument() {
+  var el = document.getElementById("ec-instrument-select");
+  if (el) return el.value;
+  var stored = localStorage.getItem("ec_instrument");
+  return stored || "EURUSD";
+}
+
 function runNewVersion() {
-  var instrument = document.getElementById("rb-instrument-new").value;
+  var instrument = getSelectedInstrument();
   var direction  = getSelectedDirection();
   setRunning();
   fetch("/run", { method: "POST",
@@ -284,7 +283,7 @@ function runDateRange() {
     showError("Select both start and end dates");
     return;
   }
-  var instrument     = document.getElementById("rb-instrument-range").value;
+  var instrument     = getSelectedInstrument();
   var targetVersion  = getCurrentVersionName();
   localStorage.setItem("rb_pending_run_type", "date_range");
   localStorage.setItem("rb_pending_run_version", targetVersion);
