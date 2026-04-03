@@ -1605,7 +1605,7 @@ __VERSIONS_JSON__
     var parts = String(s).split(" ");
     var d = parts[0].split("-");
     if (d.length !== 3) return s;
-    return d[1] + "-" + d[2] + "-" + d[0] + (parts[1] ? " " + parts[1] : "");
+    return parseInt(d[2]) + "-" + d[1] + "-" + d[0].slice(2) + (parts[1] ? " " + parts[1] : "");
   }
 
   /* ── Compat: get run data from version (handles legacy + new format) ──── */
@@ -2035,7 +2035,7 @@ __VERSIONS_JSON__
   function fmtSbDate(s) {
     if (!s) return "";
     var p = s.slice(0, 10).split("-");
-    return parseInt(p[1]) + "-" + p[2] + "-" + p[0].slice(2);
+    return parseInt(p[2]) + "-" + p[1] + "-" + p[0].slice(2);
   }
   function calcDuration(startStr, endStr) {
     if (!startStr || !endStr) return "";

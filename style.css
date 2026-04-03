@@ -461,6 +461,7 @@ tbody tr:hover td {
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
+    margin-bottom: 20px;
 }
 
 #v-header-top h2 {
