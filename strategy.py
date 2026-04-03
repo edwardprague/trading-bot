@@ -66,6 +66,14 @@ STRATEGY        = "Trend Following"
 
 ENTRY_CONDITIONS = [
     {
+        "condition":       "Instrument",
+        "rule":            _INSTRUMENT,
+    },
+    {
+        "condition":       "Interval",
+        "rule":            INTERVAL,
+    },
+    {
         "condition":       "EMA Slow",
         "rule":            str(EMA_SLOW),
     },
@@ -76,14 +84,6 @@ ENTRY_CONDITIONS = [
     {
         "condition":       "EMA Entry",
         "rule":            str(EMA_ENTRY),
-    },
-    {
-        "condition":       "Instrument",
-        "rule":            _INSTRUMENT,
-    },
-    {
-        "condition":       "Interval",
-        "rule":            INTERVAL,
     },
     {
         "condition":       "Direction",
@@ -2812,11 +2812,11 @@ __VERSIONS_JSON__
           "<div class='section-title'>Entry Conditions</div>" +
           "<table>" +
             "<tbody>" +
+            "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + instrSelectHtml + "</td></tr>" +
+            "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + intervalSelectHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>EMA Slow</td><td class='ec-td-rule'>" + emaSlowHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + emaFastHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>EMA Entry</td><td class='ec-td-rule'>" + emaEntryHtml + "</td></tr>" +
-            "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + instrSelectHtml + "</td></tr>" +
-            "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + intervalSelectHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + dirSelectHtml + "</td></tr>" +
             "</tbody>" +
           "</table>" +
@@ -2908,17 +2908,17 @@ __VERSIONS_JSON__
           "<table><tbody>" +
           row("Instrument",     "<span class='val-highlight'>" + esc(savedInstr) + "</span>") +
           row("Interval",       "<span class='val-highlight'>" + esc(savedInterval) + "</span>") +
-          row("History",        (run.days_back || p.days_back || "") + " days") +
-          row("Starting Capital", "$" + (p.starting_cash || 0).toLocaleString()) +
           row("EMA Slow",       "<span class='val-highlight'>" + esc(savedEmaSlow) + "</span>") +
           row("EMA Fast",       "<span class='val-highlight'>" + esc(savedEmaFast) + "</span>") +
           row("EMA Entry",      "<span class='val-highlight'>" + esc(savedEmaEntry) + "</span>") +
+          row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
           row("Swing Lookback", (p.swing_lookback || "") + " bars") +
           row("RRR",            "1&thinsp;:&thinsp;" + (p.rrr || "")) +
           row("Risk / Trade",   ((p.risk_pct || 0) * 100).toFixed(1) + "% = $" + ((p.starting_cash || 0) * (p.risk_pct || 0)).toLocaleString()) +
           row("Min Stop",       ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Max Stop",       ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
-          row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
+          row("History",        (run.days_back || p.days_back || "") + " days") +
+          row("Starting Capital", "$" + (p.starting_cash || 0).toLocaleString()) +
           "</tbody></table>" +
         "</div>" +
 
@@ -3288,11 +3288,11 @@ __VERSIONS_JSON__
         "<div class='section-title'>Entry Conditions</div>" +
         "<table>" +
           "<tbody>" +
+          "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + _instrSelectHtml + "</td></tr>" +
+          "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + _intervalSelectHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>EMA Slow</td><td class='ec-td-rule'>" + _emaSlowHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + _emaFastHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>EMA Entry</td><td class='ec-td-rule'>" + _emaEntryHtml + "</td></tr>" +
-          "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + _instrSelectHtml + "</td></tr>" +
-          "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + _intervalSelectHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + _dirSelectHtml + "</td></tr>" +
           "</tbody>" +
         "</table>" +
