@@ -2869,40 +2869,37 @@ __VERSIONS_JSON__
       /* ── TAB: General ──────────────────────────────────────────────────────── */
       "<div class='tab-content active' data-tab-content='general'>" +
 
-      /* ── Section 1: Summary ────────────────────────────────────────────────── */
-      summaryHtml +
-
-      /* ── Section 2: Results + Parameters ──────────────────────────────────── */
+      /* ── Section 1: Results + Parameters ──────────────────────────────────── */
       "<div class='two-col'>" +
 
         "<div class='section'>" +
           "<div class='section-title'>Results</div>" +
           "<table><tbody>" +
+          row("Net Profit",    "<span class='" + pClass(m.net_profit) + "'>" +
+            fmtMoney(m.net_profit) + " (" + (m.net_profit_pct >= 0 ? "+" : "") + fmt(m.net_profit_pct, 1) + "%)</span>") +
           row("Total Trades",  m.total_trades) +
           row("Winning Trades", m.winning_trades) +
           row("Losing Trades",  m.losing_trades) +
           row("Win Rate",      "<span class='" + winRateCls + "'>" + fmt(m.win_rate, 1) + "%</span>") +
           row("Profit Factor", "<span class='" + pfCls + "'>" + pfTxt + "</span>") +
-          row("Net Profit",    "<span class='" + pClass(m.net_profit) + "'>" +
-            fmtMoney(m.net_profit) + " (" + (m.net_profit_pct >= 0 ? "+" : "") + fmt(m.net_profit_pct, 1) + "%)</span>") +
-          row("Final Equity",  "$" + commaFmt(m.final_equity)) +
-          row("Max Drawdown",  (function () {
-            var ddD = m.max_drawdown_dollar;
-            var ddDStr = (ddD !== null && ddD !== undefined) ? "-$" + commaFmt(ddD) + " (" + fmt(m.max_drawdown) + "%)" : fmt(m.max_drawdown) + "%";
-            return "<span class='neg'>" + ddDStr + "</span>";
-          }()) ) +
-          row("Max Daily DD",  (function () {
-            var mdd = m.max_daily_drawdown || {};
-            if (mdd.dollar === null || mdd.dollar === undefined) return "&#8212;";
-            return "<span class='neg'>-$" + commaFmt(mdd.dollar) + " (" + fmt(mdd.pct, 2) + "%)</span>";
-          }()) ) +
-          row("Sharpe Ratio",  "<span class='" + sharpeCls + "'>" + fmt(m.sharpe) + "</span>") +
           row("Avg Win",       avgWinHtml) +
           row("Avg Loss",      avgLossHtml) +
           row("Avg Stop (pips)",   avgStopPipsHtml) +
           row("Avg Target (pips)", avgTargetPipsHtml) +
           row("Best Trade",    "<span class='pos'>" + fmtMoney(m.best_trade)  + "</span>") +
           row("Worst Trade",   "<span class='neg'>" + fmtMoney(m.worst_trade) + "</span>") +
+          row("Max Daily DD",  (function () {
+            var mdd = m.max_daily_drawdown || {};
+            if (mdd.dollar === null || mdd.dollar === undefined) return "&#8212;";
+            return "<span class='neg'>-$" + commaFmt(mdd.dollar) + " (" + fmt(mdd.pct, 2) + "%)</span>";
+          }()) ) +
+          row("Max Drawdown",  (function () {
+            var ddD = m.max_drawdown_dollar;
+            var ddDStr = (ddD !== null && ddD !== undefined) ? "-$" + commaFmt(ddD) + " (" + fmt(m.max_drawdown) + "%)" : fmt(m.max_drawdown) + "%";
+            return "<span class='neg'>" + ddDStr + "</span>";
+          }()) ) +
+          row("Sharpe Ratio",  "<span class='" + sharpeCls + "'>" + fmt(m.sharpe) + "</span>") +
+          row("Final Equity",  "$" + commaFmt(m.final_equity)) +
           "</tbody></table>" +
         "</div>" +
 
