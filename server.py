@@ -306,6 +306,7 @@ function runNewVersion() {
   var instrument = getSelectedInstrument();
   var direction  = getSelectedDirection();
   var interval   = getSelectedInterval();
+  localStorage.setItem("rb_pending_run_type", "new_version_auto");
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -314,9 +315,9 @@ function runNewVersion() {
   .then(function (r) { return r.json(); })
   .then(function (data) {
     if (data.started) { pollStatus(); }
-    else { resetButtons(); showError(data.error); }
+    else { localStorage.removeItem("rb_pending_run_type"); resetButtons(); showError(data.error); }
   })
-  .catch(function () { resetButtons(); showError("Request failed"); });
+  .catch(function () { localStorage.removeItem("rb_pending_run_type"); resetButtons(); showError("Request failed"); });
 }
 
 function runDateRange() {
@@ -354,6 +355,10 @@ function pollStatus() {
     .then(function (r) { return r.json(); })
     .then(function (data) {
       if (data.running) {
+        if (data.stage) {
+          document.getElementById("run-status").innerHTML =
+            '<span class="rb-spin"></span>' + data.stage;
+        }
         setTimeout(pollStatus, 2000);
       } else if (data.ok && data.no_data) {
         resetButtons();
@@ -440,8 +445,9 @@ def serve_css():
     return Response(css_path.read_text(encoding="utf-8"), mimetype="text/css")
 
 
-def _backtest_worker(env_overrides=None):
-    """Run strategy.py in a background thread and update _bt_state when done."""
+def _run_backtest_sync(env_overrides=None):
+    """Run strategy.py synchronously. Returns dict with ok, no_data, error."""
+    import time as _time
     stdout_lines = []
     try:
         env = os.environ.copy()
@@ -455,7 +461,6 @@ def _backtest_worker(env_overrides=None):
             cwd=str(BASE_DIR),
             env=env,
         )
-        import time as _time
         _deadline = _time.time() + 300   # 5-minute safety timeout
         while True:
             line = proc.stdout.readline()
@@ -467,35 +472,153 @@ def _backtest_worker(env_overrides=None):
             if _time.time() > _deadline:
                 proc.kill()
                 proc.wait()
-                raise subprocess.TimeoutExpired(cmd="strategy.py", timeout=300)
+                return {"ok": False, "no_data": False, "error": "Timed out after 5 minutes"}
         full_output = "".join(stdout_lines)
-        with _bt_lock:
-            if proc.returncode == 0:
-                if "NO_DATA" in full_output:
-                    _bt_state["ok"]      = True
-                    _bt_state["no_data"] = True
-                    _bt_state["error"]   = None
-                else:
-                    _bt_state["ok"]      = True
-                    _bt_state["no_data"] = False
-                    _bt_state["error"]   = None
-            else:
-                err = full_output.strip()
-                _bt_state["ok"]      = False
-                _bt_state["no_data"] = False
-                _bt_state["error"]   = err[-800:] if err else "Non-zero exit code"
-    except subprocess.TimeoutExpired:
-        print("\n  *** TIMED OUT after 5 minutes ***")
-        with _bt_lock:
-            _bt_state["ok"]    = False
-            _bt_state["error"] = "Timed out after 5 minutes"
+        if proc.returncode == 0:
+            if "NO_DATA" in full_output:
+                return {"ok": True, "no_data": True, "error": None}
+            return {"ok": True, "no_data": False, "error": None}
+        else:
+            err = full_output.strip()
+            return {"ok": False, "no_data": False, "error": err[-800:] if err else "Non-zero exit code"}
     except Exception as exc:
+        return {"ok": False, "no_data": False, "error": str(exc)}
+
+
+def _backtest_worker(env_overrides=None):
+    """Run strategy.py in a background thread and update _bt_state when done."""
+    result = _run_backtest_sync(env_overrides)
+    with _bt_lock:
+        _bt_state["ok"]      = result["ok"]
+        _bt_state["no_data"] = result.get("no_data", False)
+        _bt_state["error"]   = result.get("error")
+        _bt_state["running"] = False
+        _bt_state["stage"]   = ""
+
+
+def _get_best_worst_months(version_name):
+    """Read report.html, find the monthly data for version_name, return best & worst months."""
+    import calendar
+    from datetime import date
+    if not REPORT_FILE.exists():
+        return None, None
+    html = REPORT_FILE.read_text(encoding="utf-8")
+    match = re.search(
+        r'(<script[^>]+id=["\']versions-data["\'][^>]*>)([\s\S]*?)(</script>)',
+        html
+    )
+    if not match:
+        return None, None
+    try:
+        versions = json.loads(match.group(2).strip())
+    except (json.JSONDecodeError, ValueError):
+        return None, None
+    # Find the version
+    target = None
+    for v in versions:
+        if v.get("name") == version_name:
+            target = v
+            break
+    if not target:
+        return None, None
+    # Get monthly data from the first run (the full version run)
+    runs = target.get("runs", [])
+    if not runs:
+        return None, None
+    monthly = runs[0].get("metrics", {}).get("monthly", [])
+    if len(monthly) < 2:
+        return None, None
+    # Find best and worst by net_pnl
+    best  = max(monthly, key=lambda m: m.get("net_pnl", 0))
+    worst = min(monthly, key=lambda m: m.get("net_pnl", 0))
+    # Convert period string "2025-03" to date range
+    def month_to_range(period_str):
+        parts = period_str.split("-")
+        y, m = int(parts[0]), int(parts[1])
+        first = date(y, m, 1)
+        last_day = calendar.monthrange(y, m)[1]
+        last = date(y, m, last_day)
+        return first.strftime("%Y-%m-%d"), last.strftime("%Y-%m-%d")
+    return month_to_range(best["month"]), month_to_range(worst["month"])
+
+
+def _version_with_auto_ranges(env_overrides):
+    """Run new version backtest, then auto-add best & worst month date ranges."""
+    # Step 1: Run the version backtest
+    with _bt_lock:
+        _bt_state["stage"] = "Running version backtest\u2026"
+    result = _run_backtest_sync(env_overrides)
+    if not result["ok"]:
         with _bt_lock:
-            _bt_state["ok"]    = False
-            _bt_state["error"] = str(exc)
-    finally:
-        with _bt_lock:
+            _bt_state.update(result)
             _bt_state["running"] = False
+            _bt_state["stage"]   = ""
+        return
+
+    # Step 2: Find the newly created version name from report.html
+    try:
+        html = REPORT_FILE.read_text(encoding="utf-8")
+        match = re.search(
+            r'(<script[^>]+id=["\']versions-data["\'][^>]*>)([\s\S]*?)(</script>)',
+            html
+        )
+        versions = json.loads(match.group(2).strip()) if match else []
+        version_name = versions[-1]["name"] if versions else None
+    except Exception:
+        version_name = None
+
+    if not version_name:
+        with _bt_lock:
+            _bt_state["ok"]      = True
+            _bt_state["no_data"] = False
+            _bt_state["error"]   = None
+            _bt_state["running"] = False
+            _bt_state["stage"]   = ""
+        return
+
+    # Step 3: Get best and worst months
+    best_range, worst_range = _get_best_worst_months(version_name)
+    if not best_range or not worst_range:
+        with _bt_lock:
+            _bt_state["ok"]      = True
+            _bt_state["no_data"] = False
+            _bt_state["error"]   = None
+            _bt_state["running"] = False
+            _bt_state["stage"]   = ""
+        return
+
+    # Build base env for date-range runs (carry over instrument, direction, etc.)
+    base_env = dict(env_overrides)
+    base_env["RUN_MODE"] = "date_range"
+    base_env["TARGET_VERSION"] = version_name
+
+    # Step 4: Run best month
+    with _bt_lock:
+        _bt_state["stage"] = "Running best month\u2026"
+    best_env = dict(base_env)
+    best_env["RUN_START_DATE"] = best_range[0]
+    best_env["RUN_END_DATE"]   = best_range[1]
+    r2 = _run_backtest_sync(best_env)
+    if not r2["ok"]:
+        print(f"  Warning: best-month run failed: {r2.get('error')}")
+
+    # Step 5: Run worst month
+    with _bt_lock:
+        _bt_state["stage"] = "Running worst month\u2026"
+    worst_env = dict(base_env)
+    worst_env["RUN_START_DATE"] = worst_range[0]
+    worst_env["RUN_END_DATE"]   = worst_range[1]
+    r3 = _run_backtest_sync(worst_env)
+    if not r3["ok"]:
+        print(f"  Warning: worst-month run failed: {r3.get('error')}")
+
+    # Done
+    with _bt_lock:
+        _bt_state["ok"]      = True
+        _bt_state["no_data"] = False
+        _bt_state["error"]   = None
+        _bt_state["running"] = False
+        _bt_state["stage"]   = ""
 
 
 @app.route("/run", methods=["POST"])
@@ -508,6 +631,7 @@ def run_backtest():
         _bt_state["ok"]      = None
         _bt_state["error"]   = None
         _bt_state["no_data"] = False
+        _bt_state["stage"]   = ""
 
     # RUN_MODE=new_version tells strategy.py to increment version
     data = request.get_json(force=True) or {}
@@ -537,7 +661,7 @@ def run_backtest():
     if rrr_reward:
         env_overrides["RRR_REWARD"] = rrr_reward
     t = threading.Thread(
-        target=_backtest_worker,
+        target=_version_with_auto_ranges,
         args=(env_overrides,),
         daemon=True,
     )
@@ -562,6 +686,7 @@ def run_date_range():
         _bt_state["ok"]      = None
         _bt_state["error"]   = None
         _bt_state["no_data"] = False
+        _bt_state["stage"]   = ""
 
     instrument     = (data.get("instrument") or "").strip()
     target_version = (data.get("target_version") or "").strip()

@@ -3533,6 +3533,14 @@ __VERSIONS_JSON__
       }
     }
 
+    /* If we just came back from a new version with auto date ranges */
+    if (pendingRunType === "new_version_auto") {
+      localStorage.removeItem("rb_pending_run_type");
+      activeVersionIdx = lastIdx;
+      activeRunIdx = 0;
+      expandedVersions[lastIdx] = true;
+    }
+
     /* If we just deleted a date-range sub-item, focus on the sub-item above it */
     var pendingDelVersion = localStorage.getItem("rb_pending_delete_version");
     var pendingDelRunIdx  = localStorage.getItem("rb_pending_delete_run_idx");
