@@ -114,6 +114,16 @@ def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
         end   = datetime.now()
         start = end - timedelta(days=days_back)
 
+    # ── Parse interval string (e.g. "5m", "1m", "60m") into multiplier + timespan
+    import re as _re
+    _iv_match = _re.match(r'^(\d+)(m|h)$', interval)
+    if _iv_match:
+        _multiplier = int(_iv_match.group(1))
+        _timespan   = "minute" if _iv_match.group(2) == "m" else "hour"
+    else:
+        _multiplier = 5
+        _timespan   = "minute"
+
     # ── Primary: Massive API ───────────────────────────────────────────────────
     if MASSIVE_API_KEY:
         try:
@@ -122,8 +132,8 @@ def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
             client = RESTClient(api_key=MASSIVE_API_KEY)
             bars = list(client.list_aggs(
                 ticker    = MASSIVE_TICKER,
-                multiplier= 5,
-                timespan  = "minute",
+                multiplier= _multiplier,
+                timespan  = _timespan,
                 from_     = start.strftime("%Y-%m-%d"),
                 to        = end.strftime("%Y-%m-%d"),
                 sort      = "asc",
@@ -147,7 +157,7 @@ def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
             )
             df = df[["Open", "High", "Low", "Close", "Volume"]].dropna()
             print(f"  {len(df)} bars loaded | {df.index[0].date()} → {df.index[-1].date()}")
-            print(f"  Source: Massive API ({MASSIVE_TICKER}, 5m)")
+            print(f"  Source: Massive API ({MASSIVE_TICKER}, {interval})")
             return df
         except Exception as e:
             print(f"  Massive API fetch failed: {e}")
@@ -1453,9 +1463,11 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
     # ── Sensitivity sweeps (requires original df) ──────────────────────────────
     if df is not None:
         try:
+            print(f"  Running sensitivity sweeps ({len(df)} bars)...")
             rrr_rows, swing_rows = compute_sensitivity(df)
             result["rrr_sensitivity"]   = rrr_rows
             result["swing_sensitivity"] = swing_rows
+            print(f"  Sensitivity sweeps complete.")
         except Exception:
             pass
 
@@ -3508,11 +3520,13 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
     global VERSION
     report_path = "report.html"
 
+    print("  Computing metrics...")
     metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals, df=df)
     if metrics is None:
         print("  No trades generated — skipping HTML report.")
         print("NO_DATA")
         return
+    print("  Metrics complete. Building report...")
 
     # ── Load main chart as base64 ──────────────────────────────────────────────
     chart_b64 = ""
@@ -3643,6 +3657,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         action = "Created" if version_num == 1 else "Updated"
 
     # ── Write HTML ─────────────────────────────────────────────────────────────
+    print("  Building HTML template...")
     versions_json = json.dumps(existing_versions, indent=2, ensure_ascii=False)
     html = _build_html(versions_json)
 

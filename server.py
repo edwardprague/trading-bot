@@ -407,24 +407,36 @@ def serve_css():
 
 def _backtest_worker(env_overrides=None):
     """Run strategy.py in a background thread and update _bt_state when done."""
+    stdout_lines = []
     try:
         env = os.environ.copy()
         if env_overrides:
             env.update(env_overrides)
-        result = subprocess.run(
-            [sys.executable, str(STRATEGY_FILE)],
-            capture_output=True,
+        proc = subprocess.Popen(
+            [sys.executable, "-u", str(STRATEGY_FILE)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
             cwd=str(BASE_DIR),
-            timeout=300,        # 5-minute safety timeout
             env=env,
         )
-        if result.stdout:
-            print(result.stdout)
+        import time as _time
+        _deadline = _time.time() + 300   # 5-minute safety timeout
+        while True:
+            line = proc.stdout.readline()
+            if line:
+                print(line, end="", flush=True)
+                stdout_lines.append(line)
+            elif proc.poll() is not None:
+                break
+            if _time.time() > _deadline:
+                proc.kill()
+                proc.wait()
+                raise subprocess.TimeoutExpired(cmd="strategy.py", timeout=300)
+        full_output = "".join(stdout_lines)
         with _bt_lock:
-            if result.returncode == 0:
-                # Check if strategy.py reported no trades (NO_DATA marker)
-                if "NO_DATA" in (result.stdout or ""):
+            if proc.returncode == 0:
+                if "NO_DATA" in full_output:
                     _bt_state["ok"]      = True
                     _bt_state["no_data"] = True
                     _bt_state["error"]   = None
@@ -433,11 +445,12 @@ def _backtest_worker(env_overrides=None):
                     _bt_state["no_data"] = False
                     _bt_state["error"]   = None
             else:
-                err = (result.stderr or result.stdout or "Non-zero exit code").strip()
+                err = full_output.strip()
                 _bt_state["ok"]      = False
                 _bt_state["no_data"] = False
-                _bt_state["error"]   = err[-800:]
+                _bt_state["error"]   = err[-800:] if err else "Non-zero exit code"
     except subprocess.TimeoutExpired:
+        print("\n  *** TIMED OUT after 5 minutes ***")
         with _bt_lock:
             _bt_state["ok"]    = False
             _bt_state["error"] = "Timed out after 5 minutes"
