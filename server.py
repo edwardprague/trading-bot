@@ -45,7 +45,7 @@ app = Flask(__name__)
 
 # ── Backtest state (shared between the Flask thread and the worker thread) ─────
 _bt_lock  = threading.Lock()
-_bt_state = {"running": False, "ok": None, "error": None, "no_data": False}
+_bt_state = {"running": False, "ok": None, "error": None, "no_data": False, "stage": ""}
 
 # ── Run-bar HTML (injected into every page response) ──────────────────────────
 
