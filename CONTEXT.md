@@ -1,19 +1,26 @@
 # 1. Project Overview
 
-Building a systematic algorithmic trading system.
+Building a backtesting dashboard for a systematic algorithmic trading system.
 
-## Terminology
+# 1. Workflow
 
-- **Ada** — refers to Cowork (the agentic coding assistant) for typing brevity. Always use "Ada" not "Cowork".
+1. I will provide you with development tasks for you to complete. Always ask questions and provide comments if needed.
+
+2. ⁠When adding functionality, always put new styles into the style.css file and never use inline styles.
+
+3. When you are finished with a task, let me know if it requires the following actions to view updates:
+
+- Restart the flask server
+- Run a backtest to regenerate report.html
+- Or both
 
 ---
 
 # 2. Technical Setup
 
-#### Machines
+#### File Directory Path
 
-- **Desktop**: Edwards-iMac - `~/Documents/GitHub/trading-bot`
-- **Laptop**: Edwards-MacBook-Air - `~/Documents/GitHub/trading-bot`
+`~/Documents/GitHub/trading-bot`
 
 #### Virtual Environment
 
@@ -139,98 +146,14 @@ The cTrader migration and integration has been completed, and the following note
 
 ---
 
-# 4. Dashboard Architecture
+# 4. Backtesting Architecture
 
 The dashboard runs 2 types of backtests, Version Testing and Date Range Testing.
 
 **Version Test** = change to entry conditions or strategy logic
 **Date Range Test** = same version, different time period
 
-## Version Testing
-
-New version testing denotes a change in entry conditions, which must be recorded
-
-#### Entry Conditions Section
-
-**Entry Conditions Table Example**
-
-| Condition        | Rule                         | +   | -   |
-| ---------------- | ---------------------------- | --- | --- |
-| Trend Filter     | EMA50 < EMA200               | v1  | —   |
-| Entry Signal     | Price crosses below EMA20    | v1  | —   |
-| Stop Placement   | Swing high over 20 bars      | v1  | —   |
-| Direction        | Short only                   | v1  | —   |
-| Time Window      | UTC 01 02 16 17 18           | v1  | —   |
-| Daily Loss Limit | Stop if daily loss >= $2,500 | v1  | —   |
-
-**Entry conditions modifications between versions**
-Each time a new version is added the entry conditions table should be modified in the following ways:
-
-1. New Condition
-2. Rule
-3. Added (+)
-4. Removed (-)
-
-- If adding a new condition, display which version it was added on in the + column.
-- If removing a condition, display which version is was removed on in the - column.
-- When a condition is removed it will remain in the list, with the version it was removed on displayed.
-
-## Date Range Testing
-
-New date range testing denotes the testing of date range iterations of a specific version.
-
-- Edward (user) runs independently
-- Triggered by **Add Date Range (vX)** button — label shows current version
-- Uses selected from/to date pickers + selected instrument
-- Added to whichever version is currently selected/viewed
-
----
-
-## Sidebar Structure
-
-The sidebar is where the versions and date ranges are navigated from.
-
-#### Version Rows (parent) (top tier)
-
-**Structure**
-
-- Version #
-- Instrument
-- PL
-- Date Range
-- Duration
-
-**Example**
-
-- v6
-- EURUSD
-- +$7,412.88
-- 3-26-24 → 3-26-26
-- 2.0 years
-
-#### Date Range Rows (children) (lower tier)
-
-**Structure**
-
-- Instrument
-- PL
-- Date Range
-- Duration
-
-**Example**
-
-- EURUSD
-- +$3,854.12
-- 2-26-26 → 3-26-26
-- 2.0 weeks
-
-#### Duration Formatting
-
-- over 12 months = years (1 decimal)
-- 1-12 months = months (1 decimal)
-- under 1 month = days
-
-###
+Backtests are displayed in the side bar as top item (versions) and sub item (date ranges) levels.
 
 ---
 
@@ -245,187 +168,3 @@ Add date rage: `shift+d and d`
 Copy: `shift+c and c`
 Delete: `shift+delete`
 Dvelopment log: `shift+l and l`
-
----
-
-### Parameters
-
-Strategy parameters are currently displayed in the following table example:
-
-| Parameter      | Value                           |
-| -------------- | ------------------------------- |
-| EMA Slow       | 200                             |
-| EMA Fast       | 50                              |
-| EMA Entry      | 20                              |
-| Swing Lookback | 20 bars                         |
-| RRR            | 1:2                             |
-| Risk Per Trade | 1.0%                            |
-| Min Stop       | 5 pips                          |
-| Max Stop       | 200 pips                        |
-| Direction      | short_only                      |
-| Time Filter    | ON — UTC hours 1, 2, 16, 17, 18 |
-
----
-
-## Dashboard Sections (Display Order)
-
-1. Summary + Entry Conditions (side by side)
-2. Results + Parameters (side by side)
-3. Performance by Direction
-4. Range Filter diagnostic + Regime Classification (side by side)
-5. RPF section
-6. RPF chart image
-7. Monthly Performance
-8. Time of Day Performance
-9. Daily Draw Down - Worst 5 Days
-10. Main chart image
-11. Streak Analysis + Stop vs Target (side by side)
-12. Regime Classification
-13. Win Rate Trend
-14. Trade Duration + Filter Impact (side by side)
-15. RRR Sensitivity + Swing Lookback Sensitivity (side by side)
-16. Fractal Diagnostics
-
----
-
-# 5. Trading Bot Development
-
-## Fractal Structure Diagnostics
-
-### Overview
-
-A diagnostic table that appears only for 1-day date range tests. Detects and classifies pivot points (fractals) in the price data, providing a numerical breakdown of market structure for that day.
-
-### Fractal Detection
-
-Standard fractal definition — N=2 bars each side:
-
-- **Pivot High**: bar whose high is higher than the 2 bars on either side
-- **Pivot Low**: bar whose low is lower than the 2 bars on either side
-
-### Fractal Classification
-
-Each pivot is compared to the previous same-type pivot using a threshold of 0.5 x ATR(14):
-
-**Highs:**
-
-- **CH** — Consolidation High: difference from previous high < 0.5 ATR
-- **LH** — Lower High: difference > 0.5 ATR and lower than previous high
-- **HH** — Higher High: difference > 0.5 ATR and higher than previous high
-- First pivot high defaults to CH
-
-**Lows:**
-
-- **CL** — Consolidation Low: difference from previous low < 0.5 ATR
-- **LL** — Lower Low: difference > 0.5 ATR and lower than previous low
-- **HL** — Higher Low: difference > 0.5 ATR and higher than previous low
-- First pivot low defaults to CL
-
-### Fractal Distance Measurements
-
-- Vertical - Vertical distance betwen the last 2 fractals
-- Horizontal - Horizontal distance betwen the last 2 fractals
-- Pullback - Distance between an HL and the preceding HH, or distance between an LL and the preceding LH. Displayed as a %
-
-### Table Columns
-
-| Column                | Description                                    |
-| --------------------- | ---------------------------------------------- |
-| #                     | Chronological pivot number for the day         |
-| Type                  | CH / LH / HH / CL / LL / HL                    |
-| Price                 | Price level of the pivot                       |
-| Time                  | UTC time of the pivot bar                      |
-| Vert Distance (pips)  | Distance from previous same-type pivot in pips |
-| Horiz Distance (bars) | Number of bars since previous same-type pivot  |
-
-### Availability
-
-Only displayed and included in Copy Range Report when date range is exactly 1 calendar day. Not shown for longer date ranges.
-
-### Future Development
-
-- Pivot labels and markers to be added to 1-day candlestick chart
-- Multi-timeframe pivot levels (1h, 4h) to be added as horizontal lines
-- Pivot-based entry conditions to be developed using this structure
-
----
-
-## Strategy Development
-
-**Capital Management**
-
-- Starting capital: $100,000
-- Max daily drawdown (2%): $2,000
-- Max drawdown (6%): $6,000
-
-#### Trend Following Strategy
-
-**Strategy (Current Baseline)**
-
-- Short only, 5-minute, EMA 20/50/200
-- Time filter: UTC hours 1, 2, 16, 17, 18
-- Stop: swing high over 20 bars
-- Target: 2x stop distance (RRR 1:2)
-- 1% risk per trade, $100k starting capital
-
-**Entry Conditions**
-TBD
-
-**Entry Qualities (Current)**
-
-- Pivot Points
-
-**Entry Qualities (After Current)**
-
-- Pullback depth
-- Candle confirmation
-- Volume at entry
-- Stop distance quality
-
----
-
-## Conviction Score Architecture
-
-Conviction Score (4-dimensional position sizing) with Rolling Profit Factor as primary risk control.
-
-The conviction score is a functionality to be developed after strategy development.
-
-The conviction score will aim to give a score which denotes the amount of risk on a given trade, and will be as important or more than the strategy.
-
-**Conviction Score Calculation**
-
-- Position Size = Base Risk × RPF × Regime × Trade Quality × Market Context
-- Each dimension 0-1, multiplied. Never completely blocks — minimum 0.25% risk.
-
-**Conviction Score Components**
-
-These components are initial ideas to be explored at a later time.
-
-1. Rotating Profit Factor
-
-- Profit factor from last number of trades
-
-2. Market Context
-
-- Blocks of news time
-- Session open
-- Recent spike or strong move
-
-3. Regime Score
-
-- Bollinger bands
-- ADX
-- ATR
-
-**Conviction Score Components Itemized**
-
-**1. Rolling Profit Factor (RPF)**
-There is already a panel in the dashboard concerning the RPF displaying the following information, but not currently being analized.
-
-| Rolling PF (10-trade window) | Risk           |
-| ---------------------------- | -------------- |
-| Above 1.3                    | 1.0% full risk |
-| 1.0 to 1.3                   | 0.5% reduced   |
-| Below 1.0                    | 0.25% minimum  |
-
-Items 2 - 4 have not been explored yet.
