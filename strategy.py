@@ -66,49 +66,28 @@ STRATEGY        = "Trend Following"
 
 ENTRY_CONDITIONS = [
     {
-        "condition":       "Trend Filter",
-        "rule":            f"EMA{EMA_FAST} < EMA{EMA_SLOW}",
-        "since_version":   "v1",
-    },
-    {
-        "condition":       "Entry Signal",
-        "rule":            f"Price crosses below EMA{EMA_ENTRY}",
-        "since_version":   "v1",
-    },
-    {
-        "condition":       "Stop Placement",
-        "rule":            f"Swing high over {SWING_LOOKBACK} bars",
-        "since_version":   "v1",
-    },
-    {
         "condition":       "EMA Slow",
         "rule":            str(EMA_SLOW),
-        "since_version":   "v1",
     },
     {
         "condition":       "EMA Fast",
         "rule":            str(EMA_FAST),
-        "since_version":   "v1",
     },
     {
         "condition":       "EMA Entry",
         "rule":            str(EMA_ENTRY),
-        "since_version":   "v1",
     },
     {
         "condition":       "Instrument",
         "rule":            _INSTRUMENT,
-        "since_version":   "v1",
     },
     {
         "condition":       "Interval",
         "rule":            INTERVAL,
-        "since_version":   "v1",
     },
     {
         "condition":       "Direction",
         "rule":            "Short only",
-        "since_version":   "v1",
     },
 ]
 
@@ -2802,7 +2781,6 @@ __VERSIONS_JSON__
 
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.map(function(ec) {
-        var addedVal = ec.since_version || "v1";
         var ruleCell = ec.condition === "Direction"
           ? dirSelectHtml
           : ec.condition === "Instrument"
@@ -2819,8 +2797,6 @@ __VERSIONS_JSON__
         return "<tr>" +
           "<td class='ec-td-cond'>" + esc(ec.condition) + "</td>" +
           "<td class='ec-td-rule'>" + ruleCell + "</td>" +
-          "<td class='ec-td-purpose'>" + esc(ec.purpose) + "</td>" +
-          "<td class='ec-td-ver'><span class='ec-since-val'>" + esc(addedVal) + "</span></td>" +
           "</tr>";
       }).join("");
       entryCondHtml =
@@ -2830,8 +2806,6 @@ __VERSIONS_JSON__
             "<thead><tr>" +
               "<th " + ecThStyle + ">Condition</th>" +
               "<th " + ecThStyle + ">Rule</th>" +
-              "<th " + ecThStyle + "></th>" +
-              "<th " + ecThStyle + ">+</th>" +
             "</tr></thead>" +
             "<tbody>" + ecRows + "</tbody>" +
           "</table>" +
@@ -2844,19 +2818,14 @@ __VERSIONS_JSON__
             "<thead><tr>" +
               "<th " + ecThStyle + ">Condition</th>" +
               "<th " + ecThStyle + ">Rule</th>" +
-              "<th " + ecThStyle + "></th>" +
-              "<th " + ecThStyle + ">+</th>" +
             "</tr></thead>" +
             "<tbody>" +
-            "<tr><td class='ec-td-cond'>Trend Filter</td><td class='ec-td-rule'>EMA" + (p.ema_fast||"50") + " &lt; EMA" + (p.ema_slow||"200") + "</td><td class='ec-td-purpose'>Confirms downtrend \u2014 short only</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Entry Signal</td><td class='ec-td-rule'>Price crosses below EMA" + (p.ema_entry||"20") + "</td><td class='ec-td-purpose'>Pullback rejection in trend direction</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Stop Placement</td><td class='ec-td-rule'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td class='ec-td-purpose'>Structural invalidation level</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>EMA Slow</td><td class='ec-td-rule'>" + emaSlowHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + emaFastHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>EMA Entry</td><td class='ec-td-rule'>" + emaEntryHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + instrSelectHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + intervalSelectHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + dirSelectHtml + "</td><td class='ec-td-purpose'>Asymmetric edge identified on EURUSD</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>EMA Slow</td><td class='ec-td-rule'>" + emaSlowHtml + "</td></tr>" +
+            "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + emaFastHtml + "</td></tr>" +
+            "<tr><td class='ec-td-cond'>EMA Entry</td><td class='ec-td-rule'>" + emaEntryHtml + "</td></tr>" +
+            "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + instrSelectHtml + "</td></tr>" +
+            "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + intervalSelectHtml + "</td></tr>" +
+            "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + dirSelectHtml + "</td></tr>" +
             "</tbody>" +
           "</table>" +
         "</div>";
@@ -3312,19 +3281,14 @@ __VERSIONS_JSON__
           "<thead><tr>" +
             "<th " + ecThStyle + ">Condition</th>" +
             "<th " + ecThStyle + ">Rule</th>" +
-            "<th " + ecThStyle + "></th>" +
-            "<th " + ecThStyle + ">+</th>" +
           "</tr></thead>" +
           "<tbody>" +
-          "<tr><td class='ec-td-cond'>Trend Filter</td><td class='ec-td-rule'>EMA50 &lt; EMA200</td><td class='ec-td-purpose'>Confirms downtrend — short only</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-          "<tr><td class='ec-td-cond'>Entry Signal</td><td class='ec-td-rule'>Price crosses below EMA20</td><td class='ec-td-purpose'>Pullback rejection in trend direction</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-          "<tr><td class='ec-td-cond'>Stop Placement</td><td class='ec-td-rule'>Swing high over 20 bars</td><td class='ec-td-purpose'>Structural invalidation level</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-          "<tr><td class='ec-td-cond'>EMA Slow</td><td class='ec-td-rule'>" + _emaSlowHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-          "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + _emaFastHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-          "<tr><td class='ec-td-cond'>EMA Entry</td><td class='ec-td-rule'>" + _emaEntryHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-          "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + _instrSelectHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-          "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + _intervalSelectHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-          "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + _dirSelectHtml + "</td><td class='ec-td-purpose'>Asymmetric edge identified on EURUSD</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+          "<tr><td class='ec-td-cond'>EMA Slow</td><td class='ec-td-rule'>" + _emaSlowHtml + "</td></tr>" +
+          "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + _emaFastHtml + "</td></tr>" +
+          "<tr><td class='ec-td-cond'>EMA Entry</td><td class='ec-td-rule'>" + _emaEntryHtml + "</td></tr>" +
+          "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + _instrSelectHtml + "</td></tr>" +
+          "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + _intervalSelectHtml + "</td></tr>" +
+          "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + _dirSelectHtml + "</td></tr>" +
           "</tbody>" +
         "</table>" +
       "</div>";
