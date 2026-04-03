@@ -3458,9 +3458,9 @@ __VERSIONS_JSON__
     renderSidebar();
     renderContent(activeVersionIdx, activeRunIdx);
 
-    /* Scroll the active sidebar item into view (e.g. after date-range add) */
-    var activeEl = document.querySelector("#version-list .v-item.active");
-    if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    /* Scroll sidebar to bottom after date-range add */
+    var vList = document.getElementById("version-list");
+    if (vList) vList.scrollTop = vList.scrollHeight;
   } else {
     renderEmptyState();
   }
