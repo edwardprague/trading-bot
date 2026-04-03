@@ -60,8 +60,6 @@ TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
 
 MAX_DAILY_LOSS  = 2500.0            # stop trading if day's loss reaches $2,500 (2.5% of capital)
 
-ROLLING_PF_WINDOW = 10              # window size for rolling profit factor
-
 VERSION = "v5"
 NOTES = "Removed regime filter — clean baseline for date range UI rebuild"
 STRATEGY        = "Trend Following"
@@ -557,7 +555,7 @@ def print_results(trades, equity):
 # ── Charts ────────────────────────────────────────────────────────────────────
 
 def save_charts(df, trades, equity):
-    """Save three chart images and return (main_path, rpf_path, eq_dd_path)."""
+    """Save two chart images and return (main_path, eq_dd_path)."""
     os.makedirs("results", exist_ok=True)
     ticker_clean = TICKER.split("=")[0].replace("^", "")
     date_str     = datetime.now().strftime("%Y-%m-%d")
@@ -785,59 +783,7 @@ def save_charts(df, trades, equity):
     plt.close()
     print(f"  Equity/DD chart saved → {eq_dd_path}")
 
-    # ── RPF chart: Rolling Profit Factor (1 panel) ────────────────────────────
-    fig2, ax4 = plt.subplots(1, 1, figsize=(16, 4))
-    fig2.patch.set_facecolor("#1a1a2e")
-    _style_ax(ax4)
-
-    if not trades.empty and len(trades) >= ROLLING_PF_WINDOW:
-        rpf_vals  = []
-        rpf_dates = []
-        for _i in range(ROLLING_PF_WINDOW - 1, len(trades)):
-            _win = trades.iloc[_i - ROLLING_PF_WINDOW + 1 : _i + 1]
-            _ww  = _win[_win.win]
-            _wl  = _win[~_win.win]
-            if not _wl.empty and _wl.pnl.sum() != 0:
-                _pf = abs(float(_ww.pnl.sum()) / abs(float(_wl.pnl.sum())))
-            elif not _ww.empty:
-                _pf = 5.0
-            else:
-                _pf = 0.0
-            rpf_vals.append(min(_pf, 5.0))
-            rpf_dates.append(pd.to_datetime(trades.iloc[_i]["timestamp"]))
-
-        ax4.plot(rpf_dates, rpf_vals, color="#c77dff", linewidth=1.2,
-                 label=f"Rolling PF ({ROLLING_PF_WINDOW} trades)")
-        ax4.axhline(1.0, color="#ff6b6b", linestyle="--", linewidth=1.0,
-                    label="Break Even (1.0)")
-        ax4.axhline(1.3, color="#ffd93d", linestyle="--", linewidth=0.8,
-                    label="Full Risk (1.3)")
-        ax4.fill_between(rpf_dates, rpf_vals, 1.0,
-                         where=[v >= 1.0 for v in rpf_vals],
-                         alpha=0.12, color="#6bcb77")
-        ax4.fill_between(rpf_dates, rpf_vals, 1.0,
-                         where=[v < 1.0 for v in rpf_vals],
-                         alpha=0.18, color="#ff6b6b")
-        ax4.set_ylim(bottom=0)
-        ax4.legend(loc="upper left", facecolor="#1a1a2e",
-                   labelcolor="white", fontsize=8)
-    else:
-        ax4.text(0.5, 0.5, f"Insufficient trades for {ROLLING_PF_WINDOW}-trade rolling window",
-                 ha="center", va="center", transform=ax4.transAxes, color="#666", fontsize=10)
-
-    ax4.set_title(f"Rolling Profit Factor ({ROLLING_PF_WINDOW}-trade window)",
-                  color="white", fontsize=12, pad=8)
-    ax4.set_ylabel(f"Rolling PF ({ROLLING_PF_WINDOW})", color="white")
-    ax4.set_xlabel("Date", color="white")
-    _set_x_fmt(ax4)
-
-    plt.tight_layout(pad=1.5)
-    rpf_path = os.path.join("results", f"{VERSION}_{ticker_clean}_{date_str}_rpf.png")
-    plt.savefig(rpf_path, dpi=130, bbox_inches="tight", facecolor="#1a1a2e")
-    plt.close()
-    print(f"  RPF chart saved  → {rpf_path}\n")
-
-    return main_path, rpf_path, eq_dd_path
+    return main_path, eq_dd_path
 
 # ── Fractal Diagnostics ───────────────────────────────────────────────────────
 
@@ -1435,76 +1381,6 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         except Exception:
             rs_diagnostic = {}
 
-    # ── Rolling Profit Factor ──────────────────────────────────────────────────
-    rolling_pf_stats = {
-        "window": ROLLING_PF_WINDOW,
-        "current": None, "min": None, "max": None,
-        "pct_above_1_3": None, "pct_1_0_to_1_3": None, "pct_below_1_0": None,
-    }
-    if n >= ROLLING_PF_WINDOW:
-        try:
-            rpf_vals = []
-            for _i in range(ROLLING_PF_WINDOW - 1, n):
-                _win = trades.iloc[_i - ROLLING_PF_WINDOW + 1 : _i + 1]
-                _ww  = _win[_win.win]
-                _wl  = _win[~_win.win]
-                if not _wl.empty and _wl.pnl.sum() != 0:
-                    _pf = abs(float(_ww.pnl.sum()) / abs(float(_wl.pnl.sum())))
-                elif not _ww.empty:
-                    _pf = 99.0   # cap infinity for storage
-                else:
-                    _pf = 0.0
-                rpf_vals.append(_pf)
-            _total = len(rpf_vals)
-            # ── Look-ahead-free tier classification ────────────────────────────
-            # For each trade j >= N, classify by PF of the PRECEDING N trades
-            # (no look-ahead: trade j itself is NOT in the window that classifies it)
-            _tier_full    = {"name": "Full Risk",    "threshold": "\u2265 1.3",   "count": 0, "net_pnl": 0.0}
-            _tier_reduced = {"name": "Reduced Risk", "threshold": "1.0\u20131.3", "count": 0, "net_pnl": 0.0}
-            _tier_minimum = {"name": "Minimum Risk", "threshold": "< 1.0",        "count": 0, "net_pnl": 0.0}
-            for _j in range(ROLLING_PF_WINDOW, n):
-                _prev = trades.iloc[_j - ROLLING_PF_WINDOW : _j]
-                _pw   = _prev[_prev.win]
-                _pl   = _prev[~_prev.win]
-                if not _pl.empty and _pl.pnl.sum() != 0:
-                    _ppf = abs(float(_pw.pnl.sum()) / abs(float(_pl.pnl.sum())))
-                elif not _pw.empty:
-                    _ppf = 99.0
-                else:
-                    _ppf = 0.0
-                _tpnl = float(trades.iloc[_j]["pnl"])
-                if _ppf >= 1.3:
-                    _tier_full["count"]    += 1
-                    _tier_full["net_pnl"]  += _tpnl
-                elif _ppf >= 1.0:
-                    _tier_reduced["count"]   += 1
-                    _tier_reduced["net_pnl"] += _tpnl
-                else:
-                    _tier_minimum["count"]   += 1
-                    _tier_minimum["net_pnl"] += _tpnl
-            _n_class = _tier_full["count"] + _tier_reduced["count"] + _tier_minimum["count"]
-            _tiers = []
-            for _t in [_tier_full, _tier_reduced, _tier_minimum]:
-                _tiers.append({
-                    "name":      _t["name"],
-                    "threshold": _t["threshold"],
-                    "pct_time":  round(_t["count"] / _n_class * 100, 1) if _n_class > 0 else 0.0,
-                    "trades":    _t["count"],
-                    "net_pnl":   round(_t["net_pnl"], 2),
-                })
-            rolling_pf_stats = {
-                "window":          ROLLING_PF_WINDOW,
-                "current":         round(rpf_vals[-1], 2),
-                "min":             round(min(rpf_vals), 2),
-                "max":             round(min(max(rpf_vals), 99.0), 2),
-                "pct_above_1_3":   round(sum(1 for v in rpf_vals if v >= 1.3)  / _total * 100, 1),
-                "pct_1_0_to_1_3":  round(sum(1 for v in rpf_vals if 1.0 <= v < 1.3) / _total * 100, 1),
-                "pct_below_1_0":   round(sum(1 for v in rpf_vals if v < 1.0)   / _total * 100, 1),
-                "tiers":           _tiers,
-            }
-        except Exception:
-            pass
-
     # ── Position size metrics ──────────────────────────────────────────────────
     avg_pos_size = None
     min_pos_size = None
@@ -1558,7 +1434,6 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         "win_rate_trend":  win_rate_trend,
         "duration_analysis": duration_analysis,
         "filter_impact":     filter_impact,
-        "rolling_pf":        rolling_pf_stats,
         "rs_diagnostic":     rs_diagnostic,
         "rrr_sensitivity":   [],
         "swing_sensitivity": [],
@@ -1723,7 +1598,6 @@ __VERSIONS_JSON__
       date: v.date || "", start_date: "", end_date: "",
       days_back: (v.params || {}).days_back || 0, label: "",
       notes: v.notes || "\u2014", chart_b64: v.chart_b64 || "",
-      rpf_chart_b64: v.rpf_chart_b64 || "",
       eq_dd_chart_b64: v.eq_dd_chart_b64 || "",
       metrics: v.metrics || {}, last_trades: v.last_trades || []
     }];
@@ -1952,48 +1826,6 @@ __VERSIONS_JSON__
       }
       lines.push("");
     }
-
-    /* ════════════════════════════════════════════════════════════
-       ROLLING PROFIT FACTOR
-       ════════════════════════════════════════════════════════════ */
-    lines.push("# Rolling Profit Factor");
-    lines.push("");
-
-    (function () {
-      var rpf = m.rolling_pf || {};
-      var rpfWin = rpf.window || 10;
-      var rpfCur = (rpf.current !== null && rpf.current !== undefined) ? mf(rpf.current) : "\u2014";
-      var rpfMin = (rpf.min     !== null && rpf.min     !== undefined) ? mf(rpf.min)     : "\u2014";
-      var rpfMax = (rpf.max     !== null && rpf.max     !== undefined) ? mf(rpf.max)     : "\u2014";
-
-      lines.push("### Rolling Profit Factor (" + rpfWin + "-trade window)");
-      lines.push("");
-      lines.push("| Metric | Value |");
-      lines.push("|--------|-------|");
-      lines.push("| Current Rolling PF | " + rpfCur + " |");
-      lines.push("| Min Rolling PF | " + rpfMin + " |");
-      lines.push("| Max Rolling PF | " + rpfMax + " |");
-      lines.push("");
-
-      var rpfTiers = rpf.tiers || [];
-      if (rpfTiers.length > 0) {
-        lines.push("| Tier | Threshold | % of Time | Trades | Net P&L |");
-        lines.push("|------|-----------|-----------|--------|---------|");
-        rpfTiers.forEach(function (t) {
-          lines.push("| " + t.name + " | " + t.threshold + " | " + mf(t.pct_time, 1) + "% | " + t.trades + " | " + mfMoney(t.net_pnl) + " |");
-        });
-      } else {
-        var pctAbove = (rpf.pct_above_1_3  !== null && rpf.pct_above_1_3  !== undefined) ? mf(rpf.pct_above_1_3, 1)  + "%" : "\u2014";
-        var pctMid   = (rpf.pct_1_0_to_1_3 !== null && rpf.pct_1_0_to_1_3 !== undefined) ? mf(rpf.pct_1_0_to_1_3, 1) + "%" : "\u2014";
-        var pctBelow = (rpf.pct_below_1_0  !== null && rpf.pct_below_1_0  !== undefined) ? mf(rpf.pct_below_1_0, 1)  + "%" : "\u2014";
-        lines.push("| Tier | Threshold | % of Time |");
-        lines.push("|------|-----------|-----------|");
-        lines.push("| Full Risk | >= 1.3 | " + pctAbove + " |");
-        lines.push("| Reduced Risk | 1.0 - 1.3 | " + pctMid + " |");
-        lines.push("| Minimum Risk | < 1.0 | " + pctBelow + " |");
-      }
-      lines.push("");
-    }());
 
     /* ════════════════════════════════════════════════════════════
        ADVANCED
@@ -2719,68 +2551,6 @@ __VERSIONS_JSON__
         "<th>Date (UTC)</th><th>Trades</th><th>P&amp;L</th><th>Drawdown %</th>" +
         "</tr></thead><tbody>" + ddDayRows + "</tbody></table></div>";
 
-    /* 11. Rolling Profit Factor */
-    var rpf     = m.rolling_pf || {};
-    var rpfWin  = rpf.window || 10;
-    var rpfCur  = rpf.current !== null && rpf.current !== undefined ? fmt(rpf.current) : "&#8212;";
-    var rpfMin  = rpf.min     !== null && rpf.min     !== undefined ? fmt(rpf.min)     : "&#8212;";
-    var rpfMax  = rpf.max     !== null && rpf.max     !== undefined ? fmt(rpf.max)     : "&#8212;";
-    var rpfCurClass = (rpf.current !== null && rpf.current !== undefined)
-      ? (rpf.current >= 1.3 ? "pos" : (rpf.current < 1.0 ? "neg" : "neu")) : "";
-    var rpfTierRows = "";
-    var rpfTiers = rpf.tiers || [];
-    if (rpfTiers.length === 0) {
-      rpfTierRows =
-        "<tr><td><span class='pos'>&#9679; Full Risk</span></td><td>&ge; 1.3</td>" +
-        "<td><span class='pos'>" + (rpf.pct_above_1_3  !== null && rpf.pct_above_1_3  !== undefined ? fmt(rpf.pct_above_1_3, 1)  + "%" : "&#8212;") + "</span></td>" +
-        "<td>&#8212;</td><td>&#8212;</td></tr>" +
-        "<tr><td><span class='neu'>&#9679; Reduced Risk</span></td><td>1.0 &ndash; 1.3</td>" +
-        "<td><span class='neu'>" + (rpf.pct_1_0_to_1_3 !== null && rpf.pct_1_0_to_1_3 !== undefined ? fmt(rpf.pct_1_0_to_1_3, 1) + "%" : "&#8212;") + "</span></td>" +
-        "<td>&#8212;</td><td>&#8212;</td></tr>" +
-        "<tr><td><span class='neg'>&#9679; Minimum Risk</span></td><td>&lt; 1.0</td>" +
-        "<td><span class='neg'>" + (rpf.pct_below_1_0  !== null && rpf.pct_below_1_0  !== undefined ? fmt(rpf.pct_below_1_0, 1)  + "%" : "&#8212;") + "</span></td>" +
-        "<td>&#8212;</td><td>&#8212;</td></tr>";
-    } else {
-      var tierClasses = ["pos", "neu", "neg"];
-      rpfTiers.forEach(function (t, i) {
-        var cls  = tierClasses[i] || "";
-        var pnlC = pClass(t.net_pnl);
-        rpfTierRows +=
-          "<tr>" +
-          "<td><span class='" + cls + "'>&#9679; " + esc(t.name) + "</span></td>" +
-          "<td>" + esc(t.threshold) + "</td>" +
-          "<td><span class='" + cls + "'>" + fmt(t.pct_time, 1) + "%</span></td>" +
-          "<td>" + t.trades + "</td>" +
-          "<td class='" + pnlC + "'>" + fmtMoney(t.net_pnl) + "</td>" +
-          "</tr>";
-      });
-    }
-    var rpfNoteHtml = rpfTiers.length > 0
-      ? "<div class='rpf-note'>" +
-          "Tier classification is look-ahead-free: each trade is classified by the RPF of the " +
-          rpfWin + " trades that preceded it." +
-        "</div>"
-      : "";
-    var rollingPfHtml =
-      "<div class='section'>" +
-        "<div class='section-title'>Rolling Profit Factor (" + rpfWin + "-trade window)</div>" +
-        "<table><tbody>" +
-        "<tr><th>Metric</th><th>Value</th></tr>" +
-        "<tr><td>Current Rolling PF</td><td><span class='" + rpfCurClass + "'>" + rpfCur + "</span></td></tr>" +
-        "<tr><td>Min Rolling PF</td><td><span class='neg'>" + rpfMin + "</span></td></tr>" +
-        "<tr><td>Max Rolling PF</td><td><span class='pos'>" + rpfMax + "</span></td></tr>" +
-        "</tbody></table>" +
-        "<table class='mt-table'><thead><tr>" +
-        "<th>Tier</th><th>Threshold</th><th>% of Time</th><th>Trades</th><th>Net P&amp;L</th>" +
-        "</tr></thead><tbody>" + rpfTierRows + "</tbody></table>" +
-        rpfNoteHtml +
-      "</div>";
-
-    /* 12. RPF Chart image */
-    var rpfChartHtml = run.rpf_chart_b64
-      ? "<div class='section'><div class='section-title'>Rolling Profit Factor Chart</div>" +
-        "<img id='rpf-chart-img' src='data:image/png;base64," + run.rpf_chart_b64 + "' alt='RPF Chart'/></div>"
-      : "";
 
     /* 13. RRR Sensitivity */
     var rrrSens     = m.rrr_sensitivity || [];
@@ -3007,7 +2777,6 @@ __VERSIONS_JSON__
           "<h2>" + esc(v.name) + stratBadge +
             "<span class='report-tabs'>" +
               "<button class='report-tab active' data-tab='general'>General</button>" +
-              "<button class='report-tab' data-tab='rpf'>Rolling Profit Factor</button>" +
               "<button class='report-tab' data-tab='advanced'>Advanced</button>" +
             "</span>" +
           "</h2>" +
@@ -3118,17 +2887,6 @@ __VERSIONS_JSON__
       pivotDiagHtml +
 
       "</div>" + /* end General tab */
-
-      /* ── TAB: Rolling Profit Factor ──────────────────────────────────────── */
-      "<div class='tab-content' data-tab-content='rpf'>" +
-
-      /* ── Rolling Profit Factor data ───────────────────────────────────────── */
-      rollingPfHtml +
-
-      /* ── RPF chart image ──────────────────────────────────────────────────── */
-      rpfChartHtml +
-
-      "</div>" + /* end RPF tab */
 
       /* ── TAB: Advanced ───────────────────────────────────────────────────── */
       "<div class='tab-content' data-tab-content='advanced'>" +
@@ -3591,7 +3349,7 @@ __VERSIONS_JSON__
 
 
 def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes="",
-                         blocked_signals=None, df=None, rpf_chart_path=None,
+                         blocked_signals=None, df=None,
                          eq_dd_chart_path=None,
                          run_mode="new_version", run_start_date="", run_end_date=""):
     """Create or update report.html.
@@ -3613,12 +3371,6 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
     if os.path.exists(chart_path):
         with open(chart_path, "rb") as fh:
             chart_b64 = base64.b64encode(fh.read()).decode("utf-8")
-
-    # ── Load RPF chart as base64 ───────────────────────────────────────────────
-    rpf_chart_b64 = ""
-    if rpf_chart_path and os.path.exists(rpf_chart_path):
-        with open(rpf_chart_path, "rb") as fh:
-            rpf_chart_b64 = base64.b64encode(fh.read()).decode("utf-8")
 
     # ── Load Equity/Drawdown chart as base64 ─────────────────────────────────
     eq_dd_chart_b64 = ""
@@ -3663,13 +3415,12 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
                 "days_back":     v.get("params", {}).get("days_back", DAYS_BACK),
                 "notes":         v.get("notes", "—"),
                 "chart_b64":     v.get("chart_b64", ""),
-                "rpf_chart_b64": v.get("rpf_chart_b64", ""),
                 "eq_dd_chart_b64": v.get("eq_dd_chart_b64", ""),
                 "metrics":       v.get("metrics", {}),
                 "last_trades":   v.get("last_trades", []),
             }]
             # Remove legacy top-level run data (keep name, params, strategy, etc.)
-            for key in ["date", "notes", "chart_b64", "rpf_chart_b64",
+            for key in ["date", "notes", "chart_b64",
                         "eq_dd_chart_b64", "metrics", "last_trades"]:
                 v.pop(key, None)
 
@@ -3686,7 +3437,6 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "instrument":    _INSTRUMENT,
         "notes":         notes.strip() if notes else "—",
         "chart_b64":        chart_b64,
-        "rpf_chart_b64":    rpf_chart_b64,
         "eq_dd_chart_b64":  eq_dd_chart_b64,
         "metrics":          metrics,
         "last_trades":      last_trades,
@@ -3964,12 +3714,9 @@ if __name__ == "__main__":
             equity.append(_eq_cash)
 
     print_results(trades, equity)
-    time_blocked = sum(1 for s in blocked_signals if s["reason"] == "time")
-    print(f"  Time filter blocked : {time_blocked} signal(s)")
-    chart_path, rpf_chart_path, eq_dd_chart_path = save_charts(df, trades, equity)
+    chart_path, eq_dd_chart_path = save_charts(df, trades, equity)
     generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes,
                          blocked_signals=blocked_signals, df=df,
-                         rpf_chart_path=rpf_chart_path,
                          eq_dd_chart_path=eq_dd_chart_path,
                          run_mode=run_mode,
                          run_start_date=run_start_date,
