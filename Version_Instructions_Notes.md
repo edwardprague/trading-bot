@@ -1,3 +1,30 @@
+# Version Instructions Purpose
+
+This page contains guidelines for backtesting parameters and instructions.
+
+## Backtesting Parameters
+
+| **Parameter**    | **Value**  |
+| ---------------- | ---------- |
+| EMA Slow         | 200        |
+| EMA Fast         | 50         |
+| EMA Entry        | 20         |
+| Swing Lookback   | 20 bars    |
+| RRR              | 1:2        |
+| Risk Per Trade   | 1.0%       |
+| Min Stop         | 5 pips     |
+| Max Stop         | 200 pips   |
+| Direction        | short_only |
+| Daily Loss Limit | $2,500     |
+| Starting Cash    | $100,000   |
+| Ticker           | EURUSD=X   |
+| Interval         | 5m         |
+| Days Back        | 730        |
+
+# V1
+
+## Entry Instructions
+
 **For each 5-minute bar, in order:**
 
 **1. Check Exits (if in a trade)**

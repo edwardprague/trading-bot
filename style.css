@@ -607,7 +607,7 @@ tbody tr:hover td {
 }
 
 .ec-select {
-    background: #1a1a2e;
+    background: teal;
     color: #fff;
     border: 1px solid #3a3a5a;
     border-radius: 4px;
