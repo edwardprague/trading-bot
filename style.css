@@ -673,6 +673,19 @@ tbody tr:hover td {
     border-color: mediumseagreen;
 }
 
+.ec-select-narrow {
+    width: 48px;
+    text-align: center;
+    padding: 5px 2px;
+}
+
+.ec-rrr-colon {
+    color: #ccc;
+    font-weight: 600;
+    margin: 0 4px;
+    font-size: 0.95em;
+}
+
 .ec-input {
     background: teal;
     color: #fff;

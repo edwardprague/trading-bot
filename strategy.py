@@ -51,7 +51,9 @@ EMA_SLOW        = int(os.environ.get("EMA_SLOW", 200))
 EMA_FAST        = int(os.environ.get("EMA_FAST", 50))
 EMA_ENTRY       = int(os.environ.get("EMA_ENTRY", 20))
 SWING_LOOKBACK  = 20
-RRR             = 2.0
+RRR_RISK        = int(os.environ.get("RRR_RISK", 1))
+RRR_REWARD      = int(os.environ.get("RRR_REWARD", 2))
+RRR             = float(RRR_REWARD) / float(RRR_RISK)
 RISK_PCT        = 0.01
 MIN_STOP        = 0.0005     # 5 pips minimum stop
 MAX_STOP        = 0.0200     # 200 pips maximum stop
@@ -88,6 +90,10 @@ ENTRY_CONDITIONS = [
     {
         "condition":       "Direction",
         "rule":            "Short only",
+    },
+    {
+        "condition":       "RRR",
+        "rule":            f"{RRR_RISK}:{RRR_REWARD}",
     },
 ]
 
@@ -2782,6 +2788,19 @@ __VERSIONS_JSON__
     var emaFastHtml  = "<input id='ec-ema-fast'  type='number' class='ec-input' value='" + savedEmaFast  + "' min='1' step='1'>";
     var emaEntryHtml = "<input id='ec-ema-entry' type='number' class='ec-input' value='" + savedEmaEntry + "' min='1' step='1'>";
 
+    var savedRrrRisk   = run.rrr_risk   || p.rrr_risk   || 1;
+    var savedRrrReward = run.rrr_reward || p.rrr_reward || 2;
+    var rrrOpts = [1, 2, 3, 4, 5];
+    var rrrRiskHtml = "<select id='ec-rrr-risk' class='ec-select ec-select-narrow'>" +
+      rrrOpts.map(function(n) {
+        return "<option value='" + n + "'" + (n === savedRrrRisk ? " selected" : "") + ">" + n + "</option>";
+      }).join("") + "</select>";
+    var rrrRewardHtml = "<select id='ec-rrr-reward' class='ec-select ec-select-narrow'>" +
+      rrrOpts.map(function(n) {
+        return "<option value='" + n + "'" + (n === savedRrrReward ? " selected" : "") + ">" + n + "</option>";
+      }).join("") + "</select>";
+    var rrrSelectHtml = rrrRiskHtml + "<span class='ec-rrr-colon'>:</span>" + rrrRewardHtml;
+
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.map(function(ec) {
         var ruleCell = ec.condition === "Direction"
@@ -2796,6 +2815,8 @@ __VERSIONS_JSON__
           ? emaFastHtml
           : ec.condition === "EMA Entry"
           ? emaEntryHtml
+          : ec.condition === "RRR"
+          ? rrrSelectHtml
           : esc(ec.rule);
         return "<tr>" +
           "<td class='ec-td-cond'>" + esc(ec.condition) + "</td>" +
@@ -2821,6 +2842,7 @@ __VERSIONS_JSON__
             "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + emaFastHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>EMA Entry</td><td class='ec-td-rule'>" + emaEntryHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + dirSelectHtml + "</td></tr>" +
+            "<tr><td class='ec-td-cond'>RRR</td><td class='ec-td-rule'>" + rrrSelectHtml + "</td></tr>" +
             "</tbody>" +
           "</table>" +
         "</div>";
@@ -2923,7 +2945,7 @@ __VERSIONS_JSON__
           row("EMA Fast",       "<span class='val-highlight'>" + esc(savedEmaFast) + "</span>") +
           row("EMA Entry",      "<span class='val-highlight'>" + esc(savedEmaEntry) + "</span>") +
           row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
-          row("RRR",            "1&thinsp;:&thinsp;" + (p.rrr || "")) +
+          row("RRR",            (p.rrr_risk || 1) + "&thinsp;:&thinsp;" + (p.rrr_reward || 2)) +
           "</tbody></table>" +
         "</div>" +
 
@@ -3069,6 +3091,26 @@ __VERSIONS_JSON__
           localStorage.setItem(item.key, el.value);
         });
       });
+    }());
+
+    /* Wire RRR selects — persist to localStorage on change */
+    (function () {
+      var riskEl   = document.getElementById("ec-rrr-risk");
+      var rewardEl = document.getElementById("ec-rrr-reward");
+      if (riskEl) {
+        var storedRisk = localStorage.getItem("ec_rrr_risk");
+        if (storedRisk) riskEl.value = storedRisk;
+        riskEl.addEventListener("change", function () {
+          localStorage.setItem("ec_rrr_risk", riskEl.value);
+        });
+      }
+      if (rewardEl) {
+        var storedReward = localStorage.getItem("ec_rrr_reward");
+        if (storedReward) rewardEl.value = storedReward;
+        rewardEl.addEventListener("change", function () {
+          localStorage.setItem("ec_rrr_reward", rewardEl.value);
+        });
+      }
     }());
 
     /* Wire copy button — context aware (lives in the run bar) */
@@ -3288,6 +3330,19 @@ __VERSIONS_JSON__
     var _emaFastHtml  = "<input id='ec-ema-fast'  type='number' class='ec-input' value='" + _savedEmaFast  + "' min='1' step='1'>";
     var _emaEntryHtml = "<input id='ec-ema-entry' type='number' class='ec-input' value='" + _savedEmaEntry + "' min='1' step='1'>";
 
+    var _savedRrrRisk   = localStorage.getItem("ec_rrr_risk")   || "1";
+    var _savedRrrReward = localStorage.getItem("ec_rrr_reward") || "2";
+    var _rrrOpts = [1, 2, 3, 4, 5];
+    var _rrrRiskHtml = "<select id='ec-rrr-risk' class='ec-select ec-select-narrow'>" +
+      _rrrOpts.map(function(n) {
+        return "<option value='" + n + "'" + (String(n) === _savedRrrRisk ? " selected" : "") + ">" + n + "</option>";
+      }).join("") + "</select>";
+    var _rrrRewardHtml = "<select id='ec-rrr-reward' class='ec-select ec-select-narrow'>" +
+      _rrrOpts.map(function(n) {
+        return "<option value='" + n + "'" + (String(n) === _savedRrrReward ? " selected" : "") + ">" + n + "</option>";
+      }).join("") + "</select>";
+    var _rrrSelectHtml = _rrrRiskHtml + "<span class='ec-rrr-colon'>:</span>" + _rrrRewardHtml;
+
     document.getElementById("content").innerHTML =
       "<div class='section'>" +
         "<div class='section-title'>Entry Conditions</div>" +
@@ -3299,6 +3354,7 @@ __VERSIONS_JSON__
           "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + _emaFastHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>EMA Entry</td><td class='ec-td-rule'>" + _emaEntryHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + _dirSelectHtml + "</td></tr>" +
+          "<tr><td class='ec-td-cond'>RRR</td><td class='ec-td-rule'>" + _rrrSelectHtml + "</td></tr>" +
           "</tbody>" +
         "</table>" +
       "</div>";
@@ -3310,6 +3366,10 @@ __VERSIONS_JSON__
     if (_instrEl) _instrEl.addEventListener("change", function () { localStorage.setItem("ec_instrument", _instrEl.value); });
     var _intEl = document.getElementById("ec-interval-select");
     if (_intEl) _intEl.addEventListener("change", function () { localStorage.setItem("ec_interval", _intEl.value); });
+    var _rrrRiskEl = document.getElementById("ec-rrr-risk");
+    if (_rrrRiskEl) _rrrRiskEl.addEventListener("change", function () { localStorage.setItem("ec_rrr_risk", _rrrRiskEl.value); });
+    var _rrrRewardEl = document.getElementById("ec-rrr-reward");
+    if (_rrrRewardEl) _rrrRewardEl.addEventListener("change", function () { localStorage.setItem("ec_rrr_reward", _rrrRewardEl.value); });
   }
 
   /* ── Strategy change ─────────────────────────────────────── */
@@ -3672,6 +3732,8 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "ema_slow":         EMA_SLOW,
         "ema_fast":         EMA_FAST,
         "ema_entry":        EMA_ENTRY,
+        "rrr_risk":         RRR_RISK,
+        "rrr_reward":       RRR_REWARD,
         "notes":         notes.strip() if notes else "—",
         "chart_b64":        chart_b64,
         "eq_dd_chart_b64":  eq_dd_chart_b64,
@@ -3689,6 +3751,8 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "ema_entry":      EMA_ENTRY,
         "swing_lookback": SWING_LOOKBACK,
         "rrr":            RRR,
+        "rrr_risk":       RRR_RISK,
+        "rrr_reward":     RRR_REWARD,
         "risk_pct":          RISK_PCT,
         "min_stop":          MIN_STOP,
         "max_stop":          MAX_STOP,

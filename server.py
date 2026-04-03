@@ -288,6 +288,20 @@ function getSelectedEmaEntry() {
   return stored || "20";
 }
 
+function getSelectedRrrRisk() {
+  var el = document.getElementById("ec-rrr-risk");
+  if (el) return el.value;
+  var stored = localStorage.getItem("ec_rrr_risk");
+  return stored || "1";
+}
+
+function getSelectedRrrReward() {
+  var el = document.getElementById("ec-rrr-reward");
+  if (el) return el.value;
+  var stored = localStorage.getItem("ec_rrr_reward");
+  return stored || "2";
+}
+
 function runNewVersion() {
   var instrument = getSelectedInstrument();
   var direction  = getSelectedDirection();
@@ -295,7 +309,7 @@ function runNewVersion() {
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, ema_slow: getSelectedEmaSlow(), ema_fast: getSelectedEmaFast(), ema_entry: getSelectedEmaEntry() })
+    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, ema_slow: getSelectedEmaSlow(), ema_fast: getSelectedEmaFast(), ema_entry: getSelectedEmaEntry(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -319,7 +333,7 @@ function runDateRange() {
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_slow: getSelectedEmaSlow(), ema_fast: getSelectedEmaFast(), ema_entry: getSelectedEmaEntry() })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_slow: getSelectedEmaSlow(), ema_fast: getSelectedEmaFast(), ema_entry: getSelectedEmaEntry(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -500,9 +514,11 @@ def run_backtest():
     instrument = (data.get("instrument") or "").strip()
     direction  = (data.get("direction") or "").strip()
     interval   = (data.get("interval") or "").strip()
-    ema_slow   = (data.get("ema_slow") or "").strip()
-    ema_fast   = (data.get("ema_fast") or "").strip()
-    ema_entry  = (data.get("ema_entry") or "").strip()
+    ema_slow    = (data.get("ema_slow") or "").strip()
+    ema_fast    = (data.get("ema_fast") or "").strip()
+    ema_entry   = (data.get("ema_entry") or "").strip()
+    rrr_risk    = (data.get("rrr_risk") or "").strip()
+    rrr_reward  = (data.get("rrr_reward") or "").strip()
     env_overrides = {"RUN_MODE": "new_version"}
     if instrument:
         env_overrides["INSTRUMENT"] = instrument
@@ -516,6 +532,10 @@ def run_backtest():
         env_overrides["EMA_FAST"] = ema_fast
     if ema_entry:
         env_overrides["EMA_ENTRY"] = ema_entry
+    if rrr_risk:
+        env_overrides["RRR_RISK"] = rrr_risk
+    if rrr_reward:
+        env_overrides["RRR_REWARD"] = rrr_reward
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),
@@ -550,6 +570,8 @@ def run_date_range():
     ema_slow       = (data.get("ema_slow") or "").strip()
     ema_fast       = (data.get("ema_fast") or "").strip()
     ema_entry      = (data.get("ema_entry") or "").strip()
+    rrr_risk       = (data.get("rrr_risk") or "").strip()
+    rrr_reward     = (data.get("rrr_reward") or "").strip()
     env_overrides = {
         "RUN_MODE":       "date_range",
         "RUN_START_DATE": start_date,
@@ -569,6 +591,10 @@ def run_date_range():
         env_overrides["EMA_FAST"] = ema_fast
     if ema_entry:
         env_overrides["EMA_ENTRY"] = ema_entry
+    if rrr_risk:
+        env_overrides["RRR_RISK"] = rrr_risk
+    if rrr_reward:
+        env_overrides["RRR_REWARD"] = rrr_reward
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),
