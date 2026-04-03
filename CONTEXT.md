@@ -6,18 +6,6 @@ Building a systematic algorithmic trading system.
 
 - **Ada** — refers to Cowork (the agentic coding assistant) for typing brevity. Always use "Ada" not "Cowork".
 
-## Three-Part Workflow
-
-1. **Claude (Chat)** — strategy decisions, result interpretation, hypothesis formation, analysis
-2. **Ada (Cowork)** — writing and editing Python files, implementing changes (keep sessions short, one task per session)
-3. **Edward (User)** — strategy decisions, result interpretation, hypothesis formation, analysis
-
-When tasks are decided upon for Ada, Claude will provide instructions and Edward will copy and paste them to Ada.
-
-- Always provide instructions for Ada in one paragraph of text, in itallics.
-
-- Always start Ada instructions with "Please read CONTEXT.md"
-
 ---
 
 # 2. Technical Setup
