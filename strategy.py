@@ -2908,17 +2908,6 @@ __VERSIONS_JSON__
         "<div class='section'>" +
           "<div class='section-title'>Parameters</div>" +
           "<table><tbody>" +
-          row("Instrument",     "<span class='val-highlight'>" + esc(savedInstr) + "</span>") +
-          row("Interval",       "<span class='val-highlight'>" + esc(savedInterval) + "</span>") +
-          row("EMA Slow",       "<span class='val-highlight'>" + esc(savedEmaSlow) + "</span>") +
-          row("EMA Fast",       "<span class='val-highlight'>" + esc(savedEmaFast) + "</span>") +
-          row("EMA Entry",      "<span class='val-highlight'>" + esc(savedEmaEntry) + "</span>") +
-          row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
-          row("Swing Lookback", (p.swing_lookback || "") + " bars") +
-          row("RRR",            "1&thinsp;:&thinsp;" + (p.rrr || "")) +
-          row("Risk / Trade",   ((p.risk_pct || 0) * 100).toFixed(1) + "% = $" + ((p.starting_cash || 0) * (p.risk_pct || 0)).toLocaleString()) +
-          row("Min Stop",       ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
-          row("Max Stop",       ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Date Range",     (function () {
             var dr = run.start_date && run.end_date
               ? { start: run.start_date, end: run.end_date }
@@ -2928,7 +2917,13 @@ __VERSIONS_JSON__
               ? fmtSbDate(dr.start) + " \u2192 " + fmtSbDate(dr.end) : "";
             return (dur ? dur : "") + (dur && dates ? " &middot; " : "") + dates;
           }())) +
-          row("Starting Capital", "$" + (p.starting_cash || 0).toLocaleString()) +
+          row("Instrument",     "<span class='val-highlight'>" + esc(savedInstr) + "</span>") +
+          row("Interval",       "<span class='val-highlight'>" + esc(savedInterval) + "</span>") +
+          row("EMA Slow",       "<span class='val-highlight'>" + esc(savedEmaSlow) + "</span>") +
+          row("EMA Fast",       "<span class='val-highlight'>" + esc(savedEmaFast) + "</span>") +
+          row("EMA Entry",      "<span class='val-highlight'>" + esc(savedEmaEntry) + "</span>") +
+          row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
+          row("RRR",            "1&thinsp;:&thinsp;" + (p.rrr || "")) +
           "</tbody></table>" +
         "</div>" +
 
