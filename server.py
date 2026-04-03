@@ -254,12 +254,18 @@ function updateRangeButtonLabel() {
   }
 }
 
+function getSelectedDirection() {
+  var el = document.getElementById("ec-direction-select");
+  return el ? el.value : "short_only";
+}
+
 function runNewVersion() {
   var instrument = document.getElementById("rb-instrument-new").value;
+  var direction  = getSelectedDirection();
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version", instrument: instrument })
+    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -283,7 +289,7 @@ function runDateRange() {
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, direction: getSelectedDirection() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -447,9 +453,12 @@ def run_backtest():
     # RUN_MODE=new_version tells strategy.py to increment version
     data = request.get_json(force=True) or {}
     instrument = (data.get("instrument") or "").strip()
+    direction  = (data.get("direction") or "").strip()
     env_overrides = {"RUN_MODE": "new_version"}
     if instrument:
         env_overrides["INSTRUMENT"] = instrument
+    if direction:
+        env_overrides["TRADE_DIRECTION"] = direction
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),
@@ -479,6 +488,7 @@ def run_date_range():
 
     instrument     = (data.get("instrument") or "").strip()
     target_version = (data.get("target_version") or "").strip()
+    direction      = (data.get("direction") or "").strip()
     env_overrides = {
         "RUN_MODE":       "date_range",
         "RUN_START_DATE": start_date,
@@ -488,6 +498,8 @@ def run_date_range():
         env_overrides["INSTRUMENT"] = instrument
     if target_version:
         env_overrides["TARGET_VERSION"] = target_version
+    if direction:
+        env_overrides["TRADE_DIRECTION"] = direction
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),

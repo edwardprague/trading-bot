@@ -606,6 +606,25 @@ tbody tr:hover td {
     background: #333;
 }
 
+.ec-select {
+    background: #1a1a2e;
+    color: #fff;
+    border: 1px solid #3a3a5a;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.ec-select:hover {
+    border-color: mediumseagreen;
+}
+
+.ec-select:focus {
+    outline: none;
+    border-color: mediumseagreen;
+}
+
 /* ── Small inline badge labels ────────────────────────── */
 .badge-pos {
     color: #6bcb77;

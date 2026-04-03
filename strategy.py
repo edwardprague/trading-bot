@@ -56,7 +56,7 @@ RISK_PCT        = 0.01
 MIN_STOP        = 0.0005     # 5 pips minimum stop
 MAX_STOP        = 0.0200     # 200 pips maximum stop
 
-TRADE_DIRECTION   = "short_only"   # "both" | "long_only" | "short_only"
+TRADE_DIRECTION   = os.environ.get("TRADE_DIRECTION", "short_only")   # "both" | "long_only" | "short_only"
 
 MAX_DAILY_LOSS  = 2500.0            # stop trading if day's loss reaches $2,500 (2.5% of capital)
 
@@ -2726,12 +2726,26 @@ __VERSIONS_JSON__
     var ecData = v.entry_conditions || null;
     var ecThStyle = "class='ec-th'";
     var entryCondHtml;
+    var dirOptions = [
+      { value: "short_only", label: "Short only" },
+      { value: "long_only",  label: "Long only" },
+      { value: "both",       label: "Both" }
+    ];
+    var savedDir = p.trade_direction || "short_only";
+    var dirSelectHtml = "<select id='ec-direction-select' class='ec-select'>" +
+      dirOptions.map(function(o) {
+        return "<option value='" + o.value + "'" + (o.value === savedDir ? " selected" : "") + ">" + o.label + "</option>";
+      }).join("") + "</select>";
+
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.map(function(ec) {
         var addedVal = ec.since_version || "v1";
+        var ruleCell = ec.condition === "Direction"
+          ? dirSelectHtml
+          : esc(ec.rule);
         return "<tr>" +
           "<td class='ec-td-cond'>" + esc(ec.condition) + "</td>" +
-          "<td class='ec-td-rule'>" + esc(ec.rule) + "</td>" +
+          "<td class='ec-td-rule'>" + ruleCell + "</td>" +
           "<td class='ec-td-purpose'>" + esc(ec.purpose) + "</td>" +
           "<td class='ec-td-ver'><span class='ec-since-val'>" + esc(addedVal) + "</span></td>" +
           "</tr>";
@@ -2764,7 +2778,7 @@ __VERSIONS_JSON__
             "<tr><td class='ec-td-cond'>Trend Filter</td><td class='ec-td-rule'>EMA" + (p.ema_fast||"50") + " &lt; EMA" + (p.ema_slow||"200") + "</td><td class='ec-td-purpose'>Confirms downtrend \u2014 short only</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "<tr><td class='ec-td-cond'>Entry Signal</td><td class='ec-td-rule'>Price crosses below EMA" + (p.ema_entry||"20") + "</td><td class='ec-td-purpose'>Pullback rejection in trend direction</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "<tr><td class='ec-td-cond'>Stop Placement</td><td class='ec-td-rule'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td class='ec-td-purpose'>Structural invalidation level</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'><span class='val-highlight'>Short only</span></td><td class='ec-td-purpose'>Asymmetric edge identified on EURUSD</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + dirSelectHtml + "</td><td class='ec-td-purpose'>Asymmetric edge identified on EURUSD</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "</tbody>" +
           "</table>" +
         "</div>";
@@ -2859,7 +2873,7 @@ __VERSIONS_JSON__
           row("Risk / Trade",   ((p.risk_pct || 0) * 100).toFixed(1) + "% = $" + ((p.starting_cash || 0) * (p.risk_pct || 0)).toLocaleString()) +
           row("Min Stop",       ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Max Stop",       ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
-          row("Direction",      "<span class='val-highlight'>" + esc(p.trade_direction || "both") + "</span>") +
+          row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
           "</tbody></table>" +
         "</div>" +
 
