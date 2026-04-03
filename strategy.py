@@ -2856,11 +2856,20 @@ __VERSIONS_JSON__
           var metaDateStr = metaRange.start && metaRange.end
             ? fmtSbDate(metaRange.start) + " \u2192 " + fmtSbDate(metaRange.end) : "";
           var metaDur = calcDuration(metaRange.start, metaRange.end);
-          return "<div class='v-meta'>Run on " + esc(fmtRunDate(run.date || "")) +
+          return "<div class='v-meta-row'>" +
+            "<div class='v-meta'>Run on " + esc(fmtRunDate(run.date || "")) +
             (metaTicker ? " &nbsp;&middot;&nbsp; " + esc(metaTicker) : "") +
             (metaDateStr ? " &nbsp;&middot;&nbsp; " + metaDateStr : "") +
             (metaDur ? " &nbsp;&middot;&nbsp; " + esc(metaDur) : "") +
-            "</div>";
+            "</div>" +
+            "<button class='ec-toggle-btn' id='ec-toggle-btn' title='Entry Conditions'>" +
+              "<svg width='16' height='16' viewBox='0 0 16 16' fill='none'>" +
+                "<circle cx='8' cy='8' r='7' stroke='currentColor' stroke-width='1.5'/>" +
+                "<path d='M5.5 7L8 9.5L10.5 7' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/>" +
+              "</svg>" +
+            "</button>" +
+          "</div>" +
+          "<div class='ec-collapsible' id='ec-collapsible'>" + entryCondHtml + "</div>";
         }()) +
         notesHtml +
       "</div>" +
@@ -2868,8 +2877,8 @@ __VERSIONS_JSON__
       /* ── TAB: General ──────────────────────────────────────────────────────── */
       "<div class='tab-content active' data-tab-content='general'>" +
 
-      /* ── Section 1: Summary + Entry Conditions ────────────────────────────── */
-      "<div class='two-col'>" + summaryHtml + entryCondHtml + "</div>" +
+      /* ── Section 1: Summary ────────────────────────────────────────────────── */
+      summaryHtml +
 
       /* ── Section 2: Results + Parameters ──────────────────────────────────── */
       "<div class='two-col'>" +
@@ -2986,6 +2995,17 @@ __VERSIONS_JSON__
         mainEl.scrollTo({ top: top, behavior: "smooth" });
       });
     });
+
+    /* Wire entry conditions toggle button */
+    (function () {
+      var toggleBtn = document.getElementById("ec-toggle-btn");
+      var panel = document.getElementById("ec-collapsible");
+      if (!toggleBtn || !panel) return;
+      toggleBtn.addEventListener("click", function () {
+        var isOpen = panel.classList.toggle("open");
+        toggleBtn.classList.toggle("open", isOpen);
+      });
+    }());
 
     /* Wire report tabs */
     (function () {

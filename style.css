@@ -199,11 +199,59 @@ body {
     color: #e4e4ff;
 }
 
+.v-meta-row {
+    display: flex;
+    align-items: center;
+    margin-top: 15px;
+    gap: 10px;
+}
+
 .v-meta {
     font-size: 12px;
     color: #ccc;
-    margin-top: 15px;
     line-height: 1.7;
+}
+
+.ec-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid #555;
+    background: transparent;
+    color: #888;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: color 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.ec-toggle-btn:hover {
+    color: #ccc;
+    border-color: #888;
+}
+
+.ec-toggle-btn.open {
+    transform: rotate(180deg);
+    color: #ccc;
+    border-color: #888;
+}
+
+.ec-collapsible {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.ec-collapsible.open {
+    max-height: 500px;
+}
+
+.ec-collapsible .section {
+    margin-top: 12px;
+    margin-bottom: 0;
 }
 
 .v-notes {
