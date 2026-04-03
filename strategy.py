@@ -1558,6 +1558,7 @@ __VERSIONS_JSON__
   var expandedVersions = {};  /* track which versions are expanded in sidebar */
   var activeVersionIdx = -1;
   var activeRunIdx     = 0;
+  var _dragSub         = null; /* drag-and-drop state for sub-item reorder */
 
   /* ── Helpers ──────────────────────────────────────────────── */
   function fmt(n, d) {
@@ -2165,6 +2166,7 @@ __VERSIONS_JSON__
             (idx === activeVersionIdx && si === activeRunIdx ? " active" : "");
           subItem.dataset.idx = idx;
           subItem.dataset.runIdx = si;
+          subItem.draggable = true;
 
           var subRange = run.start_date && run.end_date
             ? { start: run.start_date, end: run.end_date }
@@ -2176,6 +2178,7 @@ __VERSIONS_JSON__
           var runInstrument = run.instrument || "";
           subItem.innerHTML =
             "<div class='v-sub-top-row'>" +
+              "<span class='v-drag-handle' title='Drag to reorder'>&#x2261;</span>" +
               (runInstrument ? "<span class='v-instrument'>" + esc(runInstrument) + "</span>" : "") +
               "<button class='v-sub-delete-btn' title='Delete date range'>&times;</button>" +
             "</div>" +
@@ -2219,6 +2222,90 @@ __VERSIONS_JSON__
               .catch(function () {
                 delBtn.disabled = false;
                 alert("Delete failed — is the server running?");
+              });
+            });
+
+            /* ── Drag-and-drop reorder ── */
+            el.addEventListener("dragstart", function (e) {
+              e.stopPropagation();
+              _dragSub = { vIdx: vIdx, runIdx: rIdx, verName: verName };
+              el.classList.add("dragging");
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", ""); /* required for Firefox */
+            });
+            el.addEventListener("dragend", function () {
+              el.classList.remove("dragging");
+              _dragSub = null;
+              /* Clear any lingering drop indicators */
+              document.querySelectorAll(".v-sub-item.drag-over-above, .v-sub-item.drag-over-below").forEach(function (x) {
+                x.classList.remove("drag-over-above", "drag-over-below");
+              });
+            });
+            el.addEventListener("dragover", function (e) {
+              if (!_dragSub || _dragSub.vIdx !== vIdx) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              /* Show indicator above or below based on cursor position */
+              var rect = el.getBoundingClientRect();
+              var mid = rect.top + rect.height / 2;
+              if (e.clientY < mid) {
+                el.classList.add("drag-over-above");
+                el.classList.remove("drag-over-below");
+              } else {
+                el.classList.add("drag-over-below");
+                el.classList.remove("drag-over-above");
+              }
+            });
+            el.addEventListener("dragleave", function () {
+              el.classList.remove("drag-over-above", "drag-over-below");
+            });
+            el.addEventListener("drop", function (e) {
+              e.preventDefault();
+              el.classList.remove("drag-over-above", "drag-over-below");
+              if (!_dragSub || _dragSub.vIdx !== vIdx) return;
+              var fromIdx = _dragSub.runIdx;
+              var rect = el.getBoundingClientRect();
+              var mid = rect.top + rect.height / 2;
+              var toIdx = e.clientY < mid ? rIdx : rIdx + 1;
+              if (toIdx > fromIdx) toIdx--;  /* adjust for removal */
+              if (fromIdx === toIdx) return;
+
+              /* Build new order: index 0 (full run) stays fixed, sub-runs reorder */
+              var runs = getRuns(VERSIONS[vIdx]);
+              var order = [0]; /* index 0 is always the full run */
+              var subOrder = [];
+              for (var oi = 1; oi < runs.length; oi++) subOrder.push(oi);
+              /* Move within subOrder */
+              var subFrom = fromIdx - 1;
+              var subTo = toIdx - 1;
+              var moved = subOrder.splice(subFrom, 1)[0];
+              subOrder.splice(subTo, 0, moved);
+              for (var oj = 0; oj < subOrder.length; oj++) order.push(subOrder[oj]);
+
+              /* Persist to server */
+              fetch("/reorder_runs", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: verName, order: order })
+              })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.ok) {
+                  /* Update local data and re-render without full reload */
+                  var oldRuns = VERSIONS[vIdx].runs;
+                  VERSIONS[vIdx].runs = [];
+                  for (var ri = 0; ri < order.length; ri++) VERSIONS[vIdx].runs.push(oldRuns[order[ri]]);
+                  /* Keep the dragged item active */
+                  activeVersionIdx = vIdx;
+                  activeRunIdx = toIdx; /* toIdx is already 1-based (sub indices start at 1) */
+                  renderSidebar();
+                  renderContent(vIdx, activeRunIdx);
+                } else {
+                  alert("Reorder failed: " + (data.error || "Unknown error"));
+                }
+              })
+              .catch(function () {
+                alert("Reorder failed — is the server running?");
               });
             });
           })(subItem, idx, si, VERSIONS[idx].name);

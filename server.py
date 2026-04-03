@@ -723,6 +723,56 @@ def delete_run():
     return jsonify({"ok": True})
 
 
+@app.route("/reorder_runs", methods=["POST"])
+def reorder_runs():
+    """Reorder the runs array for a version in report.html."""
+    try:
+        data = request.get_json(force=True)
+        name      = (data.get("name") or "").strip()
+        new_order = data.get("order")  # list of old indices
+        if not name or not isinstance(new_order, list):
+            return jsonify({"ok": False, "error": "Version name and order array are required"})
+        new_order = [int(i) for i in new_order]
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)})
+
+    if not REPORT_FILE.exists():
+        return jsonify({"ok": False, "error": "report.html not found"})
+
+    html = REPORT_FILE.read_text(encoding="utf-8")
+    match = re.search(
+        r'(<script[^>]+id=["\']versions-data["\'][^>]*>)([\s\S]*?)(</script>)',
+        html
+    )
+    if not match:
+        return jsonify({"ok": False, "error": "Could not parse versions data in report.html"})
+
+    try:
+        versions = json.loads(match.group(2).strip())
+    except (json.JSONDecodeError, ValueError) as exc:
+        return jsonify({"ok": False, "error": f"JSON parse error: {exc}"})
+
+    target = None
+    for v in versions:
+        if v.get("name") == name:
+            target = v
+            break
+    if target is None:
+        return jsonify({"ok": False, "error": f"Version '{name}' not found"})
+
+    runs = target.get("runs", [])
+    if sorted(new_order) != list(range(len(runs))):
+        return jsonify({"ok": False, "error": "Invalid order — must be a permutation of run indices"})
+
+    target["runs"] = [runs[i] for i in new_order]
+
+    new_json = json.dumps(versions, indent=2, ensure_ascii=False)
+    new_html = html[:match.start(2)] + "\n" + new_json + "\n" + html[match.end(2):]
+    REPORT_FILE.write_text(new_html, encoding="utf-8")
+
+    return jsonify({"ok": True})
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
