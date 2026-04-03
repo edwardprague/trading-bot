@@ -2945,7 +2945,7 @@ __VERSIONS_JSON__
           row("EMA Fast",       "<span class='val-highlight'>" + esc(savedEmaFast) + "</span>") +
           row("EMA Entry",      "<span class='val-highlight'>" + esc(savedEmaEntry) + "</span>") +
           row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
-          row("RRR",            (p.rrr_risk || 1) + "&thinsp;:&thinsp;" + (p.rrr_reward || 2)) +
+          row("RRR",            (run.rrr_risk || p.rrr_risk || 1) + "&thinsp;:&thinsp;" + (run.rrr_reward || p.rrr_reward || 2)) +
           "</tbody></table>" +
         "</div>" +
 
