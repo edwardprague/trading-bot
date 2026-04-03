@@ -2869,12 +2869,6 @@ __VERSIONS_JSON__
               "</svg>" +
             "</button>" +
           "</h2>" +
-          "<div class='quick-nav' id='quick-nav-bar'>" +
-            "<a href='#anchor-chart' class='quick-nav-link' data-anchor='anchor-chart'>Chart</a>" +
-            "<a href='#anchor-daily-perf' class='quick-nav-link' data-anchor='anchor-daily-perf'>Daily Performance</a>" +
-            "<a href='#anchor-intraday-perf' class='quick-nav-link' data-anchor='anchor-intraday-perf'>Intraday Performance</a>" +
-            "<a href='#anchor-fractal-diag' class='quick-nav-link' data-anchor='anchor-fractal-diag'>Fractal Diagnostics</a>" +
-          "</div>" +
         "</div>" +
         "<div class='ec-collapsible' id='ec-collapsible'>" + entryCondHtml + "</div>" +
       "</div>" +
@@ -2990,17 +2984,6 @@ __VERSIONS_JSON__
 
       "</div>"; /* end Advanced tab */
 
-    /* Wire quick-nav links — smooth scroll inside #main container */
-    var mainEl = document.getElementById("main");
-    document.querySelectorAll(".quick-nav-link[data-anchor]").forEach(function (link) {
-      link.addEventListener("click", function (e) {
-        e.preventDefault();
-        var target = document.getElementById(link.dataset.anchor);
-        if (!target || !mainEl) return;
-        var top = target.offsetTop - mainEl.offsetTop - 16;
-        mainEl.scrollTo({ top: top, behavior: "smooth" });
-      });
-    });
 
     /* Wire entry conditions toggle button */
     (function () {
