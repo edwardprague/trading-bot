@@ -2863,7 +2863,6 @@ __VERSIONS_JSON__
           "</div>" +
           "<div class='ec-collapsible' id='ec-collapsible'>" + entryCondHtml + "</div>";
         }()) +
-        notesHtml +
       "</div>" +
 
       /* ── TAB: General ──────────────────────────────────────────────────────── */
