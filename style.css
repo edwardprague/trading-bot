@@ -197,6 +197,9 @@ body {
     font-size: 24px;
     font-weight: 700;
     color: #e4e4ff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .v-meta-row {
@@ -251,8 +254,8 @@ body {
 }
 
 .ec-collapsible .section {
-    margin-top: 12px;
-    margin-bottom: 0;
+    margin-top: 8px;
+    margin-bottom: 4px;
 }
 
 .v-notes {
@@ -621,6 +624,7 @@ tbody tr:hover td {
 .ec-td-cond {
     padding: 5px 10px;
     color: mediumseagreen;
+    width: 180px;
 }
 
 .ec-td-rule {

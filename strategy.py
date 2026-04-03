@@ -2857,7 +2857,14 @@ __VERSIONS_JSON__
               "<button class='report-tab active' data-tab='general'>General</button>" +
               "<button class='report-tab' data-tab='advanced'>Advanced</button>" +
             "</span>" +
+            "<button class='ec-toggle-btn' id='ec-toggle-btn' title='Entry Conditions'>" +
+              "<svg width='16' height='16' viewBox='0 0 16 16' fill='none'>" +
+                "<circle cx='8' cy='8' r='7' stroke='currentColor' stroke-width='1.5'/>" +
+                "<path d='M5.5 7L8 9.5L10.5 7' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/>" +
+              "</svg>" +
+            "</button>" +
           "</h2>" +
+          "<div class='ec-collapsible' id='ec-collapsible'>" + entryCondHtml + "</div>" +
           "<div class='quick-nav' id='quick-nav-bar'>" +
             "<a href='#anchor-chart' class='quick-nav-link' data-anchor='anchor-chart'>Chart</a>" +
             "<a href='#anchor-daily-perf' class='quick-nav-link' data-anchor='anchor-daily-perf'>Daily Performance</a>" +
@@ -2865,29 +2872,6 @@ __VERSIONS_JSON__
             "<a href='#anchor-fractal-diag' class='quick-nav-link' data-anchor='anchor-fractal-diag'>Fractal Diagnostics</a>" +
           "</div>" +
         "</div>" +
-        (function () {
-          var metaTicker = run.instrument || (p.ticker || "").replace(/=X$/i, "");
-          var metaRange = run.start_date && run.end_date
-            ? { start: run.start_date, end: run.end_date }
-            : fullRunRange(run);
-          var metaDateStr = metaRange.start && metaRange.end
-            ? fmtSbDate(metaRange.start) + " \u2192 " + fmtSbDate(metaRange.end) : "";
-          var metaDur = calcDuration(metaRange.start, metaRange.end);
-          return "<div class='v-meta-row'>" +
-            "<div class='v-meta'>Run on " + esc(fmtRunDate(run.date || "")) +
-            (metaTicker ? " &nbsp;&middot;&nbsp; " + esc(metaTicker) : "") +
-            (metaDateStr ? " &nbsp;&middot;&nbsp; " + metaDateStr : "") +
-            (metaDur ? " &nbsp;&middot;&nbsp; " + esc(metaDur) : "") +
-            "</div>" +
-            "<button class='ec-toggle-btn' id='ec-toggle-btn' title='Entry Conditions'>" +
-              "<svg width='16' height='16' viewBox='0 0 16 16' fill='none'>" +
-                "<circle cx='8' cy='8' r='7' stroke='currentColor' stroke-width='1.5'/>" +
-                "<path d='M5.5 7L8 9.5L10.5 7' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/>" +
-              "</svg>" +
-            "</button>" +
-          "</div>" +
-          "<div class='ec-collapsible' id='ec-collapsible'>" + entryCondHtml + "</div>";
-        }()) +
       "</div>" +
 
       /* ── TAB: General ──────────────────────────────────────────────────────── */
@@ -2946,6 +2930,7 @@ __VERSIONS_JSON__
           row("EMA Entry",      "<span class='val-highlight'>" + esc(savedEmaEntry) + "</span>") +
           row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
           row("RRR",            (run.rrr_risk || p.rrr_risk || 1) + "&thinsp;:&thinsp;" + (run.rrr_reward || p.rrr_reward || 2)) +
+          row("Run on",         esc(fmtRunDate(run.date || ""))) +
           "</tbody></table>" +
         "</div>" +
 
