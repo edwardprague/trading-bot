@@ -2959,6 +2959,17 @@ __VERSIONS_JSON__
       });
     }());
 
+    /* Wire direction select — persist to localStorage on change */
+    (function () {
+      var dirEl = document.getElementById("ec-direction-select");
+      if (!dirEl) return;
+      var stored = localStorage.getItem("ec_direction");
+      if (stored) dirEl.value = stored;
+      dirEl.addEventListener("change", function () {
+        localStorage.setItem("ec_direction", dirEl.value);
+      });
+    }());
+
     /* Wire copy button — context aware (lives in the run bar) */
     (function (ver, runData) {
       var btn = document.getElementById("copy-btn");

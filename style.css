@@ -609,9 +609,9 @@ tbody tr:hover td {
 .ec-select {
     background: teal;
     color: #fff;
-    border: 1px solid #3a3a5a;
+    border: 1px solid teal;
     border-radius: 4px;
-    padding: 3px 8px;
+    padding: 5px 10px;
     font-size: 0.9em;
     cursor: pointer;
 }

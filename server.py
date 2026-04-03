@@ -256,7 +256,9 @@ function updateRangeButtonLabel() {
 
 function getSelectedDirection() {
   var el = document.getElementById("ec-direction-select");
-  return el ? el.value : "short_only";
+  if (el) return el.value;
+  var stored = localStorage.getItem("ec_direction");
+  return stored || "short_only";
 }
 
 function runNewVersion() {
