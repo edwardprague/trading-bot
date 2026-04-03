@@ -224,12 +224,17 @@ body {
     border-radius: 50%;
     border: none;
     background: teal;
-    color: #888;
+    color: #fff;
     cursor: pointer;
     padding: 0;
     flex-shrink: 0;
-    margin-left: auto;
+    margin-left: 20px;
     transition: color 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.ec-toggle-btn svg circle {
+    stroke-width: 0px;
+
 }
 
 .ec-toggle-btn:hover {
@@ -459,7 +464,6 @@ tbody tr:hover td {
 }
 
 #v-header-top h2 {
-    flex: 1;
     min-width: 0;
 }
 
