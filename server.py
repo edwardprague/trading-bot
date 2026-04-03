@@ -267,6 +267,27 @@ function getSelectedInterval() {
   return stored || "5m";
 }
 
+function getSelectedEmaSlow() {
+  var el = document.getElementById("ec-ema-slow");
+  if (el) return el.value;
+  var stored = localStorage.getItem("ec_ema_slow");
+  return stored || "200";
+}
+
+function getSelectedEmaFast() {
+  var el = document.getElementById("ec-ema-fast");
+  if (el) return el.value;
+  var stored = localStorage.getItem("ec_ema_fast");
+  return stored || "50";
+}
+
+function getSelectedEmaEntry() {
+  var el = document.getElementById("ec-ema-entry");
+  if (el) return el.value;
+  var stored = localStorage.getItem("ec_ema_entry");
+  return stored || "20";
+}
+
 function runNewVersion() {
   var instrument = getSelectedInstrument();
   var direction  = getSelectedDirection();
@@ -274,7 +295,7 @@ function runNewVersion() {
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval })
+    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, ema_slow: getSelectedEmaSlow(), ema_fast: getSelectedEmaFast(), ema_entry: getSelectedEmaEntry() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -298,7 +319,7 @@ function runDateRange() {
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, direction: getSelectedDirection(), interval: getSelectedInterval() })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_slow: getSelectedEmaSlow(), ema_fast: getSelectedEmaFast(), ema_entry: getSelectedEmaEntry() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -479,6 +500,9 @@ def run_backtest():
     instrument = (data.get("instrument") or "").strip()
     direction  = (data.get("direction") or "").strip()
     interval   = (data.get("interval") or "").strip()
+    ema_slow   = (data.get("ema_slow") or "").strip()
+    ema_fast   = (data.get("ema_fast") or "").strip()
+    ema_entry  = (data.get("ema_entry") or "").strip()
     env_overrides = {"RUN_MODE": "new_version"}
     if instrument:
         env_overrides["INSTRUMENT"] = instrument
@@ -486,6 +510,12 @@ def run_backtest():
         env_overrides["TRADE_DIRECTION"] = direction
     if interval:
         env_overrides["INTERVAL"] = interval
+    if ema_slow:
+        env_overrides["EMA_SLOW"] = ema_slow
+    if ema_fast:
+        env_overrides["EMA_FAST"] = ema_fast
+    if ema_entry:
+        env_overrides["EMA_ENTRY"] = ema_entry
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),
@@ -517,6 +547,9 @@ def run_date_range():
     target_version = (data.get("target_version") or "").strip()
     direction      = (data.get("direction") or "").strip()
     interval       = (data.get("interval") or "").strip()
+    ema_slow       = (data.get("ema_slow") or "").strip()
+    ema_fast       = (data.get("ema_fast") or "").strip()
+    ema_entry      = (data.get("ema_entry") or "").strip()
     env_overrides = {
         "RUN_MODE":       "date_range",
         "RUN_START_DATE": start_date,
@@ -530,6 +563,12 @@ def run_date_range():
         env_overrides["TRADE_DIRECTION"] = direction
     if interval:
         env_overrides["INTERVAL"] = interval
+    if ema_slow:
+        env_overrides["EMA_SLOW"] = ema_slow
+    if ema_fast:
+        env_overrides["EMA_FAST"] = ema_fast
+    if ema_entry:
+        env_overrides["EMA_ENTRY"] = ema_entry
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),

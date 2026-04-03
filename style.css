@@ -625,6 +625,37 @@ tbody tr:hover td {
     border-color: mediumseagreen;
 }
 
+.ec-input {
+    background: teal;
+    color: #fff;
+    border: 1px solid teal;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 0.9em;
+    width: 70px;
+    text-align: center;
+    font-family: inherit;
+}
+
+.ec-input:hover {
+    border-color: mediumseagreen;
+}
+
+.ec-input:focus {
+    outline: none;
+    border-color: mediumseagreen;
+}
+
+.ec-input::-webkit-inner-spin-button,
+.ec-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.ec-input[type=number] {
+    -moz-appearance: textfield;
+}
+
 /* ── Small inline badge labels ────────────────────────── */
 .badge-pos {
     color: #6bcb77;

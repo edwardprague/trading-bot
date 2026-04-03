@@ -47,9 +47,9 @@ INTERVAL        = os.environ.get("INTERVAL", "5m")  # bar interval — used by M
 DAYS_BACK       = 730             # Full 730-day run
 STARTING_CASH   = 100_000.0
 
-EMA_SLOW        = 200
-EMA_FAST        = 50
-EMA_ENTRY       = 20
+EMA_SLOW        = int(os.environ.get("EMA_SLOW", 200))
+EMA_FAST        = int(os.environ.get("EMA_FAST", 50))
+EMA_ENTRY       = int(os.environ.get("EMA_ENTRY", 20))
 SWING_LOOKBACK  = 20
 RRR             = 2.0
 RISK_PCT        = 0.01
@@ -78,6 +78,21 @@ ENTRY_CONDITIONS = [
     {
         "condition":       "Stop Placement",
         "rule":            f"Swing high over {SWING_LOOKBACK} bars",
+        "since_version":   "v1",
+    },
+    {
+        "condition":       "EMA Slow",
+        "rule":            str(EMA_SLOW),
+        "since_version":   "v1",
+    },
+    {
+        "condition":       "EMA Fast",
+        "rule":            str(EMA_FAST),
+        "since_version":   "v1",
+    },
+    {
+        "condition":       "EMA Entry",
+        "rule":            str(EMA_ENTRY),
         "since_version":   "v1",
     },
     {
@@ -2778,6 +2793,13 @@ __VERSIONS_JSON__
         return "<option value='" + o.value + "'" + (o.value === savedInterval ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
 
+    var savedEmaSlow  = run.ema_slow  || p.ema_slow  || 200;
+    var savedEmaFast  = run.ema_fast  || p.ema_fast  || 50;
+    var savedEmaEntry = run.ema_entry || p.ema_entry || 20;
+    var emaSlowHtml  = "<input id='ec-ema-slow'  type='number' class='ec-input' value='" + savedEmaSlow  + "' min='1' step='1'>";
+    var emaFastHtml  = "<input id='ec-ema-fast'  type='number' class='ec-input' value='" + savedEmaFast  + "' min='1' step='1'>";
+    var emaEntryHtml = "<input id='ec-ema-entry' type='number' class='ec-input' value='" + savedEmaEntry + "' min='1' step='1'>";
+
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.map(function(ec) {
         var addedVal = ec.since_version || "v1";
@@ -2787,6 +2809,12 @@ __VERSIONS_JSON__
           ? instrSelectHtml
           : ec.condition === "Interval"
           ? intervalSelectHtml
+          : ec.condition === "EMA Slow"
+          ? emaSlowHtml
+          : ec.condition === "EMA Fast"
+          ? emaFastHtml
+          : ec.condition === "EMA Entry"
+          ? emaEntryHtml
           : esc(ec.rule);
         return "<tr>" +
           "<td class='ec-td-cond'>" + esc(ec.condition) + "</td>" +
@@ -2823,6 +2851,9 @@ __VERSIONS_JSON__
             "<tr><td class='ec-td-cond'>Trend Filter</td><td class='ec-td-rule'>EMA" + (p.ema_fast||"50") + " &lt; EMA" + (p.ema_slow||"200") + "</td><td class='ec-td-purpose'>Confirms downtrend \u2014 short only</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "<tr><td class='ec-td-cond'>Entry Signal</td><td class='ec-td-rule'>Price crosses below EMA" + (p.ema_entry||"20") + "</td><td class='ec-td-purpose'>Pullback rejection in trend direction</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "<tr><td class='ec-td-cond'>Stop Placement</td><td class='ec-td-rule'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td class='ec-td-purpose'>Structural invalidation level</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>EMA Slow</td><td class='ec-td-rule'>" + emaSlowHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + emaFastHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>EMA Entry</td><td class='ec-td-rule'>" + emaEntryHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + instrSelectHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + intervalSelectHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + dirSelectHtml + "</td><td class='ec-td-purpose'>Asymmetric edge identified on EURUSD</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
@@ -2912,9 +2943,9 @@ __VERSIONS_JSON__
           row("Interval",       "<span class='val-highlight'>" + esc(savedInterval) + "</span>") +
           row("History",        (run.days_back || p.days_back || "") + " days") +
           row("Starting Capital", "$" + (p.starting_cash || 0).toLocaleString()) +
-          row("EMA Slow",       p.ema_slow) +
-          row("EMA Fast",       p.ema_fast) +
-          row("EMA Entry",      p.ema_entry) +
+          row("EMA Slow",       "<span class='val-highlight'>" + esc(savedEmaSlow) + "</span>") +
+          row("EMA Fast",       "<span class='val-highlight'>" + esc(savedEmaFast) + "</span>") +
+          row("EMA Entry",      "<span class='val-highlight'>" + esc(savedEmaEntry) + "</span>") +
           row("Swing Lookback", (p.swing_lookback || "") + " bars") +
           row("RRR",            "1&thinsp;:&thinsp;" + (p.rrr || "")) +
           row("Risk / Trade",   ((p.risk_pct || 0) * 100).toFixed(1) + "% = $" + ((p.starting_cash || 0) * (p.risk_pct || 0)).toLocaleString()) +
@@ -3036,6 +3067,24 @@ __VERSIONS_JSON__
       if (stored) intEl.value = stored;
       intEl.addEventListener("change", function () {
         localStorage.setItem("ec_interval", intEl.value);
+      });
+    }());
+
+    /* Wire EMA inputs — persist to localStorage on change */
+    (function () {
+      var ids = [
+        { id: "ec-ema-slow",  key: "ec_ema_slow" },
+        { id: "ec-ema-fast",  key: "ec_ema_fast" },
+        { id: "ec-ema-entry", key: "ec_ema_entry" }
+      ];
+      ids.forEach(function (item) {
+        var el = document.getElementById(item.id);
+        if (!el) return;
+        var stored = localStorage.getItem(item.key);
+        if (stored) el.value = stored;
+        el.addEventListener("change", function () {
+          localStorage.setItem(item.key, el.value);
+        });
       });
     }());
 
@@ -3244,6 +3293,13 @@ __VERSIONS_JSON__
         return "<option value='" + o.value + "'" + (o.value === _savedInterval ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
 
+    var _savedEmaSlow  = localStorage.getItem("ec_ema_slow")  || "200";
+    var _savedEmaFast  = localStorage.getItem("ec_ema_fast")  || "50";
+    var _savedEmaEntry = localStorage.getItem("ec_ema_entry") || "20";
+    var _emaSlowHtml  = "<input id='ec-ema-slow'  type='number' class='ec-input' value='" + _savedEmaSlow  + "' min='1' step='1'>";
+    var _emaFastHtml  = "<input id='ec-ema-fast'  type='number' class='ec-input' value='" + _savedEmaFast  + "' min='1' step='1'>";
+    var _emaEntryHtml = "<input id='ec-ema-entry' type='number' class='ec-input' value='" + _savedEmaEntry + "' min='1' step='1'>";
+
     document.getElementById("content").innerHTML =
       "<div class='section'>" +
         "<div class='section-title'>Entry Conditions</div>" +
@@ -3258,6 +3314,9 @@ __VERSIONS_JSON__
           "<tr><td class='ec-td-cond'>Trend Filter</td><td class='ec-td-rule'>EMA50 &lt; EMA200</td><td class='ec-td-purpose'>Confirms downtrend — short only</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
           "<tr><td class='ec-td-cond'>Entry Signal</td><td class='ec-td-rule'>Price crosses below EMA20</td><td class='ec-td-purpose'>Pullback rejection in trend direction</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
           "<tr><td class='ec-td-cond'>Stop Placement</td><td class='ec-td-rule'>Swing high over 20 bars</td><td class='ec-td-purpose'>Structural invalidation level</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+          "<tr><td class='ec-td-cond'>EMA Slow</td><td class='ec-td-rule'>" + _emaSlowHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+          "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + _emaFastHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+          "<tr><td class='ec-td-cond'>EMA Entry</td><td class='ec-td-rule'>" + _emaEntryHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
           "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + _instrSelectHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
           "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + _intervalSelectHtml + "</td><td class='ec-td-purpose'></td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
           "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + _dirSelectHtml + "</td><td class='ec-td-purpose'>Asymmetric edge identified on EURUSD</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
@@ -3599,6 +3658,9 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "instrument":       _INSTRUMENT,
         "interval":         INTERVAL,
         "trade_direction":  TRADE_DIRECTION,
+        "ema_slow":         EMA_SLOW,
+        "ema_fast":         EMA_FAST,
+        "ema_entry":        EMA_ENTRY,
         "notes":         notes.strip() if notes else "—",
         "chart_b64":        chart_b64,
         "eq_dd_chart_b64":  eq_dd_chart_b64,
