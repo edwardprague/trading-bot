@@ -753,7 +753,7 @@ def save_charts(df, trades, equity):
             ax1.scatter(exit_date, t.exit, color=color,
                        marker="x", s=40, zorder=5)
             ax1.plot([entry_date, exit_date], [t.entry, t.exit],
-                     color=color, linewidth=0.8, alpha=0.5, zorder=4)
+                     color=color, linewidth=0.8, alpha=1.0, zorder=4)
 
     ax1.set_title(f"{TICKER} — EMA Trend Following Backtest",
                   color="white", fontsize=13, pad=10)
