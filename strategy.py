@@ -3697,6 +3697,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         if target is None:
             target = existing_versions[-1]
         target["runs"].append(new_run)
+        target["entry_conditions"] = ENTRY_CONDITIONS
         version_num = len(existing_versions)
         action = f"Added date range run to {target.get('name', '?')}"
     else:
