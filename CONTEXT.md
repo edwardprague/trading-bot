@@ -84,6 +84,14 @@ Open browser: `http://localhost:8080`
 - `results/` — versioned PNG charts and reports
 - `TrendFollowerBot.cs` — cBot script in C# for cTrader
 
+#### Infrastructure Description
+
+strategy.py is the backtest engine. It's the file that actually does the work — fetches price data (from Massive.io or Yahoo Finance as fallback), calculates indicators (EMAs, swing highs/lows, ADX), runs the bar-by-bar backtest simulation, generates charts, computes all the metrics (win rate, profit factor, drawdown, etc.), and then writes the results into report.html. It also handles the HTML template that defines the entire dashboard layout and JavaScript. When it runs, it's a standalone Python script executed as a subprocess — it reads configuration from environment variables (like TRADE_DIRECTION, INSTRUMENT, INTERVAL), does its thing, and exits.
+
+server.py is the Flask web server that serves as the control layer between your browser and strategy.py. It does three things: it serves report.html to your browser at localhost:8080, it injects the run bar at the top of the page (the buttons for "Add New Version" and "Add Date Range", the date pickers, and the status indicator), and it handles the API endpoints (/run, /run_range, /status, /delete_version, /delete_run) that the browser calls when you click those buttons. When you click "Add New Version", the browser sends a POST to /run, server.py spawns strategy.py as a subprocess with the right environment variables set, polls for completion, and then reloads the page to show the new results.
+
+In short: server.py is the middleman — it takes your UI selections (instrument, interval, direction, dates), packages them as environment variables, launches strategy.py to do the actual backtest, and serves the resulting report back to your browser. strategy.py is the engine — it crunches the data and produces the results.
+
 #### External Services
 
 - GitHub — version control and auto-push after each backtest
