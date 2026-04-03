@@ -3146,6 +3146,11 @@ __VERSIONS_JSON__
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data.ok) {
+            if (isRange) {
+              localStorage.setItem("rb_pending_delete_version", ver.name);
+              var focusIdx = activeRunIdx - 1;
+              localStorage.setItem("rb_pending_delete_run_idx", String(focusIdx < 1 ? 0 : focusIdx));
+            }
             window.location.reload();
           } else {
             delBtn.disabled = false;
@@ -3401,6 +3406,27 @@ __VERSIONS_JSON__
       var targetRuns = getRuns(VERSIONS[targetIdx]);
       if (targetRuns.length > 1) {
         activeRunIdx = targetRuns.length - 1;
+      }
+    }
+
+    /* If we just deleted a date-range sub-item, focus on the sub-item above it */
+    var pendingDelVersion = localStorage.getItem("rb_pending_delete_version");
+    var pendingDelRunIdx  = localStorage.getItem("rb_pending_delete_run_idx");
+    if (pendingDelVersion) {
+      localStorage.removeItem("rb_pending_delete_version");
+      localStorage.removeItem("rb_pending_delete_run_idx");
+      var delTargetIdx = lastIdx;
+      for (var di = 0; di < VERSIONS.length; di++) {
+        if (VERSIONS[di].name === pendingDelVersion) { delTargetIdx = di; break; }
+      }
+      activeVersionIdx = delTargetIdx;
+      expandedVersions[delTargetIdx] = true;
+      var delRunIdx = parseInt(pendingDelRunIdx, 10) || 0;
+      var remainingRuns = getRuns(VERSIONS[delTargetIdx]);
+      if (delRunIdx > 0 && delRunIdx < remainingRuns.length) {
+        activeRunIdx = delRunIdx;
+      } else {
+        activeRunIdx = 0;
       }
     }
 
