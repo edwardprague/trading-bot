@@ -742,12 +742,18 @@ def save_charts(df, trades, equity):
         for _, t in trades.iterrows():
             idx  = int(t.entry_idx)
             eidx = int(t.exit_idx)
-            if idx < len(dates) and eidx < len(dates):
-                color  = "#6bcb77" if t.win else "#ff6b6b"
-                marker = "^" if t.direction == "long" else "v"
-                ax1.scatter(dates.iloc[idx],  t.entry, color=color,
-                           marker=marker, s=60, zorder=5)
+            if idx < 0 or idx >= len(dates):
+                continue
+            color  = "#6bcb77" if t.win else "#ff6b6b"
+            marker = "^" if t.direction == "long" else "v"
+            ax1.scatter(dates.iloc[idx],  t.entry, color=color,
+                       marker=marker, s=60, zorder=5)
+            if 0 <= eidx < len(dates):
                 ax1.scatter(dates.iloc[eidx], t.exit,  color=color,
+                           marker="x", s=40, zorder=5)
+            else:
+                # Exit is beyond chart range — show x at last visible bar
+                ax1.scatter(dates.iloc[-1], t.exit, color=color,
                            marker="x", s=40, zorder=5)
 
     ax1.set_title(f"{TICKER} — EMA Trend Following Backtest",
