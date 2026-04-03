@@ -225,6 +225,7 @@ body {
     cursor: pointer;
     padding: 0;
     flex-shrink: 0;
+    margin-left: auto;
     transition: color 0.2s, border-color 0.2s, transform 0.2s;
 }
 

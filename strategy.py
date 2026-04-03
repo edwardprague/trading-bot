@@ -2803,10 +2803,6 @@ __VERSIONS_JSON__
         "<div class='section'>" +
           "<div class='section-title'>Entry Conditions</div>" +
           "<table>" +
-            "<thead><tr>" +
-              "<th " + ecThStyle + ">Condition</th>" +
-              "<th " + ecThStyle + ">Rule</th>" +
-            "</tr></thead>" +
             "<tbody>" + ecRows + "</tbody>" +
           "</table>" +
         "</div>";
@@ -2815,10 +2811,6 @@ __VERSIONS_JSON__
         "<div class='section'>" +
           "<div class='section-title'>Entry Conditions</div>" +
           "<table>" +
-            "<thead><tr>" +
-              "<th " + ecThStyle + ">Condition</th>" +
-              "<th " + ecThStyle + ">Rule</th>" +
-            "</tr></thead>" +
             "<tbody>" +
             "<tr><td class='ec-td-cond'>EMA Slow</td><td class='ec-td-rule'>" + emaSlowHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + emaFastHtml + "</td></tr>" +
@@ -3298,10 +3290,6 @@ __VERSIONS_JSON__
       "<div class='section'>" +
         "<div class='section-title'>Entry Conditions</div>" +
         "<table>" +
-          "<thead><tr>" +
-            "<th " + ecThStyle + ">Condition</th>" +
-            "<th " + ecThStyle + ">Rule</th>" +
-          "</tr></thead>" +
           "<tbody>" +
           "<tr><td class='ec-td-cond'>EMA Slow</td><td class='ec-td-rule'>" + _emaSlowHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + _emaFastHtml + "</td></tr>" +
@@ -3550,6 +3538,17 @@ __VERSIONS_JSON__
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (isInputFocused(e)) return;
     var btn = document.getElementById("devlog-btn");
+    if (!btn) return;
+    e.preventDefault();
+    btn.click();
+  });
+
+  /* ── Keyboard shortcut: B — Toggle Entry Conditions ───────── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "b" && e.key !== "B") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isInputFocused(e)) return;
+    var btn = document.getElementById("ec-toggle-btn");
     if (!btn) return;
     e.preventDefault();
     btn.click();
