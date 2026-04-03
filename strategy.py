@@ -2749,7 +2749,7 @@ __VERSIONS_JSON__
       { value: "long_only",  label: "Long only" },
       { value: "both",       label: "Both" }
     ];
-    var savedDir = p.trade_direction || "short_only";
+    var savedDir = run.trade_direction || p.trade_direction || "short_only";
     var dirSelectHtml = "<select id='ec-direction-select' class='ec-select'>" +
       dirOptions.map(function(o) {
         return "<option value='" + o.value + "'" + (o.value === savedDir ? " selected" : "") + ">" + o.label + "</option>";
@@ -2772,7 +2772,7 @@ __VERSIONS_JSON__
       { value: "30m", label: "30m" },
       { value: "60m", label: "60m" }
     ];
-    var savedInterval = p.interval || "5m";
+    var savedInterval = run.interval || p.interval || "5m";
     var intervalSelectHtml = "<select id='ec-interval-select' class='ec-select'>" +
       intervalOptions.map(function(o) {
         return "<option value='" + o.value + "'" + (o.value === savedInterval ? " selected" : "") + ">" + o.label + "</option>";
@@ -3596,7 +3596,9 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "end_date":      run_end_date   if run_mode == "date_range" else "",
         "days_back":     DAYS_BACK if run_mode != "date_range" else 0,
         "label":         run_label,
-        "instrument":    _INSTRUMENT,
+        "instrument":       _INSTRUMENT,
+        "interval":         INTERVAL,
+        "trade_direction":  TRADE_DIRECTION,
         "notes":         notes.strip() if notes else "—",
         "chart_b64":        chart_b64,
         "eq_dd_chart_b64":  eq_dd_chart_b64,
