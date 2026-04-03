@@ -325,6 +325,7 @@ def _sensitivity_run(df, rrr, swing_lookback):
 # ── Backtest ──────────────────────────────────────────────────────────────────
 
 def run_backtest(df):
+    print(f"  [DBG] TRADE_DIRECTION = {TRADE_DIRECTION!r}")
     cash          = STARTING_CASH
     equity        = [cash]
     trades        = []
@@ -493,7 +494,12 @@ def run_backtest(df):
                         print(f"  [DBG entry {_debug_entries+1}] raw={ts}  tz={getattr(ts,'tzinfo',None)}  utc_hour={_ts_utc_dbg.hour}  direction=short  fill={fill:.5f}")
                         _debug_entries += 1
 
-    return pd.DataFrame(trades), equity, blocked_signals
+    _tdf = pd.DataFrame(trades)
+    if not _tdf.empty:
+        _longs  = (_tdf["direction"] == "long").sum()
+        _shorts = (_tdf["direction"] == "short").sum()
+        print(f"  [DBG] Trade count: {len(_tdf)} total — {_longs} long, {_shorts} short")
+    return _tdf, equity, blocked_signals
 
 # ── Results ───────────────────────────────────────────────────────────────────
 
