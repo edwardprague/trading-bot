@@ -3496,18 +3496,34 @@ __VERSIONS_JSON__
     if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
   });
 
-  /* ── Keyboard shortcuts: Shift+1/2/3… for quick-nav links ── */
+  /* ── Keyboard shortcuts: 1-9 to scroll to section rows ── */
   document.addEventListener("keydown", function (e) {
-    if (!e.shiftKey) return;
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    var tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
     var m = (e.code || "").match(/^Digit(\d)$/);
     if (!m) return;
-    var idx = parseInt(m[1], 10) - 1; /* Shift+1 = index 0, Shift+2 = index 1, … */
-    if (idx < 0) return;
-    var links = document.querySelectorAll(".quick-nav-link[data-anchor]");
-    if (idx >= links.length) return;
+    var num = parseInt(m[1], 10);
+    if (num < 1 || num > 9) return;
+    var activeTab = document.querySelector(".tab-content.active");
+    if (!activeTab) return;
+    /* Collect visible direct-child section rows (divs with content) */
+    var rows = [];
+    for (var ci = 0; ci < activeTab.children.length; ci++) {
+      var child = activeTab.children[ci];
+      if (child.offsetHeight > 0) rows.push(child);
+    }
+    var idx = num - 1;
+    if (idx >= rows.length) return;
     e.preventDefault();
-    links[idx].click();
+    var mainEl = document.getElementById("main");
+    if (!mainEl) return;
+    if (idx === 0) {
+      mainEl.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      var top = rows[idx].offsetTop - mainEl.offsetTop - 16;
+      mainEl.scrollTo({ top: top, behavior: "smooth" });
+    }
   });
 
   /* ── Helper: check if focus is in a form field ──────────── */
