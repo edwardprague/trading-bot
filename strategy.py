@@ -3738,25 +3738,28 @@ def git_commit_and_push(metrics, version, ticker, interval):
     repo_dir = os.path.dirname(os.path.abspath(__file__))
 
     try:
-        subprocess.run(["git", "add", "-A"], cwd=repo_dir, check=True)
+        subprocess.run(["git", "add", "-A"], cwd=repo_dir, check=True, timeout=30)
         print("  git add -A ... done")
-    except subprocess.CalledProcessError as e:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
         print(f"  ⚠  git add failed: {e}")
         return
 
     try:
-        subprocess.run(["git", "commit", "-m", msg], cwd=repo_dir, check=True)
+        subprocess.run(["git", "commit", "-m", msg], cwd=repo_dir, check=True, timeout=30)
         print(f"  git commit ... done")
         print(f"  Commit message: {msg}")
     except subprocess.CalledProcessError as e:
         # Exit code 1 means nothing to commit — not a real error
         print(f"  git commit — nothing new to commit (or error: {e})")
         return
+    except subprocess.TimeoutExpired as e:
+        print(f"  ⚠  git commit timed out: {e}")
+        return
 
     try:
-        subprocess.run(["git", "push", "origin", "main"], cwd=repo_dir, check=True)
+        subprocess.run(["git", "push", "origin", "main"], cwd=repo_dir, check=True, timeout=60)
         print("  git push origin main ... done\n")
-    except subprocess.CalledProcessError as e:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
         print(f"  ⚠  git push failed (results saved locally): {e}\n")
 
 
