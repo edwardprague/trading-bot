@@ -216,11 +216,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
-    border: 1px solid #555;
-    background: transparent;
+    border: none;
+    background: teal;
     color: #888;
     cursor: pointer;
     padding: 0;
@@ -236,7 +236,7 @@ body {
 
 .ec-toggle-btn.open {
     transform: rotate(180deg);
-    color: #ccc;
+    color: #fff;
     border-color: #888;
 }
 
@@ -732,7 +732,7 @@ tbody tr:hover td {
 
 /* ── Highlighted parameter value (direction etc.) ─────── */
 .val-highlight {
-    color: #ffd93d;
+    color: #6bcb77;
     font-weight: 600;
 }
 

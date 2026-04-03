@@ -44,7 +44,7 @@ _INSTRUMENT     = os.environ.get("INSTRUMENT", "EURUSD")
 TICKER          = _INSTRUMENT_MAP.get(_INSTRUMENT, _INSTRUMENT_MAP["EURUSD"])[0]
 MASSIVE_TICKER  = _INSTRUMENT_MAP.get(_INSTRUMENT, _INSTRUMENT_MAP["EURUSD"])[1]
 INTERVAL        = os.environ.get("INTERVAL", "5m")  # bar interval — used by Massive (primary) and Yahoo (fallback)
-DAYS_BACK       = 730             # Full 730-day run
+DAYS_BACK       = 365             # Full 365-day run
 STARTING_CASH   = 100_000.0
 
 EMA_SLOW        = int(os.environ.get("EMA_SLOW", 200))
@@ -1699,7 +1699,10 @@ __VERSIONS_JSON__
     lines.push("|-----------|-------|");
     lines.push("| Instrument | "    + (p.ticker    || "\u2014") + " |");
     lines.push("| Interval | "      + (p.interval  || "\u2014") + " |");
-    lines.push("| History | "       + (run.days_back || p.days_back || "\u2014") + " days |");
+    var _dr = run.start_date && run.end_date ? { start: run.start_date, end: run.end_date } : fullRunRange(run);
+    var _drDur = calcDuration(_dr.start, _dr.end);
+    var _drDates = _dr.start && _dr.end ? fmtSbDate(_dr.start) + " \u2192 " + fmtSbDate(_dr.end) : "";
+    lines.push("| Date Range | " + (_drDur ? _drDur : "") + (_drDur && _drDates ? " \u00b7 " : "") + _drDates + " |");
     lines.push("| Starting Cash | $" + (p.starting_cash || 0).toLocaleString() + " |");
     lines.push("| EMA Slow | "      + (p.ema_slow      || "\u2014") + " |");
     lines.push("| EMA Fast | "      + (p.ema_fast      || "\u2014") + " |");
@@ -2916,7 +2919,15 @@ __VERSIONS_JSON__
           row("Risk / Trade",   ((p.risk_pct || 0) * 100).toFixed(1) + "% = $" + ((p.starting_cash || 0) * (p.risk_pct || 0)).toLocaleString()) +
           row("Min Stop",       ((p.min_stop || 0) * 10000).toFixed(0) + " pips") +
           row("Max Stop",       ((p.max_stop || 0) * 10000).toFixed(0) + " pips") +
-          row("History",        (run.days_back || p.days_back || "") + " days") +
+          row("Date Range",     (function () {
+            var dr = run.start_date && run.end_date
+              ? { start: run.start_date, end: run.end_date }
+              : fullRunRange(run);
+            var dur = calcDuration(dr.start, dr.end);
+            var dates = dr.start && dr.end
+              ? fmtSbDate(dr.start) + " \u2192 " + fmtSbDate(dr.end) : "";
+            return (dur ? dur : "") + (dur && dates ? " &middot; " : "") + dates;
+          }())) +
           row("Starting Capital", "$" + (p.starting_cash || 0).toLocaleString()) +
           "</tbody></table>" +
         "</div>" +
