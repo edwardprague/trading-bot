@@ -73,51 +73,22 @@ ENTRY_CONDITIONS = [
     {
         "condition":       "Trend Filter",
         "rule":            f"EMA{EMA_FAST} < EMA{EMA_SLOW}",
-
         "since_version":   "v1",
-        "removed_version": None,
     },
     {
         "condition":       "Entry Signal",
         "rule":            f"Price crosses below EMA{EMA_ENTRY}",
-
         "since_version":   "v1",
-        "removed_version": None,
     },
     {
         "condition":       "Stop Placement",
         "rule":            f"Swing high over {SWING_LOOKBACK} bars",
-
         "since_version":   "v1",
-        "removed_version": None,
     },
     {
         "condition":       "Direction",
         "rule":            "Short only",
-
         "since_version":   "v1",
-        "removed_version": None,
-    },
-    {
-        "condition":       "Time Window",
-        "rule":            f"UTC {' '.join(f'{h:02d}' for h in sorted(TIME_FILTER_HOURS))}",
-
-        "since_version":   "v1",
-        "removed_version": None,
-    },
-    {
-        "condition":       "Daily Loss Limit",
-        "rule":            f"Stop trading if daily loss >= ${MAX_DAILY_LOSS:,.0f}",
-
-        "since_version":   "v1",
-        "removed_version": None,
-    },
-    {
-        "condition":       "Regime Filter",
-        "rule":            "ATR range detection — removed",
-
-        "since_version":   "v2",
-        "removed_version": "v5",
     },
 ]
 
@@ -3027,16 +2998,11 @@ __VERSIONS_JSON__
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.map(function(ec) {
         var addedVal = ec.since_version || "v1";
-        var removedDisp = ec.removed_version
-          ? "<span class='ec-removed-val'>" + esc(ec.removed_version) + "</span>"
-          : "<span class='text-dim'>\u2014</span>";
-        var rowOpacity = ec.removed_version ? " class='ec-row-removed'" : "";
-        return "<tr" + rowOpacity + ">" +
+        return "<tr>" +
           "<td class='ec-td-cond'>" + esc(ec.condition) + "</td>" +
           "<td class='ec-td-rule'>" + esc(ec.rule) + "</td>" +
           "<td class='ec-td-purpose'>" + esc(ec.purpose) + "</td>" +
           "<td class='ec-td-ver'><span class='ec-since-val'>" + esc(addedVal) + "</span></td>" +
-          "<td class='ec-td-ver'>" + removedDisp + "</td>" +
           "</tr>";
       }).join("");
       entryCondHtml =
@@ -3048,13 +3014,11 @@ __VERSIONS_JSON__
               "<th " + ecThStyle + ">Rule</th>" +
               "<th " + ecThStyle + "></th>" +
               "<th " + ecThStyle + ">+</th>" +
-              "<th " + ecThStyle + ">\u2212</th>" +
             "</tr></thead>" +
             "<tbody>" + ecRows + "</tbody>" +
           "</table>" +
         "</div>";
     } else {
-      var tfHoursStr = (p.time_filter_hours || []).sort(function(a,b){return a-b;}).map(function(h){return (h<10?"0":"")+h;}).join(" ");
       entryCondHtml =
         "<div class='section'>" +
           "<div class='section-title'>Entry Conditions</div>" +
@@ -3064,14 +3028,12 @@ __VERSIONS_JSON__
               "<th " + ecThStyle + ">Rule</th>" +
               "<th " + ecThStyle + "></th>" +
               "<th " + ecThStyle + ">+</th>" +
-              "<th " + ecThStyle + ">\u2212</th>" +
             "</tr></thead>" +
             "<tbody>" +
-            "<tr><td class='ec-td-cond'>Trend Filter</td><td class='ec-td-rule'>EMA" + (p.ema_fast||"50") + " &lt; EMA" + (p.ema_slow||"200") + "</td><td class='ec-td-purpose'>Confirms downtrend \u2014 short only</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Entry Signal</td><td class='ec-td-rule'>Price crosses below EMA" + (p.ema_entry||"20") + "</td><td class='ec-td-purpose'>Pullback rejection in trend direction</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Stop Placement</td><td class='ec-td-rule'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td class='ec-td-purpose'>Structural invalidation level</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'><span class='val-highlight'>Short only</span></td><td class='ec-td-purpose'>Asymmetric edge identified on EURUSD</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
-            "<tr><td class='ec-td-cond'>Time Window</td><td class='ec-td-rule'>UTC " + (p.time_filter ? tfHoursStr : "<span class='text-dim'>OFF</span>") + "</td><td class='ec-td-purpose'>High quality session hours</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td><td class='ec-td-ver'><span class='text-dim'>\u2014</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Trend Filter</td><td class='ec-td-rule'>EMA" + (p.ema_fast||"50") + " &lt; EMA" + (p.ema_slow||"200") + "</td><td class='ec-td-purpose'>Confirms downtrend \u2014 short only</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Entry Signal</td><td class='ec-td-rule'>Price crosses below EMA" + (p.ema_entry||"20") + "</td><td class='ec-td-purpose'>Pullback rejection in trend direction</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Stop Placement</td><td class='ec-td-rule'>Swing high over " + (p.swing_lookback||"20") + " bars</td><td class='ec-td-purpose'>Structural invalidation level</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
+            "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'><span class='val-highlight'>Short only</span></td><td class='ec-td-purpose'>Asymmetric edge identified on EURUSD</td><td class='ec-td-ver'><span class='ec-since-val'>v1</span></td></tr>" +
             "</tbody>" +
           "</table>" +
         "</div>";
