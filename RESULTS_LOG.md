@@ -162,3 +162,4 @@
 | v5 | 2026-04-03 22:16 | Trend Following | EURUSD=X | 5m | Removed regime filter — clean baseline for date range UI rebuild | 5 | 60.0% | 3.07 | +$3962.44 | -1.84% | 3.57 |
 | v5 | 2026-04-03 22:16 | Trend Following | EURUSD=X | 5m | Removed regime filter — clean baseline for date range UI rebuild | 10 | 70.0% | 2.17 | +$3686.80 | -2.13% | 3.81 |
 | v5 | 2026-04-03 22:19 | Trend Following | EURUSD=X | 5m | Removed regime filter — clean baseline for date range UI rebuild | 5 | 60.0% | 3.07 | +$3962.44 | -1.84% | 3.57 |
+| v5 | 2026-04-03 22:20 | Trend Following | EURUSD=X | 5m | Removed regime filter — clean baseline for date range UI rebuild | 10 | 70.0% | 2.17 | +$3686.80 | -2.13% | 3.81 |
