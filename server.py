@@ -412,6 +412,11 @@ def _backtest_worker(env_overrides=None):
             timeout=300,        # 5-minute safety timeout
             env=env,
         )
+        # Print subprocess output to terminal for debugging
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            print(result.stderr)
         with _bt_lock:
             if result.returncode == 0:
                 # Check if strategy.py reported no trades (NO_DATA marker)
