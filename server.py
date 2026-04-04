@@ -288,6 +288,13 @@ function getSelectedEmaLong() {
   return stored || "40";
 }
 
+function getSelectedStopPips() {
+  var el = document.getElementById("ec-stop-pips");
+  if (el) return el.value;
+  var stored = localStorage.getItem("ec_stop_pips");
+  return stored || "15";
+}
+
 function getSelectedRrrRisk() {
   var el = document.getElementById("ec-rrr-risk");
   if (el) return el.value;
@@ -310,7 +317,7 @@ function runNewVersion() {
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
+    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -334,7 +341,7 @@ function runDateRange() {
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -641,6 +648,7 @@ def run_backtest():
     ema_short   = (data.get("ema_short") or "").strip()
     ema_mid     = (data.get("ema_mid") or "").strip()
     ema_long    = (data.get("ema_long") or "").strip()
+    stop_pips   = (data.get("stop_loss_pips") or "").strip()
     rrr_risk    = (data.get("rrr_risk") or "").strip()
     rrr_reward  = (data.get("rrr_reward") or "").strip()
     env_overrides = {"RUN_MODE": "new_version"}
@@ -656,6 +664,8 @@ def run_backtest():
         env_overrides["EMA_MID"] = ema_mid
     if ema_long:
         env_overrides["EMA_LONG"] = ema_long
+    if stop_pips:
+        env_overrides["FRACTAL_STOP_PIPS"] = stop_pips
     if rrr_risk:
         env_overrides["RRR_RISK"] = rrr_risk
     if rrr_reward:
@@ -695,6 +705,7 @@ def run_date_range():
     ema_short      = (data.get("ema_short") or "").strip()
     ema_mid        = (data.get("ema_mid") or "").strip()
     ema_long       = (data.get("ema_long") or "").strip()
+    stop_pips      = (data.get("stop_loss_pips") or "").strip()
     rrr_risk       = (data.get("rrr_risk") or "").strip()
     rrr_reward     = (data.get("rrr_reward") or "").strip()
     env_overrides = {
@@ -716,6 +727,8 @@ def run_date_range():
         env_overrides["EMA_MID"] = ema_mid
     if ema_long:
         env_overrides["EMA_LONG"] = ema_long
+    if stop_pips:
+        env_overrides["FRACTAL_STOP_PIPS"] = stop_pips
     if rrr_risk:
         env_overrides["RRR_RISK"] = rrr_risk
     if rrr_reward:

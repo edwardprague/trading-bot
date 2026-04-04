@@ -56,7 +56,7 @@ RRR             = float(RRR_REWARD) / float(RRR_RISK)
 RISK_PCT        = 0.01
 MIN_STOP        = 0.0005     # 5 pips minimum stop
 MAX_STOP        = 0.0200     # 200 pips maximum stop
-FRACTAL_STOP_PIPS = 0.0015  # 15 pips stop buffer beyond fractal point
+FRACTAL_STOP_PIPS = float(os.environ.get("FRACTAL_STOP_PIPS", 15)) / 10000  # pips → price; default 15 pips
 
 TRADE_DIRECTION   = os.environ.get("TRADE_DIRECTION", "both")   # "both" | "long_only" | "short_only"
 
@@ -86,6 +86,10 @@ ENTRY_CONDITIONS = [
     {
         "condition":       "EMA Long",
         "rule":            str(EMA_LONG),
+    },
+    {
+        "condition":       "Stop Loss Level",
+        "rule":            str(int(FRACTAL_STOP_PIPS * 10000)),
     },
     {
         "condition":       "Direction",
@@ -1838,6 +1842,7 @@ __VERSIONS_JSON__
     lines.push("| EMA Short | "     + (p.ema_short     || "\u2014") + " |");
     lines.push("| EMA Mid | "       + (p.ema_mid       || "\u2014") + " |");
     lines.push("| EMA Long | "      + (p.ema_long      || "\u2014") + " |");
+    lines.push("| Stop Loss Level | " + (p.stop_loss_pips || "\u2014") + " pips |");
     lines.push("| RRR | 1:"         + (p.rrr || "\u2014") + " |");
     lines.push("| Risk / Trade | "  + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
     lines.push("| Direction | "     + (p.trade_direction || "both") + " |");
@@ -3036,6 +3041,9 @@ __VERSIONS_JSON__
     var emaMidHtml   = "<input id='ec-ema-mid'   type='number' class='ec-input' value='" + savedEmaMid   + "' min='1' step='1'>";
     var emaLongHtml  = "<input id='ec-ema-long'  type='number' class='ec-input' value='" + savedEmaLong  + "' min='1' step='1'>";
 
+    var savedStopPips  = run.stop_loss_pips || p.stop_loss_pips || 15;
+    var stopPipsHtml   = "<input id='ec-stop-pips' type='number' class='ec-input' value='" + savedStopPips + "' min='1' step='1'>";
+
     var savedRrrRisk   = run.rrr_risk   || p.rrr_risk   || 1;
     var savedRrrReward = run.rrr_reward || p.rrr_reward || 2;
     var rrrOpts = [1, 2, 3, 4, 5];
@@ -3063,6 +3071,8 @@ __VERSIONS_JSON__
           ? emaMidHtml
           : ec.condition === "EMA Long"
           ? emaLongHtml
+          : ec.condition === "Stop Loss Level"
+          ? stopPipsHtml
           : ec.condition === "RRR"
           ? rrrSelectHtml
           : esc(ec.rule);
@@ -3089,6 +3099,7 @@ __VERSIONS_JSON__
             "<tr><td class='ec-td-cond'>EMA Short</td><td class='ec-td-rule'>" + emaShortHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>EMA Mid</td><td class='ec-td-rule'>" + emaMidHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>EMA Long</td><td class='ec-td-rule'>" + emaLongHtml + "</td></tr>" +
+            "<tr><td class='ec-td-cond'>Stop Loss Level</td><td class='ec-td-rule'>" + stopPipsHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + dirSelectHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>RRR</td><td class='ec-td-rule'>" + rrrSelectHtml + "</td></tr>" +
             "</tbody>" +
@@ -3170,6 +3181,7 @@ __VERSIONS_JSON__
           row("EMA Short",      "<span class='val-highlight'>" + esc(savedEmaShort) + "</span>") +
           row("EMA Mid",        "<span class='val-highlight'>" + esc(savedEmaMid) + "</span>") +
           row("EMA Long",       "<span class='val-highlight'>" + esc(savedEmaLong) + "</span>") +
+          row("Stop Loss Level", "<span class='val-highlight'>" + esc(savedStopPips) + " pips</span>") +
           row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
           row("RRR",            (run.rrr_risk || p.rrr_risk || 1) + "&thinsp;:&thinsp;" + (run.rrr_reward || p.rrr_reward || 2)) +
           row("Run on",         esc(fmtRunDate(run.date || ""))) +
@@ -3294,9 +3306,10 @@ __VERSIONS_JSON__
     /* Wire EMA inputs — persist to localStorage on change */
     (function () {
       var ids = [
-        { id: "ec-ema-short", key: "ec_ema_short" },
-        { id: "ec-ema-mid",   key: "ec_ema_mid" },
-        { id: "ec-ema-long",  key: "ec_ema_long" }
+        { id: "ec-ema-short",  key: "ec_ema_short" },
+        { id: "ec-ema-mid",    key: "ec_ema_mid" },
+        { id: "ec-ema-long",   key: "ec_ema_long" },
+        { id: "ec-stop-pips",  key: "ec_stop_pips" }
       ];
       ids.forEach(function (item) {
         var el = document.getElementById(item.id);
@@ -3546,6 +3559,9 @@ __VERSIONS_JSON__
     var _emaMidHtml   = "<input id='ec-ema-mid'   type='number' class='ec-input' value='" + _savedEmaMid   + "' min='1' step='1'>";
     var _emaLongHtml  = "<input id='ec-ema-long'  type='number' class='ec-input' value='" + _savedEmaLong  + "' min='1' step='1'>";
 
+    var _savedStopPips  = localStorage.getItem("ec_stop_pips") || "15";
+    var _stopPipsHtml   = "<input id='ec-stop-pips' type='number' class='ec-input' value='" + _savedStopPips + "' min='1' step='1'>";
+
     var _savedRrrRisk   = localStorage.getItem("ec_rrr_risk")   || "1";
     var _savedRrrReward = localStorage.getItem("ec_rrr_reward") || "2";
     var _rrrOpts = [1, 2, 3, 4, 5];
@@ -3569,6 +3585,7 @@ __VERSIONS_JSON__
           "<tr><td class='ec-td-cond'>EMA Short</td><td class='ec-td-rule'>" + _emaShortHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>EMA Mid</td><td class='ec-td-rule'>" + _emaMidHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>EMA Long</td><td class='ec-td-rule'>" + _emaLongHtml + "</td></tr>" +
+          "<tr><td class='ec-td-cond'>Stop Loss Level</td><td class='ec-td-rule'>" + _stopPipsHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + _dirSelectHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>RRR</td><td class='ec-td-rule'>" + _rrrSelectHtml + "</td></tr>" +
           "</tbody>" +
@@ -3976,6 +3993,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "ema_short":        EMA_SHORT,
         "ema_mid":          EMA_MID,
         "ema_long":         EMA_LONG,
+        "stop_loss_pips":   int(FRACTAL_STOP_PIPS * 10000),
         "rrr_risk":         RRR_RISK,
         "rrr_reward":       RRR_REWARD,
         "notes":         notes.strip() if notes else "—",
@@ -3993,6 +4011,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "ema_short":      EMA_SHORT,
         "ema_mid":        EMA_MID,
         "ema_long":       EMA_LONG,
+        "stop_loss_pips": int(FRACTAL_STOP_PIPS * 10000),
         "rrr":            RRR,
         "rrr_risk":       RRR_RISK,
         "rrr_reward":     RRR_REWARD,
