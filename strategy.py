@@ -3202,9 +3202,6 @@ __VERSIONS_JSON__
       /* ── Section 6c: Intraday Performance (single-day ranges only) ─────── */
       intradayPerfHtml +
 
-      /* ── Section 7: Time of Day Performance ──────────────────────────────── */
-      timeOfDayHtml +
-
       /* ── Main chart ───────────────────────────────────────────────────────── */
       chartHtml +
 
@@ -3215,6 +3212,9 @@ __VERSIONS_JSON__
 
       /* ── TAB: Advanced ───────────────────────────────────────────────────── */
       "<div class='tab-content' data-tab-content='advanced'>" +
+
+      /* ── Time of Day Performance ──────────────────────────────────────── */
+      timeOfDayHtml +
 
       /* ── Range Filter + Regime Classification (side by side) ────────────── */
       "<div class='two-col'>" + rsdHtml + regimeHtml + "</div>" +
