@@ -1,7 +1,5 @@
 # Version Backtest Instructions
 
-This page contains guidelines for backtesting parameters and instructions.
-
 ## Backtesting Parameters
 
 The backtesting parameters are all modifiable for each backtest.
