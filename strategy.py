@@ -867,6 +867,11 @@ def save_charts(df, trades, equity):
                        marker="x", s=40, zorder=5)
             ax1.plot([entry_date, exit_date], [t.entry, t.exit],
                      color="#ffffff", linewidth=0.8, alpha=1.0, zorder=4)
+            # Stop loss level marker (white em-dash)
+            if is_one_day:
+                ax1.plot([entry_date, exit_date], [t.stop, t.stop],
+                         color="#ffffff", linewidth=1.0, linestyle=(0, (1, 1)),
+                         alpha=0.7, zorder=4)
 
     ax1.set_title(f"{TICKER} — EMA Trend Following Backtest",
                   color="white", fontsize=13, pad=10)
