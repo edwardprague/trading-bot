@@ -1307,12 +1307,16 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         unique_dates = t_intra["_date"].unique()
         if len(unique_dates) == 1:
             for _, row_t in t_intra.iterrows():
+                _stop_pips = round(abs(float(row_t["entry"]) - float(row_t["stop"])) * 10000, 1)
+                _target_pips = round(abs(float(row_t["entry"]) - float(row_t["target"])) * 10000, 1)
                 intraday_trades.append({
                     "date":       row_t["_date"],
                     "entry_time": row_t["_entry_time"],
                     "exit_time":  row_t["_exit_time"],
                     "duration":   int(row_t["_duration"]),
                     "direction":  row_t["direction"],
+                    "stop_pips":  _stop_pips,
+                    "target_pips": _target_pips,
                     "pnl":        round(float(row_t["pnl"]), 2),
                 })
     except Exception:
@@ -1941,8 +1945,8 @@ __VERSIONS_JSON__
       if (intradayData.length === 0) return;
       lines.push("### Intraday Performance");
       lines.push("");
-      lines.push("| Date | Entry Time | Exit Time | Duration | Trade Direction | P&L |");
-      lines.push("|------|------------|-----------|----------|-----------------|-----|");
+      lines.push("| Date | Entry Time | Exit Time | Duration | Trade Direction | Stop (pips) | Target (pips) | P&L |");
+      lines.push("|------|------------|-----------|----------|-----------------|-------------|---------------|-----|");
       var mdIMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       function mdFmtDur(mins) {
         if (mins < 60) return mins + " min";
@@ -1952,7 +1956,9 @@ __VERSIONS_JSON__
         var dir = t.direction.charAt(0).toUpperCase() + t.direction.slice(1);
         var idp = t.date.split("-");
         var iDateLabel = mdIMnames[parseInt(idp[1], 10) - 1] + " " + parseInt(idp[2], 10) + " " + idp[0];
-        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + t.exit_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + mfMoney(t.pnl) + " |");
+        var stopD   = (t.stop_pips   !== null && t.stop_pips   !== undefined) ? mf(t.stop_pips, 1)   : "\u2014";
+        var targetD = (t.target_pips !== null && t.target_pips !== undefined) ? mf(t.target_pips, 1) : "\u2014";
+        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + t.exit_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + mfMoney(t.pnl) + " |");
       });
       lines.push("");
     }());
@@ -2615,6 +2621,8 @@ __VERSIONS_JSON__
         var dirCls = t.direction === "short" ? "intraday-dir-short" : "intraday-dir-long";
         var dp = t.date.split("-");
         var iDateLabel = iMnames[parseInt(dp[1], 10) - 1] + " " + parseInt(dp[2], 10) + " " + dp[0];
+        var stopD   = (t.stop_pips   !== null && t.stop_pips   !== undefined) ? fmt(t.stop_pips, 1)   : "\u2014";
+        var targetD = (t.target_pips !== null && t.target_pips !== undefined) ? fmt(t.target_pips, 1) : "\u2014";
         iRows +=
           "<tr>" +
           "<td>" + esc(iDateLabel) + "</td>" +
@@ -2622,6 +2630,8 @@ __VERSIONS_JSON__
           "<td>" + esc(t.exit_time) + " UTC</td>" +
           "<td>" + fmtDur(t.duration) + "</td>" +
           "<td class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
+          "<td>" + stopD + "</td>" +
+          "<td>" + targetD + "</td>" +
           "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
           "</tr>";
       });
@@ -2630,7 +2640,7 @@ __VERSIONS_JSON__
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
           "<table><thead><tr>" +
-          "<th>Date</th><th>Entry Time</th><th>Exit Time</th><th>Duration</th><th>Trade Direction</th><th>P&amp;L</th>" +
+          "<th>Date</th><th>Entry Time</th><th>Exit Time</th><th>Duration</th><th>Trade Direction</th><th>Stop (pips)</th><th>Target (pips)</th><th>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 
