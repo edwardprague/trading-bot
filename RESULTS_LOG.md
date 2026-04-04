@@ -215,3 +215,4 @@
 | v6 | 2026-04-04 19:32 | Trend Following | EURUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 4 | 100.0% | ∞ | +$4065.42 | 0.00% | 9.23 |
 | v6 | 2026-04-04 19:36 | Trend Following | EURUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 4 | 100.0% | ∞ | +$4065.42 | 0.00% | 9.23 |
 | v6 | 2026-04-04 19:37 | Trend Following | EURUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 4 | 100.0% | ∞ | +$4115.39 | 0.00% | 9.23 |
+| v6 | 2026-04-04 19:46 | Trend Following | EURUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 2 | 0.0% | 0.00 | -$3104.11 | -3.10% | -6.50 |
