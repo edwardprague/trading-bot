@@ -859,6 +859,7 @@ def compute_pivot_diagnostics(df):
         l_i = lows[i]
         t_str  = times_str.iloc[i]
         atr_i  = float(atr14.iloc[i])
+        adx_i  = float(df['adx'].iloc[i]) if 'adx' in df.columns else None
 
         is_ph = (h_i > highs[i-1] and h_i > highs[i-2] and
                  h_i > highs[i+1] and h_i > highs[i+2])
@@ -867,10 +868,10 @@ def compute_pivot_diagnostics(df):
 
         if is_ph:
             raw_pivots.append({'kind': 'H', 'price': float(h_i),
-                                'time': t_str, 'bar': i, 'atr': atr_i})
+                                'time': t_str, 'bar': i, 'atr': atr_i, 'adx': adx_i})
         if is_pl:
             raw_pivots.append({'kind': 'L', 'price': float(l_i),
-                                'time': t_str, 'bar': i, 'atr': atr_i})
+                                'time': t_str, 'bar': i, 'atr': atr_i, 'adx': adx_i})
 
     # Sort by bar index so they appear in chronological order
     raw_pivots.sort(key=lambda x: x['bar'])
@@ -909,6 +910,7 @@ def compute_pivot_diagnostics(df):
                 'bar':        pv['bar'],
                 'kind':       pv['kind'],
                 'atr':        round(pv['atr'] * 10000, 1),  # ATR in pips
+                'adx':        round(pv['adx'], 1) if pv['adx'] is not None else None,
             })
             prev_high = pv
 
@@ -937,6 +939,7 @@ def compute_pivot_diagnostics(df):
                 'bar':        pv['bar'],
                 'kind':       pv['kind'],
                 'atr':        round(pv['atr'] * 10000, 1),  # ATR in pips
+                'adx':        round(pv['adx'], 1) if pv['adx'] is not None else None,
             })
             prev_low = pv
 
@@ -1843,15 +1846,16 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type | Price | Time | ATR (pips) | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
-        lines.push("|---|------|-------|------|------------|----------------------|-----------------------|------------|");
+        lines.push("| # | Type | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
+        lines.push("|---|------|-------|------|------------|-----|----------------------|-----------------------|------------|");
         pvList.forEach(function (pv, idx) {
           var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? mf(pv.vert_dist, 1) : "\u2014";
           var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "\u2014";
           var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? mf(pv.pullback_pct, 1) + "%" : "\u2014";
           var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? mf(pv.atr, 1) : "\u2014";
+          var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? mf(pv.adx, 1) : "\u2014";
           lines.push("| " + (idx + 1) + " | " + (pv.label || "\u2014") + " | " +
-            mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
+            mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
         });
       }
       lines.push("");
@@ -2784,6 +2788,7 @@ __VERSIONS_JSON__
         var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "\u2014";
         var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "\u2014";
         var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? fmt(pv.atr, 1) : "\u2014";
+        var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? fmt(pv.adx, 1) : "\u2014";
         pvRows +=
           "<tr" + bgClass + ">" +
           "<td>" + (idx + 1) + "</td>" +
@@ -2791,6 +2796,7 @@ __VERSIONS_JSON__
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
           "<td class='nowrap'>" + esc(pv.time || "\u2014") + "</td>" +
           "<td>" + atrD + "</td>" +
+          "<td>" + adxD + "</td>" +
           "<td>" + vertD + "</td>" +
           "<td>" + horizD + "</td>" +
           "<td>" + pullbackD + "</td>" +
@@ -2811,6 +2817,7 @@ __VERSIONS_JSON__
           "<th>Price</th>" +
           "<th>Time</th>" +
           "<th>ATR (pips)</th>" +
+          "<th>ADX</th>" +
           "<th>Vert Distance (pips)</th>" +
           "<th>Horiz Distance (bars)</th>" +
           "<th>Pullback %</th>" +
