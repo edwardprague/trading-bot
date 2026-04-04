@@ -350,16 +350,16 @@ def _sensitivity_run(df, rrr, swing_lookback):
                          and TRADE_DIRECTION != "long_only")
 
             if long_sig:
-                dist = FRACTAL_STOP_PIPS
+                sl_p = last_fractal_low_s - FRACTAL_STOP_PIPS
+                dist = c - sl_p
                 if MIN_STOP <= dist <= MAX_STOP:
-                    direction = "long"; entry_p = c
-                    sl = last_fractal_low_s - FRACTAL_STOP_PIPS
+                    direction = "long"; entry_p = c; sl = sl_p
                     tp = c + dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
             elif short_sig:
-                dist = FRACTAL_STOP_PIPS
+                sl_p = last_fractal_high_s + FRACTAL_STOP_PIPS
+                dist = sl_p - c
                 if MIN_STOP <= dist <= MAX_STOP:
-                    direction = "short"; entry_p = c
-                    sl = last_fractal_high_s + FRACTAL_STOP_PIPS
+                    direction = "short"; entry_p = c; sl = sl_p
                     tp = c - dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
 
     if not trades_s:
@@ -579,17 +579,19 @@ def run_backtest(df):
 
             # ── Track direction-blocked signals ───────────────────────────────
             if TRADE_DIRECTION == "short_only" and long_sig_raw:
-                dist_b = FRACTAL_STOP_PIPS
+                _sl_b = long_fractal_price - FRACTAL_STOP_PIPS
+                dist_b = c - _sl_b
                 if MIN_STOP <= dist_b <= MAX_STOP:
                     blocked_signals.append(_scan_outcome(
-                        df, i, "long", c, long_fractal_price - FRACTAL_STOP_PIPS,
+                        df, i, "long", c, _sl_b,
                         c + dist_b * RRR,
                         (cash * RISK_PCT) / dist_b, ts, "direction"))
             if TRADE_DIRECTION == "long_only" and short_sig_raw:
-                dist_b = FRACTAL_STOP_PIPS
+                _sl_b = short_fractal_price + FRACTAL_STOP_PIPS
+                dist_b = _sl_b - c
                 if MIN_STOP <= dist_b <= MAX_STOP:
                     blocked_signals.append(_scan_outcome(
-                        df, i, "short", c, short_fractal_price + FRACTAL_STOP_PIPS,
+                        df, i, "short", c, _sl_b,
                         c - dist_b * RRR,
                         (cash * RISK_PCT) / dist_b, ts, "direction"))
 
@@ -608,8 +610,8 @@ def run_backtest(df):
                 continue
 
             if long_sig:
-                dist          = FRACTAL_STOP_PIPS                     # fixed 15 pip stop
                 sl_price      = long_fractal_price - FRACTAL_STOP_PIPS
+                dist          = c - sl_price                          # actual distance: entry close → stop level
                 if MIN_STOP <= dist <= MAX_STOP:
                     direction     = "long"
                     entry_p       = c                                 # enter at close of confirming candle
@@ -628,8 +630,8 @@ def run_backtest(df):
                         _debug_entries += 1
 
             elif short_sig:
-                dist          = FRACTAL_STOP_PIPS                     # fixed 15 pip stop
                 sl_price      = short_fractal_price + FRACTAL_STOP_PIPS
+                dist          = sl_price - c                          # actual distance: stop level → entry close
                 if MIN_STOP <= dist <= MAX_STOP:
                     direction     = "short"
                     entry_p       = c                                 # enter at close of confirming candle
