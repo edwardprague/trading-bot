@@ -447,8 +447,24 @@ def run_backtest(df):
                 hit_tp = (direction == "long"  and c >= tp) or \
                          (direction == "short" and c <= tp)
 
-            if hit_sl or hit_tp:
-                exit_p  = sl if hit_sl else tp
+            # ── Determine exit type ───────────────────────────────────────────
+            force_close = False
+            if not (hit_sl or hit_tp):
+                # Check daily loss limit with unrealised P&L
+                _unrealised = (c - entry_p) * size if direction == "long" \
+                              else (entry_p - c) * size
+                _bar_utc = pd.to_datetime(ts)
+                _bar_utc = _bar_utc.tz_convert('UTC') if _bar_utc.tzinfo else _bar_utc.tz_localize('UTC')
+                _bar_day = _bar_utc.date()
+                _day_pnl = _daily_loss_pnl if _bar_day == _daily_loss_day else 0.0
+                if (_day_pnl + _unrealised) <= -MAX_DAILY_LOSS:
+                    force_close = True
+
+            if hit_sl or hit_tp or force_close:
+                if force_close:
+                    exit_p = c          # force-close at current bar's close
+                else:
+                    exit_p = sl if hit_sl else tp
                 pnl     = (exit_p - entry_p) * size if direction == "long" \
                           else (entry_p - exit_p) * size
                 mae     = abs(entry_p - worst_adverse)
@@ -461,6 +477,7 @@ def run_backtest(df):
                     _daily_loss_day = _exit_day
                     _daily_loss_pnl = 0.0
                 _daily_loss_pnl += pnl
+                result_label = "DD" if force_close else ("TP" if hit_tp else "SL")
                 trades.append({
                     "entry_idx": entry_idx,
                     "exit_idx":  i,
@@ -472,7 +489,7 @@ def run_backtest(df):
                     "size":      size,
                     "pnl":       pnl,
                     "win":       pnl > 0,
-                    "result":       "TP" if hit_tp else "SL",
+                    "result":       result_label,
                     "mae":          mae,
                     "adx_at_entry": entry_adx,
                     "timestamp":    ts,
