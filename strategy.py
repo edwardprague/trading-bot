@@ -47,23 +47,23 @@ INTERVAL        = os.environ.get("INTERVAL", "5m")  # bar interval — used by M
 DAYS_BACK       = 365             # Full 365-day run
 STARTING_CASH   = 100_000.0
 
-EMA_SLOW        = int(os.environ.get("EMA_SLOW", 200))
-EMA_FAST        = int(os.environ.get("EMA_FAST", 50))
-EMA_ENTRY       = int(os.environ.get("EMA_ENTRY", 20))
-SWING_LOOKBACK  = 20
+EMA_SHORT       = int(os.environ.get("EMA_SHORT", 8))
+EMA_MID         = int(os.environ.get("EMA_MID", 20))
+EMA_LONG        = int(os.environ.get("EMA_LONG", 40))
 RRR_RISK        = int(os.environ.get("RRR_RISK", 1))
 RRR_REWARD      = int(os.environ.get("RRR_REWARD", 2))
 RRR             = float(RRR_REWARD) / float(RRR_RISK)
 RISK_PCT        = 0.01
 MIN_STOP        = 0.0005     # 5 pips minimum stop
 MAX_STOP        = 0.0200     # 200 pips maximum stop
+FRACTAL_STOP_PIPS = 0.0015  # 15 pips stop buffer beyond fractal point
 
-TRADE_DIRECTION   = os.environ.get("TRADE_DIRECTION", "short_only")   # "both" | "long_only" | "short_only"
+TRADE_DIRECTION   = os.environ.get("TRADE_DIRECTION", "both")   # "both" | "long_only" | "short_only"
 
-MAX_DAILY_LOSS  = 2500.0            # stop trading if day's loss reaches $2,500 (2.5% of capital)
+MAX_DAILY_LOSS  = 2000.0            # stop trading if day's loss reaches $2,000 (2% of capital)
 
-VERSION = "v5"
-NOTES = "Removed regime filter — clean baseline for date range UI rebuild"
+VERSION = "v6"
+NOTES = "Fractal-based entries with EMA 8/20/40 alignment"
 STRATEGY        = "Trend Following"
 
 ENTRY_CONDITIONS = [
@@ -76,20 +76,20 @@ ENTRY_CONDITIONS = [
         "rule":            INTERVAL,
     },
     {
-        "condition":       "EMA Slow",
-        "rule":            str(EMA_SLOW),
+        "condition":       "EMA Short",
+        "rule":            str(EMA_SHORT),
     },
     {
-        "condition":       "EMA Fast",
-        "rule":            str(EMA_FAST),
+        "condition":       "EMA Mid",
+        "rule":            str(EMA_MID),
     },
     {
-        "condition":       "EMA Entry",
-        "rule":            str(EMA_ENTRY),
+        "condition":       "EMA Long",
+        "rule":            str(EMA_LONG),
     },
     {
         "condition":       "Direction",
-        "rule":            "Short only",
+        "rule":            TRADE_DIRECTION.replace("_", " ").title(),
     },
     {
         "condition":       "RRR",
@@ -190,11 +190,9 @@ def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
 
 def add_indicators(df):
     df = df.copy()
-    df["ema_slow"]  = df.Close.ewm(span=EMA_SLOW,  adjust=False).mean()
-    df["ema_fast"]  = df.Close.ewm(span=EMA_FAST,  adjust=False).mean()
-    df["ema_entry"] = df.Close.ewm(span=EMA_ENTRY, adjust=False).mean()
-    df["s_low"]     = df.Low.shift(1).rolling(SWING_LOOKBACK).min()
-    df["s_high"]    = df.High.shift(1).rolling(SWING_LOOKBACK).max()
+    df["ema_short"] = df.Close.ewm(span=EMA_SHORT, adjust=False).mean()
+    df["ema_mid"]   = df.Close.ewm(span=EMA_MID,   adjust=False).mean()
+    df["ema_long"]  = df.Close.ewm(span=EMA_LONG,  adjust=False).mean()
     # ── ADX (14-period, Wilder smoothing) ────────────────────────────────────
     _adx_n   = 14
     _alpha   = 1.0 / _adx_n
@@ -215,7 +213,8 @@ def add_indicators(df):
     _mdi     = 100.0 * _mdm14 / _atr14
     _denom   = (_pdi + _mdi).replace(0, np.nan)
     _dx      = 100.0 * (_pdi - _mdi).abs() / _denom
-    df["adx"] = _dx.ewm(alpha=_alpha, adjust=False).mean()
+    df["adx"]   = _dx.ewm(alpha=_alpha, adjust=False).mean()
+    df["atr14"] = _atr14
     df = df.dropna().reset_index()
     # Normalise the datetime column to 'Datetime' regardless of yfinance version
     for _col in ("Datetime", "Date", "index"):
@@ -250,13 +249,14 @@ def _scan_outcome(df, entry_idx, direction, entry_p, sl, tp, size, ts, reason):
 # ── Sensitivity helper ────────────────────────────────────────────────────────
 
 def _sensitivity_run(df, rrr, swing_lookback):
-    """Stripped-down backtest with a specific RRR and swing lookback.
-    Recomputes swing stops; all other params use globals.
+    """Stripped-down backtest with a specific RRR.
+    Uses fractal-based entries; swing_lookback is unused but kept for API compat.
     Returns condensed metrics dict, or None if no trades."""
     df2 = df.copy()
-    df2["s_low"]  = df2["Low"].shift(1).rolling(swing_lookback).min()
-    df2["s_high"] = df2["High"].shift(1).rolling(swing_lookback).max()
-    df2 = df2.dropna(subset=["s_low", "s_high"]).reset_index(drop=True)
+
+    highs_s = df2['High'].values
+    lows_s  = df2['Low'].values
+    atr_s   = df2['atr14'].values
 
     cash      = STARTING_CASH
     equity_s  = [cash]
@@ -265,16 +265,15 @@ def _sensitivity_run(df, rrr, swing_lookback):
     entry_p = sl = tp = size = 0.0
     direction = None
 
+    prev_high_price_s = None
+    prev_low_price_s  = None
+    last_high_label_s = None
+    last_low_label_s  = None
+    last_fractal_low_s  = None
+    last_fractal_high_s = None
+
     for i in range(1, len(df2)):
         c    = float(df2["Close"].iloc[i])
-        cp   = float(df2["Close"].iloc[i-1])
-        en   = float(df2["ema_entry"].iloc[i])
-        enp  = float(df2["ema_entry"].iloc[i-1])
-        fast = float(df2["ema_fast"].iloc[i])
-        slow = float(df2["ema_slow"].iloc[i])
-        s_lo = float(df2["s_low"].iloc[i])
-        s_hi = float(df2["s_high"].iloc[i])
-        ts   = df2["Datetime"].iloc[i]
 
         if in_trade:
             bar_hi = float(df2["High"].iloc[i])
@@ -306,22 +305,57 @@ def _sensitivity_run(df, rrr, swing_lookback):
 
         equity_s.append(cash)
 
-        if not in_trade:
-            trend_up   = fast > slow
-            trend_down = fast < slow
-            long_sig   = trend_up   and cp < enp and c > en and (TRADE_DIRECTION != "short_only")
-            short_sig  = trend_down and cp > enp and c < en and (TRADE_DIRECTION != "long_only")
+        # Rolling fractal detection
+        if i >= 4:
+            fi = i - 2
+            fh = highs_s[fi]; fl = lows_s[fi]
+            thr = 0.5 * float(atr_s[fi])
+            is_ph = (fh > highs_s[fi-1] and fh > highs_s[fi-2] and
+                     fh > highs_s[fi+1] and fh > highs_s[fi+2])
+            is_pl = (fl < lows_s[fi-1]  and fl < lows_s[fi-2]  and
+                     fl < lows_s[fi+1]  and fl < lows_s[fi+2])
+            if is_ph:
+                if prev_high_price_s is None:
+                    last_high_label_s = 'CH'
+                else:
+                    d = fh - prev_high_price_s
+                    last_high_label_s = 'CH' if abs(d) < thr else ('LH' if d < 0 else 'HH')
+                prev_high_price_s = float(fh)
+                last_fractal_high_s = float(fh)
+            if is_pl:
+                if prev_low_price_s is None:
+                    last_low_label_s = 'CL'
+                else:
+                    d = fl - prev_low_price_s
+                    last_low_label_s = 'CL' if abs(d) < thr else ('HL' if d > 0 else 'LL')
+                prev_low_price_s = float(fl)
+                last_fractal_low_s = float(fl)
 
-            if long_sig and not np.isnan(s_lo):
-                dist = c - s_lo
+        if not in_trade and i >= 4:
+            es = float(df2["ema_short"].iloc[i])
+            em = float(df2["ema_mid"].iloc[i])
+            el = float(df2["ema_long"].iloc[i])
+
+            long_sig = (last_low_label_s == 'HL' and last_high_label_s == 'HH'
+                        and es > em > el and last_fractal_low_s is not None
+                        and min(es, em) <= last_fractal_low_s <= max(es, em)
+                        and TRADE_DIRECTION != "short_only")
+            short_sig = (last_high_label_s == 'LH' and last_low_label_s == 'LL'
+                         and es < em < el and last_fractal_high_s is not None
+                         and min(es, em) <= last_fractal_high_s <= max(es, em)
+                         and TRADE_DIRECTION != "long_only")
+
+            if long_sig:
+                dist = FRACTAL_STOP_PIPS
                 if MIN_STOP <= dist <= MAX_STOP:
-                    direction = "long";  entry_p = c;  sl = s_lo
+                    direction = "long"; entry_p = c
+                    sl = last_fractal_low_s - FRACTAL_STOP_PIPS
                     tp = c + dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
-
-            elif short_sig and not np.isnan(s_hi):
-                dist = s_hi - c
+            elif short_sig:
+                dist = FRACTAL_STOP_PIPS
                 if MIN_STOP <= dist <= MAX_STOP:
-                    direction = "short"; entry_p = c;  sl = s_hi
+                    direction = "short"; entry_p = c
+                    sl = last_fractal_high_s + FRACTAL_STOP_PIPS
                     tp = c - dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
 
     if not trades_s:
@@ -360,15 +394,20 @@ def run_backtest(df):
     _daily_loss_day  = None  # current calendar day (UTC date) for daily loss tracking
     _daily_loss_pnl  = 0.0   # cumulative closed-trade P&L for _daily_loss_day
 
+    # ── Rolling fractal state ─────────────────────────────────────────────────
+    highs = df['High'].values
+    lows  = df['Low'].values
+    atr_vals = df['atr14'].values
+
+    prev_high_price = None   # price of the most recent pivot high
+    prev_low_price  = None   # price of the most recent pivot low
+    last_high_label = None   # classification of last pivot high (HH, LH, CH)
+    last_low_label  = None   # classification of last pivot low  (HL, LL, CL)
+    last_fractal_low_price  = None   # price of the most recent confirmed pivot low
+    last_fractal_high_price = None   # price of the most recent confirmed pivot high
+
     for i in range(1, len(df)):
         c     = float(df.Close.iloc[i])
-        cp    = float(df.Close.iloc[i-1])
-        en    = float(df.ema_entry.iloc[i])
-        enp   = float(df.ema_entry.iloc[i-1])
-        fast  = float(df.ema_fast.iloc[i])
-        slow  = float(df.ema_slow.iloc[i])
-        s_lo  = float(df.s_low.iloc[i])
-        s_hi  = float(df.s_high.iloc[i])
         ts    = df['Datetime'].iloc[i]
 
         # ── Check exits ───────────────────────────────────────────────────────
@@ -439,25 +478,98 @@ def run_backtest(df):
 
         equity.append(cash)
 
+        # ── Rolling fractal detection (confirmed at bar i, formed at bar i-2) ─
+        # A fractal needs 2 bars on each side, so the earliest confirmable
+        # pivot is at index 2.  At bar i we confirm the pivot at bar i-2.
+        if i >= 4:
+            fi = i - 2   # fractal bar index
+            fh = highs[fi]
+            fl = lows[fi]
+            atr_fi = float(atr_vals[fi])
+            threshold = 0.5 * atr_fi
+
+            # Pivot high?
+            is_ph = (fh > highs[fi-1] and fh > highs[fi-2] and
+                     fh > highs[fi+1] and fh > highs[fi+2])
+            # Pivot low?
+            is_pl = (fl < lows[fi-1]  and fl < lows[fi-2]  and
+                     fl < lows[fi+1]  and fl < lows[fi+2])
+
+            if is_ph:
+                if prev_high_price is None:
+                    last_high_label = 'CH'
+                else:
+                    diff = fh - prev_high_price
+                    if abs(diff) < threshold:
+                        last_high_label = 'CH'
+                    elif diff < 0:
+                        last_high_label = 'LH'
+                    else:
+                        last_high_label = 'HH'
+                prev_high_price = float(fh)
+                last_fractal_high_price = float(fh)
+
+            if is_pl:
+                if prev_low_price is None:
+                    last_low_label = 'CL'
+                else:
+                    diff = fl - prev_low_price
+                    if abs(diff) < threshold:
+                        last_low_label = 'CL'
+                    elif diff > 0:
+                        last_low_label = 'HL'
+                    else:
+                        last_low_label = 'LL'
+                prev_low_price = float(fl)
+                last_fractal_low_price = float(fl)
+
         # ── Check entries ─────────────────────────────────────────────────────
         if not in_trade:
-            trend_up      = fast > slow
-            trend_down    = fast < slow
-            long_sig_raw  = trend_up   and cp < enp and c > en
-            short_sig_raw = trend_down and cp > enp and c < en
+            ema_s = float(df.ema_short.iloc[i])
+            ema_m = float(df.ema_mid.iloc[i])
+            ema_l = float(df.ema_long.iloc[i])
 
-            # ── Track direction-blocked signals ────────────────────────────────
-            if TRADE_DIRECTION == "short_only" and long_sig_raw and not np.isnan(s_lo):
-                dist_b = c - s_lo
+            ema_bullish = ema_s > ema_m > ema_l
+            ema_bearish = ema_s < ema_m < ema_l
+
+            # ── Long signal: HL fractal just confirmed, after an HH,
+            #    fractal low between EMA short and EMA mid ─────────────────────
+            long_sig_raw = False
+            long_fractal_price = None
+            if (i >= 4 and last_low_label == 'HL' and last_high_label == 'HH'
+                    and ema_bullish and last_fractal_low_price is not None):
+                fp = last_fractal_low_price
+                # Fractal low must sit between EMA 8 and EMA 20
+                if min(ema_s, ema_m) <= fp <= max(ema_s, ema_m):
+                    long_sig_raw = True
+                    long_fractal_price = fp
+
+            # ── Short signal: LH fractal just confirmed, after an LL,
+            #    fractal high between EMA short and EMA mid ────────────────────
+            short_sig_raw = False
+            short_fractal_price = None
+            if (i >= 4 and last_high_label == 'LH' and last_low_label == 'LL'
+                    and ema_bearish and last_fractal_high_price is not None):
+                fp = last_fractal_high_price
+                # Fractal high must sit between EMA 8 and EMA 20
+                if min(ema_s, ema_m) <= fp <= max(ema_s, ema_m):
+                    short_sig_raw = True
+                    short_fractal_price = fp
+
+            # ── Track direction-blocked signals ───────────────────────────────
+            if TRADE_DIRECTION == "short_only" and long_sig_raw:
+                dist_b = FRACTAL_STOP_PIPS
                 if MIN_STOP <= dist_b <= MAX_STOP:
                     blocked_signals.append(_scan_outcome(
-                        df, i, "long", c, s_lo, c + dist_b * RRR,
+                        df, i, "long", c, long_fractal_price - FRACTAL_STOP_PIPS,
+                        c + dist_b * RRR,
                         (cash * RISK_PCT) / dist_b, ts, "direction"))
-            if TRADE_DIRECTION == "long_only" and short_sig_raw and not np.isnan(s_hi):
-                dist_b = s_hi - c
+            if TRADE_DIRECTION == "long_only" and short_sig_raw:
+                dist_b = FRACTAL_STOP_PIPS
                 if MIN_STOP <= dist_b <= MAX_STOP:
                     blocked_signals.append(_scan_outcome(
-                        df, i, "short", c, s_hi, c - dist_b * RRR,
+                        df, i, "short", c, short_fractal_price + FRACTAL_STOP_PIPS,
+                        c - dist_b * RRR,
                         (cash * RISK_PCT) / dist_b, ts, "direction"))
 
             # Apply direction filter
@@ -474,43 +586,44 @@ def run_backtest(df):
             if _daily_loss_pnl <= -MAX_DAILY_LOSS:
                 continue
 
-            if long_sig and not np.isnan(s_lo):
-                dist = c - s_lo
+            if long_sig:
+                dist          = FRACTAL_STOP_PIPS                     # fixed 15 pip stop
+                sl_price      = long_fractal_price - FRACTAL_STOP_PIPS
                 if MIN_STOP <= dist <= MAX_STOP:
                     direction     = "long"
-                    entry_p       = c
-                    sl            = s_lo
+                    entry_p       = c                                 # enter at close of confirming candle
+                    sl            = sl_price
                     tp            = c + dist * RRR
                     size          = (cash * RISK_PCT) / dist
                     in_trade      = True
                     entry_idx     = i
                     entry_ts      = ts
-                    worst_adverse = c   # reset MAE tracker to entry price
+                    worst_adverse = c
                     entry_adx     = float(df.adx.iloc[i])
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
-                        print(f"  [DBG entry {_debug_entries+1}] raw={ts}  tz={getattr(ts,'tzinfo',None)}  utc_hour={_ts_utc_dbg.hour}  direction=long")
+                        print(f"  [DBG entry {_debug_entries+1}] raw={ts}  utc_hour={_ts_utc_dbg.hour}  direction=long  fractal_low={long_fractal_price:.5f}")
                         _debug_entries += 1
 
-            elif short_sig and not np.isnan(s_hi):
-                dist = s_hi - c                          # stop distance: signal bar close → swing high
-                if MIN_STOP <= dist <= MAX_STOP and i + 1 < len(df):
-                    fill          = float(df.Open.iloc[i + 1])   # fill on next bar's open
+            elif short_sig:
+                dist          = FRACTAL_STOP_PIPS                     # fixed 15 pip stop
+                sl_price      = short_fractal_price + FRACTAL_STOP_PIPS
+                if MIN_STOP <= dist <= MAX_STOP:
                     direction     = "short"
-                    entry_p       = fill
-                    sl            = s_hi
-                    tp            = fill - dist * RRR
+                    entry_p       = c                                 # enter at close of confirming candle
+                    sl            = sl_price
+                    tp            = c - dist * RRR
                     size          = (cash * RISK_PCT) / dist
                     in_trade      = True
-                    entry_idx     = i + 1
-                    entry_ts      = df['Datetime'].iloc[i + 1]
-                    worst_adverse = fill   # reset MAE tracker to fill price
+                    entry_idx     = i
+                    entry_ts      = ts
+                    worst_adverse = c
                     entry_adx     = float(df.adx.iloc[i])
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
-                        print(f"  [DBG entry {_debug_entries+1}] raw={ts}  tz={getattr(ts,'tzinfo',None)}  utc_hour={_ts_utc_dbg.hour}  direction=short  fill={fill:.5f}")
+                        print(f"  [DBG entry {_debug_entries+1}] raw={ts}  utc_hour={_ts_utc_dbg.hour}  direction=short  fractal_high={short_fractal_price:.5f}")
                         _debug_entries += 1
 
     return pd.DataFrame(trades), equity, blocked_signals
@@ -540,7 +653,7 @@ def print_results(trades, equity):
     print(f"  BACKTEST RESULTS")
     print(f"{'═'*52}")
     print(f"  Instrument     : {TICKER} {INTERVAL}")
-    print(f"  Strategy       : EMA {EMA_ENTRY}/{EMA_FAST}/{EMA_SLOW} | RRR 1:{RRR}")
+    print(f"  Strategy       : EMA {EMA_SHORT}/{EMA_MID}/{EMA_LONG} | RRR 1:{RRR}")
     print(f"{'─'*52}")
     print(f"  Total Trades   : {len(trades)}")
     print(f"  Winning Trades : {len(wins)} ({len(wins)/len(trades)*100:.1f}%)")
@@ -618,9 +731,9 @@ def save_charts(df, trades, equity):
     ds_idx   = np.arange(0, len(dates), step)          # sampled indices
     ds_dates = dates.iloc[ds_idx]
     ds_close = df.Close.values[ds_idx]
-    ds_slow  = df.ema_slow.values[ds_idx]
-    ds_fast  = df.ema_fast.values[ds_idx]
-    ds_entry = df.ema_entry.values[ds_idx]
+    ds_slow  = df.ema_long.values[ds_idx]
+    ds_fast  = df.ema_mid.values[ds_idx]
+    ds_entry = df.ema_short.values[ds_idx]
 
     # Cubic interpolation for silky-smooth EMA curves
     try:
@@ -654,12 +767,12 @@ def save_charts(df, trades, equity):
     if is_one_day:
         # ── 1-day: full-resolution OHLC candlestick chart ────────────────────
         # Plot EMA lines first to initialise the datetime x-axis scale
-        ax1.plot(dates, df.ema_slow.values,  color="#ff6b6b", linewidth=1.4,
-                 label=f"EMA {EMA_SLOW}", zorder=4)
-        ax1.plot(dates, df.ema_fast.values,  color="#ffd93d", linewidth=1.2,
-                 label=f"EMA {EMA_FAST}", zorder=4)
-        ax1.plot(dates, df.ema_entry.values, color="#6bcb77", linewidth=1.0,
-                 label=f"EMA {EMA_ENTRY}", zorder=4)
+        ax1.plot(dates, df.ema_long.values,  color="#ff6b6b", linewidth=1.4,
+                 label=f"EMA {EMA_LONG}", zorder=4)
+        ax1.plot(dates, df.ema_mid.values,  color="#ffd93d", linewidth=1.2,
+                 label=f"EMA {EMA_MID}", zorder=4)
+        ax1.plot(dates, df.ema_short.values, color="#6bcb77", linewidth=1.0,
+                 label=f"EMA {EMA_SHORT}", zorder=4)
         # Draw OHLC candlesticks using date-number coordinates
         _dt_nums = mdates.date2num(dates)
         _bw      = ((_dt_nums[1] - _dt_nums[0]) * 0.8) if len(_dt_nums) > 1 else (5 / 1440 * 0.8)
@@ -717,9 +830,9 @@ def save_charts(df, trades, equity):
         )
     else:
         ax1.plot(ds_dates, ds_close, color="#e0e0e0", linewidth=0.5, label="Price", alpha=0.7)
-        ax1.plot(sm_dates_slow,  sm_slow,  color="#ff6b6b", linewidth=1.4, label=f"EMA {EMA_SLOW}")
-        ax1.plot(sm_dates_fast,  sm_fast,  color="#ffd93d", linewidth=1.2, label=f"EMA {EMA_FAST}")
-        ax1.plot(sm_dates_entry, sm_entry, color="#6bcb77", linewidth=1.0, label=f"EMA {EMA_ENTRY}")
+        ax1.plot(sm_dates_slow,  sm_slow,  color="#ff6b6b", linewidth=1.4, label=f"EMA {EMA_LONG}")
+        ax1.plot(sm_dates_fast,  sm_fast,  color="#ffd93d", linewidth=1.2, label=f"EMA {EMA_MID}")
+        ax1.plot(sm_dates_entry, sm_entry, color="#6bcb77", linewidth=1.0, label=f"EMA {EMA_SHORT}")
 
     # ── Range detection shading (subtle grey background when ranging) ──────
     if "regime_ranging" in df.columns:
@@ -1492,20 +1605,16 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
 
 
 def compute_sensitivity(df):
-    """Sweep RRR and swing lookback; return (rrr_rows, swing_rows) lists."""
+    """Sweep RRR; return (rrr_rows, swing_rows) lists.
+    swing_rows is always empty — swing lookback is no longer used."""
     rrr_rows = []
     for val in [1.5, 2.0, 2.5, 3.0]:
-        r = _sensitivity_run(df, rrr=val, swing_lookback=SWING_LOOKBACK)
+        r = _sensitivity_run(df, rrr=val, swing_lookback=0)
         if r:
             r["param"] = val
             rrr_rows.append(r)
 
-    swing_rows = []
-    for val in [10, 15, 20, 25, 30]:
-        r = _sensitivity_run(df, rrr=RRR, swing_lookback=val)
-        if r:
-            r["param"] = val
-            swing_rows.append(r)
+    swing_rows = []   # no longer applicable with fractal-based entries
 
     return rrr_rows, swing_rows
 
@@ -1721,10 +1830,9 @@ __VERSIONS_JSON__
     var _drDates = _dr.start && _dr.end ? fmtSbDate(_dr.start) + " \u2192 " + fmtSbDate(_dr.end) : "";
     lines.push("| Date Range | " + (_drDur ? _drDur : "") + (_drDur && _drDates ? " \u00b7 " : "") + _drDates + " |");
     lines.push("| Starting Cash | $" + (p.starting_cash || 0).toLocaleString() + " |");
-    lines.push("| EMA Slow | "      + (p.ema_slow      || "\u2014") + " |");
-    lines.push("| EMA Fast | "      + (p.ema_fast      || "\u2014") + " |");
-    lines.push("| EMA Entry | "     + (p.ema_entry     || "\u2014") + " |");
-    lines.push("| Swing Lookback | " + (p.swing_lookback || "\u2014") + " bars |");
+    lines.push("| EMA Short | "     + (p.ema_short     || "\u2014") + " |");
+    lines.push("| EMA Mid | "       + (p.ema_mid       || "\u2014") + " |");
+    lines.push("| EMA Long | "      + (p.ema_long      || "\u2014") + " |");
     lines.push("| RRR | 1:"         + (p.rrr || "\u2014") + " |");
     lines.push("| Risk / Trade | "  + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
     lines.push("| Direction | "     + (p.trade_direction || "both") + " |");
@@ -2916,12 +3024,12 @@ __VERSIONS_JSON__
         return "<option value='" + o.value + "'" + (o.value === savedInterval ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
 
-    var savedEmaSlow  = run.ema_slow  || p.ema_slow  || 200;
-    var savedEmaFast  = run.ema_fast  || p.ema_fast  || 50;
-    var savedEmaEntry = run.ema_entry || p.ema_entry || 20;
-    var emaSlowHtml  = "<input id='ec-ema-slow'  type='number' class='ec-input' value='" + savedEmaSlow  + "' min='1' step='1'>";
-    var emaFastHtml  = "<input id='ec-ema-fast'  type='number' class='ec-input' value='" + savedEmaFast  + "' min='1' step='1'>";
-    var emaEntryHtml = "<input id='ec-ema-entry' type='number' class='ec-input' value='" + savedEmaEntry + "' min='1' step='1'>";
+    var savedEmaShort = run.ema_short || p.ema_short || 8;
+    var savedEmaMid   = run.ema_mid   || p.ema_mid   || 20;
+    var savedEmaLong  = run.ema_long  || p.ema_long  || 40;
+    var emaShortHtml = "<input id='ec-ema-short' type='number' class='ec-input' value='" + savedEmaShort + "' min='1' step='1'>";
+    var emaMidHtml   = "<input id='ec-ema-mid'   type='number' class='ec-input' value='" + savedEmaMid   + "' min='1' step='1'>";
+    var emaLongHtml  = "<input id='ec-ema-long'  type='number' class='ec-input' value='" + savedEmaLong  + "' min='1' step='1'>";
 
     var savedRrrRisk   = run.rrr_risk   || p.rrr_risk   || 1;
     var savedRrrReward = run.rrr_reward || p.rrr_reward || 2;
@@ -2944,12 +3052,12 @@ __VERSIONS_JSON__
           ? instrSelectHtml
           : ec.condition === "Interval"
           ? intervalSelectHtml
-          : ec.condition === "EMA Slow"
-          ? emaSlowHtml
-          : ec.condition === "EMA Fast"
-          ? emaFastHtml
-          : ec.condition === "EMA Entry"
-          ? emaEntryHtml
+          : ec.condition === "EMA Short"
+          ? emaShortHtml
+          : ec.condition === "EMA Mid"
+          ? emaMidHtml
+          : ec.condition === "EMA Long"
+          ? emaLongHtml
           : ec.condition === "RRR"
           ? rrrSelectHtml
           : esc(ec.rule);
@@ -2973,9 +3081,9 @@ __VERSIONS_JSON__
             "<tbody>" +
             "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + instrSelectHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + intervalSelectHtml + "</td></tr>" +
-            "<tr><td class='ec-td-cond'>EMA Slow</td><td class='ec-td-rule'>" + emaSlowHtml + "</td></tr>" +
-            "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + emaFastHtml + "</td></tr>" +
-            "<tr><td class='ec-td-cond'>EMA Entry</td><td class='ec-td-rule'>" + emaEntryHtml + "</td></tr>" +
+            "<tr><td class='ec-td-cond'>EMA Short</td><td class='ec-td-rule'>" + emaShortHtml + "</td></tr>" +
+            "<tr><td class='ec-td-cond'>EMA Mid</td><td class='ec-td-rule'>" + emaMidHtml + "</td></tr>" +
+            "<tr><td class='ec-td-cond'>EMA Long</td><td class='ec-td-rule'>" + emaLongHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + dirSelectHtml + "</td></tr>" +
             "<tr><td class='ec-td-cond'>RRR</td><td class='ec-td-rule'>" + rrrSelectHtml + "</td></tr>" +
             "</tbody>" +
@@ -3054,9 +3162,9 @@ __VERSIONS_JSON__
           }())) +
           row("Instrument",     "<span class='val-highlight'>" + esc(savedInstr) + "</span>") +
           row("Interval",       "<span class='val-highlight'>" + esc(savedInterval) + "</span>") +
-          row("EMA Slow",       "<span class='val-highlight'>" + esc(savedEmaSlow) + "</span>") +
-          row("EMA Fast",       "<span class='val-highlight'>" + esc(savedEmaFast) + "</span>") +
-          row("EMA Entry",      "<span class='val-highlight'>" + esc(savedEmaEntry) + "</span>") +
+          row("EMA Short",      "<span class='val-highlight'>" + esc(savedEmaShort) + "</span>") +
+          row("EMA Mid",        "<span class='val-highlight'>" + esc(savedEmaMid) + "</span>") +
+          row("EMA Long",       "<span class='val-highlight'>" + esc(savedEmaLong) + "</span>") +
           row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
           row("RRR",            (run.rrr_risk || p.rrr_risk || 1) + "&thinsp;:&thinsp;" + (run.rrr_reward || p.rrr_reward || 2)) +
           row("Run on",         esc(fmtRunDate(run.date || ""))) +
@@ -3181,9 +3289,9 @@ __VERSIONS_JSON__
     /* Wire EMA inputs — persist to localStorage on change */
     (function () {
       var ids = [
-        { id: "ec-ema-slow",  key: "ec_ema_slow" },
-        { id: "ec-ema-fast",  key: "ec_ema_fast" },
-        { id: "ec-ema-entry", key: "ec_ema_entry" }
+        { id: "ec-ema-short", key: "ec_ema_short" },
+        { id: "ec-ema-mid",   key: "ec_ema_mid" },
+        { id: "ec-ema-long",  key: "ec_ema_long" }
       ];
       ids.forEach(function (item) {
         var el = document.getElementById(item.id);
@@ -3426,12 +3534,12 @@ __VERSIONS_JSON__
         return "<option value='" + o.value + "'" + (o.value === _savedInterval ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
 
-    var _savedEmaSlow  = localStorage.getItem("ec_ema_slow")  || "200";
-    var _savedEmaFast  = localStorage.getItem("ec_ema_fast")  || "50";
-    var _savedEmaEntry = localStorage.getItem("ec_ema_entry") || "20";
-    var _emaSlowHtml  = "<input id='ec-ema-slow'  type='number' class='ec-input' value='" + _savedEmaSlow  + "' min='1' step='1'>";
-    var _emaFastHtml  = "<input id='ec-ema-fast'  type='number' class='ec-input' value='" + _savedEmaFast  + "' min='1' step='1'>";
-    var _emaEntryHtml = "<input id='ec-ema-entry' type='number' class='ec-input' value='" + _savedEmaEntry + "' min='1' step='1'>";
+    var _savedEmaShort = localStorage.getItem("ec_ema_short") || "8";
+    var _savedEmaMid   = localStorage.getItem("ec_ema_mid")   || "20";
+    var _savedEmaLong  = localStorage.getItem("ec_ema_long")  || "40";
+    var _emaShortHtml = "<input id='ec-ema-short' type='number' class='ec-input' value='" + _savedEmaShort + "' min='1' step='1'>";
+    var _emaMidHtml   = "<input id='ec-ema-mid'   type='number' class='ec-input' value='" + _savedEmaMid   + "' min='1' step='1'>";
+    var _emaLongHtml  = "<input id='ec-ema-long'  type='number' class='ec-input' value='" + _savedEmaLong  + "' min='1' step='1'>";
 
     var _savedRrrRisk   = localStorage.getItem("ec_rrr_risk")   || "1";
     var _savedRrrReward = localStorage.getItem("ec_rrr_reward") || "2";
@@ -3453,9 +3561,9 @@ __VERSIONS_JSON__
           "<tbody>" +
           "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + _instrSelectHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + _intervalSelectHtml + "</td></tr>" +
-          "<tr><td class='ec-td-cond'>EMA Slow</td><td class='ec-td-rule'>" + _emaSlowHtml + "</td></tr>" +
-          "<tr><td class='ec-td-cond'>EMA Fast</td><td class='ec-td-rule'>" + _emaFastHtml + "</td></tr>" +
-          "<tr><td class='ec-td-cond'>EMA Entry</td><td class='ec-td-rule'>" + _emaEntryHtml + "</td></tr>" +
+          "<tr><td class='ec-td-cond'>EMA Short</td><td class='ec-td-rule'>" + _emaShortHtml + "</td></tr>" +
+          "<tr><td class='ec-td-cond'>EMA Mid</td><td class='ec-td-rule'>" + _emaMidHtml + "</td></tr>" +
+          "<tr><td class='ec-td-cond'>EMA Long</td><td class='ec-td-rule'>" + _emaLongHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + _dirSelectHtml + "</td></tr>" +
           "<tr><td class='ec-td-cond'>RRR</td><td class='ec-td-rule'>" + _rrrSelectHtml + "</td></tr>" +
           "</tbody>" +
@@ -3860,9 +3968,9 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "instrument":       _INSTRUMENT,
         "interval":         INTERVAL,
         "trade_direction":  TRADE_DIRECTION,
-        "ema_slow":         EMA_SLOW,
-        "ema_fast":         EMA_FAST,
-        "ema_entry":        EMA_ENTRY,
+        "ema_short":        EMA_SHORT,
+        "ema_mid":          EMA_MID,
+        "ema_long":         EMA_LONG,
         "rrr_risk":         RRR_RISK,
         "rrr_reward":       RRR_REWARD,
         "notes":         notes.strip() if notes else "—",
@@ -3877,10 +3985,9 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "interval":       INTERVAL,
         "days_back":      DAYS_BACK,
         "starting_cash":  STARTING_CASH,
-        "ema_slow":       EMA_SLOW,
-        "ema_fast":       EMA_FAST,
-        "ema_entry":      EMA_ENTRY,
-        "swing_lookback": SWING_LOOKBACK,
+        "ema_short":      EMA_SHORT,
+        "ema_mid":        EMA_MID,
+        "ema_long":       EMA_LONG,
         "rrr":            RRR,
         "rrr_risk":       RRR_RISK,
         "rrr_reward":     RRR_REWARD,

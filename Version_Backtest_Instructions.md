@@ -1,5 +1,10 @@
 # Version Backtest Instructions
 
+## Capital Management
+
+- Starting capital: $100,000
+- Max daily drawdown (2%): $2,000
+
 ## Backtesting Parameters
 
 The backtesting parameters are all modifiable for each backtest.
@@ -29,10 +34,9 @@ The backtesting parameters are all modifiable for each backtest.
 
 **2. Check For Entry Conditions (if not in a trade)**
 
-- **Daily loss limit check**: if cumulative closed P&L for the current UTC day has reached -$2,500, skip all bars entirely until the next trading day.
+- **Daily loss limit check**: if cumulative closed P&L for the current UTC day has reached -$2,000, skip all bars entirely until the next trading day.
 
 - Only one trade at a time (no overlapping positions).
-- Position size = (cash × 1%) / stop distance
 
 ---
 

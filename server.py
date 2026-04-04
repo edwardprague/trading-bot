@@ -267,25 +267,25 @@ function getSelectedInterval() {
   return stored || "5m";
 }
 
-function getSelectedEmaSlow() {
-  var el = document.getElementById("ec-ema-slow");
+function getSelectedEmaShort() {
+  var el = document.getElementById("ec-ema-short");
   if (el) return el.value;
-  var stored = localStorage.getItem("ec_ema_slow");
-  return stored || "200";
+  var stored = localStorage.getItem("ec_ema_short");
+  return stored || "8";
 }
 
-function getSelectedEmaFast() {
-  var el = document.getElementById("ec-ema-fast");
+function getSelectedEmaMid() {
+  var el = document.getElementById("ec-ema-mid");
   if (el) return el.value;
-  var stored = localStorage.getItem("ec_ema_fast");
-  return stored || "50";
-}
-
-function getSelectedEmaEntry() {
-  var el = document.getElementById("ec-ema-entry");
-  if (el) return el.value;
-  var stored = localStorage.getItem("ec_ema_entry");
+  var stored = localStorage.getItem("ec_ema_mid");
   return stored || "20";
+}
+
+function getSelectedEmaLong() {
+  var el = document.getElementById("ec-ema-long");
+  if (el) return el.value;
+  var stored = localStorage.getItem("ec_ema_long");
+  return stored || "40";
 }
 
 function getSelectedRrrRisk() {
@@ -310,7 +310,7 @@ function runNewVersion() {
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, ema_slow: getSelectedEmaSlow(), ema_fast: getSelectedEmaFast(), ema_entry: getSelectedEmaEntry(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
+    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -334,7 +334,7 @@ function runDateRange() {
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_slow: getSelectedEmaSlow(), ema_fast: getSelectedEmaFast(), ema_entry: getSelectedEmaEntry(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -638,9 +638,9 @@ def run_backtest():
     instrument = (data.get("instrument") or "").strip()
     direction  = (data.get("direction") or "").strip()
     interval   = (data.get("interval") or "").strip()
-    ema_slow    = (data.get("ema_slow") or "").strip()
-    ema_fast    = (data.get("ema_fast") or "").strip()
-    ema_entry   = (data.get("ema_entry") or "").strip()
+    ema_short   = (data.get("ema_short") or "").strip()
+    ema_mid     = (data.get("ema_mid") or "").strip()
+    ema_long    = (data.get("ema_long") or "").strip()
     rrr_risk    = (data.get("rrr_risk") or "").strip()
     rrr_reward  = (data.get("rrr_reward") or "").strip()
     env_overrides = {"RUN_MODE": "new_version"}
@@ -650,12 +650,12 @@ def run_backtest():
         env_overrides["TRADE_DIRECTION"] = direction
     if interval:
         env_overrides["INTERVAL"] = interval
-    if ema_slow:
-        env_overrides["EMA_SLOW"] = ema_slow
-    if ema_fast:
-        env_overrides["EMA_FAST"] = ema_fast
-    if ema_entry:
-        env_overrides["EMA_ENTRY"] = ema_entry
+    if ema_short:
+        env_overrides["EMA_SHORT"] = ema_short
+    if ema_mid:
+        env_overrides["EMA_MID"] = ema_mid
+    if ema_long:
+        env_overrides["EMA_LONG"] = ema_long
     if rrr_risk:
         env_overrides["RRR_RISK"] = rrr_risk
     if rrr_reward:
@@ -692,9 +692,9 @@ def run_date_range():
     target_version = (data.get("target_version") or "").strip()
     direction      = (data.get("direction") or "").strip()
     interval       = (data.get("interval") or "").strip()
-    ema_slow       = (data.get("ema_slow") or "").strip()
-    ema_fast       = (data.get("ema_fast") or "").strip()
-    ema_entry      = (data.get("ema_entry") or "").strip()
+    ema_short      = (data.get("ema_short") or "").strip()
+    ema_mid        = (data.get("ema_mid") or "").strip()
+    ema_long       = (data.get("ema_long") or "").strip()
     rrr_risk       = (data.get("rrr_risk") or "").strip()
     rrr_reward     = (data.get("rrr_reward") or "").strip()
     env_overrides = {
@@ -710,12 +710,12 @@ def run_date_range():
         env_overrides["TRADE_DIRECTION"] = direction
     if interval:
         env_overrides["INTERVAL"] = interval
-    if ema_slow:
-        env_overrides["EMA_SLOW"] = ema_slow
-    if ema_fast:
-        env_overrides["EMA_FAST"] = ema_fast
-    if ema_entry:
-        env_overrides["EMA_ENTRY"] = ema_entry
+    if ema_short:
+        env_overrides["EMA_SHORT"] = ema_short
+    if ema_mid:
+        env_overrides["EMA_MID"] = ema_mid
+    if ema_long:
+        env_overrides["EMA_LONG"] = ema_long
     if rrr_risk:
         env_overrides["RRR_RISK"] = rrr_risk
     if rrr_reward:
