@@ -778,7 +778,6 @@ tbody tr:hover td {
 
 /* ── Clickable date links in performance tables ────────── */
 .date-link {
-    text-decoration: underline;
     cursor: pointer;
     color: inherit;
 }
