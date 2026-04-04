@@ -76,17 +76,21 @@ This ensures the strategy only enters on pullbacks within a confirmed directiona
 ## Filters
 
 ### Direction Filter
+
 User-controlled setting: `both`, `long_only`, or `short_only`. Signals that don't match the selected direction are blocked and tracked for the Filter Impact Summary.
 
 ### Daily Loss Limit
+
 $2,000 per UTC calendar day. If closed-trade losses for the current day reach this threshold, all further entries are skipped until the next UTC midnight.
 
 ### Min / Max Stop Distance
+
 - Minimum: 5 pips (0.0005)
 - Maximum: 200 pips (0.0200)
 - Any signal where the stop distance falls outside this range is discarded.
 
 ### One Trade at a Time
+
 Only one position can be open at any time. No new entries until the current trade closes via SL or TP.
 
 ---
@@ -115,3 +119,4 @@ Intrabar SL/TP check on every bar while in a trade:
 - **EMA Short / Mid / Long:** Default 8 / 20 / 40
 - **Direction:** Both, Long only, or Short only
 - **RRR:** Risk:Reward ratio (default 1:2)
+- **Stop Level:** Risk:Reward ratio (default 1:2)
