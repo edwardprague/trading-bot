@@ -202,7 +202,6 @@
 | v5 | 2026-04-04 12:31 | Trend Following | EURUSD=X | 15m | Removed regime filter — clean baseline for date range UI rebuild | 2 | 100.0% | ∞ | +$2010.00 | 0.00% | 11.34 |
 | v5 | 2026-04-04 12:42 | Trend Following | EURUSD=X | 5m | Removed regime filter — clean baseline for date range UI rebuild | 2 | 50.0% | 0.97 | -$25.67 | -1.03% | -0.05 |
 | v5 | 2026-04-04 12:42 | Trend Following | EURUSD=X | 1m | Removed regime filter — clean baseline for date range UI rebuild | 4 | 0.0% | 0.00 | -$3941.24 | -3.94% | -4.10 |
-| v1 | 2026-04-04 19:06 | Trend Following | EURUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 283 | 37.1% | 0.84 | -$31369.27 | -37.28% | -0.35 |
 | v6 | 2026-04-04 19:06 | Trend Following | EURUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 26 | 50.0% | 1.47 | +$8323.96 | -4.77% | 0.92 |
 | v6 | 2026-04-04 19:07 | Trend Following | EURUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 23 | 21.7% | 0.41 | -$12707.65 | -12.71% | -1.85 |
 | v6 | 2026-04-04 19:08 | Trend Following | EURUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 5 | 40.0% | 0.80 | -$1019.23 | -3.00% | -0.46 |
@@ -239,3 +238,4 @@
 | v6 | 2026-04-04 20:34 | Trend Following | EURUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 90 | 46.7% | 0.90 | -$4577.38 | -6.06% | -0.26 |
 | v6 | 2026-04-04 20:35 | Trend Following | EURUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 105 | 68.6% | 1.08 | +$2782.19 | -4.97% | 0.24 |
 | v6 | 2026-04-04 20:37 | Trend Following | EURUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 122 | 73.0% | 0.93 | -$2020.55 | -6.86% | -0.16 |
+| v1 | 2026-04-04 20:47 | Trend Following | EURUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 454 | 66.1% | 0.98 | -$3314.21 | -17.23% | -0.04 |
