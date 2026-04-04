@@ -2196,6 +2196,17 @@ __VERSIONS_JSON__
     if (p.length < 3) return s;
     return _mn[parseInt(p[1], 10) - 1] + "-" + String(p[2]).padStart(2, "0") + "-" + p[0].slice(2);
   }
+  /* ── Set date pickers from clickable table cells ─────────── */
+  window.setDatePicker = function (startDate, endDate) {
+    var startEl = document.getElementById("rb-start");
+    var endEl   = document.getElementById("rb-end");
+    if (!startEl || !endEl) return;
+    startEl.value = startDate;
+    endEl.value   = endDate;
+    startEl.dispatchEvent(new Event("change"));
+    endEl.dispatchEvent(new Event("change"));
+  };
+
   function calcDuration(startStr, endStr) {
     if (!startStr || !endStr) return "";
     var s = new Date(startStr.slice(0,10) + "T00:00:00");
@@ -2529,9 +2540,15 @@ __VERSIONS_JSON__
     var mRows = "";
     monthly.forEach(function (mo) {
       var mPnlCls = mo.net_pnl >= 0 ? "mo-pnl-pos" : "mo-pnl-neg";
+      var mParts = String(mo.month).split("-");
+      var mY = parseInt(mParts[0], 10);
+      var mM = parseInt(mParts[1], 10);
+      var mStart = mo.month + "-01";
+      var mLast  = new Date(Date.UTC(mY, mM, 0)).getUTCDate();
+      var mEnd   = mo.month + "-" + String(mLast).padStart(2, "0");
       mRows +=
         "<tr>" +
-        "<td>" + fmtMonth(mo.month) + "</td>" +
+        "<td><span class='date-link' onclick=\"setDatePicker('" + mStart + "','" + mEnd + "')\">" + fmtMonth(mo.month) + "</span></td>" +
         "<td>" + mo.trades + "</td>" +
         "<td class='pos'>" + mo.wins + "</td>" +
         "<td class='neg'>" + mo.losses + "</td>" +
@@ -2574,12 +2591,13 @@ __VERSIONS_JSON__
         var ds  = uy + "-" + (um < 10 ? "0" : "") + um + "-" + (ud < 10 ? "0" : "") + ud;
         var dMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         var dateLabel = dMnames[um - 1] + "-" + String(ud).padStart(2, "0") + "-" + String(uy).slice(2);
+        var dateLinkTd = "<td><span class='date-link' onclick=\"setDatePicker('" + ds + "','" + ds + "')\">" + dateLabel + "</span></td>";
         var d   = dailyLookup[ds];
         if (d) {
           var dPnlCls = d.net_pnl >= 0 ? "mo-pnl-pos" : "mo-pnl-neg";
           dRows +=
             "<tr>" +
-            "<td>" + dateLabel + "</td>" +
+            dateLinkTd +
             "<td>" + d.trades + "</td>" +
             "<td class='pos'>" + d.wins + "</td>" +
             "<td class='neg'>" + d.losses + "</td>" +
@@ -2589,7 +2607,7 @@ __VERSIONS_JSON__
         } else {
           dRows +=
             "<tr>" +
-            "<td>" + dateLabel + "</td>" +
+            dateLinkTd +
             "<td>0</td>" +
             "<td>\u2014</td>" +
             "<td>\u2014</td>" +

@@ -776,6 +776,17 @@ tbody tr:hover td {
     font-weight: 600;
 }
 
+/* ── Clickable date links in performance tables ────────── */
+.date-link {
+    text-decoration: underline;
+    cursor: pointer;
+    color: inherit;
+}
+
+.date-link:hover {
+    color: #4cc9f0;
+}
+
 /* ── Intraday Performance direction colors ───────────── */
 .intraday-dir-short {
     color: #ff6b6b;
@@ -971,7 +982,7 @@ tbody tr:hover td {
 
 .v-sub-item {
     padding-left: 32px !important;
-    background: #012a2a;
+    background: #012020;
     border-left: 5px solid transparent;
     line-height: 1.3;
 }
