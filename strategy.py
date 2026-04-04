@@ -908,6 +908,7 @@ def compute_pivot_diagnostics(df):
                 'horiz_dist': horiz_dist,
                 'bar':        pv['bar'],
                 'kind':       pv['kind'],
+                'atr':        round(pv['atr'] * 10000, 1),  # ATR in pips
             })
             prev_high = pv
 
@@ -935,6 +936,7 @@ def compute_pivot_diagnostics(df):
                 'horiz_dist': horiz_dist,
                 'bar':        pv['bar'],
                 'kind':       pv['kind'],
+                'atr':        round(pv['atr'] * 10000, 1),  # ATR in pips
             })
             prev_low = pv
 
@@ -1841,14 +1843,15 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type | Price | Time | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
-        lines.push("|---|------|-------|------|----------------------|-----------------------|------------|");
+        lines.push("| # | Type | Price | Time | ATR (pips) | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
+        lines.push("|---|------|-------|------|------------|----------------------|-----------------------|------------|");
         pvList.forEach(function (pv, idx) {
           var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? mf(pv.vert_dist, 1) : "\u2014";
           var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "\u2014";
           var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? mf(pv.pullback_pct, 1) + "%" : "\u2014";
+          var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? mf(pv.atr, 1) : "\u2014";
           lines.push("| " + (idx + 1) + " | " + (pv.label || "\u2014") + " | " +
-            mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
+            mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
         });
       }
       lines.push("");
@@ -2780,12 +2783,14 @@ __VERSIONS_JSON__
         var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? fmt(pv.vert_dist, 1)  : "\u2014";
         var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "\u2014";
         var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "\u2014";
+        var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? fmt(pv.atr, 1) : "\u2014";
         pvRows +=
           "<tr" + bgClass + ">" +
           "<td>" + (idx + 1) + "</td>" +
           "<td><strong>" + esc(lbl) + "</strong></td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
           "<td class='nowrap'>" + esc(pv.time || "\u2014") + "</td>" +
+          "<td>" + atrD + "</td>" +
           "<td>" + vertD + "</td>" +
           "<td>" + horizD + "</td>" +
           "<td>" + pullbackD + "</td>" +
@@ -2805,6 +2810,7 @@ __VERSIONS_JSON__
           "<th>Type</th>" +
           "<th>Price</th>" +
           "<th>Time</th>" +
+          "<th>ATR (pips)</th>" +
           "<th>Vert Distance (pips)</th>" +
           "<th>Horiz Distance (bars)</th>" +
           "<th>Pullback %</th>" +
