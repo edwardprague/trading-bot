@@ -1437,8 +1437,8 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
                 seg_pf = None
                 if not seg_l.empty and seg_l.pnl.sum() != 0:
                     seg_pf = round(abs(float(seg_w.pnl.sum()) / abs(float(seg_l.pnl.sum()))), 2)
-                ts0 = pd.to_datetime(seg["timestamp"].iloc[0]).strftime("%Y-%m-%d")
-                ts1 = pd.to_datetime(seg["timestamp"].iloc[-1]).strftime("%Y-%m-%d")
+                ts0 = pd.to_datetime(seg["timestamp"].iloc[0]).strftime("%b-%d-%y")
+                ts1 = pd.to_datetime(seg["timestamp"].iloc[-1]).strftime("%b-%d-%y")
                 win_rate_trend.append({
                     "period":        f"{ts0} to {ts1}",
                     "trades":        int(len(seg)),
@@ -1748,16 +1748,17 @@ __VERSIONS_JSON__
     var parts = String(s).split("-");
     if (parts.length < 2) return s;
     var idx = parseInt(parts[1], 10) - 1;
-    return names[idx] + " " + parts[0];
+    return names[idx] + "-" + parts[0].slice(2);
   }
 
-  /* Convert "YYYY-MM-DD HH:MM" to "MM-DD-YYYY HH:MM" */
+  /* Convert "YYYY-MM-DD HH:MM" to "Mon-DD-YY HH:MM" */
   function fmtRunDate(s) {
     if (!s) return "";
+    var _mn = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     var parts = String(s).split(" ");
     var d = parts[0].split("-");
     if (d.length !== 3) return s;
-    return parseInt(d[2]) + "-" + d[1] + "-" + d[0].slice(2) + (parts[1] ? " " + parts[1] : "");
+    return _mn[parseInt(d[1], 10) - 1] + "-" + String(d[2]).padStart(2, "0") + "-" + d[0].slice(2) + (parts[1] ? " " + parts[1] : "");
   }
 
   /* ── Compat: get run data from version (handles legacy + new format) ──── */
@@ -1803,7 +1804,7 @@ __VERSIONS_JSON__
     }
 
     var lines = [];
-    var runLabel = run.label ? " \u2014 " + run.label : "";
+    var runLabel = run.label ? " \u2014 " + run.label.split(" \u2192 ").map(function(d){return fmtSbDate(d.trim());}).join(" \u2192 ") : "";
     lines.push("## Backtest Report \u2014 " + (ver.name || "?") + runLabel);
     lines.push("");
     lines.push("**Strategy:** " + (ver.strategy || "\u2014"));
@@ -1897,7 +1898,7 @@ __VERSIONS_JSON__
       monthly.forEach(function (mo) {
         var mnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         var parts  = String(mo.month).split("-");
-        var mLabel = parts.length >= 2 ? mnames[parseInt(parts[1], 10) - 1] + " " + parts[0] : mo.month;
+        var mLabel = parts.length >= 2 ? mnames[parseInt(parts[1], 10) - 1] + "-" + parts[0].slice(2) : mo.month;
         lines.push("| " + mLabel + " | " + mo.trades + " | " + mo.wins + " | " + mo.losses + " | " + mf(mo.win_rate, 1) + "% | " + mfMoney(mo.net_pnl) + " |");
       });
     }
@@ -1929,7 +1930,7 @@ __VERSIONS_JSON__
         var ud = cur.getUTCDate();
         var ds = uy + "-" + (um < 10 ? "0" : "") + um + "-" + (ud < 10 ? "0" : "") + ud;
         var mdMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        var dateLabel = mdMnames[um - 1] + " " + ud + " " + uy;
+        var dateLabel = mdMnames[um - 1] + "-" + String(ud).padStart(2, "0") + "-" + String(uy).slice(2);
         var d = dailyLookup[ds];
         if (d) {
           lines.push("| " + dateLabel + " | " + d.trades + " | " + d.wins + " | " + d.losses + " | " + mf(d.win_rate, 1) + "% | " + mfMoney(d.net_pnl) + " |");
@@ -1957,7 +1958,7 @@ __VERSIONS_JSON__
       intradayData.forEach(function (t) {
         var dir = t.direction.charAt(0).toUpperCase() + t.direction.slice(1);
         var idp = t.date.split("-");
-        var iDateLabel = mdIMnames[parseInt(idp[1], 10) - 1] + " " + parseInt(idp[2], 10) + " " + idp[0];
+        var iDateLabel = mdIMnames[parseInt(idp[1], 10) - 1] + "-" + String(idp[2]).padStart(2, "0") + "-" + idp[0].slice(2);
         var stopD   = (t.stop_pips   !== null && t.stop_pips   !== undefined) ? mf(t.stop_pips, 1)   : "\u2014";
         var targetD = (t.target_pips !== null && t.target_pips !== undefined) ? mf(t.target_pips, 1) : "\u2014";
         lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + t.exit_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + mfMoney(t.pnl) + " |");
@@ -2190,8 +2191,10 @@ __VERSIONS_JSON__
   /* ── Sidebar helpers ──────────────────────────────────────── */
   function fmtSbDate(s) {
     if (!s) return "";
+    var _mn = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     var p = s.slice(0, 10).split("-");
-    return parseInt(p[2]) + "-" + p[1] + "-" + p[0].slice(2);
+    if (p.length < 3) return s;
+    return _mn[parseInt(p[1], 10) - 1] + "-" + String(p[2]).padStart(2, "0") + "-" + p[0].slice(2);
   }
   function calcDuration(startStr, endStr) {
     if (!startStr || !endStr) return "";
@@ -2570,7 +2573,7 @@ __VERSIONS_JSON__
         var ud  = cur.getUTCDate();
         var ds  = uy + "-" + (um < 10 ? "0" : "") + um + "-" + (ud < 10 ? "0" : "") + ud;
         var dMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        var dateLabel = dMnames[um - 1] + " " + ud + " " + uy;
+        var dateLabel = dMnames[um - 1] + "-" + String(ud).padStart(2, "0") + "-" + String(uy).slice(2);
         var d   = dailyLookup[ds];
         if (d) {
           var dPnlCls = d.net_pnl >= 0 ? "mo-pnl-pos" : "mo-pnl-neg";
@@ -2622,7 +2625,7 @@ __VERSIONS_JSON__
         var pnlCls = t.pnl >= 0 ? "mo-pnl-pos" : "mo-pnl-neg";
         var dirCls = t.direction === "short" ? "intraday-dir-short" : "intraday-dir-long";
         var dp = t.date.split("-");
-        var iDateLabel = iMnames[parseInt(dp[1], 10) - 1] + " " + parseInt(dp[2], 10) + " " + dp[0];
+        var iDateLabel = iMnames[parseInt(dp[1], 10) - 1] + "-" + String(dp[2]).padStart(2, "0") + "-" + dp[0].slice(2);
         var stopD   = (t.stop_pips   !== null && t.stop_pips   !== undefined) ? fmt(t.stop_pips, 1)   : "\u2014";
         var targetD = (t.target_pips !== null && t.target_pips !== undefined) ? fmt(t.target_pips, 1) : "\u2014";
         iRows +=

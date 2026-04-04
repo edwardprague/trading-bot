@@ -151,12 +151,13 @@ INJECT_HTML = """
     if (_delBtn)  { _delBtn.className = "rb-btn rb-btn-delete"; _actGroup.appendChild(_delBtn); }
   }
 
-  /* ── Date overlay helper: show MM.DD.YYYY on top of native date input ── */
+  /* ── Date overlay helper: show Mon-DD-YY on top of native date input ── */
+  var _ovMn = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   function updateOverlay(inputEl, overlayEl) {
     var v = inputEl.value;  /* native value is always YYYY-MM-DD */
     if (!v) { overlayEl.textContent = ""; return; }
     var p = v.split("-");
-    if (p.length === 3) overlayEl.textContent = p[1] + "." + p[2] + "." + p[0];
+    if (p.length === 3) overlayEl.textContent = _ovMn[parseInt(p[1], 10) - 1] + "-" + p[2] + "-" + p[0].slice(2);
     else overlayEl.textContent = "";
   }
 
