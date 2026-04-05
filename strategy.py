@@ -842,11 +842,17 @@ def save_charts(df, trades, equity):
                 'LH': '#6bcb77', 'LL': '#6bcb77',   # green — downtrend structure
             }
             _label_offset = max(_price_range * 0.018, 2e-5)
+            # Collect N=18 pivot coordinates for trendlines
+            _n18_highs_xy = []  # list of (dt_num, price_y) for N=18 high pivots
+            _n18_lows_xy  = []  # list of (dt_num, price_y) for N=18 low pivots
+
             for _pv_idx, _pv in enumerate(_pvd['pivots']):
                 _bar_i  = _pv['bar']
-                # N=6 fractals always render as white; N=2-only uses standard colors
-                if _pv.get('n6'):
-                    _pv_clr = '#ffffff'
+                # Priority: N=18 yellow > N=6 white > N=2 red/green
+                if _pv.get('n18'):
+                    _pv_clr = '#ffd700'       # yellow — N=18
+                elif _pv.get('n6'):
+                    _pv_clr = '#ffffff'        # white  — N=6
                 else:
                     _pv_clr = _pivot_colors.get(_pv['label'], '#ffffff')
                 if _pv['kind'] == 'H':
@@ -866,6 +872,24 @@ def save_charts(df, trades, equity):
                     ha='center', va='bottom' if _pv['kind'] == 'H' else 'top',
                     zorder=7,
                 )
+                # Track N=18 pivots for trendlines
+                if _pv.get('n18'):
+                    if _pv['kind'] == 'H':
+                        _n18_highs_xy.append((_dt_nums[_bar_i], _pv_y))
+                    else:
+                        _n18_lows_xy.append((_dt_nums[_bar_i], _pv_y))
+
+            # ── N=18 trendlines (yellow dashed) ──────────────────────────────
+            if len(_n18_highs_xy) >= 2:
+                _hx = [p[0] for p in _n18_highs_xy]
+                _hy = [p[1] for p in _n18_highs_xy]
+                ax1.plot(_hx, _hy, color='#ffd700', linestyle='--',
+                         linewidth=0.9, alpha=0.7, zorder=5)
+            if len(_n18_lows_xy) >= 2:
+                _lx = [p[0] for p in _n18_lows_xy]
+                _ly = [p[1] for p in _n18_lows_xy]
+                ax1.plot(_lx, _ly, color='#ffd700', linestyle='--',
+                         linewidth=0.9, alpha=0.7, zorder=5)
 
         ax1.set_xlim(
             mdates.num2date(_dt_nums[0]  - _bw),
@@ -1091,6 +1115,53 @@ def compute_pivot_diagnostics(df):
             n6_prev_low = pv
         n6_labels[(pv['bar'], pv['kind'])] = lbl6
 
+    # ── Detect N=18 fractal pivots (need 18 bars on each side) ───────────
+    n18_high_bars = set()
+    n18_low_bars  = set()
+    for i in range(18, n_bars - 18):
+        h_i = highs[i]
+        l_i = lows[i]
+        is_ph18 = all(h_i > highs[i - k] for k in range(1, 19)) and \
+                  all(h_i > highs[i + k] for k in range(1, 19))
+        is_pl18 = all(l_i < lows[i - k] for k in range(1, 19)) and \
+                  all(l_i < lows[i + k] for k in range(1, 19))
+        if is_ph18:
+            n18_high_bars.add(i)
+        if is_pl18:
+            n18_low_bars.add(i)
+
+    # ── Classify N=18 pivots independently ───────────────────────────────
+    n18_raw = []
+    for i in sorted(n18_high_bars | n18_low_bars):
+        atr_i = float(atr14.iloc[i])
+        if i in n18_high_bars:
+            n18_raw.append({'kind': 'H', 'price': float(highs[i]), 'bar': i, 'atr': atr_i})
+        if i in n18_low_bars:
+            n18_raw.append({'kind': 'L', 'price': float(lows[i]),  'bar': i, 'atr': atr_i})
+    n18_raw.sort(key=lambda x: x['bar'])
+
+    n18_prev_high = None
+    n18_prev_low  = None
+    n18_labels    = {}  # (bar, kind) → label string for N=18 classification
+    for pv in n18_raw:
+        price     = pv['price']
+        threshold = 0.5 * pv['atr']
+        if pv['kind'] == 'H':
+            if n18_prev_high is None:
+                lbl18 = 'CH'
+            else:
+                diff = price - n18_prev_high['price']
+                lbl18 = 'CH' if abs(diff) < threshold else ('LH' if diff < 0 else 'HH')
+            n18_prev_high = pv
+        else:
+            if n18_prev_low is None:
+                lbl18 = 'CL'
+            else:
+                diff = price - n18_prev_low['price']
+                lbl18 = 'CL' if abs(diff) < threshold else ('HL' if diff > 0 else 'LL')
+            n18_prev_low = pv
+        n18_labels[(pv['bar'], pv['kind'])] = lbl18
+
     # ── Classify each pivot vs previous same-type pivot ───────────────────────
     classified = []
     prev_high = None
@@ -1116,7 +1187,8 @@ def compute_pivot_diagnostics(df):
                 vert_dist  = round(abs(diff) * 10000, 1)   # pips
                 horiz_dist = pv['bar'] - prev_high['bar']
 
-            _n6_key = (pv['bar'], 'H')
+            _n6_key  = (pv['bar'], 'H')
+            _n18_key = (pv['bar'], 'H')
             classified.append({
                 'label':      label,
                 'price':      price,
@@ -1129,6 +1201,8 @@ def compute_pivot_diagnostics(df):
                 'adx':        round(pv['adx'], 1) if pv['adx'] is not None else None,
                 'n6':         _n6_key in n6_labels,
                 'n6_label':   n6_labels.get(_n6_key),
+                'n18':        _n18_key in n18_labels,
+                'n18_label':  n18_labels.get(_n18_key),
             })
             prev_high = pv
 
@@ -1148,7 +1222,8 @@ def compute_pivot_diagnostics(df):
                 vert_dist  = round(abs(diff) * 10000, 1)
                 horiz_dist = pv['bar'] - prev_low['bar']
 
-            _n6_key = (pv['bar'], 'L')
+            _n6_key  = (pv['bar'], 'L')
+            _n18_key = (pv['bar'], 'L')
             classified.append({
                 'label':      label,
                 'price':      price,
@@ -1161,6 +1236,8 @@ def compute_pivot_diagnostics(df):
                 'adx':        round(pv['adx'], 1) if pv['adx'] is not None else None,
                 'n6':         _n6_key in n6_labels,
                 'n6_label':   n6_labels.get(_n6_key),
+                'n18':        _n18_key in n18_labels,
+                'n18_label':  n18_labels.get(_n18_key),
             })
             prev_low = pv
 
@@ -2105,7 +2182,7 @@ __VERSIONS_JSON__
           var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? mf(pv.pullback_pct, 1) + "%" : "\u2014";
           var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? mf(pv.atr, 1) : "\u2014";
           var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? mf(pv.adx, 1) : "\u2014";
-          var mdLbl = (pv.label || "\u2014") + (pv.n6 ? " \u2022" : "");
+          var mdLbl = (pv.label || "\u2014") + (pv.n6 ? " \u2022" : "") + (pv.n18 ? " \u2022" : "");
           lines.push("| " + (idx + 1) + " | " + mdLbl + " | " +
             mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
         });
@@ -3093,6 +3170,7 @@ __VERSIONS_JSON__
         }
         var lblDisplay = "<strong>" + esc(lbl) + "</strong>";
         if (pv.n6) lblDisplay += " <span style='color:#ffffff;font-size:15px;' title='N=6 fractal'>\u2022</span>";
+        if (pv.n18) lblDisplay += " <span style='color:#ffd700;font-size:15px;' title='N=18 fractal'>\u2022</span>";
         var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? fmt(pv.vert_dist, 1)  : "\u2014";
         var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "\u2014";
         var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "\u2014";
