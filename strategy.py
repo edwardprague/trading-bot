@@ -1968,14 +1968,16 @@ __VERSIONS_JSON__
       if (intradayData.length === 0) return;
       lines.push("### Intraday Performance");
       lines.push("");
-      lines.push("| Date | Entry Time | Duration | Direction | Stop | Target | F # | F Type | ATR | ADX | P&L |");
-      lines.push("|------|------------|----------|-----------|------|--------|-----|--------|-----|-----|-----|");
+      lines.push("| Date | Entry Time | Duration | Direction | Stop | Target | F # | F Type | ATR | ADX | PB % | P&L |");
+      lines.push("|------|------------|----------|-----------|------|--------|-----|--------|-----|-----|------|-----|");
       /* Build bar→pivot# lookup from pivot diagnostics */
       var mdPvd = m.pivot_diagnostics || {};
       var mdPivotList = mdPvd.pivots || [];
       var mdBarToPivot = {};
+      var mdBarToPullback = {};
       mdPivotList.forEach(function (pv, idx) {
         mdBarToPivot[pv.bar] = idx + 1;
+        mdBarToPullback[pv.bar] = pv.pullback_pct;
       });
       var mdIMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       function mdFmtDur(mins) {
@@ -1992,7 +1994,9 @@ __VERSIONS_JSON__
         var adxD = (t.adx     !== null && t.adx     !== undefined) ? mf(t.adx, 1)      : "\u2014";
         var fNum  = (t.fractal_bar !== null && t.fractal_bar !== undefined && mdBarToPivot[t.fractal_bar]) ? mdBarToPivot[t.fractal_bar] : "\u2014";
         var fType = t.fractal_label || "\u2014";
-        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + fNum + " | " + fType + " | " + atrD + " | " + adxD + " | " + mfMoney(t.pnl) + " |");
+        var pbVal = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? mdBarToPullback[t.fractal_bar] : null;
+        var pbD = (pbVal !== null && pbVal !== undefined) ? mf(pbVal, 1) + "%" : "\u2014";
+        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + fNum + " | " + fType + " | " + atrD + " | " + adxD + " | " + pbD + " | " + mfMoney(t.pnl) + " |");
       });
       lines.push("");
     }());
@@ -2673,8 +2677,10 @@ __VERSIONS_JSON__
       var pvdData = m.pivot_diagnostics || {};
       var pivotList = pvdData.pivots || [];
       var barToPivot = {};
+      var barToPullback = {};
       pivotList.forEach(function (pv, idx) {
         barToPivot[pv.bar] = idx + 1;
+        barToPullback[pv.bar] = pv.pullback_pct;
       });
 
       var iRows = "";
@@ -2701,6 +2707,7 @@ __VERSIONS_JSON__
           "<td>" + esc(fType) + "</td>" +
           "<td>" + atrD + "</td>" +
           "<td>" + adxD + "</td>" +
+          "<td>" + (function () { var pb = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToPullback[t.fractal_bar] : null; return (pb !== null && pb !== undefined) ? fmt(pb, 1) + "%" : "\u2014"; }()) + "</td>" +
           "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
           "</tr>";
       });
@@ -2709,7 +2716,7 @@ __VERSIONS_JSON__
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
           "<table><thead><tr>" +
-          "<th>Date</th><th>Entry Time</th><th>Duration</th><th>Direction</th><th>Stop</th><th>Target</th><th>F #</th><th>F Type</th><th>ATR</th><th>ADX</th><th>P&amp;L</th>" +
+          "<th>Date</th><th>Entry Time</th><th>Duration</th><th>Direction</th><th>Stop</th><th>Target</th><th>F #</th><th>F Type</th><th>ATR</th><th>ADX</th><th>PB %</th><th>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 
