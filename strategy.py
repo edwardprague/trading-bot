@@ -4244,12 +4244,14 @@ if __name__ == "__main__":
     run_start_date = os.environ.get("RUN_START_DATE", "")
     run_end_date   = os.environ.get("RUN_END_DATE", "")
 
+    print("PROGRESS:5:Fetching data…", flush=True)
     if run_mode == "date_range" and run_start_date and run_end_date:
         df = fetch_data(TICKER, INTERVAL, DAYS_BACK,
                         start_date=run_start_date, end_date=run_end_date)
     else:
         df = fetch_data(TICKER, INTERVAL, DAYS_BACK)
 
+    print("PROGRESS:20:Computing indicators…", flush=True)
     df              = add_indicators(df)
 
     # ── Filter dataframe to requested date range (with buffers for state) ──────
@@ -4276,6 +4278,7 @@ if __name__ == "__main__":
             df        = df[_mask].reset_index(drop=True)
         except Exception as _e:
             print(f"  Date filter error: {_e}")
+    print("PROGRESS:35:Running backtest…", flush=True)
     trades, equity, blocked_signals = run_backtest(df)
 
     # ── Trim buffer bars from date-range results ────────────────────────────
@@ -4333,14 +4336,21 @@ if __name__ == "__main__":
                     _eq_cash += _pnl
             equity.append(_eq_cash)
 
+    print("PROGRESS:55:Printing results…", flush=True)
     print_results(trades, equity)
+    print("PROGRESS:60:Generating charts…", flush=True)
     chart_path, eq_dd_chart_path = save_charts(df, trades, equity)
+    print("PROGRESS:75:Building report…", flush=True)
     generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes,
                          blocked_signals=blocked_signals, df=df,
                          eq_dd_chart_path=eq_dd_chart_path,
                          run_mode=run_mode,
                          run_start_date=run_start_date,
                          run_end_date=run_end_date)
+    print("PROGRESS:88:Computing metrics…", flush=True)
     metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals, df=df)
+    print("PROGRESS:92:Updating results log…", flush=True)
     update_results_log(metrics, notes=run_notes)
+    print("PROGRESS:96:Pushing to git…", flush=True)
     git_commit_and_push(metrics, VERSION, TICKER, INTERVAL)
+    print("PROGRESS:100:Complete", flush=True)

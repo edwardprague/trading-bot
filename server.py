@@ -45,7 +45,7 @@ app = Flask(__name__)
 
 # ── Backtest state (shared between the Flask thread and the worker thread) ─────
 _bt_lock  = threading.Lock()
-_bt_state = {"running": False, "ok": None, "error": None, "no_data": False, "stage": ""}
+_bt_state = {"running": False, "ok": None, "error": None, "no_data": False, "stage": "", "progress": 0}
 
 # ── Run-bar HTML (injected into every page response) ──────────────────────────
 
@@ -136,6 +136,21 @@ INJECT_HTML = """
     border-radius: 50%; animation: rb-spin 0.75s linear infinite;
     vertical-align: middle;
   }
+
+  .rb-progress-wrap {
+    display: inline-flex; align-items: center; gap: 8px; vertical-align: middle;
+  }
+  .rb-progress-bar {
+    width: 120px; height: 8px; background: #1e1e38; border-radius: 4px;
+    overflow: hidden; position: relative;
+  }
+  .rb-progress-fill {
+    height: 100%; background: #4cc9f0; border-radius: 4px;
+    transition: width 0.4s ease;
+  }
+  .rb-progress-text {
+    font-size: 12px; color: #9090c0; white-space: nowrap;
+  }
 </style>
 
 <script>
@@ -210,7 +225,10 @@ function setRunning() {
               document.getElementById("copy-btn"), document.getElementById("delete-btn")];
   btns.forEach(function (b) { if (b) b.disabled = true; });
   document.getElementById("run-status").innerHTML =
-    '<span class="rb-spin"></span>Running\\u2026';
+    '<span class="rb-progress-wrap">' +
+      '<span class="rb-progress-bar"><span class="rb-progress-fill" id="rb-progress-fill" style="width:0%"></span></span>' +
+      '<span class="rb-progress-text" id="rb-progress-text">Starting\u2026</span>' +
+    '</span>';
   document.getElementById("run-status").style.color = "#9090c0";
 }
 
@@ -363,11 +381,12 @@ function pollStatus() {
     .then(function (r) { return r.json(); })
     .then(function (data) {
       if (data.running) {
-        if (data.stage) {
-          document.getElementById("run-status").innerHTML =
-            '<span class="rb-spin"></span>' + data.stage;
-        }
-        setTimeout(pollStatus, 2000);
+        var pct = data.progress || 0;
+        var fill = document.getElementById("rb-progress-fill");
+        var txt  = document.getElementById("rb-progress-text");
+        if (fill) fill.style.width = pct + "%";
+        if (txt)  txt.textContent  = (data.stage || "Running\u2026") + " " + pct + "%";
+        setTimeout(pollStatus, 1500);
       } else if (data.ok && data.no_data) {
         resetButtons();
         document.getElementById("run-status").innerHTML = "";
@@ -475,6 +494,17 @@ def _run_backtest_sync(env_overrides=None):
             if line:
                 print(line, end="", flush=True)
                 stdout_lines.append(line)
+                if line.startswith("PROGRESS:"):
+                    parts = line.strip().split(":", 2)
+                    if len(parts) >= 3:
+                        try:
+                            pct = int(parts[1])
+                            stage = parts[2]
+                            with _bt_lock:
+                                _bt_state["progress"] = pct
+                                _bt_state["stage"] = stage
+                        except ValueError:
+                            pass
             elif proc.poll() is not None:
                 break
             if _time.time() > _deadline:
@@ -583,6 +613,7 @@ def run_backtest():
         _bt_state["error"]   = None
         _bt_state["no_data"] = False
         _bt_state["stage"]   = ""
+        _bt_state["progress"] = 0
 
     # RUN_MODE=new_version tells strategy.py to increment version
     data = request.get_json(force=True) or {}
@@ -641,6 +672,7 @@ def run_date_range():
         _bt_state["error"]   = None
         _bt_state["no_data"] = False
         _bt_state["stage"]   = ""
+        _bt_state["progress"] = 0
 
     instrument     = (data.get("instrument") or "").strip()
     target_version = (data.get("target_version") or "").strip()
