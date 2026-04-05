@@ -984,11 +984,16 @@ def compute_pivot_diagnostics(df):
         else:
             dts_utc = dts.dt.tz_localize('UTC')
         dates = dts_utc.dt.date
-        times_str = dts_utc.dt.strftime('%H:%M')
+        _n_days = (dates.max() - dates.min()).days + 1
+        if _n_days > 1:
+            times_str = dts_utc.dt.strftime('%b-%d %H:%M')
+        else:
+            times_str = dts_utc.dt.strftime('%H:%M')
     except Exception:
         return None
 
-    if dates.min() != dates.max():
+    n_days = _n_days
+    if n_days > 31:
         return {"is_single_day": False, "pivots": [], "structure": None}
 
     # ── Compute ATR(14) using Wilder's smoothing ───────────────────────────────
@@ -1323,7 +1328,7 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         t_intra["_exit_time"]  = _ti_exit.dt.strftime("%H:%M")
         t_intra["_duration"]   = ((_ti_exit - _ti_entry).dt.total_seconds() / 60).round(0).astype(int)
         unique_dates = t_intra["_date"].unique()
-        if len(unique_dates) == 1:
+        if len(unique_dates) <= 31:
             for _, row_t in t_intra.iterrows():
                 _stop_pips = round(abs(float(row_t["entry"]) - float(row_t["stop"])) * 10000, 1)
                 _target_pips = round(abs(float(row_t["entry"]) - float(row_t["target"])) * 10000, 1)
