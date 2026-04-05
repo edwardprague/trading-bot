@@ -225,10 +225,7 @@ function setRunning() {
               document.getElementById("copy-btn"), document.getElementById("delete-btn")];
   btns.forEach(function (b) { if (b) b.disabled = true; });
   document.getElementById("run-status").innerHTML =
-    '<span class="rb-progress-wrap">' +
-      '<span class="rb-progress-bar"><span class="rb-progress-fill" id="rb-progress-fill" style="width:0%"></span></span>' +
-      '<span class="rb-progress-text" id="rb-progress-text">Starting\u2026</span>' +
-    '</span>';
+    '<span class="rb-spin"></span><span id="rb-progress-text">Starting\u2026</span>';
   document.getElementById("run-status").style.color = "#9090c0";
 }
 
@@ -382,9 +379,7 @@ function pollStatus() {
     .then(function (data) {
       if (data.running) {
         var pct = data.progress || 0;
-        var fill = document.getElementById("rb-progress-fill");
         var txt  = document.getElementById("rb-progress-text");
-        if (fill) fill.style.width = pct + "%";
         if (txt)  txt.textContent  = (data.stage || "Running\u2026") + " " + pct + "%";
         setTimeout(pollStatus, 1500);
       } else if (data.ok && data.no_data) {
