@@ -1954,8 +1954,8 @@ __VERSIONS_JSON__
       if (intradayData.length === 0) return;
       lines.push("### Intraday Performance");
       lines.push("");
-      lines.push("| Date | Entry Time | Exit Time | Duration | Trade Direction | Stop (pips) | Target (pips) | ATR (pips) | ADX | P&L |");
-      lines.push("|------|------------|-----------|----------|-----------------|-------------|---------------|------------|-----|-----|");
+      lines.push("| Date | Entry Time | Duration | Direction | Stop | Target | ATR | ADX | P&L |");
+      lines.push("|------|------------|----------|-----------|------|--------|-----|-----|-----|");
       var mdIMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       function mdFmtDur(mins) {
         if (mins < 60) return mins + " min";
@@ -1969,7 +1969,7 @@ __VERSIONS_JSON__
         var targetD = (t.target_pips !== null && t.target_pips !== undefined) ? mf(t.target_pips, 1) : "\u2014";
         var atrD = (t.atr_pips !== null && t.atr_pips !== undefined) ? mf(t.atr_pips, 1) : "\u2014";
         var adxD = (t.adx     !== null && t.adx     !== undefined) ? mf(t.adx, 1)      : "\u2014";
-        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + t.exit_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + atrD + " | " + adxD + " | " + mfMoney(t.pnl) + " |");
+        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + atrD + " | " + adxD + " | " + mfMoney(t.pnl) + " |");
       });
       lines.push("");
     }());
@@ -2660,7 +2660,6 @@ __VERSIONS_JSON__
           "<tr>" +
           "<td>" + esc(iDateLabel) + "</td>" +
           "<td>" + esc(t.entry_time) + " UTC</td>" +
-          "<td>" + esc(t.exit_time) + " UTC</td>" +
           "<td>" + fmtDur(t.duration) + "</td>" +
           "<td class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
           "<td>" + stopD + "</td>" +
@@ -2675,7 +2674,7 @@ __VERSIONS_JSON__
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
           "<table><thead><tr>" +
-          "<th>Date</th><th>Entry Time</th><th>Exit Time</th><th>Duration</th><th>Trade Direction</th><th>Stop (pips)</th><th>Target (pips)</th><th>ATR (pips)</th><th>ADX</th><th>P&amp;L</th>" +
+          "<th>Date</th><th>Entry Time</th><th>Duration</th><th>Direction</th><th>Stop</th><th>Target</th><th>ATR</th><th>ADX</th><th>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 
