@@ -392,6 +392,7 @@ def run_backtest(df):
     entry_idx     = 0
     worst_adverse    = 0.0   # tracks furthest adverse price during a trade
     entry_adx        = 0.0   # ADX value at entry bar
+    entry_atr        = 0.0   # ATR value at entry bar
     entry_ts         = None  # timestamp of the entry bar (for time-of-day diagnostics)
     blocked_signals  = []    # signals that were filtered out (for Filter Impact Summary)
     _debug_entries   = 0     # counter for entry timezone debug prints
@@ -492,6 +493,7 @@ def run_backtest(df):
                     "result":       result_label,
                     "mae":          mae,
                     "adx_at_entry": entry_adx,
+                    "atr_at_entry": entry_atr,
                     "timestamp":    ts,
                     "entry_ts":     entry_ts
                 })
@@ -623,6 +625,7 @@ def run_backtest(df):
                     entry_ts      = ts
                     worst_adverse = c
                     entry_adx     = float(df.adx.iloc[i])
+                    entry_atr     = float(df.atr14.iloc[i])
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
@@ -643,6 +646,7 @@ def run_backtest(df):
                     entry_ts      = ts
                     worst_adverse = c
                     entry_adx     = float(df.adx.iloc[i])
+                    entry_atr     = float(df.atr14.iloc[i])
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
@@ -1319,6 +1323,8 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
                     "direction":  row_t["direction"],
                     "stop_pips":  _stop_pips,
                     "target_pips": _target_pips,
+                    "atr_pips":   round(float(row_t["atr_at_entry"]) * 10000, 1),
+                    "adx":        round(float(row_t["adx_at_entry"]), 1),
                     "pnl":        round(float(row_t["pnl"]), 2),
                 })
     except Exception:
@@ -2646,6 +2652,8 @@ __VERSIONS_JSON__
         var iDateLabel = iMnames[parseInt(dp[1], 10) - 1] + "-" + String(dp[2]).padStart(2, "0") + "-" + dp[0].slice(2);
         var stopD   = (t.stop_pips   !== null && t.stop_pips   !== undefined) ? fmt(t.stop_pips, 1)   : "\u2014";
         var targetD = (t.target_pips !== null && t.target_pips !== undefined) ? fmt(t.target_pips, 1) : "\u2014";
+        var atrD = (t.atr_pips !== null && t.atr_pips !== undefined) ? fmt(t.atr_pips, 1) : "\u2014";
+        var adxD = (t.adx     !== null && t.adx     !== undefined) ? fmt(t.adx, 1)      : "\u2014";
         iRows +=
           "<tr>" +
           "<td>" + esc(iDateLabel) + "</td>" +
@@ -2655,6 +2663,8 @@ __VERSIONS_JSON__
           "<td class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
           "<td>" + stopD + "</td>" +
           "<td>" + targetD + "</td>" +
+          "<td>" + atrD + "</td>" +
+          "<td>" + adxD + "</td>" +
           "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
           "</tr>";
       });
@@ -2663,7 +2673,7 @@ __VERSIONS_JSON__
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
           "<table><thead><tr>" +
-          "<th>Date</th><th>Entry Time</th><th>Exit Time</th><th>Duration</th><th>Trade Direction</th><th>Stop (pips)</th><th>Target (pips)</th><th>P&amp;L</th>" +
+          "<th>Date</th><th>Entry Time</th><th>Exit Time</th><th>Duration</th><th>Trade Direction</th><th>Stop (pips)</th><th>Target (pips)</th><th>ATR (pips)</th><th>ADX</th><th>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 

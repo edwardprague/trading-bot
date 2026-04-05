@@ -2934,7 +2934,7 @@
         ]
       },
       {
-        "date": "2026-04-05 09:06",
+        "date": "2026-04-05 09:13",
         "start_date": "2025-10-07",
         "end_date": "2025-10-07",
         "days_back": 0,
@@ -3025,6 +3025,8 @@
               "direction": "short",
               "stop_pips": 21.4,
               "target_pips": 10.7,
+              "atr_pips": 4.6,
+              "adx": 46.2,
               "pnl": 500.0
             },
             {
@@ -3035,6 +3037,8 @@
               "direction": "short",
               "stop_pips": 15.3,
               "target_pips": 7.7,
+              "atr_pips": 6.1,
+              "adx": 50.7,
               "pnl": 502.5
             },
             {
@@ -3045,6 +3049,8 @@
               "direction": "short",
               "stop_pips": 16.4,
               "target_pips": 8.2,
+              "atr_pips": 6.6,
+              "adx": 47.0,
               "pnl": -1010.03
             },
             {
@@ -3055,6 +3061,8 @@
               "direction": "short",
               "stop_pips": 11.6,
               "target_pips": 5.8,
+              "atr_pips": 5.2,
+              "adx": 30.3,
               "pnl": 499.96
             },
             {
@@ -3065,6 +3073,8 @@
               "direction": "short",
               "stop_pips": 9.2,
               "target_pips": 4.6,
+              "atr_pips": 4.4,
+              "adx": 45.1,
               "pnl": -1004.92
             }
           ],
@@ -4915,6 +4925,8 @@
         var iDateLabel = iMnames[parseInt(dp[1], 10) - 1] + "-" + String(dp[2]).padStart(2, "0") + "-" + dp[0].slice(2);
         var stopD   = (t.stop_pips   !== null && t.stop_pips   !== undefined) ? fmt(t.stop_pips, 1)   : "\u2014";
         var targetD = (t.target_pips !== null && t.target_pips !== undefined) ? fmt(t.target_pips, 1) : "\u2014";
+        var atrD = (t.atr_pips !== null && t.atr_pips !== undefined) ? fmt(t.atr_pips, 1) : "\u2014";
+        var adxD = (t.adx     !== null && t.adx     !== undefined) ? fmt(t.adx, 1)      : "\u2014";
         iRows +=
           "<tr>" +
           "<td>" + esc(iDateLabel) + "</td>" +
@@ -4924,6 +4936,8 @@
           "<td class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
           "<td>" + stopD + "</td>" +
           "<td>" + targetD + "</td>" +
+          "<td>" + atrD + "</td>" +
+          "<td>" + adxD + "</td>" +
           "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
           "</tr>";
       });
@@ -4932,7 +4946,7 @@
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
           "<table><thead><tr>" +
-          "<th>Date</th><th>Entry Time</th><th>Exit Time</th><th>Duration</th><th>Trade Direction</th><th>Stop (pips)</th><th>Target (pips)</th><th>P&amp;L</th>" +
+          "<th>Date</th><th>Entry Time</th><th>Exit Time</th><th>Duration</th><th>Trade Direction</th><th>Stop (pips)</th><th>Target (pips)</th><th>ATR (pips)</th><th>ADX</th><th>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 
