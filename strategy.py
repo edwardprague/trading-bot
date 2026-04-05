@@ -2255,6 +2255,14 @@ __VERSIONS_JSON__
     endEl.dispatchEvent(new Event("change"));
   };
 
+  /* ── Sidebar date-link clicks → fill date pickers ───────── */
+  document.getElementById("version-list").addEventListener("click", function (e) {
+    var link = e.target.closest(".date-link[data-start]");
+    if (!link) return;
+    e.stopPropagation();
+    setDatePicker(link.dataset.start, link.dataset.end);
+  });
+
   function calcDuration(startStr, endStr) {
     if (!startStr || !endStr) return "";
     var s = new Date(startStr.slice(0,10) + "T00:00:00");
@@ -2328,7 +2336,7 @@ __VERSIONS_JSON__
             "<div class='v-name'>" + esc(v.name) + "</div>" +
             (vInstrument ? "<div class='v-instrument'>" + esc(vInstrument) + "</div>" : "") +
             (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "") +
-            (vDateRange ? "<div class='v-date'>" + esc(vDateRange) + "</div>" : "") +
+            (vDateRange ? "<div class='v-date date-link' data-start='" + esc(vRange.start) + "' data-end='" + esc(vRange.end) + "'>" + esc(vDateRange) + "</div>" : "") +
             (vDur ? "<div class='v-duration'>" + esc(vDur) + "</div>" : "") +
           "</div>" +
           arrowHtml +
@@ -2394,7 +2402,7 @@ __VERSIONS_JSON__
               "<button class='v-sub-delete-btn' title='Delete date range'>&times;</button>" +
             "</div>" +
             (runPnl !== null ? "<div class='v-pnl " + runPc + "'>" + runPtxt + "</div>" : "") +
-            (subDateRange ? "<div class='v-date v-sub-name'>" + esc(subDateRange) + "</div>" : "") +
+            (subDateRange ? "<div class='v-date v-sub-name date-link' data-start='" + esc(subRange.start) + "' data-end='" + esc(subRange.end) + "'>" + esc(subDateRange) + "</div>" : "") +
             (subDur ? "<div class='v-duration'>" + esc(subDur) + "</div>" : "");
 
           (function (el, vIdx, rIdx, verName) {
