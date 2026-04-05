@@ -1,4 +1,4 @@
-# Strategy v6 — Fractal-Based Trend Following
+# Strategy v1 — Fractal-Based Trend Following
 
 ## Overview
 
