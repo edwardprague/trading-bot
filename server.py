@@ -563,63 +563,6 @@ def _version_with_auto_ranges(env_overrides):
             _bt_state["stage"]   = ""
         return
 
-    # Step 2: Find the newly created version name from report.html
-    try:
-        html = REPORT_FILE.read_text(encoding="utf-8")
-        match = re.search(
-            r'(<script[^>]+id=["\']versions-data["\'][^>]*>)([\s\S]*?)(</script>)',
-            html
-        )
-        versions = json.loads(match.group(2).strip()) if match else []
-        version_name = versions[-1]["name"] if versions else None
-    except Exception:
-        version_name = None
-
-    if not version_name:
-        with _bt_lock:
-            _bt_state["ok"]      = True
-            _bt_state["no_data"] = False
-            _bt_state["error"]   = None
-            _bt_state["running"] = False
-            _bt_state["stage"]   = ""
-        return
-
-    # Step 3: Get best and worst months
-    best_range, worst_range = _get_best_worst_months(version_name)
-    if not best_range or not worst_range:
-        with _bt_lock:
-            _bt_state["ok"]      = True
-            _bt_state["no_data"] = False
-            _bt_state["error"]   = None
-            _bt_state["running"] = False
-            _bt_state["stage"]   = ""
-        return
-
-    # Build base env for date-range runs (carry over instrument, direction, etc.)
-    base_env = dict(env_overrides)
-    base_env["RUN_MODE"] = "date_range"
-    base_env["TARGET_VERSION"] = version_name
-
-    # Step 4: Run best month
-    with _bt_lock:
-        _bt_state["stage"] = "Running best month\u2026"
-    best_env = dict(base_env)
-    best_env["RUN_START_DATE"] = best_range[0]
-    best_env["RUN_END_DATE"]   = best_range[1]
-    r2 = _run_backtest_sync(best_env)
-    if not r2["ok"]:
-        print(f"  Warning: best-month run failed: {r2.get('error')}")
-
-    # Step 5: Run worst month
-    with _bt_lock:
-        _bt_state["stage"] = "Running worst month\u2026"
-    worst_env = dict(base_env)
-    worst_env["RUN_START_DATE"] = worst_range[0]
-    worst_env["RUN_END_DATE"]   = worst_range[1]
-    r3 = _run_backtest_sync(worst_env)
-    if not r3["ok"]:
-        print(f"  Warning: worst-month run failed: {r3.get('error')}")
-
     # Done
     with _bt_lock:
         _bt_state["ok"]      = True
