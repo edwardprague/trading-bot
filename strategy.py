@@ -1968,8 +1968,8 @@ __VERSIONS_JSON__
       if (intradayData.length === 0) return;
       lines.push("### Intraday Performance");
       lines.push("");
-      lines.push("| F # | F Type | Date | Entry Time | Duration | Direction | Stop | Target | ATR | ADX | P&L |");
-      lines.push("|-----|--------|------|------------|----------|-----------|------|--------|-----|-----|-----|");
+      lines.push("| Date | Entry Time | Duration | Direction | Stop | Target | F # | F Type | ATR | ADX | P&L |");
+      lines.push("|------|------------|----------|-----------|------|--------|-----|--------|-----|-----|-----|");
       /* Build bar→pivot# lookup from pivot diagnostics */
       var mdPvd = m.pivot_diagnostics || {};
       var mdPivotList = mdPvd.pivots || [];
@@ -1992,7 +1992,7 @@ __VERSIONS_JSON__
         var adxD = (t.adx     !== null && t.adx     !== undefined) ? mf(t.adx, 1)      : "\u2014";
         var fNum  = (t.fractal_bar !== null && t.fractal_bar !== undefined && mdBarToPivot[t.fractal_bar]) ? mdBarToPivot[t.fractal_bar] : "\u2014";
         var fType = t.fractal_label || "\u2014";
-        lines.push("| " + fNum + " | " + fType + " | " + iDateLabel + " | " + t.entry_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + atrD + " | " + adxD + " | " + mfMoney(t.pnl) + " |");
+        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + fNum + " | " + fType + " | " + atrD + " | " + adxD + " | " + mfMoney(t.pnl) + " |");
       });
       lines.push("");
     }());
@@ -2691,14 +2691,14 @@ __VERSIONS_JSON__
         var fType = t.fractal_label || "\u2014";
         iRows +=
           "<tr>" +
-          "<td>" + fNum + "</td>" +
-          "<td>" + esc(fType) + "</td>" +
           "<td>" + esc(iDateLabel) + "</td>" +
           "<td>" + esc(t.entry_time) + " UTC</td>" +
           "<td>" + fmtDur(t.duration) + "</td>" +
           "<td class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
           "<td>" + stopD + "</td>" +
           "<td>" + targetD + "</td>" +
+          "<td>" + fNum + "</td>" +
+          "<td>" + esc(fType) + "</td>" +
           "<td>" + atrD + "</td>" +
           "<td>" + adxD + "</td>" +
           "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
@@ -2709,7 +2709,7 @@ __VERSIONS_JSON__
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
           "<table><thead><tr>" +
-          "<th>F #</th><th>F Type</th><th>Date</th><th>Entry Time</th><th>Duration</th><th>Direction</th><th>Stop</th><th>Target</th><th>ATR</th><th>ADX</th><th>P&amp;L</th>" +
+          "<th>Date</th><th>Entry Time</th><th>Duration</th><th>Direction</th><th>Stop</th><th>Target</th><th>F #</th><th>F Type</th><th>ATR</th><th>ADX</th><th>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 
