@@ -4348,8 +4348,9 @@ if __name__ == "__main__":
                         else _t_entry.dt.tz_localize("UTC"))
             _t_mask = (_t_entry >= _range_start) & (_t_entry < _range_end)
             trades  = trades[_t_mask].copy()
-            trades["entry_idx"] = trades["entry_idx"] - _pre_buffer
-            trades["exit_idx"]  = trades["exit_idx"]  - _pre_buffer
+            trades["entry_idx"]  = trades["entry_idx"] - _pre_buffer
+            trades["exit_idx"]   = trades["exit_idx"]  - _pre_buffer
+            trades["fractal_bar"] = trades["fractal_bar"] - _pre_buffer
             trades = trades.reset_index(drop=True)
 
         # Filter blocked signals to the requested range
