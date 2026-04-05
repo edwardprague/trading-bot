@@ -3199,6 +3199,8 @@ __VERSIONS_JSON__
           row("Avg Target (pips)", avgTargetPipsHtml) +
           row("Best Trade",    "<span class='pos'>" + fmtMoney(m.best_trade)  + "</span>") +
           row("Worst Trade",   "<span class='neg'>" + fmtMoney(m.worst_trade) + "</span>") +
+          row("Win Streak",    (function () { var s = m.streaks || {}; return s.max_win_streak !== undefined ? s.max_win_streak + " trades" : "&#8212;"; }())) +
+          row("Loss Streak",   (function () { var s = m.streaks || {}; return s.max_loss_streak !== undefined ? s.max_loss_streak + " trades" : "&#8212;"; }())) +
           row("Max Daily DD",  (function () {
             var mdd = m.max_daily_drawdown || {};
             if (mdd.dollar === null || mdd.dollar === undefined) return "&#8212;";
