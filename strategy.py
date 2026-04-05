@@ -2255,13 +2255,6 @@ __VERSIONS_JSON__
     endEl.dispatchEvent(new Event("change"));
   };
 
-  /* ── Sidebar date-link clicks → fill date pickers ───────── */
-  document.getElementById("version-list").addEventListener("click", function (e) {
-    var link = e.target.closest(".date-link[data-start]");
-    if (!link) return;
-    e.stopPropagation();
-    setDatePicker(link.dataset.start, link.dataset.end);
-  });
 
   function calcDuration(startStr, endStr) {
     if (!startStr || !endStr) return "";
@@ -2347,6 +2340,9 @@ __VERSIONS_JSON__
         el.addEventListener("click", function (e) {
           /* ignore clicks on the expand arrow */
           if (e.target.classList.contains("v-expand-arrow")) return;
+          /* Date-link click → fill date pickers, don't navigate */
+          var dl = e.target.closest(".date-link[data-start]");
+          if (dl) { setDatePicker(dl.dataset.start, dl.dataset.end); return; }
           devLogOpen = false;
           document.getElementById("devlog-btn").classList.remove("active");
           activeVersionIdx = vIdx;
@@ -2408,6 +2404,9 @@ __VERSIONS_JSON__
           (function (el, vIdx, rIdx, verName) {
             el.addEventListener("click", function (e) {
               e.stopPropagation();
+              /* Date-link click → fill date pickers, don't navigate */
+              var dl = e.target.closest(".date-link[data-start]");
+              if (dl) { setDatePicker(dl.dataset.start, dl.dataset.end); return; }
               devLogOpen = false;
               document.getElementById("devlog-btn").classList.remove("active");
               activeVersionIdx = vIdx;
