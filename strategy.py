@@ -1954,8 +1954,8 @@ __VERSIONS_JSON__
       if (intradayData.length === 0) return;
       lines.push("### Intraday Performance");
       lines.push("");
-      lines.push("| Date | Entry Time | Exit Time | Duration | Trade Direction | Stop (pips) | Target (pips) | P&L |");
-      lines.push("|------|------------|-----------|----------|-----------------|-------------|---------------|-----|");
+      lines.push("| Date | Entry Time | Exit Time | Duration | Trade Direction | Stop (pips) | Target (pips) | ATR (pips) | ADX | P&L |");
+      lines.push("|------|------------|-----------|----------|-----------------|-------------|---------------|------------|-----|-----|");
       var mdIMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       function mdFmtDur(mins) {
         if (mins < 60) return mins + " min";
@@ -1967,7 +1967,9 @@ __VERSIONS_JSON__
         var iDateLabel = mdIMnames[parseInt(idp[1], 10) - 1] + "-" + String(idp[2]).padStart(2, "0") + "-" + idp[0].slice(2);
         var stopD   = (t.stop_pips   !== null && t.stop_pips   !== undefined) ? mf(t.stop_pips, 1)   : "\u2014";
         var targetD = (t.target_pips !== null && t.target_pips !== undefined) ? mf(t.target_pips, 1) : "\u2014";
-        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + t.exit_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + mfMoney(t.pnl) + " |");
+        var atrD = (t.atr_pips !== null && t.atr_pips !== undefined) ? mf(t.atr_pips, 1) : "\u2014";
+        var adxD = (t.adx     !== null && t.adx     !== undefined) ? mf(t.adx, 1)      : "\u2014";
+        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + t.exit_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + atrD + " | " + adxD + " | " + mfMoney(t.pnl) + " |");
       });
       lines.push("");
     }());
