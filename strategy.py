@@ -844,7 +844,11 @@ def save_charts(df, trades, equity):
             _label_offset = max(_price_range * 0.018, 2e-5)
             for _pv_idx, _pv in enumerate(_pvd['pivots']):
                 _bar_i  = _pv['bar']
-                _pv_clr = _pivot_colors.get(_pv['label'], '#ffffff')
+                # N=6 fractals always render as white; N=2-only uses standard colors
+                if _pv.get('n6'):
+                    _pv_clr = '#ffffff'
+                else:
+                    _pv_clr = _pivot_colors.get(_pv['label'], '#ffffff')
                 if _pv['kind'] == 'H':
                     _pv_y = _pv['price'] + _pivot_offset
                     _lbl_y = _pv_y + _label_offset
@@ -1014,7 +1018,7 @@ def compute_pivot_diagnostics(df):
     lows  = df['Low'].values
     n_bars = len(df)
 
-    # ── Detect fractal pivots (need 2 bars on each side) ─────────────────────
+    # ── Detect fractal pivots (N=2: need 2 bars on each side) ──────────────
     raw_pivots = []
     for i in range(2, n_bars - 2):
         h_i = highs[i]
@@ -1037,6 +1041,55 @@ def compute_pivot_diagnostics(df):
 
     # Sort by bar index so they appear in chronological order
     raw_pivots.sort(key=lambda x: x['bar'])
+
+    # ── Detect N=6 fractal pivots (need 6 bars on each side) ─────────────
+    # Build a set of bar indices that have an N=6 fractal (high, low, or both)
+    n6_high_bars = set()
+    n6_low_bars  = set()
+    for i in range(6, n_bars - 6):
+        h_i = highs[i]
+        l_i = lows[i]
+        is_ph6 = all(h_i > highs[i - k] for k in range(1, 7)) and \
+                 all(h_i > highs[i + k] for k in range(1, 7))
+        is_pl6 = all(l_i < lows[i - k] for k in range(1, 7)) and \
+                 all(l_i < lows[i + k] for k in range(1, 7))
+        if is_ph6:
+            n6_high_bars.add(i)
+        if is_pl6:
+            n6_low_bars.add(i)
+
+    # ── Classify N=6 pivots independently ────────────────────────────────
+    # Collect N=6 raw pivots sorted by bar, then classify with own state
+    n6_raw = []
+    for i in sorted(n6_high_bars | n6_low_bars):
+        atr_i = float(atr14.iloc[i])
+        if i in n6_high_bars:
+            n6_raw.append({'kind': 'H', 'price': float(highs[i]), 'bar': i, 'atr': atr_i})
+        if i in n6_low_bars:
+            n6_raw.append({'kind': 'L', 'price': float(lows[i]),  'bar': i, 'atr': atr_i})
+    n6_raw.sort(key=lambda x: x['bar'])
+
+    n6_prev_high = None
+    n6_prev_low  = None
+    n6_labels    = {}  # bar → label string for N=6 classification
+    for pv in n6_raw:
+        price     = pv['price']
+        threshold = 0.5 * pv['atr']
+        if pv['kind'] == 'H':
+            if n6_prev_high is None:
+                lbl6 = 'CH'
+            else:
+                diff = price - n6_prev_high['price']
+                lbl6 = 'CH' if abs(diff) < threshold else ('LH' if diff < 0 else 'HH')
+            n6_prev_high = pv
+        else:
+            if n6_prev_low is None:
+                lbl6 = 'CL'
+            else:
+                diff = price - n6_prev_low['price']
+                lbl6 = 'CL' if abs(diff) < threshold else ('HL' if diff > 0 else 'LL')
+            n6_prev_low = pv
+        n6_labels[(pv['bar'], pv['kind'])] = lbl6
 
     # ── Classify each pivot vs previous same-type pivot ───────────────────────
     classified = []
@@ -1063,6 +1116,7 @@ def compute_pivot_diagnostics(df):
                 vert_dist  = round(abs(diff) * 10000, 1)   # pips
                 horiz_dist = pv['bar'] - prev_high['bar']
 
+            _n6_key = (pv['bar'], 'H')
             classified.append({
                 'label':      label,
                 'price':      price,
@@ -1073,6 +1127,8 @@ def compute_pivot_diagnostics(df):
                 'kind':       pv['kind'],
                 'atr':        round(pv['atr'] * 10000, 1),  # ATR in pips
                 'adx':        round(pv['adx'], 1) if pv['adx'] is not None else None,
+                'n6':         _n6_key in n6_labels,
+                'n6_label':   n6_labels.get(_n6_key),
             })
             prev_high = pv
 
@@ -1092,6 +1148,7 @@ def compute_pivot_diagnostics(df):
                 vert_dist  = round(abs(diff) * 10000, 1)
                 horiz_dist = pv['bar'] - prev_low['bar']
 
+            _n6_key = (pv['bar'], 'L')
             classified.append({
                 'label':      label,
                 'price':      price,
@@ -1102,6 +1159,8 @@ def compute_pivot_diagnostics(df):
                 'kind':       pv['kind'],
                 'atr':        round(pv['atr'] * 10000, 1),  # ATR in pips
                 'adx':        round(pv['adx'], 1) if pv['adx'] is not None else None,
+                'n6':         _n6_key in n6_labels,
+                'n6_label':   n6_labels.get(_n6_key),
             })
             prev_low = pv
 
@@ -2046,7 +2105,8 @@ __VERSIONS_JSON__
           var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? mf(pv.pullback_pct, 1) + "%" : "\u2014";
           var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? mf(pv.atr, 1) : "\u2014";
           var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? mf(pv.adx, 1) : "\u2014";
-          lines.push("| " + (idx + 1) + " | " + (pv.label || "\u2014") + " | " +
+          var mdLbl = (pv.label || "\u2014") + (pv.n6 ? " \u2022" : "");
+          lines.push("| " + (idx + 1) + " | " + mdLbl + " | " +
             mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
         });
       }
@@ -3031,6 +3091,8 @@ __VERSIONS_JSON__
         } else if (lbl === "LH" || lbl === "LL" || lbl === "HH" || lbl === "HL") {
           bgClass = " class='fractal-row-directional'";
         }
+        var lblDisplay = "<strong>" + esc(lbl) + "</strong>";
+        if (pv.n6) lblDisplay += " <span style='color:#ffffff;font-size:15px;' title='N=6 fractal'>\u2022</span>";
         var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? fmt(pv.vert_dist, 1)  : "\u2014";
         var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "\u2014";
         var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "\u2014";
@@ -3039,7 +3101,7 @@ __VERSIONS_JSON__
         pvRows +=
           "<tr" + bgClass + ">" +
           "<td>" + (idx + 1) + "</td>" +
-          "<td><strong>" + esc(lbl) + "</strong></td>" +
+          "<td>" + lblDisplay + "</td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
           "<td class='nowrap'>" + esc(pv.time || "\u2014") + "</td>" +
           "<td>" + atrD + "</td>" +
