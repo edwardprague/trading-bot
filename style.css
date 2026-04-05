@@ -38,6 +38,8 @@ body {
 
 .rb-date {
     font-size: 13px !important;
+    background: #444 !important;
+    color: #fff !important;
 }
 
 /* ── Sidebar ──────────────────────────────────────────── */
