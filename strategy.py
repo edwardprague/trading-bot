@@ -393,6 +393,8 @@ def run_backtest(df):
     worst_adverse    = 0.0   # tracks furthest adverse price during a trade
     entry_adx        = 0.0   # ADX value at entry bar
     entry_atr        = 0.0   # ATR value at entry bar
+    entry_fractal_bar   = None  # bar index of the fractal that triggered entry
+    entry_fractal_label = None  # label (HL, LH, etc.) of the triggering fractal
     entry_ts         = None  # timestamp of the entry bar (for time-of-day diagnostics)
     blocked_signals  = []    # signals that were filtered out (for Filter Impact Summary)
     _debug_entries   = 0     # counter for entry timezone debug prints
@@ -410,6 +412,8 @@ def run_backtest(df):
     last_low_label  = None   # classification of last pivot low  (HL, LL, CL)
     last_fractal_low_price  = None   # price of the most recent confirmed pivot low
     last_fractal_high_price = None   # price of the most recent confirmed pivot high
+    last_fractal_low_bar    = None   # bar index of the most recent confirmed pivot low
+    last_fractal_high_bar   = None   # bar index of the most recent confirmed pivot high
 
     for i in range(1, len(df)):
         c     = float(df.Close.iloc[i])
@@ -494,6 +498,8 @@ def run_backtest(df):
                     "mae":          mae,
                     "adx_at_entry": entry_adx,
                     "atr_at_entry": entry_atr,
+                    "fractal_bar":   entry_fractal_bar,
+                    "fractal_label": entry_fractal_label,
                     "timestamp":    ts,
                     "entry_ts":     entry_ts
                 })
@@ -531,6 +537,7 @@ def run_backtest(df):
                         last_high_label = 'HH'
                 prev_high_price = float(fh)
                 last_fractal_high_price = float(fh)
+                last_fractal_high_bar   = fi
 
             if is_pl:
                 if prev_low_price is None:
@@ -545,6 +552,7 @@ def run_backtest(df):
                         last_low_label = 'LL'
                 prev_low_price = float(fl)
                 last_fractal_low_price = float(fl)
+                last_fractal_low_bar   = fi
 
         # ── Check entries ─────────────────────────────────────────────────────
         if not in_trade:
@@ -626,6 +634,8 @@ def run_backtest(df):
                     worst_adverse = c
                     entry_adx     = float(df.adx.iloc[i])
                     entry_atr     = float(df.atr14.iloc[i])
+                    entry_fractal_bar   = last_fractal_low_bar
+                    entry_fractal_label = last_low_label
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
@@ -647,6 +657,8 @@ def run_backtest(df):
                     worst_adverse = c
                     entry_adx     = float(df.adx.iloc[i])
                     entry_atr     = float(df.atr14.iloc[i])
+                    entry_fractal_bar   = last_fractal_high_bar
+                    entry_fractal_label = last_high_label
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
@@ -1325,6 +1337,8 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
                     "target_pips": _target_pips,
                     "atr_pips":   round(float(row_t["atr_at_entry"]) * 10000, 1),
                     "adx":        round(float(row_t["adx_at_entry"]), 1),
+                    "fractal_bar":   int(row_t["fractal_bar"]) if row_t.get("fractal_bar") is not None else None,
+                    "fractal_label": row_t.get("fractal_label"),
                     "pnl":        round(float(row_t["pnl"]), 2),
                 })
     except Exception:
@@ -1954,8 +1968,15 @@ __VERSIONS_JSON__
       if (intradayData.length === 0) return;
       lines.push("### Intraday Performance");
       lines.push("");
-      lines.push("| Date | Entry Time | Duration | Direction | Stop | Target | ATR | ADX | P&L |");
-      lines.push("|------|------------|----------|-----------|------|--------|-----|-----|-----|");
+      lines.push("| F # | F Type | Date | Entry Time | Duration | Direction | Stop | Target | ATR | ADX | P&L |");
+      lines.push("|-----|--------|------|------------|----------|-----------|------|--------|-----|-----|-----|");
+      /* Build bar→pivot# lookup from pivot diagnostics */
+      var mdPvd = m.pivot_diagnostics || {};
+      var mdPivotList = mdPvd.pivots || [];
+      var mdBarToPivot = {};
+      mdPivotList.forEach(function (pv, idx) {
+        mdBarToPivot[pv.bar] = idx + 1;
+      });
       var mdIMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       function mdFmtDur(mins) {
         if (mins < 60) return mins + " min";
@@ -1969,7 +1990,9 @@ __VERSIONS_JSON__
         var targetD = (t.target_pips !== null && t.target_pips !== undefined) ? mf(t.target_pips, 1) : "\u2014";
         var atrD = (t.atr_pips !== null && t.atr_pips !== undefined) ? mf(t.atr_pips, 1) : "\u2014";
         var adxD = (t.adx     !== null && t.adx     !== undefined) ? mf(t.adx, 1)      : "\u2014";
-        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + atrD + " | " + adxD + " | " + mfMoney(t.pnl) + " |");
+        var fNum  = (t.fractal_bar !== null && t.fractal_bar !== undefined && mdBarToPivot[t.fractal_bar]) ? mdBarToPivot[t.fractal_bar] : "\u2014";
+        var fType = t.fractal_label || "\u2014";
+        lines.push("| " + fNum + " | " + fType + " | " + iDateLabel + " | " + t.entry_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + atrD + " | " + adxD + " | " + mfMoney(t.pnl) + " |");
       });
       lines.push("");
     }());
@@ -2646,6 +2669,14 @@ __VERSIONS_JSON__
         if (mins < 60) return mins + " min";
         return (mins / 60).toFixed(1).replace(".", ",") + " hrs";
       }
+      /* Build bar→pivot# lookup from pivot diagnostics */
+      var pvdData = m.pivot_diagnostics || {};
+      var pivotList = pvdData.pivots || [];
+      var barToPivot = {};
+      pivotList.forEach(function (pv, idx) {
+        barToPivot[pv.bar] = idx + 1;
+      });
+
       var iRows = "";
       intradayData.forEach(function (t) {
         var pnlCls = t.pnl >= 0 ? "mo-pnl-pos" : "mo-pnl-neg";
@@ -2656,8 +2687,12 @@ __VERSIONS_JSON__
         var targetD = (t.target_pips !== null && t.target_pips !== undefined) ? fmt(t.target_pips, 1) : "\u2014";
         var atrD = (t.atr_pips !== null && t.atr_pips !== undefined) ? fmt(t.atr_pips, 1) : "\u2014";
         var adxD = (t.adx     !== null && t.adx     !== undefined) ? fmt(t.adx, 1)      : "\u2014";
+        var fNum  = (t.fractal_bar !== null && t.fractal_bar !== undefined && barToPivot[t.fractal_bar]) ? barToPivot[t.fractal_bar] : "\u2014";
+        var fType = t.fractal_label || "\u2014";
         iRows +=
           "<tr>" +
+          "<td>" + fNum + "</td>" +
+          "<td>" + esc(fType) + "</td>" +
           "<td>" + esc(iDateLabel) + "</td>" +
           "<td>" + esc(t.entry_time) + " UTC</td>" +
           "<td>" + fmtDur(t.duration) + "</td>" +
@@ -2674,7 +2709,7 @@ __VERSIONS_JSON__
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
           "<table><thead><tr>" +
-          "<th>Date</th><th>Entry Time</th><th>Duration</th><th>Direction</th><th>Stop</th><th>Target</th><th>ATR</th><th>ADX</th><th>P&amp;L</th>" +
+          "<th>F #</th><th>F Type</th><th>Date</th><th>Entry Time</th><th>Duration</th><th>Direction</th><th>Stop</th><th>Target</th><th>ATR</th><th>ADX</th><th>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 
