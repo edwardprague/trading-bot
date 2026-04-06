@@ -3932,9 +3932,11 @@ __VERSIONS_JSON__
   /* ── Init ──────────────────────────────────────────────────── */
   document.getElementById("strategy-select").addEventListener("change", onStrategyChange);
 
-  document.getElementById("devlog-btn").addEventListener("click", function () {
+  document.getElementById("main").addEventListener("click", function (e) {
+    var btn = e.target.closest("#devlog-btn");
+    if (!btn) return;
     devLogOpen = !devLogOpen;
-    this.classList.toggle("active", devLogOpen);
+    btn.classList.toggle("active", devLogOpen);
     document.querySelectorAll(".v-item").forEach(function (e) {
       e.classList.remove("active");
     });
