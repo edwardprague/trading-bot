@@ -943,8 +943,9 @@ def save_charts(df, trades, equity):
                          color="#ffffff", linewidth=1.0, linestyle=(0, (1, 1)),
                          alpha=0.7, zorder=4)
 
-    ax1.set_title(f"{TICKER} — EMA Trend Following Backtest",
-                  color="white", fontsize=13, pad=10)
+    _title_fmt = lambda d: d.strftime("%b-%d-%y")
+    _chart_title = _title_fmt(_date_min) if is_one_day else f"{_title_fmt(_date_min)} → {_title_fmt(_date_max)}"
+    ax1.set_title(_chart_title, color="white", fontsize=13, pad=10)
     ax1.legend(loc="upper left", facecolor="#1a1a2e",
                labelcolor="white", fontsize=8)
     ax1.set_ylabel("Price", color="white")
