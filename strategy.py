@@ -2179,6 +2179,12 @@ __VERSIONS_JSON__
       } else {
         lines.push("| # | Type 1 | Type 2 | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
         lines.push("|---|--------|--------|-------|------|------------|-----|----------------------|-----------------------|------------|");
+        var mdBarOutcome = {};
+        (m.intraday || []).forEach(function (t) {
+          if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
+            mdBarOutcome[t.fractal_bar] = t.pnl >= 0 ? "W" : "L";
+          }
+        });
         var mdCarriedN18 = "";
         pvList.forEach(function (pv, idx) {
           var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? mf(pv.vert_dist, 1) : "\u2014";
@@ -2197,7 +2203,10 @@ __VERSIONS_JSON__
           if (pv.label) {
             mdType2 = pv.label + (pv.n6 ? " \u2022" : "");
           }
-          lines.push("| " + (idx + 1) + " | " + (mdType1 || "\u2014") + " | " + (mdType2 || "\u2014") + " | " +
+          var mdNum = String(idx + 1);
+          var mdOc = mdBarOutcome[pv.bar];
+          if (mdOc) mdNum += " " + mdOc;
+          lines.push("| " + mdNum + " | " + (mdType1 || "\u2014") + " | " + (mdType2 || "\u2014") + " | " +
             mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
         });
       }
@@ -3174,6 +3183,15 @@ __VERSIONS_JSON__
         return;
       }
 
+      /* Build bar→trade outcome lookup from intraday data */
+      var intradayData = m.intraday || [];
+      var barToOutcome = {};  /* bar index → "win" | "loss" */
+      intradayData.forEach(function (t) {
+        if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
+          barToOutcome[t.fractal_bar] = t.pnl >= 0 ? "win" : "loss";
+        }
+      });
+
       /* Type 1 = N=18 cycle structure (carried forward).
          Type 2 = N=2 entry texture + N=6 dot overlay. */
       var carriedN18 = "";  /* last-seen N=18 label, carried forward */
@@ -3209,9 +3227,17 @@ __VERSIONS_JSON__
         var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "\u2014";
         var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? fmt(pv.atr, 1) : "\u2014";
         var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? fmt(pv.adx, 1) : "\u2014";
+        var numHtml = String(idx + 1);
+        var outcome = barToOutcome[pv.bar];
+        if (outcome === "win") {
+          numHtml += " <span style='color:#6bcb77;font-size:13px;'>\u2022</span>";
+        } else if (outcome === "loss") {
+          numHtml += " <span style='color:#ef5350;font-size:13px;'>\u2022</span>";
+        }
+
         pvRows +=
           "<tr" + bgClass + ">" +
-          "<td>" + (idx + 1) + "</td>" +
+          "<td>" + numHtml + "</td>" +
           "<td>" + type1Html + "</td>" +
           "<td>" + type2Html + "</td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
