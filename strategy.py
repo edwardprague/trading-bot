@@ -3209,7 +3209,7 @@ __VERSIONS_JSON__
         if (pv.n18 && pv.n18_label) {
           carriedN18 = pv.n18_label;
           type1Html = "<strong>" + esc(pv.n18_label) + "</strong>" +
-            " <span style='color:#ffd700;font-size:15px;' title='N=18 fractal'>\u2022</span>";
+            " <span style='color:#ffd700;font-size:30px;vertical-align:middle;line-height:0;' title='N=18 fractal'>\u2022</span>";
         } else if (carriedN18) {
           type1Html = "<strong>" + esc(carriedN18) + "</strong>";
         }
@@ -3219,7 +3219,7 @@ __VERSIONS_JSON__
         if (pv.label) {
           /* This row has an N=2 fractal (every row in pivotList is an N=2 pivot) */
           type2Html = "<strong>" + esc(pv.label) + "</strong>";
-          if (pv.n6) type2Html += " <span style='color:#ffffff;font-size:15px;' title='N=6 fractal'>\u2022</span>";
+          if (pv.n6) type2Html += " <span style='color:#ffffff;font-size:30px;vertical-align:middle;line-height:0;' title='N=6 fractal'>\u2022</span>";
         }
 
         var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? fmt(pv.vert_dist, 1)  : "\u2014";
@@ -3230,14 +3230,14 @@ __VERSIONS_JSON__
         var numHtml = String(idx + 1);
         var outcome = barToOutcome[pv.bar];
         if (outcome === "win") {
-          numHtml += " <span style='color:#6bcb77;font-size:13px;'>\u2022</span>";
+          numHtml += " <span style='color:#6bcb77;font-size:26px;vertical-align:middle;line-height:0;'>\u2022</span>";
         } else if (outcome === "loss") {
-          numHtml += " <span style='color:#ef5350;font-size:13px;'>\u2022</span>";
+          numHtml += " <span style='color:#ef5350;font-size:26px;vertical-align:middle;line-height:0;'>\u2022</span>";
         }
 
         pvRows +=
           "<tr" + bgClass + ">" +
-          "<td>" + numHtml + "</td>" +
+          "<td class='nowrap'>" + numHtml + "</td>" +
           "<td>" + type1Html + "</td>" +
           "<td>" + type2Html + "</td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
@@ -3259,7 +3259,7 @@ __VERSIONS_JSON__
         "<div class='section' id='anchor-fractal-diag'>" +
           "<div class='section-title'>Fractal Diagnostics</div>" +
           "<table><thead><tr>" +
-          "<th style='width:36px'>#</th>" +
+          "<th style='width:52px'>#</th>" +
           "<th>Type 1</th>" +
           "<th>Type 2</th>" +
           "<th>Price</th>" +
