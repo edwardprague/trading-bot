@@ -413,20 +413,29 @@ tbody tr:hover td {
 }
 
 .dl-input {
-    background: #14142a;
-    color: #c0c0e0;
-    border: 1px solid #2a2a44;
+    background: #444;
+    color: #fff;
+    border: 1px solid #444;
     border-radius: 5px;
     padding: 6px 10px;
     font-size: 12px;
     font-family: inherit;
     outline: none;
+    width: 100%;
 }
+
 .dl-input:focus {
     border-color: #4cc9f0;
 }
-.dl-input-param { width: 140px; }
-.dl-input-desc  { flex: 1; min-width: 200px; }
+
+.dl-input-param {
+    width: 225px;
+}
+
+.dl-input-desc {
+    flex: 1;
+    min-width: 200px;
+}
 
 .dl-btn {
     color: #fff;
@@ -436,6 +445,7 @@ tbody tr:hover td {
     white-space: nowrap;
     transition: background 0.15s, transform 0.1s;
 }
+
 .dl-btn-green {
     width: 28px;
     height: 28px;
@@ -448,7 +458,11 @@ tbody tr:hover td {
     text-align: center;
     flex-shrink: 0;
 }
-.dl-btn-green:hover { background: #02bc02; transform: scale(1.1); }
+
+.dl-btn-green:hover {
+    background: #02bc02;
+    transform: scale(1.1);
+}
 
 .dl-version-block {
     background: #1a1a2e;
@@ -487,33 +501,40 @@ tbody tr:hover td {
     width: 100%;
     border-collapse: collapse;
 }
+
 .dl-param-table thead th {
     text-align: left;
     padding: 8px 16px;
     font-size: 11px;
-    color: #505070;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     border-bottom: 1px solid #2a2a44;
     background: #12122a;
 }
+
 .dl-param-row td {
     padding: 8px 16px;
     font-size: 13px;
-    color: #c0c0e0;
     border-bottom: 1px solid #1e1e30;
 }
+
 .dl-param-row[draggable='true'] {
     transition: opacity 0.15s, background 0.15s;
 }
+
 .dl-param-row.dl-dragging {
     opacity: 0.35;
 }
+
 .dl-param-row.dl-drag-over {
     background: #1e1e40;
     box-shadow: 0 -2px 0 0 #4a90d9 inset;
 }
-.dl-th-drag { width: 28px; }
+
+.dl-th-drag {
+    width: 28px;
+}
+
 .dl-drag-handle {
     width: 28px;
     padding: 8px 4px 8px 8px !important;
@@ -521,17 +542,26 @@ tbody tr:hover td {
     color: #505070;
     vertical-align: middle;
 }
-.dl-drag-handle:active { cursor: grabbing; }
+
+.dl-drag-handle:active {
+    cursor: grabbing;
+}
+
 .dl-drag-icon {
     font-size: 18px;
     line-height: 1;
     vertical-align: middle;
 }
-.dl-delete-version { margin-left: 16px; }
+
+.dl-delete-version {
+    margin-left: 16px;
+}
+
 .dl-param-actions {
     text-align: right;
     white-space: nowrap;
 }
+
 .dl-act {
     cursor: pointer;
     font-size: 12px;
@@ -539,8 +569,14 @@ tbody tr:hover td {
     margin-left: 12px;
     transition: color 0.15s;
 }
-.dl-act:hover { color: #fff; }
-.dl-act-del:hover { color: #ef5350; }
+
+.dl-act:hover {
+    color: #fff;
+}
+
+.dl-act-del:hover {
+    color: #ef5350;
+}
 
 .dl-empty {
     padding: 12px 16px;
