@@ -3764,85 +3764,173 @@ __VERSIONS_JSON__
   }
 
   /* ── Dev Log ──────────────────────────────────────────────── */
+  var _devlogData = null;  /* cached devlog array, loaded from /devlog */
+
+  function _devlogSave(cb) {
+    fetch("/devlog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(_devlogData)
+    }).then(function (r) { return r.json(); })
+      .then(function () { if (cb) cb(); })
+      .catch(function () {
+        if (cb) cb();
+        var msg = document.createElement("div");
+        msg.textContent = "Failed to save \\u2014 is the server running?";
+        msg.style.cssText = "position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#c0392b;color:#fff;padding:8px 18px;border-radius:6px;z-index:9999;font-size:13px;";
+        document.body.appendChild(msg);
+        setTimeout(function(){ msg.remove(); }, 3000);
+      });
+  }
+
+  function _devlogRender() {
+    var el = document.getElementById("content");
+    if (!_devlogData) { _devlogData = []; }
+
+    var versionsHtml = "";
+    _devlogData.forEach(function (ver, vi) {
+      var paramRows = "";
+      (ver.params || []).forEach(function (p, pi) {
+        paramRows +=
+          "<tr class='dl-param-row'>" +
+            "<td>" + esc(p.name) + "</td>" +
+            "<td>" + esc(p.desc) + "</td>" +
+            "<td class='dl-param-actions'>" +
+              "<span class='dl-act' data-vi='" + vi + "' data-pi='" + pi + "' data-action='edit'>Edit</span>" +
+              "<span class='dl-act dl-act-del' data-vi='" + vi + "' data-pi='" + pi + "' data-action='delete'>Delete</span>" +
+            "</td>" +
+          "</tr>";
+      });
+
+      versionsHtml +=
+        "<div class='dl-version-block'>" +
+          "<div class='dl-version-header'>" +
+            "<h3>" + esc(ver.name) + "</h3>" +
+            "<div class='dl-add-param-row'>" +
+              "<input type='text' class='dl-input dl-input-param' placeholder='Parameter' data-vi='" + vi + "' data-field='name'>" +
+              "<input type='text' class='dl-input dl-input-desc' placeholder='Description' data-vi='" + vi + "' data-field='desc'>" +
+              "<button class='dl-btn dl-btn-green dl-add-param-btn' data-vi='" + vi + "'>Add Parameter</button>" +
+            "</div>" +
+          "</div>" +
+          "<table class='dl-param-table'>" +
+            "<thead><tr><th>Parameter</th><th>Description</th><th></th></tr></thead>" +
+            "<tbody>" + (paramRows || "<tr><td colspan='3' class='dl-empty'>No parameters yet</td></tr>") + "</tbody>" +
+          "</table>" +
+        "</div>";
+    });
+
+    el.innerHTML =
+      "<div id='devlog-header'>" +
+        "<h2>Development Log</h2>" +
+        "<div class='dl-add-version-row'>" +
+          "<input type='text' id='dl-new-version' class='dl-input' placeholder='V#'>" +
+          "<button id='dl-add-version-btn' class='dl-btn dl-btn-green'>Add Version</button>" +
+        "</div>" +
+      "</div>" +
+      versionsHtml;
+
+    /* ── Wire Add Version ── */
+    var addVerBtn = document.getElementById("dl-add-version-btn");
+    var addVerInput = document.getElementById("dl-new-version");
+    if (addVerBtn) {
+      addVerBtn.addEventListener("click", function () {
+        var name = addVerInput.value.trim();
+        if (!name) return;
+        _devlogData.unshift({ name: name, params: [] });
+        _devlogSave(function () { _devlogRender(); });
+      });
+      addVerInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") addVerBtn.click();
+      });
+    }
+
+    /* ── Wire Add Parameter buttons ── */
+    document.querySelectorAll(".dl-add-param-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var vi = parseInt(btn.dataset.vi, 10);
+        var block = btn.closest(".dl-version-header");
+        var nameInput = block.querySelector(".dl-input-param");
+        var descInput = block.querySelector(".dl-input-desc");
+        var pName = nameInput.value.trim();
+        var pDesc = descInput.value.trim();
+        if (!pName) return;
+        _devlogData[vi].params.push({ name: pName, desc: pDesc });
+        _devlogSave(function () { _devlogRender(); });
+      });
+    });
+    document.querySelectorAll(".dl-input-desc").forEach(function (inp) {
+      inp.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          var vi = inp.dataset.vi;
+          var btn = document.querySelector(".dl-add-param-btn[data-vi='" + vi + "']");
+          if (btn) btn.click();
+        }
+      });
+    });
+
+    /* ── Wire Edit / Delete actions ── */
+    document.querySelectorAll(".dl-act").forEach(function (span) {
+      span.addEventListener("click", function () {
+        var vi = parseInt(span.dataset.vi, 10);
+        var pi = parseInt(span.dataset.pi, 10);
+        var action = span.dataset.action;
+
+        if (action === "delete") {
+          _devlogData[vi].params.splice(pi, 1);
+          _devlogSave(function () { _devlogRender(); });
+
+        } else if (action === "edit") {
+          var p = _devlogData[vi].params[pi];
+          var row = span.closest("tr");
+          row.innerHTML =
+            "<td><input type='text' class='dl-input dl-edit-name' value='" + esc(p.name).replace(/'/g, "&#39;") + "'></td>" +
+            "<td><input type='text' class='dl-input dl-edit-desc' value='" + esc(p.desc).replace(/'/g, "&#39;") + "'></td>" +
+            "<td class='dl-param-actions'>" +
+              "<span class='dl-act dl-save-edit' data-vi='" + vi + "' data-pi='" + pi + "'>Save</span>" +
+              "<span class='dl-act dl-cancel-edit'>Cancel</span>" +
+            "</td>";
+
+          var saveBtn = row.querySelector(".dl-save-edit");
+          var cancelBtn = row.querySelector(".dl-cancel-edit");
+          var editName = row.querySelector(".dl-edit-name");
+          var editDesc = row.querySelector(".dl-edit-desc");
+
+          function doSave() {
+            p.name = editName.value.trim() || p.name;
+            p.desc = editDesc.value.trim();
+            _devlogSave(function () { _devlogRender(); });
+          }
+          saveBtn.addEventListener("click", doSave);
+          editDesc.addEventListener("keydown", function (e) { if (e.key === "Enter") doSave(); });
+          editName.addEventListener("keydown", function (e) { if (e.key === "Enter") doSave(); });
+          cancelBtn.addEventListener("click", function () { _devlogRender(); });
+          editName.focus();
+        }
+      });
+    });
+  }
+
   function showDevLog() {
     hideActionButtons();
-    var svs = getStrategyVersions();
 
-    if (svs.length === 0) {
-      document.getElementById("content").innerHTML =
-        "<div id='devlog-header'>" +
-          "<h2>Development Log</h2>" +
-          "<div class='v-meta'>" + esc(currentStrategy) + " &mdash; no runs yet</div>" +
-        "</div>";
+    if (_devlogData !== null) {
+      _devlogRender();
       return;
     }
 
-    var dlRowArr = [];
-    var prevPF = null;
-
-    for (var i = 0; i < svs.length; i++) {
-      var entry = svs[i];
-      var v = entry.v;
-      var runs = getRuns(v);
-      var firstRun = runs[0] || {};
-      var m = firstRun.metrics || {};
-
-      var pf = (m.profit_factor !== null && m.profit_factor !== undefined) ? m.profit_factor : null;
-      var wr = (m.win_rate !== null && m.win_rate !== undefined) ? m.win_rate : null;
-      var np = (m.net_profit !== null && m.net_profit !== undefined) ? m.net_profit : null;
-
-      var arrowHtml = "";
-      if (prevPF !== null && pf !== null) {
-        if (pf > prevPF + 0.005) {
-          arrowHtml = "<span class='arrow-up'>&#9650;</span>";
-        } else if (pf < prevPF - 0.005) {
-          arrowHtml = "<span class='arrow-dn'>&#9660;</span>";
-        } else {
-          arrowHtml = "<span class='arrow-nc'>&#8213;</span>";
-        }
-      }
-      if (pf !== null) prevPF = pf;
-
-      var pfDisp = (pf === null) ? "&#8212;" :
-        "<span class='" + (pf >= 1.5 ? "pos" : (pf < 1.0 ? "neg" : "neu")) + "'>" + pf.toFixed(2) + "</span>" + arrowHtml;
-
-      var wrDisp = (wr === null) ? "&#8212;" :
-        "<span class='" + (wr >= 50 ? "pos" : "neg") + "'>" + wr.toFixed(1) + "%</span>";
-
-      var npDisp = (np === null) ? "&#8212;" :
-        "<span class='" + (np >= 0 ? "pos" : "neg") + "'>" + fmtMoney(np) + "</span>";
-
-      var notes = (firstRun.notes && firstRun.notes !== "\u2014" && firstRun.notes !== "\u2014") ? esc(firstRun.notes) : "<span class='text-dim'>\u2014</span>";
-
-      dlRowArr.push(
-        "<tr>" +
-        "<td class='dl-version'>" + esc(v.name) + (runs.length > 1 ? " <span class='text-dim'>(" + runs.length + " runs)</span>" : "") + "</td>" +
-        "<td class='dl-date'>" + esc(fmtRunDate(firstRun.date || "")) + "</td>" +
-        "<td class='dl-notes'>" + notes + "</td>" +
-        "<td class='dl-td-right'>" + pfDisp + "</td>" +
-        "<td class='dl-td-right'>" + wrDisp + "</td>" +
-        "<td class='dl-td-right'>" + npDisp + "</td>" +
-        "</tr>"
-      );
-    }
-    var dlRows = dlRowArr.slice().reverse().join("");
-
     document.getElementById("content").innerHTML =
-      "<div id='devlog-header'>" +
-        "<h2>Development Log</h2>" +
-        "<div class='v-meta'>" + esc(currentStrategy) + " &mdash; " + svs.length + " version" + (svs.length !== 1 ? "s" : "") + "</div>" +
-      "</div>" +
-      "<div class='section'>" +
-        "<table class='devlog-table'>" +
-          "<thead><tr>" +
-          "<th>Version</th><th>Date</th><th>Change</th>" +
-          "<th class='dl-th-right'>Profit Factor</th>" +
-          "<th class='dl-th-right'>Win Rate</th>" +
-          "<th class='dl-th-right'>Net P&amp;L</th>" +
-          "</tr></thead>" +
-          "<tbody>" + dlRows + "</tbody>" +
-        "</table>" +
-      "</div>";
+      "<div id='devlog-header'><h2>Development Log</h2>" +
+      "<div class='v-meta'>Loading\u2026</div></div>";
+
+    fetch("/devlog").then(function (r) { return r.json(); })
+      .then(function (data) {
+        _devlogData = Array.isArray(data) ? data : [];
+        _devlogRender();
+      })
+      .catch(function () {
+        _devlogData = [];
+        _devlogRender();
+      });
   }
 
   /* ── Empty state — show Entry Conditions selects when no versions exist ── */

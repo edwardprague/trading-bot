@@ -894,6 +894,37 @@ def reorder_runs():
     return jsonify({"ok": True})
 
 
+# ── Dev Log API (devlog.json) ─────────────────────────────────────────────────
+
+DEVLOG_FILE = BASE_DIR / "devlog.json"
+
+def _load_devlog():
+    if DEVLOG_FILE.exists():
+        try:
+            return json.loads(DEVLOG_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, ValueError):
+            return []
+    return []
+
+def _save_devlog(data):
+    DEVLOG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+@app.route("/devlog", methods=["GET"])
+def devlog_get():
+    return jsonify(_load_devlog())
+
+@app.route("/devlog", methods=["POST"])
+def devlog_save():
+    try:
+        data = request.get_json(force=True)
+        if not isinstance(data, list):
+            return jsonify({"ok": False, "error": "Expected a JSON array"})
+        _save_devlog(data)
+        return jsonify({"ok": True})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)})
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

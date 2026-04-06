@@ -394,6 +394,9 @@ tbody tr:hover td {
 
 /* ── Dev log ──────────────────────────────────────────── */
 #devlog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 28px;
 }
 
@@ -403,37 +406,110 @@ tbody tr:hover td {
     color: #e4e4ff;
 }
 
-#devlog-header .v-meta {
-    font-size: 12px;
-    color: #505070;
-    margin-top: 6px;
+.dl-add-version-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-.devlog-table thead th {
+.dl-input {
+    background: #14142a;
+    color: #c0c0e0;
+    border: 1px solid #2a2a44;
+    border-radius: 5px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+}
+.dl-input:focus {
+    border-color: #4cc9f0;
+}
+.dl-input-param { width: 140px; }
+.dl-input-desc  { flex: 1; min-width: 200px; }
+
+.dl-btn {
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+.dl-btn-green { background: green; }
+.dl-btn-green:hover { background: #02bc02; }
+
+.dl-version-block {
+    background: #1a1a2e;
+    border: 1px solid #2a2a44;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.dl-version-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #0e0e1a;
+    border-bottom: 1px solid #2a2a44;
+}
+
+.dl-version-header h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #e4e4ff;
+    margin: 0;
+}
+
+.dl-add-param-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dl-param-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.dl-param-table thead th {
+    text-align: left;
+    padding: 8px 16px;
+    font-size: 11px;
+    color: #505070;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #2a2a44;
+    background: #12122a;
+}
+.dl-param-row td {
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #c0c0e0;
+    border-bottom: 1px solid #1e1e30;
+}
+.dl-param-actions {
+    text-align: right;
     white-space: nowrap;
 }
-
-.devlog-table .dl-notes {
-    color: #fff;
+.dl-act {
+    cursor: pointer;
     font-size: 12px;
-    max-width: 300px;
+    color: #888;
+    margin-left: 12px;
+    transition: color 0.15s;
 }
+.dl-act:hover { color: #fff; }
+.dl-act-del:hover { color: #ef5350; }
 
-.arrow-up {
-    color: #6bcb77;
-    font-weight: 700;
-    margin-left: 5px;
-}
-
-.arrow-dn {
-    color: #ff6b6b;
-    font-weight: 700;
-    margin-left: 5px;
-}
-
-.arrow-nc {
+.dl-empty {
+    padding: 12px 16px;
     color: #505070;
-    margin-left: 5px;
+    font-size: 12px;
 }
 
 /* ── Version header top row ───────────────────────────── */
@@ -823,26 +899,6 @@ tbody tr:hover td {
     padding: 16px;
 }
 
-/* ── Dev log cells ────────────────────────────────────── */
-.dl-version {
-    white-space: nowrap;
-    font-weight: 600;
-    color: #c8c8e8;
-}
-
-.dl-date {
-    white-space: nowrap;
-    color: #505070;
-}
-
-.dl-th-right {
-    text-align: right;
-}
-
-.dl-td-right {
-    text-align: right;
-    white-space: nowrap;
-}
 
 /* ── Toast ────────────────────────────────────────────── */
 #copy-toast {
