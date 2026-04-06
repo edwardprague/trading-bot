@@ -46,6 +46,10 @@ body {
     color: #fff !important;
 }
 
+.rb-devlog-btn {
+    color: #aaa !important;
+}
+
 /* ── Sidebar ──────────────────────────────────────────── */
 #sidebar {
     width: 228px;
