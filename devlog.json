@@ -7,7 +7,7 @@
         "name": "Trend Filter"
       },
       {
-        "desc": "When a fractal forms between the Short and Mid EMA",
+        "desc": "When a fractal forms between the Short and Mid EMA, enter at the close of the 5th bar",
         "name": "Entry Logic"
       },
       {
