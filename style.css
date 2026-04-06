@@ -431,16 +431,24 @@ tbody tr:hover td {
 .dl-btn {
     color: #fff;
     border: none;
-    border-radius: 5px;
-    padding: 6px 14px;
-    font-size: 12px;
     font-family: inherit;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s;
+    transition: background 0.15s, transform 0.1s;
 }
-.dl-btn-green { background: green; }
-.dl-btn-green:hover { background: #02bc02; }
+.dl-btn-green {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: green;
+    padding: 0;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 28px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.dl-btn-green:hover { background: #02bc02; transform: scale(1.1); }
 
 .dl-version-block {
     background: #1a1a2e;
@@ -470,6 +478,9 @@ tbody tr:hover td {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex: 1;
+    min-width: 0;
+    margin-left: 20px;
 }
 
 .dl-param-table {
@@ -492,6 +503,31 @@ tbody tr:hover td {
     color: #c0c0e0;
     border-bottom: 1px solid #1e1e30;
 }
+.dl-param-row[draggable='true'] {
+    transition: opacity 0.15s, background 0.15s;
+}
+.dl-param-row.dl-dragging {
+    opacity: 0.35;
+}
+.dl-param-row.dl-drag-over {
+    background: #1e1e40;
+    box-shadow: 0 -2px 0 0 #4a90d9 inset;
+}
+.dl-th-drag { width: 28px; }
+.dl-drag-handle {
+    width: 28px;
+    padding: 8px 4px 8px 8px !important;
+    cursor: grab;
+    color: #505070;
+    vertical-align: middle;
+}
+.dl-drag-handle:active { cursor: grabbing; }
+.dl-drag-icon {
+    font-size: 18px;
+    line-height: 1;
+    vertical-align: middle;
+}
+.dl-delete-version { margin-left: 16px; }
 .dl-param-actions {
     text-align: right;
     white-space: nowrap;

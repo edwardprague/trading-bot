@@ -3792,7 +3792,8 @@ __VERSIONS_JSON__
       var paramRows = "";
       (ver.params || []).forEach(function (p, pi) {
         paramRows +=
-          "<tr class='dl-param-row'>" +
+          "<tr class='dl-param-row' draggable='true' data-vi='" + vi + "' data-pi='" + pi + "'>" +
+            "<td class='dl-drag-handle'><span class='material-symbols-outlined dl-drag-icon'>drag_indicator</span></td>" +
             "<td>" + esc(p.name) + "</td>" +
             "<td>" + esc(p.desc) + "</td>" +
             "<td class='dl-param-actions'>" +
@@ -3809,12 +3810,12 @@ __VERSIONS_JSON__
             "<div class='dl-add-param-row'>" +
               "<input type='text' class='dl-input dl-input-param' placeholder='Parameter' data-vi='" + vi + "' data-field='name'>" +
               "<input type='text' class='dl-input dl-input-desc' placeholder='Description' data-vi='" + vi + "' data-field='desc'>" +
-              "<button class='dl-btn dl-btn-green dl-add-param-btn' data-vi='" + vi + "'>Add Parameter</button>" +
+              "<button class='dl-btn dl-btn-green dl-add-param-btn' data-vi='" + vi + "' title='Add Parameter'>+</button>" +
             "</div>" +
           "</div>" +
           "<table class='dl-param-table'>" +
-            "<thead><tr><th>Parameter</th><th>Description</th><th></th></tr></thead>" +
-            "<tbody>" + (paramRows || "<tr><td colspan='3' class='dl-empty'>No parameters yet</td></tr>") + "</tbody>" +
+            "<thead><tr><th class='dl-th-drag'></th><th>Parameter</th><th>Description</th><th></th></tr></thead>" +
+            "<tbody>" + (paramRows || "<tr><td colspan='4' class='dl-empty'>No parameters yet <span class='dl-act dl-act-del dl-delete-version' data-vi='" + vi + "'>Delete Version</span></td></tr>") + "</tbody>" +
           "</table>" +
         "</div>";
     });
@@ -3824,7 +3825,7 @@ __VERSIONS_JSON__
         "<h2>Development Log</h2>" +
         "<div class='dl-add-version-row'>" +
           "<input type='text' id='dl-new-version' class='dl-input' placeholder='V#'>" +
-          "<button id='dl-add-version-btn' class='dl-btn dl-btn-green'>Add Version</button>" +
+          "<button id='dl-add-version-btn' class='dl-btn dl-btn-green' title='Add Version'>+</button>" +
         "</div>" +
       "</div>" +
       versionsHtml;
@@ -3882,7 +3883,9 @@ __VERSIONS_JSON__
         } else if (action === "edit") {
           var p = _devlogData[vi].params[pi];
           var row = span.closest("tr");
+          row.draggable = false;
           row.innerHTML =
+            "<td class='dl-drag-handle'></td>" +
             "<td><input type='text' class='dl-input dl-edit-name' value='" + esc(p.name).replace(/'/g, "&#39;") + "'></td>" +
             "<td><input type='text' class='dl-input dl-edit-desc' value='" + esc(p.desc).replace(/'/g, "&#39;") + "'></td>" +
             "<td class='dl-param-actions'>" +
@@ -3906,6 +3909,53 @@ __VERSIONS_JSON__
           cancelBtn.addEventListener("click", function () { _devlogRender(); });
           editName.focus();
         }
+      });
+    });
+
+    /* ── Wire Delete Version buttons ── */
+    document.querySelectorAll(".dl-delete-version").forEach(function (span) {
+      span.addEventListener("click", function () {
+        var vi = parseInt(span.dataset.vi, 10);
+        _devlogData.splice(vi, 1);
+        _devlogSave(function () { _devlogRender(); });
+      });
+    });
+
+    /* ── Wire drag-to-sort on parameter rows ── */
+    var _dragRow = null;
+    document.querySelectorAll(".dl-param-row[draggable='true']").forEach(function (row) {
+      row.addEventListener("dragstart", function (e) {
+        _dragRow = row;
+        row.classList.add("dl-dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", "");
+      });
+      row.addEventListener("dragend", function () {
+        _dragRow = null;
+        row.classList.remove("dl-dragging");
+        document.querySelectorAll(".dl-drag-over").forEach(function (r) { r.classList.remove("dl-drag-over"); });
+      });
+      row.addEventListener("dragover", function (e) {
+        if (!_dragRow || _dragRow === row) return;
+        if (_dragRow.dataset.vi !== row.dataset.vi) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        row.classList.add("dl-drag-over");
+      });
+      row.addEventListener("dragleave", function () {
+        row.classList.remove("dl-drag-over");
+      });
+      row.addEventListener("drop", function (e) {
+        e.preventDefault();
+        if (!_dragRow || _dragRow === row) return;
+        var vi = parseInt(row.dataset.vi, 10);
+        var fromPi = parseInt(_dragRow.dataset.pi, 10);
+        var toPi = parseInt(row.dataset.pi, 10);
+        if (_dragRow.dataset.vi !== row.dataset.vi) return;
+        var params = _devlogData[vi].params;
+        var moved = params.splice(fromPi, 1)[0];
+        params.splice(toPi, 0, moved);
+        _devlogSave(function () { _devlogRender(); });
       });
     });
   }
