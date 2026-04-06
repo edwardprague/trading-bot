@@ -55,7 +55,7 @@ body {
     width: 228px;
     min-width: 228px;
     background: #10101c;
-    border-right: 1px solid #1e1e30;
+    border-right: 1px solid #666;
     display: flex;
     flex-direction: column;
     overflow: hidden;
