@@ -3,16 +3,16 @@
     "name": "V1",
     "params": [
       {
-        "desc": "Short > Mid > Long EMA",
+        "desc": "Short < Mid < Long EMA",
         "name": "Trend Filter"
       },
       {
-        "name": "Entry Logic",
-        "desc": "When a fractal forms between the Short and Mid EMA"
+        "desc": "When a fractal forms between the Short and Mid EMA",
+        "name": "Entry Logic"
       },
       {
-        "name": "Stop Placement",
-        "desc": "Above the entry fractal"
+        "desc": "Above the entry fractal",
+        "name": "Stop Placement"
       }
     ]
   }
