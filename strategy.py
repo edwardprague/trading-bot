@@ -2174,16 +2174,27 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
-        lines.push("|---|------|-------|------|------------|-----|----------------------|-----------------------|------------|");
+        lines.push("| # | Type 1 | Type 2 | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
+        lines.push("|---|--------|--------|-------|------|------------|-----|----------------------|-----------------------|------------|");
+        var mdCarriedN18 = "";
         pvList.forEach(function (pv, idx) {
           var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? mf(pv.vert_dist, 1) : "\u2014";
           var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "\u2014";
           var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? mf(pv.pullback_pct, 1) + "%" : "\u2014";
           var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? mf(pv.atr, 1) : "\u2014";
           var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? mf(pv.adx, 1) : "\u2014";
-          var mdLbl = (pv.label || "\u2014") + (pv.n6 ? " \u2022" : "") + (pv.n18 ? " \u2022" : "");
-          lines.push("| " + (idx + 1) + " | " + mdLbl + " | " +
+          var mdType1 = "";
+          if (pv.n18 && pv.n18_label) {
+            mdCarriedN18 = pv.n18_label;
+            mdType1 = pv.n18_label + " \u2022";
+          } else if (mdCarriedN18) {
+            mdType1 = mdCarriedN18;
+          }
+          var mdType2 = "";
+          if (pv.label) {
+            mdType2 = pv.label + (pv.n6 ? " \u2022" : "");
+          }
+          lines.push("| " + (idx + 1) + " | " + (mdType1 || "\u2014") + " | " + (mdType2 || "\u2014") + " | " +
             mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
         });
       }
@@ -3160,6 +3171,9 @@ __VERSIONS_JSON__
         return;
       }
 
+      /* Type 1 = N=18 cycle structure (carried forward).
+         Type 2 = N=2 entry texture + N=6 dot overlay. */
+      var carriedN18 = "";  /* last-seen N=18 label, carried forward */
       pivotList.forEach(function (pv, idx) {
         var lbl  = pv.label || "\u2014";
         var bgClass = "";
@@ -3168,9 +3182,25 @@ __VERSIONS_JSON__
         } else if (lbl === "LH" || lbl === "LL" || lbl === "HH" || lbl === "HL") {
           bgClass = " class='fractal-row-directional'";
         }
-        var lblDisplay = "<strong>" + esc(lbl) + "</strong>";
-        if (pv.n6) lblDisplay += " <span style='color:#ffffff;font-size:15px;' title='N=6 fractal'>\u2022</span>";
-        if (pv.n18) lblDisplay += " <span style='color:#ffd700;font-size:15px;' title='N=18 fractal'>\u2022</span>";
+
+        /* ── Type 1: N=18 cycle structure (carried forward) ── */
+        var type1Html = "";
+        if (pv.n18 && pv.n18_label) {
+          carriedN18 = pv.n18_label;
+          type1Html = "<strong>" + esc(pv.n18_label) + "</strong>" +
+            " <span style='color:#ffd700;font-size:15px;' title='N=18 fractal'>\u2022</span>";
+        } else if (carriedN18) {
+          type1Html = "<strong>" + esc(carriedN18) + "</strong>";
+        }
+
+        /* ── Type 2: N=2 entry texture + optional N=6 dot ── */
+        var type2Html = "";
+        if (pv.label) {
+          /* This row has an N=2 fractal (every row in pivotList is an N=2 pivot) */
+          type2Html = "<strong>" + esc(pv.label) + "</strong>";
+          if (pv.n6) type2Html += " <span style='color:#ffffff;font-size:15px;' title='N=6 fractal'>\u2022</span>";
+        }
+
         var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? fmt(pv.vert_dist, 1)  : "\u2014";
         var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "\u2014";
         var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "\u2014";
@@ -3179,7 +3209,8 @@ __VERSIONS_JSON__
         pvRows +=
           "<tr" + bgClass + ">" +
           "<td>" + (idx + 1) + "</td>" +
-          "<td>" + lblDisplay + "</td>" +
+          "<td>" + type1Html + "</td>" +
+          "<td>" + type2Html + "</td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
           "<td class='nowrap'>" + esc(pv.time || "\u2014") + "</td>" +
           "<td>" + atrD + "</td>" +
@@ -3200,7 +3231,8 @@ __VERSIONS_JSON__
           "<div class='section-title'>Fractal Diagnostics</div>" +
           "<table><thead><tr>" +
           "<th style='width:36px'>#</th>" +
-          "<th>Type</th>" +
+          "<th>Type 1</th>" +
+          "<th>Type 2</th>" +
           "<th>Price</th>" +
           "<th>Time</th>" +
           "<th>ATR (pips)</th>" +
