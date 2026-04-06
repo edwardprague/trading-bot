@@ -1845,6 +1845,7 @@ def _build_html(versions_json):
 <div id="copy-toast">&#10003;&nbsp; Copied to clipboard!</div>
 
 <!-- Action buttons: hidden by default, moved into the run bar by server.py -->
+<button id="devlog-btn" title="Development Log" style="display:none;"><span class="material-symbols-outlined">list</span></button>
 <span class="rb-sep" id="rb-act-sep" style="display:none;"></span>
 <button id="copy-btn" style="display:none;">Copy Version Report</button>
 <button id="delete-btn" style="display:none;">Delete Version</button>
@@ -3422,9 +3423,6 @@ __VERSIONS_JSON__
               "</svg>" +
             "</button>" +
           "</h2>" +
-          "<button id='devlog-btn' title='Development Log'>" +
-            "<span class='material-symbols-outlined'>list</span>" +
-          "</button>" +
         "</div>" +
         "<div class='ec-collapsible' id='ec-collapsible'>" + entryCondHtml + "</div>" +
       "</div>" +
@@ -3932,11 +3930,9 @@ __VERSIONS_JSON__
   /* ── Init ──────────────────────────────────────────────────── */
   document.getElementById("strategy-select").addEventListener("change", onStrategyChange);
 
-  document.getElementById("main").addEventListener("click", function (e) {
-    var btn = e.target.closest("#devlog-btn");
-    if (!btn) return;
+  document.getElementById("devlog-btn").addEventListener("click", function () {
     devLogOpen = !devLogOpen;
-    btn.classList.toggle("active", devLogOpen);
+    this.classList.toggle("active", devLogOpen);
     document.querySelectorAll(".v-item").forEach(function (e) {
       e.classList.remove("active");
     });

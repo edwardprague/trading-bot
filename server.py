@@ -123,6 +123,16 @@ INJECT_HTML = """
   }
   .rb-select:focus { border-color: #4cc9f0; }
 
+  .rb-devlog-btn {
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; color: #888; border: none; border-radius: 5px;
+    padding: 4px; cursor: pointer; transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
+  .rb-devlog-btn .material-symbols-outlined { font-size: 22px; }
+  .rb-devlog-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+  .rb-devlog-btn.active { color: #ffd700; background: rgba(255,215,0,0.1); }
+
   .rb-btn-copy { background: green; }
   .rb-btn-copy:hover:not(:disabled) { background: #02bc02; }
   .rb-btn-copy.copied { background: transparent !important; color: #6bcb77; border: 1px solid #6bcb77; }
@@ -156,14 +166,16 @@ INJECT_HTML = """
 <script>
 (function () {
   /* ── Move action buttons into the run bar (preserve visibility set by strategy.py) ── */
-  var _actGroup = document.getElementById("rb-action-group");
-  var _actSep   = document.getElementById("rb-act-sep");
-  var _copyBtn  = document.getElementById("copy-btn");
-  var _delBtn   = document.getElementById("delete-btn");
+  var _actGroup  = document.getElementById("rb-action-group");
+  var _devlogBtn = document.getElementById("devlog-btn");
+  var _actSep    = document.getElementById("rb-act-sep");
+  var _copyBtn   = document.getElementById("copy-btn");
+  var _delBtn    = document.getElementById("delete-btn");
   if (_actGroup) {
-    if (_actSep)  { _actSep.className = "rb-sep";  _actGroup.appendChild(_actSep); }
-    if (_copyBtn) { _copyBtn.className = "rb-btn rb-btn-copy"; _actGroup.appendChild(_copyBtn); }
-    if (_delBtn)  { _delBtn.className = "rb-btn rb-btn-delete"; _actGroup.appendChild(_delBtn); }
+    if (_devlogBtn) { _devlogBtn.className = "rb-devlog-btn"; _devlogBtn.style.display = ""; _actGroup.appendChild(_devlogBtn); }
+    if (_actSep)    { _actSep.className = "rb-sep";  _actGroup.appendChild(_actSep); }
+    if (_copyBtn)   { _copyBtn.className = "rb-btn rb-btn-copy"; _actGroup.appendChild(_copyBtn); }
+    if (_delBtn)    { _delBtn.className = "rb-btn rb-btn-delete"; _actGroup.appendChild(_delBtn); }
   }
 
   /* ── Date overlay helper: show Mon-DD-YY on top of native date input ── */

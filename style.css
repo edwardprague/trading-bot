@@ -159,34 +159,6 @@ body {
     margin-top: 5px;
 }
 
-#devlog-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    background: transparent;
-    color: #888;
-    border: none;
-    border-radius: 5px;
-    padding: 4px;
-    cursor: pointer;
-    transition: color 0.15s, background 0.15s;
-}
-
-#devlog-btn .material-symbols-outlined {
-    font-size: 22px;
-}
-
-#devlog-btn:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.08);
-}
-
-#devlog-btn.active {
-    color: #ffd700;
-    background: rgba(255, 215, 0, 0.1);
-}
-
 /* ── Main ─────────────────────────────────────────────── */
 #main {
     background: #222;
