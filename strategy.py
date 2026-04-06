@@ -1821,6 +1821,7 @@ def _build_html(versions_json):
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Backtest Report</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
 </head>
 <body>
 
@@ -1834,9 +1835,6 @@ def _build_html(versions_json):
     </select>
   </div>
   <div id="version-list"></div>
-  <div id="sidebar-footer">
-    <button id="devlog-btn">&#128203;&nbsp; Development Log</button>
-  </div>
 </div>
 
 <div id="main">
@@ -3424,6 +3422,9 @@ __VERSIONS_JSON__
               "</svg>" +
             "</button>" +
           "</h2>" +
+          "<button id='devlog-btn' title='Development Log'>" +
+            "<span class='material-symbols-outlined'>list</span>" +
+          "</button>" +
         "</div>" +
         "<div class='ec-collapsible' id='ec-collapsible'>" + entryCondHtml + "</div>" +
       "</div>" +

@@ -159,35 +159,32 @@ body {
     margin-top: 5px;
 }
 
-#sidebar-footer {
-    border-top: 1px solid #1e1e30;
-    padding: 12px 16px;
+#devlog-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    background: transparent;
+    color: #888;
+    border: none;
+    border-radius: 5px;
+    padding: 4px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
 }
 
-#devlog-btn {
-    width: 100%;
-    background: darkslateblue;
-    color: #fff;
-    border: 1px solid darkslateblue;
-    border-radius: 5px;
-    padding: 8px 12px;
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    text-align: left;
-    transition: background 0.15s, color 0.15s;
+#devlog-btn .material-symbols-outlined {
+    font-size: 22px;
 }
 
 #devlog-btn:hover {
-    background: #564aa8;
     color: #fff;
+    background: rgba(255, 255, 255, 0.08);
 }
 
 #devlog-btn.active {
-    background: #182040;
-    border-color: #564aa8;
-    color: #fff;
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.1);
 }
 
 /* ── Main ─────────────────────────────────────────────── */
