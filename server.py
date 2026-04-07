@@ -57,7 +57,7 @@ INJECT_HTML = """
   background: #0c0c18; border-bottom: 1px solid #1e1e32;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 ">
-  <button id="run-new-btn" class="rb-btn rb-btn-green" onclick="runNewVersion()">&#9654;&nbsp; Add New Version</button>
+  <button id="run-new-btn" class="rb-btn rb-btn-green" onclick="runNewVersion()">&#9654;&nbsp; Add Year</button>
 
   <span class="rb-sep"></span>
 
@@ -245,7 +245,7 @@ function resetButtons() {
   var newBtn   = document.getElementById("run-new-btn");
   var rangeBtn = document.getElementById("run-range-btn");
   newBtn.disabled   = false;
-  newBtn.innerHTML   = "&#9654;&nbsp; Add New Version";
+  newBtn.innerHTML   = "&#9654;&nbsp; Add Year";
   rangeBtn.disabled = false;
   updateRangeButtonLabel();
 }
@@ -272,6 +272,12 @@ function updateRangeButtonLabel() {
   } else {
     rangeBtn.innerHTML = "&#9654;&nbsp; Add Date Range";
   }
+}
+
+function getSelectedVersion() {
+  var el = document.getElementById("version-select");
+  if (el) return el.value;
+  return "v1";
 }
 
 function getSelectedDirection() {
@@ -341,11 +347,12 @@ function runNewVersion() {
   var instrument = getSelectedInstrument();
   var direction  = getSelectedDirection();
   var interval   = getSelectedInterval();
+  var version    = getSelectedVersion();
   localStorage.setItem("rb_pending_run_type", "new_version_auto");
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
+    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, strategy_version: version, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -364,12 +371,13 @@ function runDateRange() {
   }
   var instrument     = getSelectedInstrument();
   var targetVersion  = getCurrentVersionName();
+  var version        = getSelectedVersion();
   localStorage.setItem("rb_pending_run_type", "date_range");
   localStorage.setItem("rb_pending_run_version", targetVersion);
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, strategy_version: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -633,7 +641,10 @@ def run_backtest():
     stop_pips   = (data.get("stop_loss_pips") or "").strip()
     rrr_risk    = (data.get("rrr_risk") or "").strip()
     rrr_reward  = (data.get("rrr_reward") or "").strip()
+    strategy_version = (data.get("strategy_version") or "").strip()
     env_overrides = {"RUN_MODE": "new_version"}
+    if strategy_version:
+        env_overrides["STRATEGY_VERSION"] = strategy_version
     if instrument:
         env_overrides["INSTRUMENT"] = instrument
     if direction:
@@ -691,11 +702,14 @@ def run_date_range():
     stop_pips      = (data.get("stop_loss_pips") or "").strip()
     rrr_risk       = (data.get("rrr_risk") or "").strip()
     rrr_reward     = (data.get("rrr_reward") or "").strip()
+    strategy_version = (data.get("strategy_version") or "").strip()
     env_overrides = {
         "RUN_MODE":       "date_range",
         "RUN_START_DATE": start_date,
         "RUN_END_DATE":   end_date,
     }
+    if strategy_version:
+        env_overrides["STRATEGY_VERSION"] = strategy_version
     if instrument:
         env_overrides["INSTRUMENT"] = instrument
     if target_version:

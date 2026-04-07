@@ -1254,11 +1254,15 @@ tbody tr:hover td {
 }
 
 .fractal-outcome-win {
-    color: #6bcb77;
+    background: #6bcb77;
+    color: #fff;
+    padding: 5px;
     font-weight: bold;
 }
 
 .fractal-outcome-loss {
-    color: #ef5350;
+    background: #ef5350;
+    color: #fff;
+    padding: 5px;
     font-weight: bold;
 }
