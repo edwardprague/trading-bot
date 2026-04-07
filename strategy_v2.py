@@ -4273,7 +4273,10 @@ __VERSIONS_JSON__
       var targetIdx = lastIdx;
       if (pendingRunVersion) {
         for (var ti = 0; ti < VERSIONS.length; ti++) {
-          if (VERSIONS[ti].name === pendingRunVersion) { targetIdx = ti; break; }
+          if (VERSIONS[ti].name === pendingRunVersion
+              && (VERSIONS[ti].strategy_version || "v1") === currentVersion) {
+            targetIdx = ti; break;
+          }
         }
       }
       activeVersionIdx = targetIdx;
@@ -4296,7 +4299,10 @@ __VERSIONS_JSON__
       localStorage.removeItem("rb_pending_delete_run_idx");
       var delTargetIdx = lastIdx;
       for (var di = 0; di < VERSIONS.length; di++) {
-        if (VERSIONS[di].name === pendingDelVersion) { delTargetIdx = di; break; }
+        if (VERSIONS[di].name === pendingDelVersion
+            && (VERSIONS[di].strategy_version || "v1") === currentVersion) {
+          delTargetIdx = di; break;
+        }
       }
       activeVersionIdx = delTargetIdx;
       var delRunIdx = parseInt(pendingDelRunIdx, 10) || 0;
@@ -4656,12 +4662,10 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         version_num = len(existing_versions)
         action = f"Added date range run to {target.get('name', '?')}"
     else:
-        # New version — increment from highest version number within this strategy
+        # New version — increment from highest version number across all strategies
         # so deleted versions are never reused (e.g. v1,v2,v5 → next is v6)
         max_ver = 0
         for v in existing_versions:
-            if v.get("strategy_version", "v1") != STRATEGY_VERSION_TAG:
-                continue
             m = re.match(r'^v(\d+)$', v.get("name", ""))
             if m:
                 max_ver = max(max_ver, int(m.group(1)))
