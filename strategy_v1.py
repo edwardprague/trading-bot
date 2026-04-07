@@ -1908,6 +1908,8 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         "worst_trade":    round(float(trades.pnl.min()), 2),
         "net_profit":          round(net, 2),
         "net_profit_pct":      round(net / STARTING_CASH * 100, 2),
+        "gross_profit":        round(float(wins.pnl.sum()), 2) if not wins.empty else 0,
+        "gross_loss":          round(float(loss.pnl.sum()), 2) if not loss.empty else 0,
         "final_equity":        round(float(equity[-1]), 2),  # equity curve; equals STARTING_CASH + net
         "max_drawdown":        round(dd, 2),
         "max_drawdown_dollar": dd_dollar,
@@ -2156,6 +2158,8 @@ __VERSIONS_JSON__
     lines.push("| Win Rate | "        + mf(m.win_rate, 1) + "% |");
     lines.push("| Profit Factor | "   + pf + " |");
     lines.push("| Net Profit | "      + npStr + " |");
+    lines.push("| Gross Profit | +$"  + commaFmt(m.gross_profit) + " |");
+    lines.push("| Gross Loss | -$"    + commaFmt(Math.abs(m.gross_loss)) + " |");
     lines.push("| Final Equity | $"   + commaFmt(m.final_equity) + " |");
     var mdDollar = m.max_drawdown_dollar;
     var mdStr    = (mdDollar !== null && mdDollar !== undefined)
@@ -3658,6 +3662,8 @@ __VERSIONS_JSON__
             return "<span class='neg'>" + ddDStr + "</span>";
           }()) ) +
           row("Sharpe Ratio",  "<span class='" + sharpeCls + "'>" + fmt(m.sharpe) + "</span>") +
+          row("Gross Profit",  "<span class='pos'>+$" + commaFmt(m.gross_profit) + "</span>") +
+          row("Gross Loss",    "<span class='neg'>-$" + commaFmt(Math.abs(m.gross_loss)) + "</span>") +
           row("Final Equity",  "$" + commaFmt(m.final_equity)) +
           "</tbody></table>" +
         "</div>" +
