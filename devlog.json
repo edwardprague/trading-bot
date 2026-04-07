@@ -1,5 +1,22 @@
 [
   {
+    "name": "v2",
+    "params": [
+      {
+        "name": "Trend Filter",
+        "desc": "None"
+      },
+      {
+        "name": "Entry Logic",
+        "desc": "When a lower level fractal forms, enter at the close of the 5th bar"
+      },
+      {
+        "name": "Stop Placement",
+        "desc": "Above the entry fractal (user defined)"
+      }
+    ]
+  },
+  {
     "name": "V1",
     "params": [
       {

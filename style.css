@@ -494,7 +494,7 @@ tbody tr:hover td {
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    background: #0e0e1a;
+    background: #000;
     border-bottom: 1px solid #2a2a44;
 }
 
@@ -526,7 +526,7 @@ tbody tr:hover td {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     border-bottom: 1px solid #666;
-    background: #222;
+    background: #000;
 }
 
 .dl-param-row td {
