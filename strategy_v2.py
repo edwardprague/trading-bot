@@ -63,7 +63,7 @@ TRADE_DIRECTION   = os.environ.get("TRADE_DIRECTION", "both")   # "both" | "long
 MAX_DAILY_LOSS  = 2000.0            # stop trading if day's loss reaches $2,000 (2% of capital)
 
 # ── Time filter: skip entries during these UTC hours ─────────────────────────
-BLOCKED_HOURS_UTC = [4, 5, 6, 8, 10, 11, 14]
+BLOCKED_HOURS_UTC = [4, 5, 6, 8, 10, 11, 14, 17]
 
 VERSION = "v6"
 STRATEGY_VERSION_TAG = "v2"     # identifies which strategy file produced these results
