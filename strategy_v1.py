@@ -2482,6 +2482,8 @@ __VERSIONS_JSON__
       el.dataset.idx = item.vIdx;
       el.dataset.runIdx = item.runIdx;
 
+      var totalRuns = getRuns(item.v).length;
+
       el.innerHTML =
         "<div class='v-item-row'>" +
           "<div class='v-item-content'>" +
@@ -2491,10 +2493,12 @@ __VERSIONS_JSON__
             (dateRange ? "<div class='v-date date-link' data-start='" + esc(range.start) + "' data-end='" + esc(range.end) + "'>" + esc(dateRange) + "</div>" : "") +
             (dur ? "<div class='v-duration'>" + esc(dur) + "</div>" : "") +
           "</div>" +
+          "<button class='v-sub-delete-btn' title='Delete run'>&times;</button>" +
         "</div>";
 
-      (function (el, vIdx, rIdx, verName) {
+      (function (el, vIdx, rIdx, verName, totalRuns) {
         el.addEventListener("click", function (e) {
+          if (e.target.closest(".v-sub-delete-btn")) return;
           var dl = e.target.closest(".date-link[data-start]");
           if (dl) { setDatePicker(dl.dataset.start, dl.dataset.end); return; }
           devLogOpen = false;
@@ -2504,7 +2508,47 @@ __VERSIONS_JSON__
           renderSidebar();
           renderContent(vIdx, rIdx);
         });
-      })(el, item.vIdx, item.runIdx, item.v.name);
+        /* Wire delete button */
+        var delBtn = el.querySelector(".v-sub-delete-btn");
+        if (delBtn) delBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          if (totalRuns <= 1) {
+            /* Only run in this version — delete the entire version */
+            if (!confirm("Delete this version and its only run?")) return;
+            delBtn.disabled = true;
+            fetch("/delete_version", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: verName })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.ok) { window.location.reload(); }
+              else { delBtn.disabled = false; alert("Delete failed: " + (data.error || "Unknown error")); }
+            })
+            .catch(function () { delBtn.disabled = false; alert("Delete failed — is the server running?"); });
+          } else {
+            /* Multiple runs — delete just this run */
+            if (!confirm("Delete this run?")) return;
+            delBtn.disabled = true;
+            fetch("/delete_run", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: verName, run_idx: rIdx })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.ok) {
+                localStorage.setItem("rb_pending_delete_version", verName);
+                var focusIdx = rIdx - 1;
+                localStorage.setItem("rb_pending_delete_run_idx", String(focusIdx < 0 ? 0 : focusIdx));
+                window.location.reload();
+              } else { delBtn.disabled = false; alert("Delete failed: " + (data.error || "Unknown error")); }
+            })
+            .catch(function () { delBtn.disabled = false; alert("Delete failed — is the server running?"); });
+          }
+        });
+      })(el, item.vIdx, item.runIdx, item.v.name, totalRuns);
 
       list.appendChild(el);
     }
