@@ -2554,7 +2554,8 @@ __VERSIONS_JSON__
         el.addEventListener("dragstart", function (e) {
           e.stopPropagation();
           _dragSub = { vIdx: vIdx, runIdx: rIdx, verName: verName };
-          el.classList.add("dragging");
+          /* Delay adding dragging class so the drag image captures the full item */
+          setTimeout(function () { el.classList.add("dragging"); }, 0);
           e.dataTransfer.effectAllowed = "move";
           e.dataTransfer.setData("text/plain", "");
         });
@@ -2567,8 +2568,13 @@ __VERSIONS_JSON__
         });
         el.addEventListener("dragover", function (e) {
           if (!_dragSub || _dragSub.vIdx !== vIdx) return;
+          if (_dragSub.runIdx === rIdx) return; /* skip self */
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
+          /* Clear indicators on all siblings first */
+          document.querySelectorAll(".v-item.drag-over-above, .v-item.drag-over-below").forEach(function (x) {
+            if (x !== el) x.classList.remove("drag-over-above", "drag-over-below");
+          });
           var rect = el.getBoundingClientRect();
           var mid = rect.top + rect.height / 2;
           if (e.clientY < mid) {
@@ -2579,8 +2585,11 @@ __VERSIONS_JSON__
             el.classList.remove("drag-over-above");
           }
         });
-        el.addEventListener("dragleave", function () {
-          el.classList.remove("drag-over-above", "drag-over-below");
+        el.addEventListener("dragleave", function (e) {
+          /* Only clear if truly leaving this element (not entering a child) */
+          if (!el.contains(e.relatedTarget)) {
+            el.classList.remove("drag-over-above", "drag-over-below");
+          }
         });
         el.addEventListener("drop", function (e) {
           e.preventDefault();

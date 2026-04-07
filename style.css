@@ -1143,45 +1143,47 @@ tbody tr:hover td {
     cursor: grabbing;
 }
 
-.v-sub-item.dragging,
 .v-item.dragging {
-    opacity: 0.35;
+    opacity: 0.3;
+    pointer-events: none;
 }
 
-.v-sub-item.drag-over-above,
+.v-item {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
 .v-item.drag-over-above {
-    margin-top: 20px !important;
+    transform: translateY(3px);
     position: relative;
 }
 
-.v-sub-item.drag-over-above::before,
 .v-item.drag-over-above::before {
     content: "";
     position: absolute;
-    top: -20px;
-    left: 0;
-    right: 0;
-    height: 20px;
-    background: rgba(70, 130, 180, 0.25);
-    border-radius: 3px;
+    top: -2px;
+    left: 8px;
+    right: 8px;
+    height: 3px;
+    background: steelblue;
+    border-radius: 2px;
+    box-shadow: 0 0 6px rgba(70, 130, 180, 0.6);
 }
 
-.v-sub-item.drag-over-below,
 .v-item.drag-over-below {
-    margin-bottom: 20px !important;
+    transform: translateY(-3px);
     position: relative;
 }
 
-.v-sub-item.drag-over-below::after,
 .v-item.drag-over-below::after {
     content: "";
     position: absolute;
-    bottom: -20px;
-    left: 0;
-    right: 0;
-    height: 20px;
-    background: rgba(70, 130, 180, 0.25);
-    border-radius: 3px;
+    bottom: -2px;
+    left: 8px;
+    right: 8px;
+    height: 3px;
+    background: steelblue;
+    border-radius: 2px;
+    box-shadow: 0 0 6px rgba(70, 130, 180, 0.6);
 }
 
 /* ── Run label badge ─────────────────────────────────── */
