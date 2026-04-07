@@ -3326,9 +3326,9 @@ __VERSIONS_JSON__
         "</tbody></table>" +
       "</div>";
 
-    /* ── Entry Conditions panel ──────────────────────────────────────────────── */
+    /* ── Backtest Settings panel ──────────────────────────────────────────────── */
     var ecData = v.entry_conditions || null;
-    var ecThStyle = "class='ec-th'";
+    var ecThStyle = "class='bs-th'";
     var entryCondHtml;
     var dirOptions = [
       { value: "short_only", label: "Short only" },
@@ -3336,7 +3336,7 @@ __VERSIONS_JSON__
       { value: "both",       label: "Both" }
     ];
     var savedDir = run.trade_direction || p.trade_direction || "short_only";
-    var dirSelectHtml = "<select id='ec-direction-select' class='ec-select'>" +
+    var dirSelectHtml = "<select id='bs-direction-select' class='bs-select'>" +
       dirOptions.map(function(o) {
         return "<option value='" + o.value + "'" + (o.value === savedDir ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
@@ -3346,7 +3346,7 @@ __VERSIONS_JSON__
       { value: "GBPUSD", label: "GBPUSD" }
     ];
     var savedInstr = (run.instrument || p.ticker || "EURUSD").replace(/=X$/i, "");
-    var instrSelectHtml = "<select id='ec-instrument-select' class='ec-select'>" +
+    var instrSelectHtml = "<select id='bs-instrument-select' class='bs-select'>" +
       instrOptions.map(function(o) {
         return "<option value='" + o.value + "'" + (o.value === savedInstr ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
@@ -3359,7 +3359,7 @@ __VERSIONS_JSON__
       { value: "60m", label: "60m" }
     ];
     var savedInterval = run.interval || p.interval || "5m";
-    var intervalSelectHtml = "<select id='ec-interval-select' class='ec-select'>" +
+    var intervalSelectHtml = "<select id='bs-interval-select' class='bs-select'>" +
       intervalOptions.map(function(o) {
         return "<option value='" + o.value + "'" + (o.value === savedInterval ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
@@ -3367,25 +3367,25 @@ __VERSIONS_JSON__
     var savedEmaShort = run.ema_short || p.ema_short || 8;
     var savedEmaMid   = run.ema_mid   || p.ema_mid   || 20;
     var savedEmaLong  = run.ema_long  || p.ema_long  || 40;
-    var emaShortHtml = "<input id='ec-ema-short' type='number' class='ec-input' value='" + savedEmaShort + "' min='1' step='1'>";
-    var emaMidHtml   = "<input id='ec-ema-mid'   type='number' class='ec-input' value='" + savedEmaMid   + "' min='1' step='1'>";
-    var emaLongHtml  = "<input id='ec-ema-long'  type='number' class='ec-input' value='" + savedEmaLong  + "' min='1' step='1'>";
+    var emaShortHtml = "<input id='bs-ema-short' type='number' class='bs-input' value='" + savedEmaShort + "' min='1' step='1'>";
+    var emaMidHtml   = "<input id='bs-ema-mid'   type='number' class='bs-input' value='" + savedEmaMid   + "' min='1' step='1'>";
+    var emaLongHtml  = "<input id='bs-ema-long'  type='number' class='bs-input' value='" + savedEmaLong  + "' min='1' step='1'>";
 
     var savedStopPips  = run.stop_loss_pips || p.stop_loss_pips || 15;
-    var stopPipsHtml   = "<input id='ec-stop-pips' type='number' class='ec-input' value='" + savedStopPips + "' min='1' step='1'>";
+    var stopPipsHtml   = "<input id='bs-stop-pips' type='number' class='bs-input' value='" + savedStopPips + "' min='1' step='1'>";
 
     var savedRrrRisk   = run.rrr_risk   || p.rrr_risk   || 1;
     var savedRrrReward = run.rrr_reward || p.rrr_reward || 2;
     var rrrOpts = [1, 2, 3, 4, 5];
-    var rrrRiskHtml = "<select id='ec-rrr-risk' class='ec-select ec-select-narrow'>" +
+    var rrrRiskHtml = "<select id='bs-rrr-risk' class='bs-select bs-select-narrow'>" +
       rrrOpts.map(function(n) {
         return "<option value='" + n + "'" + (n === savedRrrRisk ? " selected" : "") + ">" + n + "</option>";
       }).join("") + "</select>";
-    var rrrRewardHtml = "<select id='ec-rrr-reward' class='ec-select ec-select-narrow'>" +
+    var rrrRewardHtml = "<select id='bs-rrr-reward' class='bs-select bs-select-narrow'>" +
       rrrOpts.map(function(n) {
         return "<option value='" + n + "'" + (n === savedRrrReward ? " selected" : "") + ">" + n + "</option>";
       }).join("") + "</select>";
-    var rrrSelectHtml = rrrRiskHtml + "<span class='ec-rrr-colon'>:</span>" + rrrRewardHtml;
+    var rrrSelectHtml = rrrRiskHtml + "<span class='bs-rrr-colon'>:</span>" + rrrRewardHtml;
 
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.map(function(ec) {
@@ -3407,13 +3407,13 @@ __VERSIONS_JSON__
           ? rrrSelectHtml
           : esc(ec.rule);
         return "<tr>" +
-          "<td class='ec-td-cond'>" + esc(ec.condition) + "</td>" +
-          "<td class='ec-td-rule'>" + ruleCell + "</td>" +
+          "<td class='bs-td-cond'>" + esc(ec.condition) + "</td>" +
+          "<td class='bs-td-rule'>" + ruleCell + "</td>" +
           "</tr>";
       }).join("");
       entryCondHtml =
         "<div class='section'>" +
-          "<div class='section-title'>Entry Conditions</div>" +
+          "<div class='section-title'>Backtest Settings</div>" +
           "<table>" +
             "<tbody>" + ecRows + "</tbody>" +
           "</table>" +
@@ -3421,17 +3421,17 @@ __VERSIONS_JSON__
     } else {
       entryCondHtml =
         "<div class='section'>" +
-          "<div class='section-title'>Entry Conditions</div>" +
+          "<div class='section-title'>Backtest Settings</div>" +
           "<table>" +
             "<tbody>" +
-            "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + instrSelectHtml + "</td></tr>" +
-            "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + intervalSelectHtml + "</td></tr>" +
-            "<tr><td class='ec-td-cond'>EMA Short</td><td class='ec-td-rule'>" + emaShortHtml + "</td></tr>" +
-            "<tr><td class='ec-td-cond'>EMA Mid</td><td class='ec-td-rule'>" + emaMidHtml + "</td></tr>" +
-            "<tr><td class='ec-td-cond'>EMA Long</td><td class='ec-td-rule'>" + emaLongHtml + "</td></tr>" +
-            "<tr><td class='ec-td-cond'>Stop Loss Level</td><td class='ec-td-rule'>" + stopPipsHtml + "</td></tr>" +
-            "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + dirSelectHtml + "</td></tr>" +
-            "<tr><td class='ec-td-cond'>RRR</td><td class='ec-td-rule'>" + rrrSelectHtml + "</td></tr>" +
+            "<tr><td class='bs-td-cond'>Instrument</td><td class='bs-td-rule'>" + instrSelectHtml + "</td></tr>" +
+            "<tr><td class='bs-td-cond'>Interval</td><td class='bs-td-rule'>" + intervalSelectHtml + "</td></tr>" +
+            "<tr><td class='bs-td-cond'>EMA Short</td><td class='bs-td-rule'>" + emaShortHtml + "</td></tr>" +
+            "<tr><td class='bs-td-cond'>EMA Mid</td><td class='bs-td-rule'>" + emaMidHtml + "</td></tr>" +
+            "<tr><td class='bs-td-cond'>EMA Long</td><td class='bs-td-rule'>" + emaLongHtml + "</td></tr>" +
+            "<tr><td class='bs-td-cond'>Stop Loss Level</td><td class='bs-td-rule'>" + stopPipsHtml + "</td></tr>" +
+            "<tr><td class='bs-td-cond'>Direction</td><td class='bs-td-rule'>" + dirSelectHtml + "</td></tr>" +
+            "<tr><td class='bs-td-cond'>RRR</td><td class='bs-td-rule'>" + rrrSelectHtml + "</td></tr>" +
             "</tbody>" +
           "</table>" +
         "</div>";
@@ -3446,7 +3446,7 @@ __VERSIONS_JSON__
               "<button class='report-tab active' data-tab='general'>General</button>" +
               "<button class='report-tab' data-tab='advanced'>Advanced</button>" +
             "</span>" +
-            "<button class='ec-toggle-btn' id='ec-toggle-btn' title='Entry Conditions'>" +
+            "<button class='bs-toggle-btn' id='bs-toggle-btn' title='Backtest Settings'>" +
               "<svg width='16' height='16' viewBox='0 0 16 16' fill='none'>" +
                 "<circle cx='8' cy='8' r='7' stroke='currentColor' stroke-width='1.5'/>" +
                 "<path d='M5.5 7L8 9.5L10.5 7' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/>" +
@@ -3454,7 +3454,7 @@ __VERSIONS_JSON__
             "</button>" +
           "</h2>" +
         "</div>" +
-        "<div class='ec-collapsible' id='ec-collapsible'>" + entryCondHtml + "</div>" +
+        "<div class='bs-collapsible' id='bs-collapsible'>" + entryCondHtml + "</div>" +
       "</div>" +
 
       /* ── TAB: General ──────────────────────────────────────────────────────── */
@@ -3574,8 +3574,8 @@ __VERSIONS_JSON__
 
     /* Wire entry conditions toggle button */
     (function () {
-      var toggleBtn = document.getElementById("ec-toggle-btn");
-      var panel = document.getElementById("ec-collapsible");
+      var toggleBtn = document.getElementById("bs-toggle-btn");
+      var panel = document.getElementById("bs-collapsible");
       if (!toggleBtn || !panel) return;
       toggleBtn.addEventListener("click", function () {
         var isOpen = panel.classList.toggle("open");
@@ -3604,44 +3604,44 @@ __VERSIONS_JSON__
 
     /* Wire direction select — persist to localStorage on change */
     (function () {
-      var dirEl = document.getElementById("ec-direction-select");
+      var dirEl = document.getElementById("bs-direction-select");
       if (!dirEl) return;
-      var stored = localStorage.getItem("ec_direction");
+      var stored = localStorage.getItem("bs_direction");
       if (stored) dirEl.value = stored;
       dirEl.addEventListener("change", function () {
-        localStorage.setItem("ec_direction", dirEl.value);
+        localStorage.setItem("bs_direction", dirEl.value);
       });
     }());
 
     /* Wire instrument select — persist to localStorage on change */
     (function () {
-      var instrEl = document.getElementById("ec-instrument-select");
+      var instrEl = document.getElementById("bs-instrument-select");
       if (!instrEl) return;
-      var stored = localStorage.getItem("ec_instrument");
+      var stored = localStorage.getItem("bs_instrument");
       if (stored) instrEl.value = stored;
       instrEl.addEventListener("change", function () {
-        localStorage.setItem("ec_instrument", instrEl.value);
+        localStorage.setItem("bs_instrument", instrEl.value);
       });
     }());
 
     /* Wire interval select — persist to localStorage on change */
     (function () {
-      var intEl = document.getElementById("ec-interval-select");
+      var intEl = document.getElementById("bs-interval-select");
       if (!intEl) return;
-      var stored = localStorage.getItem("ec_interval");
+      var stored = localStorage.getItem("bs_interval");
       if (stored) intEl.value = stored;
       intEl.addEventListener("change", function () {
-        localStorage.setItem("ec_interval", intEl.value);
+        localStorage.setItem("bs_interval", intEl.value);
       });
     }());
 
     /* Wire EMA inputs — persist to localStorage on change */
     (function () {
       var ids = [
-        { id: "ec-ema-short",  key: "ec_ema_short" },
-        { id: "ec-ema-mid",    key: "ec_ema_mid" },
-        { id: "ec-ema-long",   key: "ec_ema_long" },
-        { id: "ec-stop-pips",  key: "ec_stop_pips" }
+        { id: "bs-ema-short",  key: "bs_ema_short" },
+        { id: "bs-ema-mid",    key: "bs_ema_mid" },
+        { id: "bs-ema-long",   key: "bs_ema_long" },
+        { id: "bs-stop-pips",  key: "bs_stop_pips" }
       ];
       ids.forEach(function (item) {
         var el = document.getElementById(item.id);
@@ -3656,20 +3656,20 @@ __VERSIONS_JSON__
 
     /* Wire RRR selects — persist to localStorage on change */
     (function () {
-      var riskEl   = document.getElementById("ec-rrr-risk");
-      var rewardEl = document.getElementById("ec-rrr-reward");
+      var riskEl   = document.getElementById("bs-rrr-risk");
+      var rewardEl = document.getElementById("bs-rrr-reward");
       if (riskEl) {
-        var storedRisk = localStorage.getItem("ec_rrr_risk");
+        var storedRisk = localStorage.getItem("bs_rrr_risk");
         if (storedRisk) riskEl.value = storedRisk;
         riskEl.addEventListener("change", function () {
-          localStorage.setItem("ec_rrr_risk", riskEl.value);
+          localStorage.setItem("bs_rrr_risk", riskEl.value);
         });
       }
       if (rewardEl) {
-        var storedReward = localStorage.getItem("ec_rrr_reward");
+        var storedReward = localStorage.getItem("bs_rrr_reward");
         if (storedReward) rewardEl.value = storedReward;
         rewardEl.addEventListener("change", function () {
-          localStorage.setItem("ec_rrr_reward", rewardEl.value);
+          localStorage.setItem("bs_rrr_reward", rewardEl.value);
         });
       }
     }());
@@ -3983,18 +3983,18 @@ __VERSIONS_JSON__
       });
   }
 
-  /* ── Empty state — show Entry Conditions selects when no versions exist ── */
+  /* ── Empty state — show Backtest Settings selects when no versions exist ── */
   function renderEmptyState() {
     hideActionButtons();
-    var ecThStyle = "class='ec-th'";
+    var ecThStyle = "class='bs-th'";
 
     var _dirOptions = [
       { value: "short_only", label: "Short only" },
       { value: "long_only",  label: "Long only" },
       { value: "both",       label: "Both" }
     ];
-    var _savedDir = localStorage.getItem("ec_direction") || "short_only";
-    var _dirSelectHtml = "<select id='ec-direction-select' class='ec-select'>" +
+    var _savedDir = localStorage.getItem("bs_direction") || "short_only";
+    var _dirSelectHtml = "<select id='bs-direction-select' class='bs-select'>" +
       _dirOptions.map(function(o) {
         return "<option value='" + o.value + "'" + (o.value === _savedDir ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
@@ -4003,8 +4003,8 @@ __VERSIONS_JSON__
       { value: "EURUSD", label: "EURUSD" },
       { value: "GBPUSD", label: "GBPUSD" }
     ];
-    var _savedInstr = localStorage.getItem("ec_instrument") || "EURUSD";
-    var _instrSelectHtml = "<select id='ec-instrument-select' class='ec-select'>" +
+    var _savedInstr = localStorage.getItem("bs_instrument") || "EURUSD";
+    var _instrSelectHtml = "<select id='bs-instrument-select' class='bs-select'>" +
       _instrOptions.map(function(o) {
         return "<option value='" + o.value + "'" + (o.value === _savedInstr ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
@@ -4016,63 +4016,63 @@ __VERSIONS_JSON__
       { value: "30m", label: "30m" },
       { value: "60m", label: "60m" }
     ];
-    var _savedInterval = localStorage.getItem("ec_interval") || "5m";
-    var _intervalSelectHtml = "<select id='ec-interval-select' class='ec-select'>" +
+    var _savedInterval = localStorage.getItem("bs_interval") || "5m";
+    var _intervalSelectHtml = "<select id='bs-interval-select' class='bs-select'>" +
       _intervalOptions.map(function(o) {
         return "<option value='" + o.value + "'" + (o.value === _savedInterval ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
 
-    var _savedEmaShort = localStorage.getItem("ec_ema_short") || "8";
-    var _savedEmaMid   = localStorage.getItem("ec_ema_mid")   || "20";
-    var _savedEmaLong  = localStorage.getItem("ec_ema_long")  || "40";
-    var _emaShortHtml = "<input id='ec-ema-short' type='number' class='ec-input' value='" + _savedEmaShort + "' min='1' step='1'>";
-    var _emaMidHtml   = "<input id='ec-ema-mid'   type='number' class='ec-input' value='" + _savedEmaMid   + "' min='1' step='1'>";
-    var _emaLongHtml  = "<input id='ec-ema-long'  type='number' class='ec-input' value='" + _savedEmaLong  + "' min='1' step='1'>";
+    var _savedEmaShort = localStorage.getItem("bs_ema_short") || "8";
+    var _savedEmaMid   = localStorage.getItem("bs_ema_mid")   || "20";
+    var _savedEmaLong  = localStorage.getItem("bs_ema_long")  || "40";
+    var _emaShortHtml = "<input id='bs-ema-short' type='number' class='bs-input' value='" + _savedEmaShort + "' min='1' step='1'>";
+    var _emaMidHtml   = "<input id='bs-ema-mid'   type='number' class='bs-input' value='" + _savedEmaMid   + "' min='1' step='1'>";
+    var _emaLongHtml  = "<input id='bs-ema-long'  type='number' class='bs-input' value='" + _savedEmaLong  + "' min='1' step='1'>";
 
-    var _savedStopPips  = localStorage.getItem("ec_stop_pips") || "15";
-    var _stopPipsHtml   = "<input id='ec-stop-pips' type='number' class='ec-input' value='" + _savedStopPips + "' min='1' step='1'>";
+    var _savedStopPips  = localStorage.getItem("bs_stop_pips") || "15";
+    var _stopPipsHtml   = "<input id='bs-stop-pips' type='number' class='bs-input' value='" + _savedStopPips + "' min='1' step='1'>";
 
-    var _savedRrrRisk   = localStorage.getItem("ec_rrr_risk")   || "1";
-    var _savedRrrReward = localStorage.getItem("ec_rrr_reward") || "2";
+    var _savedRrrRisk   = localStorage.getItem("bs_rrr_risk")   || "1";
+    var _savedRrrReward = localStorage.getItem("bs_rrr_reward") || "2";
     var _rrrOpts = [1, 2, 3, 4, 5];
-    var _rrrRiskHtml = "<select id='ec-rrr-risk' class='ec-select ec-select-narrow'>" +
+    var _rrrRiskHtml = "<select id='bs-rrr-risk' class='bs-select bs-select-narrow'>" +
       _rrrOpts.map(function(n) {
         return "<option value='" + n + "'" + (String(n) === _savedRrrRisk ? " selected" : "") + ">" + n + "</option>";
       }).join("") + "</select>";
-    var _rrrRewardHtml = "<select id='ec-rrr-reward' class='ec-select ec-select-narrow'>" +
+    var _rrrRewardHtml = "<select id='bs-rrr-reward' class='bs-select bs-select-narrow'>" +
       _rrrOpts.map(function(n) {
         return "<option value='" + n + "'" + (String(n) === _savedRrrReward ? " selected" : "") + ">" + n + "</option>";
       }).join("") + "</select>";
-    var _rrrSelectHtml = _rrrRiskHtml + "<span class='ec-rrr-colon'>:</span>" + _rrrRewardHtml;
+    var _rrrSelectHtml = _rrrRiskHtml + "<span class='bs-rrr-colon'>:</span>" + _rrrRewardHtml;
 
     document.getElementById("content").innerHTML =
       "<div class='section'>" +
-        "<div class='section-title'>Entry Conditions</div>" +
+        "<div class='section-title'>Backtest Settings</div>" +
         "<table>" +
           "<tbody>" +
-          "<tr><td class='ec-td-cond'>Instrument</td><td class='ec-td-rule'>" + _instrSelectHtml + "</td></tr>" +
-          "<tr><td class='ec-td-cond'>Interval</td><td class='ec-td-rule'>" + _intervalSelectHtml + "</td></tr>" +
-          "<tr><td class='ec-td-cond'>EMA Short</td><td class='ec-td-rule'>" + _emaShortHtml + "</td></tr>" +
-          "<tr><td class='ec-td-cond'>EMA Mid</td><td class='ec-td-rule'>" + _emaMidHtml + "</td></tr>" +
-          "<tr><td class='ec-td-cond'>EMA Long</td><td class='ec-td-rule'>" + _emaLongHtml + "</td></tr>" +
-          "<tr><td class='ec-td-cond'>Stop Loss Level</td><td class='ec-td-rule'>" + _stopPipsHtml + "</td></tr>" +
-          "<tr><td class='ec-td-cond'>Direction</td><td class='ec-td-rule'>" + _dirSelectHtml + "</td></tr>" +
-          "<tr><td class='ec-td-cond'>RRR</td><td class='ec-td-rule'>" + _rrrSelectHtml + "</td></tr>" +
+          "<tr><td class='bs-td-cond'>Instrument</td><td class='bs-td-rule'>" + _instrSelectHtml + "</td></tr>" +
+          "<tr><td class='bs-td-cond'>Interval</td><td class='bs-td-rule'>" + _intervalSelectHtml + "</td></tr>" +
+          "<tr><td class='bs-td-cond'>EMA Short</td><td class='bs-td-rule'>" + _emaShortHtml + "</td></tr>" +
+          "<tr><td class='bs-td-cond'>EMA Mid</td><td class='bs-td-rule'>" + _emaMidHtml + "</td></tr>" +
+          "<tr><td class='bs-td-cond'>EMA Long</td><td class='bs-td-rule'>" + _emaLongHtml + "</td></tr>" +
+          "<tr><td class='bs-td-cond'>Stop Loss Level</td><td class='bs-td-rule'>" + _stopPipsHtml + "</td></tr>" +
+          "<tr><td class='bs-td-cond'>Direction</td><td class='bs-td-rule'>" + _dirSelectHtml + "</td></tr>" +
+          "<tr><td class='bs-td-cond'>RRR</td><td class='bs-td-rule'>" + _rrrSelectHtml + "</td></tr>" +
           "</tbody>" +
         "</table>" +
       "</div>";
 
     /* Wire localStorage persistence for the empty-state selects */
-    var _dirEl = document.getElementById("ec-direction-select");
-    if (_dirEl) _dirEl.addEventListener("change", function () { localStorage.setItem("ec_direction", _dirEl.value); });
-    var _instrEl = document.getElementById("ec-instrument-select");
-    if (_instrEl) _instrEl.addEventListener("change", function () { localStorage.setItem("ec_instrument", _instrEl.value); });
-    var _intEl = document.getElementById("ec-interval-select");
-    if (_intEl) _intEl.addEventListener("change", function () { localStorage.setItem("ec_interval", _intEl.value); });
-    var _rrrRiskEl = document.getElementById("ec-rrr-risk");
-    if (_rrrRiskEl) _rrrRiskEl.addEventListener("change", function () { localStorage.setItem("ec_rrr_risk", _rrrRiskEl.value); });
-    var _rrrRewardEl = document.getElementById("ec-rrr-reward");
-    if (_rrrRewardEl) _rrrRewardEl.addEventListener("change", function () { localStorage.setItem("ec_rrr_reward", _rrrRewardEl.value); });
+    var _dirEl = document.getElementById("bs-direction-select");
+    if (_dirEl) _dirEl.addEventListener("change", function () { localStorage.setItem("bs_direction", _dirEl.value); });
+    var _instrEl = document.getElementById("bs-instrument-select");
+    if (_instrEl) _instrEl.addEventListener("change", function () { localStorage.setItem("bs_instrument", _instrEl.value); });
+    var _intEl = document.getElementById("bs-interval-select");
+    if (_intEl) _intEl.addEventListener("change", function () { localStorage.setItem("bs_interval", _intEl.value); });
+    var _rrrRiskEl = document.getElementById("bs-rrr-risk");
+    if (_rrrRiskEl) _rrrRiskEl.addEventListener("change", function () { localStorage.setItem("bs_rrr_risk", _rrrRiskEl.value); });
+    var _rrrRewardEl = document.getElementById("bs-rrr-reward");
+    if (_rrrRewardEl) _rrrRewardEl.addEventListener("change", function () { localStorage.setItem("bs_rrr_reward", _rrrRewardEl.value); });
   }
 
   /* ── Strategy change ─────────────────────────────────────── */
@@ -4336,12 +4336,12 @@ __VERSIONS_JSON__
     btn.click();
   });
 
-  /* ── Keyboard shortcut: B — Toggle Entry Conditions ───────── */
+  /* ── Keyboard shortcut: B — Toggle Backtest Settings ───────── */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "b" && e.key !== "B") return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (isInputFocused(e)) return;
-    var btn = document.getElementById("ec-toggle-btn");
+    var btn = document.getElementById("bs-toggle-btn");
     if (!btn) return;
     e.preventDefault();
     btn.click();

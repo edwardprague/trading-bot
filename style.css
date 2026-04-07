@@ -200,7 +200,7 @@ body {
     line-height: 1.7;
 }
 
-.ec-toggle-btn {
+.bs-toggle-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -217,33 +217,33 @@ body {
     transition: color 0.2s, border-color 0.2s, transform 0.2s;
 }
 
-.ec-toggle-btn svg circle {
+.bs-toggle-btn svg circle {
     stroke-width: 0px;
 
 }
 
-.ec-toggle-btn:hover {
+.bs-toggle-btn:hover {
     color: #ccc;
     border-color: #888;
 }
 
-.ec-toggle-btn.open {
+.bs-toggle-btn.open {
     transform: rotate(180deg);
     color: #fff;
     border-color: #888;
 }
 
-.ec-collapsible {
+.bs-collapsible {
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.3s ease;
 }
 
-.ec-collapsible.open {
+.bs-collapsible.open {
     max-height: 500px;
 }
 
-.ec-collapsible .section {
+.bs-collapsible .section {
     margin-bottom: 25px;
 }
 
@@ -748,7 +748,7 @@ tbody tr:hover td {
 }
 
 /* ── Entry conditions table ───────────────────────────── */
-.ec-th {
+.bs-th {
     text-align: left;
     padding: 6px 10px;
     color: #ccc;
@@ -759,44 +759,44 @@ tbody tr:hover td {
     border-bottom: 1px solid #2a2a4a;
 }
 
-.ec-td-cond {
+.bs-td-cond {
     padding: 5px 10px;
     color: #fff;
     width: 180px;
 }
 
-.ec-td-rule {
+.bs-td-rule {
     padding: 5px 10px;
 }
 
-.ec-td-purpose {
+.bs-td-purpose {
     padding: 5px 10px;
     color: #aaa;
 }
 
-.ec-td-ver {
+.bs-td-ver {
     padding: 5px 10px;
     color: #606080;
     font-size: 0.85em;
     white-space: nowrap;
 }
 
-.ec-since-val {
+.bs-since-val {
     color: #fff;
     font-size: 12px;
 }
 
-.ec-removed-val {
+.bs-removed-val {
     color: #fff;
     font-size: 12px;
 }
 
-.ec-row-removed {
+.bs-row-removed {
     opacity: 0.5;
     background: #333;
 }
 
-.ec-select {
+.bs-select {
     background: #333;
     color: #fff;
     border: 1px solid teal;
@@ -806,29 +806,29 @@ tbody tr:hover td {
     cursor: pointer;
 }
 
-.ec-select:hover {
+.bs-select:hover {
     border-color: mediumseagreen;
 }
 
-.ec-select:focus {
+.bs-select:focus {
     outline: none;
     border-color: mediumseagreen;
 }
 
-.ec-select-narrow {
+.bs-select-narrow {
     width: 48px;
     text-align: center;
     padding: 5px 2px;
 }
 
-.ec-rrr-colon {
+.bs-rrr-colon {
     color: #ccc;
     font-weight: 600;
     margin: 0 4px;
     font-size: 0.95em;
 }
 
-.ec-input {
+.bs-input {
     background: #333;
     color: #fff;
     border: 1px solid teal;
@@ -839,22 +839,22 @@ tbody tr:hover td {
     font-family: inherit;
 }
 
-.ec-input:hover {
+.bs-input:hover {
     border-color: mediumseagreen;
 }
 
-.ec-input:focus {
+.bs-input:focus {
     outline: none;
     border-color: mediumseagreen;
 }
 
-.ec-input::-webkit-inner-spin-button,
-.ec-input::-webkit-outer-spin-button {
+.bs-input::-webkit-inner-spin-button,
+.bs-input::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
 
-.ec-input[type=number] {
+.bs-input[type=number] {
     -moz-appearance: textfield;
 }
 

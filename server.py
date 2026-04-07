@@ -275,65 +275,65 @@ function updateRangeButtonLabel() {
 }
 
 function getSelectedDirection() {
-  var el = document.getElementById("ec-direction-select");
+  var el = document.getElementById("bs-direction-select");
   if (el) return el.value;
-  var stored = localStorage.getItem("ec_direction");
+  var stored = localStorage.getItem("bs_direction");
   return stored || "short_only";
 }
 
 function getSelectedInstrument() {
-  var el = document.getElementById("ec-instrument-select");
+  var el = document.getElementById("bs-instrument-select");
   if (el) return el.value;
-  var stored = localStorage.getItem("ec_instrument");
+  var stored = localStorage.getItem("bs_instrument");
   return stored || "EURUSD";
 }
 
 function getSelectedInterval() {
-  var el = document.getElementById("ec-interval-select");
+  var el = document.getElementById("bs-interval-select");
   if (el) return el.value;
-  var stored = localStorage.getItem("ec_interval");
+  var stored = localStorage.getItem("bs_interval");
   return stored || "5m";
 }
 
 function getSelectedEmaShort() {
-  var el = document.getElementById("ec-ema-short");
+  var el = document.getElementById("bs-ema-short");
   if (el) return el.value;
-  var stored = localStorage.getItem("ec_ema_short");
+  var stored = localStorage.getItem("bs_ema_short");
   return stored || "8";
 }
 
 function getSelectedEmaMid() {
-  var el = document.getElementById("ec-ema-mid");
+  var el = document.getElementById("bs-ema-mid");
   if (el) return el.value;
-  var stored = localStorage.getItem("ec_ema_mid");
+  var stored = localStorage.getItem("bs_ema_mid");
   return stored || "20";
 }
 
 function getSelectedEmaLong() {
-  var el = document.getElementById("ec-ema-long");
+  var el = document.getElementById("bs-ema-long");
   if (el) return el.value;
-  var stored = localStorage.getItem("ec_ema_long");
+  var stored = localStorage.getItem("bs_ema_long");
   return stored || "40";
 }
 
 function getSelectedStopPips() {
-  var el = document.getElementById("ec-stop-pips");
+  var el = document.getElementById("bs-stop-pips");
   if (el) return el.value;
-  var stored = localStorage.getItem("ec_stop_pips");
+  var stored = localStorage.getItem("bs_stop_pips");
   return stored || "15";
 }
 
 function getSelectedRrrRisk() {
-  var el = document.getElementById("ec-rrr-risk");
+  var el = document.getElementById("bs-rrr-risk");
   if (el) return el.value;
-  var stored = localStorage.getItem("ec_rrr_risk");
+  var stored = localStorage.getItem("bs_rrr_risk");
   return stored || "1";
 }
 
 function getSelectedRrrReward() {
-  var el = document.getElementById("ec-rrr-reward");
+  var el = document.getElementById("bs-rrr-reward");
   if (el) return el.value;
-  var stored = localStorage.getItem("ec_rrr_reward");
+  var stored = localStorage.getItem("bs_rrr_reward");
   return stored || "2";
 }
 
