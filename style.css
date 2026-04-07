@@ -599,6 +599,14 @@ tbody tr:hover td {
 
 #v-header-top h2 {
     min-width: 0;
+    margin: 0;
+}
+
+.v-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
 }
 
 /* ── Run-bar Copy & Delete buttons ───────────────────── */
@@ -711,7 +719,6 @@ tbody tr:hover td {
 .report-tabs {
     display: inline-flex;
     gap: 10px;
-    margin-left: 30px;
     vertical-align: middle;
 }
 

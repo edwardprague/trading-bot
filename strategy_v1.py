@@ -3265,7 +3265,8 @@ __VERSIONS_JSON__
       /* header */
       "<div id='v-header'>" +
         "<div id='v-header-top'>" +
-          "<h2>" + headerTitle +
+          "<h2>" + headerTitle + "</h2>" +
+          "<div class='v-header-actions'>" +
             "<span class='report-tabs'>" +
               "<button class='report-tab active' data-tab='general'>General</button>" +
               "<button class='report-tab' data-tab='advanced'>Advanced</button>" +
@@ -3276,7 +3277,7 @@ __VERSIONS_JSON__
                 "<path d='M5.5 7L8 9.5L10.5 7' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/>" +
               "</svg>" +
             "</button>" +
-          "</h2>" +
+          "</div>" +
         "</div>" +
         "<div class='bs-collapsible' id='bs-collapsible'>" + entryCondHtml + "</div>" +
       "</div>" +
