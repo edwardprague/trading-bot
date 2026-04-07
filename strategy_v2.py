@@ -257,8 +257,8 @@ def _scan_outcome(df, entry_idx, direction, entry_p, sl, tp, size, ts, reason):
 # ── Sensitivity helper ────────────────────────────────────────────────────────
 
 def _sensitivity_run(df, rrr, swing_lookback):
-    """Stripped-down backtest with a specific RRR.
-    Uses fractal-based entries; swing_lookback is unused but kept for API compat.
+    """Backtest with a specific RRR, using identical entry/filter logic to run_backtest.
+    swing_lookback is unused but kept for API compat.
     Returns condensed metrics dict, or None if no trades."""
     df2 = df.copy()
 
@@ -273,16 +273,25 @@ def _sensitivity_run(df, rrr, swing_lookback):
     entry_p = sl = tp = size = 0.0
     direction = None
 
+    # Daily loss limit state
+    _daily_loss_day = None
+    _daily_loss_pnl = 0.0
+
+    # Rolling fractal state — mirrors run_backtest exactly
     prev_high_price_s = None
     prev_low_price_s  = None
     last_high_label_s = None
     last_low_label_s  = None
-    last_fractal_low_s  = None
-    last_fractal_high_s = None
+    last_fractal_low_s   = None
+    last_fractal_high_s  = None
+    prior_fractal_high_s = None
+    prior_fractal_low_s  = None
 
     for i in range(1, len(df2)):
-        c    = float(df2["Close"].iloc[i])
+        c  = float(df2["Close"].iloc[i])
+        ts = df2['Datetime'].iloc[i]
 
+        # ── Check exits ──────────────────────────────────────────────────────
         if in_trade:
             bar_hi = float(df2["High"].iloc[i])
             bar_lo = float(df2["Low"].iloc[i])
@@ -303,17 +312,43 @@ def _sensitivity_run(df, rrr, swing_lookback):
                          (direction == "short" and c >= sl)
                 hit_tp = (direction == "long"  and c >= tp) or \
                          (direction == "short" and c <= tp)
-            if hit_sl or hit_tp:
-                exit_p = sl if hit_sl else tp
-                pnl    = (exit_p - entry_p) * size if direction == "long" \
-                         else (entry_p - exit_p) * size
-                cash  += pnl
+
+            # Daily loss limit force-close check
+            force_close = False
+            if not (hit_sl or hit_tp):
+                _unrealised = (c - entry_p) * size if direction == "long" \
+                              else (entry_p - c) * size
+                _bar_utc = pd.to_datetime(ts)
+                _bar_utc = _bar_utc.tz_convert('UTC') if _bar_utc.tzinfo else _bar_utc.tz_localize('UTC')
+                _bar_day = _bar_utc.date()
+                _day_pnl = _daily_loss_pnl if _bar_day == _daily_loss_day else 0.0
+                if (_day_pnl + _unrealised) <= -MAX_DAILY_LOSS:
+                    force_close = True
+
+            if hit_sl or hit_tp or force_close:
+                if force_close:
+                    exit_p = c
+                else:
+                    exit_p = sl if hit_sl else tp
+                pnl = (exit_p - entry_p) * size if direction == "long" \
+                      else (entry_p - exit_p) * size
+                cash += pnl
+                # Update daily loss tracker
+                _exit_utc = pd.to_datetime(ts)
+                _exit_utc = _exit_utc.tz_convert('UTC') if _exit_utc.tzinfo else _exit_utc.tz_localize('UTC')
+                _exit_day = _exit_utc.date()
+                if _exit_day != _daily_loss_day:
+                    _daily_loss_day = _exit_day
+                    _daily_loss_pnl = 0.0
+                _daily_loss_pnl += pnl
                 trades_s.append({"pnl": pnl, "win": pnl > 0})
                 in_trade = False
 
         equity_s.append(cash)
 
-        # Rolling fractal detection
+        # ── Rolling fractal detection ────────────────────────────────────────
+        _new_high_confirmed = False
+        _new_low_confirmed  = False
         if i >= 4:
             fi = i - 2
             fh = highs_s[fi]; fl = lows_s[fi]
@@ -328,39 +363,70 @@ def _sensitivity_run(df, rrr, swing_lookback):
                 else:
                     d = fh - prev_high_price_s
                     last_high_label_s = 'CH' if abs(d) < thr else ('LH' if d < 0 else 'HH')
+                prior_fractal_high_s = last_fractal_high_s
                 prev_high_price_s = float(fh)
                 last_fractal_high_s = float(fh)
+                _new_high_confirmed = True
             if is_pl:
                 if prev_low_price_s is None:
                     last_low_label_s = 'CL'
                 else:
                     d = fl - prev_low_price_s
                     last_low_label_s = 'CL' if abs(d) < thr else ('HL' if d > 0 else 'LL')
+                prior_fractal_low_s = last_fractal_low_s
                 prev_low_price_s = float(fl)
                 last_fractal_low_s = float(fl)
+                _new_low_confirmed = True
 
-        if not in_trade and i >= 4:
-            es = float(df2["ema_short"].iloc[i])
-            em = float(df2["ema_mid"].iloc[i])
-            el = float(df2["ema_long"].iloc[i])
+        # ── Check entries ────────────────────────────────────────────────────
+        if not in_trade:
+            # Long signal: newly confirmed HL whose low > prior low-type pivot
+            long_sig = False
+            long_fractal_price = None
+            if (_new_low_confirmed and last_low_label_s == 'HL'
+                    and last_fractal_low_s is not None
+                    and prior_fractal_low_s is not None
+                    and last_fractal_low_s > prior_fractal_low_s):
+                long_sig = True
+                long_fractal_price = last_fractal_low_s
 
-            long_sig = (last_low_label_s == 'HL' and last_high_label_s == 'HH'
-                        and es > em > el and last_fractal_low_s is not None
-                        and min(es, em) <= last_fractal_low_s <= max(es, em)
-                        and TRADE_DIRECTION != "short_only")
-            short_sig = (last_high_label_s == 'LH' and last_low_label_s == 'LL'
-                         and es < em < el and last_fractal_high_s is not None
-                         and min(es, em) <= last_fractal_high_s <= max(es, em)
-                         and TRADE_DIRECTION != "long_only")
+            # Short signal: newly confirmed LH whose high < prior high-type pivot
+            short_sig = False
+            short_fractal_price = None
+            if (_new_high_confirmed and last_high_label_s == 'LH'
+                    and last_fractal_high_s is not None
+                    and prior_fractal_high_s is not None
+                    and last_fractal_high_s < prior_fractal_high_s):
+                short_sig = True
+                short_fractal_price = last_fractal_high_s
+
+            # Direction filter
+            long_sig  = long_sig  and (TRADE_DIRECTION != "short_only")
+            short_sig = short_sig and (TRADE_DIRECTION != "long_only")
+
+            # Daily loss limit
+            _ts_day = pd.to_datetime(ts)
+            _ts_day_utc = _ts_day.tz_convert('UTC') if _ts_day.tzinfo else _ts_day.tz_localize('UTC')
+            _today = _ts_day_utc.date()
+            if _today != _daily_loss_day:
+                _daily_loss_day = _today
+                _daily_loss_pnl = 0.0
+            if _daily_loss_pnl <= -MAX_DAILY_LOSS:
+                continue
+
+            # Time filter
+            _entry_hour_utc = _ts_day_utc.hour
+            if _entry_hour_utc in BLOCKED_HOURS_UTC:
+                continue
 
             if long_sig:
-                sl_p = last_fractal_low_s - FRACTAL_STOP_PIPS
+                sl_p = long_fractal_price - FRACTAL_STOP_PIPS
                 dist = c - sl_p
                 if MIN_STOP <= dist <= MAX_STOP:
                     direction = "long"; entry_p = c; sl = sl_p
                     tp = c + dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
             elif short_sig:
-                sl_p = last_fractal_high_s + FRACTAL_STOP_PIPS
+                sl_p = short_fractal_price + FRACTAL_STOP_PIPS
                 dist = sl_p - c
                 if MIN_STOP <= dist <= MAX_STOP:
                     direction = "short"; entry_p = c; sl = sl_p
