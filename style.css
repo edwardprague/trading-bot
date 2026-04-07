@@ -1164,10 +1164,8 @@ tbody tr:hover td {
     left: 0;
     right: 0;
     height: 50px;
-    background: rgba(70, 130, 180, 0.15);
-    border-top: 3px solid steelblue;
+    background: rgba(70, 130, 180, 0.45);
     border-radius: 3px;
-    box-shadow: 0 0 8px rgba(70, 130, 180, 0.4);
 }
 
 .v-item.drag-over-below {
@@ -1182,10 +1180,8 @@ tbody tr:hover td {
     left: 0;
     right: 0;
     height: 50px;
-    background: rgba(70, 130, 180, 0.15);
-    border-bottom: 3px solid steelblue;
+    background: rgba(70, 130, 180, 0.45);
     border-radius: 3px;
-    box-shadow: 0 0 6px rgba(70, 130, 180, 0.6);
 }
 
 /* ── Run label badge ─────────────────────────────────── */
