@@ -263,10 +263,10 @@ function getCurrentVersionName() {
 }
 
 function updateRangeButtonLabel() {
-  var name = getCurrentVersionName();
+  var displayName = window._currentVersionDisplayName || getCurrentVersionName();
   var rangeBtn = document.getElementById("run-range-btn");
-  if (name) {
-    rangeBtn.innerHTML = "&#9654;&nbsp; Add Date Range (" + name + ")";
+  if (displayName) {
+    rangeBtn.innerHTML = "&#9654;&nbsp; Add Date Range (" + displayName + ")";
   } else {
     rangeBtn.innerHTML = "&#9654;&nbsp; Add Date Range";
   }

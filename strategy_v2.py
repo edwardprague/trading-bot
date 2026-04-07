@@ -2129,7 +2129,7 @@ __VERSIONS_JSON__
 
     var lines = [];
     var runLabel = run.label ? " \u2014 " + run.label.split(" \u2192 ").map(function(d){return fmtSbDate(d.trim());}).join(" \u2192 ") : "";
-    lines.push("## Backtest Report \u2014 " + (ver.name || "?") + runLabel);
+    lines.push("## Backtest Report \u2014 " + (ver.strategy_version || ver.name || "?") + runLabel);
     lines.push("");
     lines.push("**Strategy:** " + (ver.strategy || "\u2014"));
     lines.push("**Instrument:** " + (p.ticker || "\u2014") + " \u00b7 " + (p.interval || "\u2014") + " \u00b7 " + (run.days_back || p.days_back || "\u2014") + " days");
@@ -2663,7 +2663,7 @@ __VERSIONS_JSON__
       el.innerHTML =
         "<div class='v-item-row'>" +
           "<div class='v-item-content'>" +
-            "<div class='v-name'>" + esc(item.v.name) + "</div>" +
+            "<div class='v-name'>" + esc(item.v.strategy_version || item.v.name) + "</div>" +
             (runInstrument ? "<div class='v-instrument'>" + esc(runInstrument) + "</div>" : "") +
             (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "") +
             (dateRange ? "<div class='v-date date-link' data-start='" + esc(range.start) + "' data-end='" + esc(range.end) + "'>" + esc(dateRange) + "</div>" : "") +
@@ -2815,6 +2815,7 @@ __VERSIONS_JSON__
     /* Expose the currently active version name globally for the run-bar */
     var curV = VERSIONS[activeVersionIdx];
     window._currentVersionName = curV ? curV.name : "";
+    window._currentVersionDisplayName = curV ? (curV.strategy_version || curV.name) : "";
     if (typeof updateRangeButtonLabel === "function") updateRangeButtonLabel();
   }
 
@@ -3464,7 +3465,7 @@ __VERSIONS_JSON__
     var hdrDateStr = hdrRange.start && hdrRange.end
       ? fmtSbDate(hdrRange.start) + " \u2192 " + fmtSbDate(hdrRange.end) : "";
     var hdrDur = calcDuration(hdrRange.start, hdrRange.end);
-    var hdrParts = [esc(v.name)];
+    var hdrParts = [esc(v.strategy_version || v.name)];
     if (hdrDateStr) hdrParts.push(hdrDateStr);
     if (hdrDur) hdrParts.push(hdrDur);
     var headerTitle = hdrParts.join(" \u00b7 ");
@@ -3920,7 +3921,7 @@ __VERSIONS_JSON__
       versionsHtml +=
         "<div class='dl-version-block'>" +
           "<div class='dl-version-header'>" +
-            "<h3>" + esc(ver.name) + "</h3>" +
+            "<h3>" + esc(ver.strategy_version || ver.name) + "</h3>" +
             "<div class='dl-add-param-row'>" +
               "<input type='text' class='dl-input dl-input-param' placeholder='Parameter' data-vi='" + vi + "' data-field='name'>" +
               "<input type='text' class='dl-input dl-input-desc' placeholder='Description' data-vi='" + vi + "' data-field='desc'>" +
