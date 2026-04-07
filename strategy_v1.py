@@ -2460,8 +2460,8 @@ __VERSIONS_JSON__
       }
     }
 
-    /* Render newest first (items were added oldest-first) */
-    for (var fi = flatItems.length - 1; fi >= 0; fi--) {
+    /* Render oldest first so newest items appear at the bottom */
+    for (var fi = 0; fi < flatItems.length; fi++) {
       var item = flatItems[fi];
       var run  = item.run;
       var pnl  = run.metrics ? run.metrics.net_profit : null;
@@ -4084,15 +4084,15 @@ __VERSIONS_JSON__
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
     if (devLogOpen) return;
 
-    /* Build flat list of sidebar items in render order (newest first) */
+    /* Build flat list of sidebar items in render order (oldest first) */
     var svs = getStrategyVersions();
     if (svs.length === 0) return;
     var items = []; /* { vIdx, runIdx } */
-    for (var ri = svs.length - 1; ri >= 0; ri--) {
+    for (var ri = 0; ri < svs.length; ri++) {
       var entry = svs[ri];
       var vIdx  = entry.idx;
       var runs  = getRuns(entry.v);
-      for (var si = runs.length - 1; si >= 0; si--) {
+      for (var si = 0; si < runs.length; si++) {
         items.push({ vIdx: vIdx, runIdx: si });
       }
     }
