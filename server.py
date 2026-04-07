@@ -217,6 +217,22 @@ INJECT_HTML = """
     })
     .catch(function () {});
 
+  /* ── Ensure all strategy versions appear in the selector ───────────────── */
+  (function () {
+    var sel = document.getElementById("version-select");
+    if (!sel) return;
+    var required = ["v1", "v2", "v3"];
+    var existing = {};
+    for (var k = 0; k < sel.options.length; k++) existing[sel.options[k].value] = true;
+    required.forEach(function (v) {
+      if (!existing[v]) {
+        var opt = document.createElement("option");
+        opt.value = v; opt.textContent = v;
+        sel.appendChild(opt);
+      }
+    });
+  }());
+
   /* ── Update Add Date Range button label on load and on version tab clicks ── */
   setTimeout(function () {
     updateRangeButtonLabel();
