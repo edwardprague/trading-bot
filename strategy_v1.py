@@ -1166,6 +1166,42 @@ def compute_pivot_diagnostics(df):
             n18_prev_low = pv
         n18_labels[(pv['bar'], pv['kind'])] = lbl18
 
+    # ── Compute Cycle state for each N=18 pivot ─────────────────────────────
+    # Build ordered list of N18 labels, then classify cycle at each step
+    n18_ordered_labels = []  # running list of N18 labels in chronological order
+    n18_cycle_at_bar = {}    # bar → cycle label (set only on N18 pivot bars)
+    for pv in n18_raw:
+        key = (pv['bar'], pv['kind'])
+        lbl = n18_labels.get(key)
+        if lbl:
+            n18_ordered_labels.append(lbl)
+        window = n18_ordered_labels[-10:]  # last 10 N18 fractals
+        if len(window) < 5:
+            cycle_lbl = '\u2014'  # insufficient context
+        else:
+            # Score the window
+            bullish_dir = sum(1 for l in window if l in ('HH', 'HL'))
+            bearish_dir = sum(1 for l in window if l in ('LL', 'LH'))
+            consol      = sum(1 for l in window if l in ('CH', 'CL'))
+            # Transition: dominant direction exists but most recent pivot breaks it
+            most_recent = window[-1]
+            prior_window = window[:-1]
+            prior_bull = sum(1 for l in prior_window if l in ('HH', 'HL'))
+            prior_bear = sum(1 for l in prior_window if l in ('LL', 'LH'))
+            if prior_bull > prior_bear and prior_bull >= 4 and most_recent in ('LL', 'LH'):
+                cycle_lbl = 'Transitioning'
+            elif prior_bear > prior_bull and prior_bear >= 4 and most_recent in ('HH', 'HL'):
+                cycle_lbl = 'Transitioning'
+            elif bullish_dir >= 6:
+                cycle_lbl = 'Trending \u2191'
+            elif bearish_dir >= 6:
+                cycle_lbl = 'Trending \u2193'
+            elif consol >= 6 or (bullish_dir < 6 and bearish_dir < 6 and consol < 6):
+                cycle_lbl = 'Consolidating'
+            else:
+                cycle_lbl = 'Consolidating'
+        n18_cycle_at_bar[pv['bar']] = cycle_lbl
+
     # ── Classify each pivot vs previous same-type pivot ───────────────────────
     classified = []
     prev_high = None
@@ -1244,6 +1280,14 @@ def compute_pivot_diagnostics(df):
                 'n18_label':  n18_labels.get(_n18_key),
             })
             prev_low = pv
+
+    # ── Attach carried-forward Cycle label to each classified pivot ────────────
+    _carried_cycle = ''
+    for pv in classified:
+        bar = pv['bar']
+        if bar in n18_cycle_at_bar:
+            _carried_cycle = n18_cycle_at_bar[bar]
+        pv['cycle_label'] = _carried_cycle if _carried_cycle else None
 
     # ── Compute pullback % for each classified pivot ──────────────────────────
     # Helper: scan backwards through history to find the most recent pivot of a
@@ -2171,8 +2215,8 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type 1 | Type 2 | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
-        lines.push("|---|--------|--------|-------|------|------------|-----|----------------------|-----------------------|------------|");
+        lines.push("| # | Type 1 | Cycle | Type 2 | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
+        lines.push("|---|--------|-------|--------|-------|------|------------|-----|----------------------|-----------------------|------------|");
         var mdBarOutcome = {};
         (m.intraday || []).forEach(function (t) {
           if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
@@ -2180,6 +2224,7 @@ __VERSIONS_JSON__
           }
         });
         var mdCarriedN18 = "";
+        var mdCarriedCycle = "";
         pvList.forEach(function (pv, idx) {
           var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? mf(pv.vert_dist, 1) : "\u2014";
           var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "\u2014";
@@ -2193,6 +2238,10 @@ __VERSIONS_JSON__
           } else if (mdCarriedN18) {
             mdType1 = mdCarriedN18;
           }
+          if (pv.cycle_label) {
+            mdCarriedCycle = pv.cycle_label;
+          }
+          var mdCycle = mdCarriedCycle || "\u2014";
           var mdType2 = "";
           if (pv.label) {
             mdType2 = pv.label + (pv.n6 ? " \u2022" : "");
@@ -2200,7 +2249,7 @@ __VERSIONS_JSON__
           var mdNum = String(idx + 1);
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
-          lines.push("| " + mdNum + " | " + (mdType1 || "\u2014") + " | " + (mdType2 || "\u2014") + " | " +
+          lines.push("| " + mdNum + " | " + (mdType1 || "\u2014") + " | " + mdCycle + " | " + (mdType2 || "\u2014") + " | " +
             mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
         });
       }
@@ -3136,8 +3185,10 @@ __VERSIONS_JSON__
       });
 
       /* Type 1 = N=18 cycle structure (carried forward).
+         Cycle  = market cycle state derived from last 10 N=18 fractals (carried forward).
          Type 2 = N=2 entry texture + N=6 dot overlay. */
       var carriedN18 = "";  /* last-seen N=18 label, carried forward */
+      var carriedCycle = "";  /* last-seen cycle label, carried forward */
       pivotList.forEach(function (pv, idx) {
         var lbl  = pv.label || "\u2014";
         var bgClass = "";
@@ -3155,6 +3206,22 @@ __VERSIONS_JSON__
             " <span style='color:#ffd700;font-size:30px;line-height:1;vertical-align:-0.15em;' title='N=18 fractal'>\u2022</span>";
         } else if (carriedN18) {
           type1Html = "<strong>" + esc(carriedN18) + "</strong>";
+        }
+
+        /* ── Cycle: market cycle state (carried forward from N=18 pivots) ── */
+        var cycleHtml = "";
+        if (pv.cycle_label) {
+          carriedCycle = pv.cycle_label;
+        }
+        if (carriedCycle) {
+          if (carriedCycle === "\u2014") {
+            cycleHtml = "\u2014";
+          } else {
+            var cycleCls = carriedCycle.indexOf("\u2191") >= 0 ? "pos"
+                         : carriedCycle.indexOf("\u2193") >= 0 ? "neg"
+                         : "neu";
+            cycleHtml = "<span class='" + cycleCls + "'>" + esc(carriedCycle) + "</span>";
+          }
         }
 
         /* ── Type 2: N=2 entry texture + optional N=6 dot ── */
@@ -3182,6 +3249,7 @@ __VERSIONS_JSON__
           "<tr" + bgClass + ">" +
           "<td class='nowrap'>" + numHtml + "</td>" +
           "<td>" + type1Html + "</td>" +
+          "<td>" + cycleHtml + "</td>" +
           "<td>" + type2Html + "</td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
           "<td class='nowrap'>" + esc(pv.time || "\u2014") + "</td>" +
@@ -3204,6 +3272,7 @@ __VERSIONS_JSON__
           "<table><thead><tr>" +
           "<th style='width:52px'>#</th>" +
           "<th>Type 1</th>" +
+          "<th>Cycle</th>" +
           "<th>Type 2</th>" +
           "<th>Price</th>" +
           "<th>Time</th>" +
