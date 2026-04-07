@@ -2481,6 +2481,7 @@ __VERSIONS_JSON__
       el.className = "v-item" + (item.vIdx === activeVersionIdx && item.runIdx === activeRunIdx ? " active" : "");
       el.dataset.idx = item.vIdx;
       el.dataset.runIdx = item.runIdx;
+      el.draggable = true;
 
       var totalRuns = getRuns(item.v).length;
 
@@ -2547,6 +2548,80 @@ __VERSIONS_JSON__
             })
             .catch(function () { delBtn.disabled = false; alert("Delete failed — is the server running?"); });
           }
+        });
+
+        /* ── Drag-and-drop reorder ── */
+        el.addEventListener("dragstart", function (e) {
+          e.stopPropagation();
+          _dragSub = { vIdx: vIdx, runIdx: rIdx, verName: verName };
+          el.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", "");
+        });
+        el.addEventListener("dragend", function () {
+          el.classList.remove("dragging");
+          _dragSub = null;
+          document.querySelectorAll(".v-item.drag-over-above, .v-item.drag-over-below").forEach(function (x) {
+            x.classList.remove("drag-over-above", "drag-over-below");
+          });
+        });
+        el.addEventListener("dragover", function (e) {
+          if (!_dragSub || _dragSub.vIdx !== vIdx) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          var rect = el.getBoundingClientRect();
+          var mid = rect.top + rect.height / 2;
+          if (e.clientY < mid) {
+            el.classList.add("drag-over-above");
+            el.classList.remove("drag-over-below");
+          } else {
+            el.classList.add("drag-over-below");
+            el.classList.remove("drag-over-above");
+          }
+        });
+        el.addEventListener("dragleave", function () {
+          el.classList.remove("drag-over-above", "drag-over-below");
+        });
+        el.addEventListener("drop", function (e) {
+          e.preventDefault();
+          el.classList.remove("drag-over-above", "drag-over-below");
+          if (!_dragSub || _dragSub.vIdx !== vIdx) return;
+          var fromIdx = _dragSub.runIdx;
+          var rect = el.getBoundingClientRect();
+          var mid = rect.top + rect.height / 2;
+          var toIdx = e.clientY < mid ? rIdx : rIdx + 1;
+          if (toIdx > fromIdx) toIdx--;
+          if (fromIdx === toIdx) return;
+
+          /* Build new order */
+          var runs = getRuns(VERSIONS[vIdx]);
+          var order = [];
+          for (var oi = 0; oi < runs.length; oi++) order.push(oi);
+          var moved = order.splice(fromIdx, 1)[0];
+          order.splice(toIdx, 0, moved);
+
+          fetch("/reorder_runs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: verName, order: order })
+          })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              var oldRuns = VERSIONS[vIdx].runs;
+              VERSIONS[vIdx].runs = [];
+              for (var ri = 0; ri < order.length; ri++) VERSIONS[vIdx].runs.push(oldRuns[order[ri]]);
+              activeVersionIdx = vIdx;
+              activeRunIdx = toIdx;
+              renderSidebar();
+              renderContent(vIdx, activeRunIdx);
+            } else {
+              alert("Reorder failed: " + (data.error || "Unknown error"));
+            }
+          })
+          .catch(function () {
+            alert("Reorder failed — is the server running?");
+          });
         });
       })(el, item.vIdx, item.runIdx, item.v.name, totalRuns);
 
