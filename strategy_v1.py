@@ -747,6 +747,8 @@ def save_charts(df, trades, equity):
     _date_max  = dates.max().date()
     _day_span  = (_date_max - _date_min).days
     is_one_day     = _day_span == 0
+    is_mid_range   = 1 <= _day_span <= 30   # 2–31 calendar days
+    is_long_range  = _day_span >= 31        # 32+ calendar days
     is_short_range = 0 < _day_span < 7
 
     def _set_x_fmt(ax):
@@ -895,11 +897,51 @@ def save_charts(df, trades, equity):
             mdates.num2date(_dt_nums[0]  - _bw),
             mdates.num2date(_dt_nums[-1] + _bw)
         )
-    else:
+    elif is_mid_range:
+        # ── 2–31 days: price line + N18 dots & trendlines, no EMAs/N2/N6 ────
         ax1.plot(ds_dates, ds_close, color="#e0e0e0", linewidth=0.5, label="Price", alpha=0.7)
-        ax1.plot(sm_dates_slow,  sm_slow,  color="#ff6b6b", linewidth=1.4, label=f"EMA {EMA_LONG}")
-        ax1.plot(sm_dates_fast,  sm_fast,  color="#ffd93d", linewidth=1.2, label=f"EMA {EMA_MID}")
-        ax1.plot(sm_dates_entry, sm_entry, color="#6bcb77", linewidth=1.0, label=f"EMA {EMA_SHORT}")
+        # N18 pivot overlay
+        _pvd_mid = compute_pivot_diagnostics(df)
+        if _pvd_mid and _pvd_mid.get('pivots'):
+            _all_dates_num = mdates.date2num(dates)
+            _highs_arr = df['High'].values
+            _lows_arr  = df['Low'].values
+            _price_range_mid = _highs_arr.max() - _lows_arr.min()
+            _pv_offset_mid   = max(_price_range_mid * 0.008, 1e-5)
+            _n18_highs_xy_mid = []
+            _n18_lows_xy_mid  = []
+            for _pv in _pvd_mid['pivots']:
+                if not _pv.get('n18'):
+                    continue
+                _bar_i = _pv['bar']
+                if _bar_i < 0 or _bar_i >= len(_all_dates_num):
+                    continue
+                if _pv['kind'] == 'H':
+                    _pv_y = _pv['price'] + _pv_offset_mid
+                    _n18_highs_xy_mid.append((_all_dates_num[_bar_i], _pv_y))
+                else:
+                    _pv_y = _pv['price'] - _pv_offset_mid
+                    _n18_lows_xy_mid.append((_all_dates_num[_bar_i], _pv_y))
+                ax1.scatter(
+                    _all_dates_num[_bar_i], _pv_y,
+                    color='#ffd700', marker='o', s=18, zorder=6,
+                    edgecolors='none',
+                )
+            # N18 trendlines (yellow dashed)
+            if len(_n18_highs_xy_mid) >= 2:
+                _hx = [p[0] for p in _n18_highs_xy_mid]
+                _hy = [p[1] for p in _n18_highs_xy_mid]
+                ax1.plot(_hx, _hy, color='#ffd700', linestyle='--',
+                         linewidth=0.9, alpha=0.7, zorder=5)
+            if len(_n18_lows_xy_mid) >= 2:
+                _lx = [p[0] for p in _n18_lows_xy_mid]
+                _ly = [p[1] for p in _n18_lows_xy_mid]
+                ax1.plot(_lx, _ly, color='#ffd700', linestyle='--',
+                         linewidth=0.9, alpha=0.7, zorder=5)
+
+    else:
+        # ── 32+ days: price line + trade markers only ────────────────────────
+        ax1.plot(ds_dates, ds_close, color="#e0e0e0", linewidth=0.5, label="Price", alpha=0.7)
 
     # ── Range detection shading (subtle grey background when ranging) ──────
     if "regime_ranging" in df.columns:
