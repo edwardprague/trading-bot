@@ -3,16 +3,20 @@
     "name": "v2",
     "params": [
       {
-        "name": "Trend Filter",
-        "desc": "None"
+        "desc": "None",
+        "name": "Trend Filter"
       },
       {
-        "name": "Entry Logic",
-        "desc": "When a lower level fractal forms, enter at the close of the 5th bar"
+        "desc": "When a lower level fractal forms, enter at the close of the 5th bar",
+        "name": "Entry Logic"
       },
       {
-        "name": "Stop Placement",
-        "desc": "Above the entry fractal (user defined)"
+        "desc": "Above the entry fractal (user defined)",
+        "name": "Stop Placement"
+      },
+      {
+        "name": "Update 1",
+        "desc": "Block hours 04, 05, 06, 08, 10, 11, 14"
       }
     ]
   },

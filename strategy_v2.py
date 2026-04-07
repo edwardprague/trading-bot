@@ -62,6 +62,9 @@ TRADE_DIRECTION   = os.environ.get("TRADE_DIRECTION", "both")   # "both" | "long
 
 MAX_DAILY_LOSS  = 2000.0            # stop trading if day's loss reaches $2,000 (2% of capital)
 
+# ── Time filter: skip entries during these UTC hours ─────────────────────────
+BLOCKED_HOURS_UTC = [4, 5, 6, 8, 10, 11, 14]
+
 VERSION = "v6"
 STRATEGY_VERSION_TAG = "v2"     # identifies which strategy file produced these results
 NOTES = "Fractal geometry entries — no EMA alignment"
@@ -620,6 +623,27 @@ def run_backtest(df):
                 _daily_loss_day = _today
                 _daily_loss_pnl = 0.0
             if _daily_loss_pnl <= -MAX_DAILY_LOSS:
+                continue
+
+            # ── Time filter: skip entries during blocked UTC hours ────────────
+            _entry_hour_utc = _ts_day_utc.hour
+            if _entry_hour_utc in BLOCKED_HOURS_UTC:
+                if long_sig:
+                    _sl_t = long_fractal_price - FRACTAL_STOP_PIPS
+                    _dist_t = c - _sl_t
+                    if MIN_STOP <= _dist_t <= MAX_STOP:
+                        blocked_signals.append(_scan_outcome(
+                            df, i, "long", c, _sl_t,
+                            c + _dist_t * RRR,
+                            (cash * RISK_PCT) / _dist_t, ts, "time"))
+                elif short_sig:
+                    _sl_t = short_fractal_price + FRACTAL_STOP_PIPS
+                    _dist_t = _sl_t - c
+                    if MIN_STOP <= _dist_t <= MAX_STOP:
+                        blocked_signals.append(_scan_outcome(
+                            df, i, "short", c, _sl_t,
+                            c - _dist_t * RRR,
+                            (cash * RISK_PCT) / _dist_t, ts, "time"))
                 continue
 
             if long_sig:
