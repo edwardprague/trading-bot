@@ -50,6 +50,10 @@ body {
     color: #aaa !important;
 }
 
+.dl-param-row {
+    background: #000;
+}
+
 /* ── Sidebar ──────────────────────────────────────────── */
 #sidebar {
     width: 228px;
@@ -508,8 +512,8 @@ tbody tr:hover td {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    border-bottom: 1px solid #2a2a44;
-    background: #12122a;
+    border-bottom: 1px solid #666;
+    background: #222;
 }
 
 .dl-param-row td {
