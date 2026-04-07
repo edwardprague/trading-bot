@@ -1252,3 +1252,13 @@ tbody tr:hover td {
 .fractal-row-directional {
     background: rgba(50, 150, 50, 0.30);
 }
+
+.fractal-outcome-win {
+    color: #6bcb77;
+    font-weight: bold;
+}
+
+.fractal-outcome-loss {
+    color: #ef5350;
+    font-weight: bold;
+}
