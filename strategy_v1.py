@@ -4153,16 +4153,6 @@ __VERSIONS_JSON__
     return tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable;
   }
 
-  /* ── Keyboard shortcut: T or Shift+T to scroll to top ────── */
-  document.addEventListener("keydown", function (e) {
-    if (e.key !== "t" && e.key !== "T") return;
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (isInputFocused(e)) return;
-    e.preventDefault();
-    var main = document.getElementById("main");
-    if (main) main.scrollTo({ top: 0, behavior: "smooth" });
-  });
-
   /* ── Keyboard shortcut: V or Shift+V — Add Year ───── */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "v" && e.key !== "V") return;
@@ -4265,20 +4255,6 @@ __VERSIONS_JSON__
 })();
 </script>
 
-<button id="scroll-top-btn" aria-label="Scroll to top">&#9650;</button>
-<script>
-(function () {
-  var btn  = document.getElementById("scroll-top-btn");
-  var main = document.getElementById("main");
-  if (!btn || !main) return;
-  main.addEventListener("scroll", function () {
-    btn.classList.toggle("visible", main.scrollTop > 120);
-  });
-  btn.addEventListener("click", function () {
-    main.scrollTo({ top: 0, behavior: "smooth" });
-  });
-})();
-</script>
 
 </body>
 </html>"""

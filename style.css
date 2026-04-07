@@ -1008,38 +1008,6 @@ tbody tr:hover td {
 }
 
 /* ── Scroll-to-top button ────────────────────────────── */
-#scroll-top-btn {
-    position: fixed;
-    bottom: 400px;
-    right: 28px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 1px solid #aaa;
-    background: #14142a;
-    color: #aaa;
-    font-size: 18px;
-    line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.25s, color 0.15s, border-color 0.15s;
-    z-index: 9998;
-}
-
-#scroll-top-btn.visible {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-#scroll-top-btn:hover {
-    color: #90c0f0;
-    border-color: #90c0f0;
-}
-
 /* ── Scrollbars ───────────────────────────────────────── */
 ::-webkit-scrollbar {
     width: 5px;
