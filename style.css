@@ -1153,36 +1153,38 @@ tbody tr:hover td {
 }
 
 .v-item.drag-over-above {
-    transform: translateY(3px);
+    transform: translateY(25px);
     position: relative;
 }
 
 .v-item.drag-over-above::before {
     content: "";
     position: absolute;
-    top: -2px;
-    left: 8px;
-    right: 8px;
-    height: 3px;
-    background: steelblue;
-    border-radius: 2px;
-    box-shadow: 0 0 6px rgba(70, 130, 180, 0.6);
+    top: -50px;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: rgba(70, 130, 180, 0.15);
+    border-top: 3px solid steelblue;
+    border-radius: 3px;
+    box-shadow: 0 0 8px rgba(70, 130, 180, 0.4);
 }
 
 .v-item.drag-over-below {
-    transform: translateY(-3px);
+    transform: translateY(-25px);
     position: relative;
 }
 
 .v-item.drag-over-below::after {
     content: "";
     position: absolute;
-    bottom: -2px;
-    left: 8px;
-    right: 8px;
-    height: 3px;
-    background: steelblue;
-    border-radius: 2px;
+    bottom: -50px;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: rgba(70, 130, 180, 0.15);
+    border-bottom: 3px solid steelblue;
+    border-radius: 3px;
     box-shadow: 0 0 6px rgba(70, 130, 180, 0.6);
 }
 
