@@ -4229,6 +4229,39 @@ __VERSIONS_JSON__
     e.preventDefault();
     btn.click();
   });
+
+  /* ── Keyboard shortcut: G — General tab ───────────────────── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "g" && e.key !== "G") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isInputFocused(e)) return;
+    var tab = document.querySelector(".report-tab[data-tab='general']");
+    if (!tab) return;
+    e.preventDefault();
+    tab.click();
+  });
+
+  /* ── Keyboard shortcut: A — Advanced tab ──────────────────── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "a" && e.key !== "A") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isInputFocused(e)) return;
+    var tab = document.querySelector(".report-tab[data-tab='advanced']");
+    if (!tab) return;
+    e.preventDefault();
+    tab.click();
+  });
+
+  /* ── Keyboard shortcut: 0 — Scroll to bottom ─────────────── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "0") return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (isInputFocused(e)) return;
+    var main = document.getElementById("main");
+    if (!main) return;
+    e.preventDefault();
+    main.scrollTo({ top: main.scrollHeight, behavior: "smooth" });
+  });
 })();
 </script>
 

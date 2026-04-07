@@ -1144,7 +1144,8 @@ tbody tr:hover td {
     transition: opacity 0.15s, color 0.15s;
 }
 
-.v-sub-item:hover .v-sub-delete-btn {
+.v-sub-item:hover .v-sub-delete-btn,
+.v-item:hover .v-sub-delete-btn {
     opacity: 1;
 }
 
