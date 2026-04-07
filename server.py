@@ -170,12 +170,10 @@ INJECT_HTML = """
   var _devlogBtn = document.getElementById("devlog-btn");
   var _actSep    = document.getElementById("rb-act-sep");
   var _copyBtn   = document.getElementById("copy-btn");
-  var _delBtn    = document.getElementById("delete-btn");
   if (_actGroup) {
     if (_devlogBtn) { _devlogBtn.className = "rb-devlog-btn"; _devlogBtn.style.display = ""; _actGroup.appendChild(_devlogBtn); }
     if (_actSep)    { _actSep.className = "rb-sep";  _actGroup.appendChild(_actSep); }
     if (_copyBtn)   { _copyBtn.className = "rb-btn rb-btn-copy"; _actGroup.appendChild(_copyBtn); }
-    if (_delBtn)    { _delBtn.className = "rb-btn rb-btn-delete"; _actGroup.appendChild(_delBtn); }
   }
 
   /* ── Date overlay helper: show Mon-DD-YY on top of native date input ── */
@@ -234,7 +232,7 @@ INJECT_HTML = """
 
 function setRunning() {
   var btns = [document.getElementById("run-new-btn"), document.getElementById("run-range-btn"),
-              document.getElementById("copy-btn"), document.getElementById("delete-btn")];
+              document.getElementById("copy-btn")];
   btns.forEach(function (b) { if (b) b.disabled = true; });
   document.getElementById("run-status").innerHTML =
     '<span class="rb-spin"></span><span id="rb-progress-text">Starting\u2026</span>';

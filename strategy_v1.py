@@ -1847,8 +1847,7 @@ def _build_html(versions_json):
 <!-- Action buttons: hidden by default, moved into the run bar by server.py -->
 <button id="devlog-btn" title="Development Log" style="display:none;"><span class="material-symbols-outlined">list</span></button>
 <span class="rb-sep" id="rb-act-sep" style="display:none;"></span>
-<button id="copy-btn" style="display:none;">Copy Version Report</button>
-<button id="delete-btn" style="display:none;">Delete Version</button>
+<button id="copy-btn" style="display:none;">Copy Report</button>
 
 <script type="application/json" id="versions-data">
 __VERSIONS_JSON__
@@ -3627,93 +3626,40 @@ __VERSIONS_JSON__
       }
     }());
 
-    /* Wire copy button — context aware (lives in the run bar) */
+    /* Wire copy button (lives in the run bar) */
     (function (ver, runData) {
       var btn = document.getElementById("copy-btn");
       var sep = document.getElementById("rb-act-sep");
       if (!btn) return;
-      var isDateRange = activeRunIdx > 0;
       btn.style.display = "";
       btn.disabled = false;
       btn.classList.remove("copied");
       if (sep) sep.style.display = "";
-      btn.textContent = isDateRange ? "Copy Range Report" : "Copy Version Report";
+      btn.textContent = "Copy Report";
       btn.onclick = function () {
-        var isRange = activeRunIdx > 0;
-        var md = isRange ? buildRunMarkdown(ver, runData) : buildVersionMarkdown(ver);
-        var label = isRange ? "Copy Range Report" : "Copy Version Report";
+        var md = buildRunMarkdown(ver, runData);
         navigator.clipboard.writeText(md).then(function () {
           btn.textContent = "\u2713 Copied!";
           btn.classList.add("copied");
-          showToast(isRange ? "Range report copied" : "Version report copied");
+          showToast("Report copied");
           setTimeout(function () {
-            btn.textContent = label;
+            btn.textContent = "Copy Report";
             btn.classList.remove("copied");
           }, 2200);
         }).catch(function () {
           btn.textContent = "Failed";
-          setTimeout(function () { btn.textContent = label; }, 2500);
+          setTimeout(function () { btn.textContent = "Copy Report"; }, 2500);
         });
       };
     }(v, run));
-
-    /* Wire delete button (lives in the run bar) */
-    (function (ver) {
-      var delBtn = document.getElementById("delete-btn");
-      if (!delBtn) return;
-      var isDateRange = activeRunIdx > 0;
-      delBtn.style.display = "";
-      delBtn.disabled = false;
-      delBtn.textContent = isDateRange ? "Delete Date Range" : "Delete Version";
-      delBtn.onclick = function () {
-        var isRange = activeRunIdx > 0;
-        var msg = isRange
-          ? "Are you sure you want to delete this date range run? This cannot be undone."
-          : "Are you sure you want to delete this version and all its date range runs? This cannot be undone.";
-        if (!confirm(msg)) return;
-        delBtn.disabled = true;
-        delBtn.textContent = "Deleting\u2026";
-        var url = isRange ? "/delete_run" : "/delete_version";
-        var body = isRange
-          ? JSON.stringify({ name: ver.name, run_idx: activeRunIdx })
-          : JSON.stringify({ name: ver.name });
-        fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: body
-        })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data.ok) {
-            if (isRange) {
-              localStorage.setItem("rb_pending_delete_version", ver.name);
-              var focusIdx = activeRunIdx - 1;
-              localStorage.setItem("rb_pending_delete_run_idx", String(focusIdx < 1 ? 0 : focusIdx));
-            }
-            window.location.reload();
-          } else {
-            delBtn.disabled = false;
-            delBtn.textContent = isRange ? "Delete Date Range" : "Delete Version";
-            alert("Delete failed: " + (data.error || "Unknown error"));
-          }
-        })
-        .catch(function () {
-          delBtn.disabled = false;
-          delBtn.textContent = isRange ? "Delete Date Range" : "Delete Version";
-          alert("Delete failed \u2014 is the server running?");
-        });
-      };
-    }(v));
   }
 
-  /* ── Hide run-bar action buttons (Copy/Delete) ───────────── */
+  /* ── Hide run-bar action buttons ──────────────────────────── */
   function hideActionButtons() {
-    var btn    = document.getElementById("copy-btn");
-    var delBtn = document.getElementById("delete-btn");
-    var sep    = document.getElementById("rb-act-sep");
-    if (btn)    { btn.style.display = "none";    btn.onclick = null; }
-    if (delBtn) { delBtn.style.display = "none"; delBtn.onclick = null; }
-    if (sep)    { sep.style.display = "none"; }
+    var btn = document.getElementById("copy-btn");
+    var sep = document.getElementById("rb-act-sep");
+    if (btn) { btn.style.display = "none"; btn.onclick = null; }
+    if (sep) { sep.style.display = "none"; }
   }
 
   /* ── Dev Log ──────────────────────────────────────────────── */
