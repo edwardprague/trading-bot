@@ -3960,8 +3960,14 @@ __VERSIONS_JSON__
       opt.textContent = names[j];
       sel.appendChild(opt);
     }
-    /* Default to the last (newest) version */
-    if (names.length > 0) {
+    /* If no versions exist yet, add a default v1 option */
+    if (names.length === 0) {
+      var def = document.createElement("option");
+      def.value = "v1";
+      def.textContent = "v1";
+      sel.appendChild(def);
+      currentVersion = "v1";
+    } else {
       currentVersion = names[names.length - 1];
       sel.value = currentVersion;
     }

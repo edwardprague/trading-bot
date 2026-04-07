@@ -170,4 +170,4 @@
 | v6 | 2026-04-07 13:51 | Trend Following | GBPUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 3 | 100.0% | ∞ | +$3030.10 | 0.00% | 7.98 |
 | v6 | 2026-04-07 13:58 | Trend Following | GBPUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 3 | 100.0% | ∞ | +$3030.10 | 0.00% | 7.98 |
 | v6 | 2026-04-07 14:02 | Trend Following | GBPUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 3 | 100.0% | ∞ | +$3030.10 | 0.00% | 7.98 |
-| v1 | 2026-04-07 14:13 | Trend Following | GBPUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 3 | 33.3% | 0.50 | -$1009.90 | -1.99% | -2.65 |
+| v1 | 2026-04-07 14:16 | Trend Following | GBPUSD=X | 5m | Fractal-based entries with EMA 8/20/40 alignment | 3 | 33.3% | 0.50 | -$1009.90 | -1.99% | -2.65 |

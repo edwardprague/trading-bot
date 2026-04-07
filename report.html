@@ -89,7 +89,7 @@
     },
     "runs": [
       {
-        "date": "2026-04-07 14:13",
+        "date": "2026-04-07 14:16",
         "start_date": "2025-06-03",
         "end_date": "2025-06-03",
         "days_back": 0,
@@ -3574,8 +3574,14 @@
       opt.textContent = names[j];
       sel.appendChild(opt);
     }
-    /* Default to the last (newest) version */
-    if (names.length > 0) {
+    /* If no versions exist yet, add a default v1 option */
+    if (names.length === 0) {
+      var def = document.createElement("option");
+      def.value = "v1";
+      def.textContent = "v1";
+      sel.appendChild(def);
+      currentVersion = "v1";
+    } else {
       currentVersion = names[names.length - 1];
       sel.value = currentVersion;
     }
