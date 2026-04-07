@@ -54,6 +54,10 @@ body {
     background: #000;
 }
 
+#rb-progress-text {
+    color: #fff !important;
+}
+
 /* ── Sidebar ──────────────────────────────────────────── */
 #sidebar {
     width: 228px;
