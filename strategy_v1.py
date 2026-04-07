@@ -844,9 +844,11 @@ def save_charts(df, trades, equity):
                 'LH': '#6bcb77', 'LL': '#6bcb77',   # green — downtrend structure
             }
             _label_offset = max(_price_range * 0.018, 2e-5)
-            # Collect N=18 pivot coordinates for trendlines
+            # Collect N=18 and N=6 pivot coordinates for trendlines
             _n18_highs_xy = []  # list of (dt_num, price_y) for N=18 high pivots
             _n18_lows_xy  = []  # list of (dt_num, price_y) for N=18 low pivots
+            _n6_highs_xy  = []  # list of (dt_num, price_y) for N=6 high pivots
+            _n6_lows_xy   = []  # list of (dt_num, price_y) for N=6 low pivots
 
             for _pv_idx, _pv in enumerate(_pvd['pivots']):
                 _bar_i  = _pv['bar']
@@ -880,6 +882,24 @@ def save_charts(df, trades, equity):
                         _n18_highs_xy.append((_dt_nums[_bar_i], _pv_y))
                     else:
                         _n18_lows_xy.append((_dt_nums[_bar_i], _pv_y))
+                # Track N=6 pivots for trendlines
+                if _pv.get('n6'):
+                    if _pv['kind'] == 'H':
+                        _n6_highs_xy.append((_dt_nums[_bar_i], _pv_y))
+                    else:
+                        _n6_lows_xy.append((_dt_nums[_bar_i], _pv_y))
+
+            # ── N=6 trendlines (white thin dashed) ──────────────────────────
+            if len(_n6_highs_xy) >= 2:
+                _hx = [p[0] for p in _n6_highs_xy]
+                _hy = [p[1] for p in _n6_highs_xy]
+                ax1.plot(_hx, _hy, color='#ffffff', linestyle='--',
+                         linewidth=0.5, alpha=0.5, zorder=4)
+            if len(_n6_lows_xy) >= 2:
+                _lx = [p[0] for p in _n6_lows_xy]
+                _ly = [p[1] for p in _n6_lows_xy]
+                ax1.plot(_lx, _ly, color='#ffffff', linestyle='--',
+                         linewidth=0.5, alpha=0.5, zorder=4)
 
             # ── N=18 trendlines (yellow dashed) ──────────────────────────────
             if len(_n18_highs_xy) >= 2:
@@ -898,9 +918,9 @@ def save_charts(df, trades, equity):
             mdates.num2date(_dt_nums[-1] + _bw)
         )
     elif is_mid_range:
-        # ── 2–31 days: price line + N18 dots & trendlines, no EMAs/N2/N6 ────
+        # ── 2–31 days: price line + N18 dots & trendlines, no EMAs/N2/N6 dots ──
         ax1.plot(ds_dates, ds_close, color="#e0e0e0", linewidth=0.5, label="Price", alpha=0.7)
-        # N18 pivot overlay
+        # N18 (and optionally N6) pivot overlay
         _pvd_mid = compute_pivot_diagnostics(df)
         if _pvd_mid and _pvd_mid.get('pivots'):
             _all_dates_num = mdates.date2num(dates)
@@ -910,23 +930,45 @@ def save_charts(df, trades, equity):
             _pv_offset_mid   = max(_price_range_mid * 0.008, 1e-5)
             _n18_highs_xy_mid = []
             _n18_lows_xy_mid  = []
+            _n6_highs_xy_mid  = []
+            _n6_lows_xy_mid   = []
             for _pv in _pvd_mid['pivots']:
-                if not _pv.get('n18'):
-                    continue
                 _bar_i = _pv['bar']
                 if _bar_i < 0 or _bar_i >= len(_all_dates_num):
                     continue
                 if _pv['kind'] == 'H':
                     _pv_y = _pv['price'] + _pv_offset_mid
-                    _n18_highs_xy_mid.append((_all_dates_num[_bar_i], _pv_y))
                 else:
                     _pv_y = _pv['price'] - _pv_offset_mid
-                    _n18_lows_xy_mid.append((_all_dates_num[_bar_i], _pv_y))
-                ax1.scatter(
-                    _all_dates_num[_bar_i], _pv_y,
-                    color='#ffd700', marker='o', s=18, zorder=6,
-                    edgecolors='none',
-                )
+                # N18 dots (all mid-range)
+                if _pv.get('n18'):
+                    if _pv['kind'] == 'H':
+                        _n18_highs_xy_mid.append((_all_dates_num[_bar_i], _pv_y))
+                    else:
+                        _n18_lows_xy_mid.append((_all_dates_num[_bar_i], _pv_y))
+                    ax1.scatter(
+                        _all_dates_num[_bar_i], _pv_y,
+                        color='#ffd700', marker='o', s=18, zorder=6,
+                        edgecolors='none',
+                    )
+                # Track N6 pivots for trendlines (2-day only)
+                if _pv.get('n6') and _day_span == 1:
+                    if _pv['kind'] == 'H':
+                        _n6_highs_xy_mid.append((_all_dates_num[_bar_i], _pv_y))
+                    else:
+                        _n6_lows_xy_mid.append((_all_dates_num[_bar_i], _pv_y))
+            # N6 trendlines (white thin dashed — 2-day only)
+            if _day_span == 1:
+                if len(_n6_highs_xy_mid) >= 2:
+                    _hx = [p[0] for p in _n6_highs_xy_mid]
+                    _hy = [p[1] for p in _n6_highs_xy_mid]
+                    ax1.plot(_hx, _hy, color='#ffffff', linestyle='--',
+                             linewidth=0.5, alpha=0.5, zorder=4)
+                if len(_n6_lows_xy_mid) >= 2:
+                    _lx = [p[0] for p in _n6_lows_xy_mid]
+                    _ly = [p[1] for p in _n6_lows_xy_mid]
+                    ax1.plot(_lx, _ly, color='#ffffff', linestyle='--',
+                             linewidth=0.5, alpha=0.5, zorder=4)
             # N18 trendlines (yellow dashed)
             if len(_n18_highs_xy_mid) >= 2:
                 _hx = [p[0] for p in _n18_highs_xy_mid]
@@ -1161,6 +1203,37 @@ def compute_pivot_diagnostics(df):
             n6_prev_low = pv
         n6_labels[(pv['bar'], pv['kind'])] = lbl6
 
+    # ── Compute Cycle state for each N=6 pivot ──────────────────────────────
+    n6_ordered_labels = []  # running list of N6 labels in chronological order
+    n6_cycle_at_bar = {}    # bar → cycle label (set only on N6 pivot bars)
+    for pv in n6_raw:
+        key = (pv['bar'], pv['kind'])
+        lbl = n6_labels.get(key)
+        if lbl:
+            n6_ordered_labels.append(lbl)
+        window = n6_ordered_labels[-10:]
+        if len(window) < 5:
+            n6_cyc = '\u2014'
+        else:
+            bullish_dir = sum(1 for l in window if l in ('HH', 'HL'))
+            bearish_dir = sum(1 for l in window if l in ('LL', 'LH'))
+            consol      = sum(1 for l in window if l in ('CH', 'CL'))
+            most_recent = window[-1]
+            prior_window = window[:-1]
+            prior_bull = sum(1 for l in prior_window if l in ('HH', 'HL'))
+            prior_bear = sum(1 for l in prior_window if l in ('LL', 'LH'))
+            if prior_bull > prior_bear and prior_bull >= 4 and most_recent in ('LL', 'LH'):
+                n6_cyc = 'Transitioning'
+            elif prior_bear > prior_bull and prior_bear >= 4 and most_recent in ('HH', 'HL'):
+                n6_cyc = 'Transitioning'
+            elif bullish_dir >= 6:
+                n6_cyc = 'Trending \u2191'
+            elif bearish_dir >= 6:
+                n6_cyc = 'Trending \u2193'
+            else:
+                n6_cyc = 'Consolidating'
+        n6_cycle_at_bar[pv['bar']] = n6_cyc
+
     # ── Detect N=18 fractal pivots (need 18 bars on each side) ───────────
     n18_high_bars = set()
     n18_low_bars  = set()
@@ -1323,13 +1396,17 @@ def compute_pivot_diagnostics(df):
             })
             prev_low = pv
 
-    # ── Attach carried-forward Cycle label to each classified pivot ────────────
+    # ── Attach carried-forward Cycle labels to each classified pivot ───────────
     _carried_cycle = ''
+    _carried_n6_cycle = ''
     for pv in classified:
         bar = pv['bar']
         if bar in n18_cycle_at_bar:
             _carried_cycle = n18_cycle_at_bar[bar]
         pv['cycle_label'] = _carried_cycle if _carried_cycle else None
+        if bar in n6_cycle_at_bar:
+            _carried_n6_cycle = n6_cycle_at_bar[bar]
+        pv['n6_cycle_label'] = _carried_n6_cycle if _carried_n6_cycle else None
 
     # ── Compute pullback % for each classified pivot ──────────────────────────
     # Helper: scan backwards through history to find the most recent pivot of a
@@ -2257,8 +2334,8 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type 1 | Cycle | Type 2 | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
-        lines.push("|---|--------|-------|--------|-------|------|------------|-----|----------------------|-----------------------|------------|");
+        lines.push("| # | Type 1 | Cycle | N6 Cycle | Type 2 | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
+        lines.push("|---|--------|-------|----------|--------|-------|------|------------|-----|----------------------|-----------------------|------------|");
         var mdBarOutcome = {};
         (m.intraday || []).forEach(function (t) {
           if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
@@ -2267,6 +2344,7 @@ __VERSIONS_JSON__
         });
         var mdCarriedN18 = "";
         var mdCarriedCycle = "";
+        var mdCarriedN6Cycle = "";
         pvList.forEach(function (pv, idx) {
           var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? mf(pv.vert_dist, 1) : "\u2014";
           var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "\u2014";
@@ -2284,6 +2362,10 @@ __VERSIONS_JSON__
             mdCarriedCycle = pv.cycle_label;
           }
           var mdCycle = mdCarriedCycle || "\u2014";
+          if (pv.n6_cycle_label) {
+            mdCarriedN6Cycle = pv.n6_cycle_label;
+          }
+          var mdN6Cycle = mdCarriedN6Cycle || "\u2014";
           var mdType2 = "";
           if (pv.label) {
             mdType2 = pv.label + (pv.n6 ? " \u2022" : "");
@@ -2291,7 +2373,7 @@ __VERSIONS_JSON__
           var mdNum = String(idx + 1);
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
-          lines.push("| " + mdNum + " | " + (mdType1 || "\u2014") + " | " + mdCycle + " | " + (mdType2 || "\u2014") + " | " +
+          lines.push("| " + mdNum + " | " + (mdType1 || "\u2014") + " | " + mdCycle + " | " + mdN6Cycle + " | " + (mdType2 || "\u2014") + " | " +
             mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
         });
       }
@@ -3230,7 +3312,8 @@ __VERSIONS_JSON__
          Cycle  = market cycle state derived from last 10 N=18 fractals (carried forward).
          Type 2 = N=2 entry texture + N=6 dot overlay. */
       var carriedN18 = "";  /* last-seen N=18 label, carried forward */
-      var carriedCycle = "";  /* last-seen cycle label, carried forward */
+      var carriedCycle = "";  /* last-seen N18 cycle label, carried forward */
+      var carriedN6Cycle = "";  /* last-seen N6 cycle label, carried forward */
       pivotList.forEach(function (pv, idx) {
         var lbl  = pv.label || "\u2014";
         var bgClass = "";
@@ -3266,6 +3349,22 @@ __VERSIONS_JSON__
           }
         }
 
+        /* ── N6 Cycle: market cycle state (carried forward from N=6 pivots) ── */
+        var n6CycleHtml = "";
+        if (pv.n6_cycle_label) {
+          carriedN6Cycle = pv.n6_cycle_label;
+        }
+        if (carriedN6Cycle) {
+          if (carriedN6Cycle === "\u2014") {
+            n6CycleHtml = "\u2014";
+          } else {
+            var n6CycleCls = carriedN6Cycle.indexOf("\u2191") >= 0 ? "pos"
+                           : carriedN6Cycle.indexOf("\u2193") >= 0 ? "neg"
+                           : "neu";
+            n6CycleHtml = "<span class='" + n6CycleCls + "'>" + esc(carriedN6Cycle) + "</span>";
+          }
+        }
+
         /* ── Type 2: N=2 entry texture + optional N=6 dot ── */
         var type2Html = "";
         if (pv.label) {
@@ -3292,6 +3391,7 @@ __VERSIONS_JSON__
           "<td class='nowrap'>" + numHtml + "</td>" +
           "<td>" + type1Html + "</td>" +
           "<td>" + cycleHtml + "</td>" +
+          "<td>" + n6CycleHtml + "</td>" +
           "<td>" + type2Html + "</td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
           "<td class='nowrap'>" + esc(pv.time || "\u2014") + "</td>" +
@@ -3315,6 +3415,7 @@ __VERSIONS_JSON__
           "<th style='width:52px'>#</th>" +
           "<th>Type 1</th>" +
           "<th>Cycle</th>" +
+          "<th>N6 Cycle</th>" +
           "<th>Type 2</th>" +
           "<th>Price</th>" +
           "<th>Time</th>" +
