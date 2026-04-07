@@ -63,8 +63,8 @@ TRADE_DIRECTION   = os.environ.get("TRADE_DIRECTION", "both")   # "both" | "long
 MAX_DAILY_LOSS  = 2000.0            # stop trading if day's loss reaches $2,000 (2% of capital)
 
 VERSION = "v6"
-STRATEGY_VERSION_TAG = "v1"     # identifies which strategy file produced these results
-NOTES = "Fractal-based entries with EMA 8/20/40 alignment"
+STRATEGY_VERSION_TAG = "v2"     # identifies which strategy file produced these results
+NOTES = "Fractal geometry entries — no EMA alignment"
 STRATEGY        = "Trend Following"
 
 ENTRY_CONDITIONS = [
@@ -77,16 +77,16 @@ ENTRY_CONDITIONS = [
         "rule":            INTERVAL,
     },
     {
-        "condition":       "EMA Short",
-        "rule":            str(EMA_SHORT),
+        "condition":       "Entry Logic",
+        "rule":            "Fractal geometry (no EMA alignment)",
     },
     {
-        "condition":       "EMA Mid",
-        "rule":            str(EMA_MID),
+        "condition":       "Short Signal",
+        "rule":            "N2 LH whose high < prior high-type pivot high",
     },
     {
-        "condition":       "EMA Long",
-        "rule":            str(EMA_LONG),
+        "condition":       "Long Signal",
+        "rule":            "N2 HL whose low > prior low-type pivot low",
     },
     {
         "condition":       "Stop Loss Level",
@@ -415,6 +415,8 @@ def run_backtest(df):
     last_fractal_high_price = None   # price of the most recent confirmed pivot high
     last_fractal_low_bar    = None   # bar index of the most recent confirmed pivot low
     last_fractal_high_bar   = None   # bar index of the most recent confirmed pivot high
+    prior_fractal_high_price = None  # price of the high-type pivot before the current one
+    prior_fractal_low_price  = None  # price of the low-type pivot before the current one
 
     for i in range(1, len(df)):
         c     = float(df.Close.iloc[i])
@@ -511,6 +513,8 @@ def run_backtest(df):
         # ── Rolling fractal detection (confirmed at bar i, formed at bar i-2) ─
         # A fractal needs 2 bars on each side, so the earliest confirmable
         # pivot is at index 2.  At bar i we confirm the pivot at bar i-2.
+        _new_high_confirmed = False  # set True when a new pivot high confirms this bar
+        _new_low_confirmed  = False  # set True when a new pivot low confirms this bar
         if i >= 4:
             fi = i - 2   # fractal bar index
             fh = highs[fi]
@@ -536,9 +540,11 @@ def run_backtest(df):
                         last_high_label = 'LH'
                     else:
                         last_high_label = 'HH'
+                prior_fractal_high_price = last_fractal_high_price
                 prev_high_price = float(fh)
                 last_fractal_high_price = float(fh)
                 last_fractal_high_bar   = fi
+                _new_high_confirmed = True
 
             if is_pl:
                 if prev_low_price is None:
@@ -551,42 +557,38 @@ def run_backtest(df):
                         last_low_label = 'HL'
                     else:
                         last_low_label = 'LL'
+                prior_fractal_low_price = last_fractal_low_price
                 prev_low_price = float(fl)
                 last_fractal_low_price = float(fl)
                 last_fractal_low_bar   = fi
+                _new_low_confirmed = True
 
         # ── Check entries ─────────────────────────────────────────────────────
         if not in_trade:
-            ema_s = float(df.ema_short.iloc[i])
-            ema_m = float(df.ema_mid.iloc[i])
-            ema_l = float(df.ema_long.iloc[i])
+            # Signal fires only on the confirmation bar (i == fractal bar + 2)
+            # to ensure each fractal triggers at most one entry attempt.
 
-            ema_bullish = ema_s > ema_m > ema_l
-            ema_bearish = ema_s < ema_m < ema_l
-
-            # ── Long signal: HL fractal just confirmed, after an HH,
-            #    fractal low between EMA short and EMA mid ─────────────────────
+            # ── Long signal: N2 HL whose low > prior low-type pivot's low
+            #    Fires only on the bar the HL fractal confirms.
             long_sig_raw = False
             long_fractal_price = None
-            if (i >= 4 and last_low_label == 'HL' and last_high_label == 'HH'
-                    and ema_bullish and last_fractal_low_price is not None):
-                fp = last_fractal_low_price
-                # Fractal low must sit between EMA 8 and EMA 20
-                if min(ema_s, ema_m) <= fp <= max(ema_s, ema_m):
-                    long_sig_raw = True
-                    long_fractal_price = fp
+            if (_new_low_confirmed and last_low_label == 'HL'
+                    and last_fractal_low_price is not None
+                    and prior_fractal_low_price is not None
+                    and last_fractal_low_price > prior_fractal_low_price):
+                long_sig_raw = True
+                long_fractal_price = last_fractal_low_price
 
-            # ── Short signal: LH fractal just confirmed, after an LL,
-            #    fractal high between EMA short and EMA mid ────────────────────
+            # ── Short signal: N2 LH whose high < prior high-type pivot's high
+            #    Fires only on the bar the LH fractal confirms.
             short_sig_raw = False
             short_fractal_price = None
-            if (i >= 4 and last_high_label == 'LH' and last_low_label == 'LL'
-                    and ema_bearish and last_fractal_high_price is not None):
-                fp = last_fractal_high_price
-                # Fractal high must sit between EMA 8 and EMA 20
-                if min(ema_s, ema_m) <= fp <= max(ema_s, ema_m):
-                    short_sig_raw = True
-                    short_fractal_price = fp
+            if (_new_high_confirmed and last_high_label == 'LH'
+                    and last_fractal_high_price is not None
+                    and prior_fractal_high_price is not None
+                    and last_fractal_high_price < prior_fractal_high_price):
+                short_sig_raw = True
+                short_fractal_price = last_fractal_high_price
 
             # ── Track direction-blocked signals ───────────────────────────────
             if TRADE_DIRECTION == "short_only" and long_sig_raw:
