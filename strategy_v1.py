@@ -4320,10 +4320,12 @@ __VERSIONS_JSON__
     renderEmptyState();
   }
 
-  /* ── Keyboard shortcuts: Shift+Up / Shift+Down sidebar navigation ── */
+  /* ── Keyboard shortcuts: Up / Down arrow sidebar navigation ── */
   document.addEventListener("keydown", function (e) {
-    if (!e.shiftKey) return;
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    var tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
     if (devLogOpen) return;
 
     /* Build flat list of sidebar items in render order (oldest first) */

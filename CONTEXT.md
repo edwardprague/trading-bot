@@ -159,8 +159,8 @@ Backtests are displayed in the side bar as top item (versions) and sub item (dat
 
 ## Keyboard Shortcuts
 
-Sidebar item level up: `shift+up arrow`
-Sidebar item level down: `shift+down arrow`
+Sidebar item level up: `up arrow`
+Sidebar item level down: `down arrow`
 Quick Links: `shift+1,2,3...`
 Scroll to top: `shift+t and t`
 Add new version: `shift+v and v`
