@@ -4636,7 +4636,14 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         target = None
         if target_version_name:
             for v in existing_versions:
-                if v.get("name") == target_version_name:
+                if (v.get("name") == target_version_name
+                        and v.get("strategy_version", "v1") == STRATEGY_VERSION_TAG):
+                    target = v
+                    break
+        if target is None:
+            # Fallback: most recent version belonging to this strategy
+            for v in reversed(existing_versions):
+                if v.get("strategy_version", "v1") == STRATEGY_VERSION_TAG:
                     target = v
                     break
         if target is None:

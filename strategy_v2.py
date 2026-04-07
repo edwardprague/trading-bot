@@ -4634,11 +4634,19 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
 
     if run_mode == "date_range" and existing_versions:
         # Append run to the specified target version (or most recent as fallback)
+        # Filter by strategy_version so v1 and v2 strategies don't collide
         target_version_name = os.environ.get("TARGET_VERSION", "").strip()
         target = None
         if target_version_name:
             for v in existing_versions:
-                if v.get("name") == target_version_name:
+                if (v.get("name") == target_version_name
+                        and v.get("strategy_version", "v1") == STRATEGY_VERSION_TAG):
+                    target = v
+                    break
+        if target is None:
+            # Fallback: most recent version belonging to this strategy
+            for v in reversed(existing_versions):
+                if v.get("strategy_version", "v1") == STRATEGY_VERSION_TAG:
                     target = v
                     break
         if target is None:
