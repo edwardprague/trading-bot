@@ -3230,9 +3230,9 @@ __VERSIONS_JSON__
         var numHtml = String(idx + 1);
         var outcome = barToOutcome[pv.bar];
         if (outcome === "win") {
-          numHtml += " <span style='color:#6bcb77;font-size:26px;line-height:1;vertical-align:-0.15em;'>\u2022</span>";
+          numHtml += " <span style='color:#6bcb77;font-weight:bold;'>W</span>";
         } else if (outcome === "loss") {
-          numHtml += " <span style='color:#ef5350;font-size:26px;line-height:1;vertical-align:-0.15em;'>\u2022</span>";
+          numHtml += " <span style='color:#ef5350;font-weight:bold;'>L</span>";
         }
 
         pvRows +=
