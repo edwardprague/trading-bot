@@ -2089,10 +2089,8 @@ def _build_html(versions_json):
 
 <div id="sidebar">
   <div id="sidebar-header">
-    <div class="sb-label">Strategy</div>
     <select id="version-select"></select>
-    <div class="sb-label" style="margin-top:8px;">Instrument</div>
-    <select id="instrument-select">
+    <select id="instrument-select" style="margin-top:8px;">
       <option value="EURUSD">EURUSD</option>
       <option value="GBPUSD">GBPUSD</option>
     </select>
@@ -2771,11 +2769,15 @@ __VERSIONS_JSON__
       el.innerHTML =
         "<div class='v-item-row'>" +
           "<div class='v-item-content'>" +
-            "<div class='v-name'>" + esc(item.v.strategy_version || item.v.name) + "</div>" +
-            (runInstrument ? "<div class='v-instrument'>" + esc(runInstrument) + "</div>" : "") +
-            (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "") +
+            "<div class='v-sub-top-row'>" +
+              "<div class='v-name'>" + esc(item.v.strategy_version || item.v.name) + "</div>" +
+              (runInstrument ? "<div class='v-instrument'>" + esc(runInstrument) + "</div>" : "") +
+            "</div>" +
+            "<div class='v-sub-metric-row'>" +
+              (dur ? "<div class='v-duration'>" + esc(dur) + "</div>" : "") +
+              (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "") +
+            "</div>" +
             (dateRange ? "<div class='v-date date-link' data-start='" + esc(range.start) + "' data-end='" + esc(range.end) + "'>" + esc(dateRange) + "</div>" : "") +
-            (dur ? "<div class='v-duration'>" + esc(dur) + "</div>" : "") +
           "</div>" +
           "<button class='v-sub-delete-btn' title='Delete run'>&times;</button>" +
         "</div>";

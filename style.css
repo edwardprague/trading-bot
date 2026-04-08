@@ -1122,6 +1122,21 @@ tbody tr:hover td {
     flex: 1;
 }
 
+.v-sub-metric-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 3px;
+}
+
+.v-sub-metric-row .v-duration {
+    font-size: 12px;
+}
+
+.v-sub-metric-row .v-pnl {
+    margin-top: 0;
+}
+
 .v-sub-delete-btn {
     background: none;
     border: none;
