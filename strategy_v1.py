@@ -195,9 +195,9 @@ def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
 
 def add_indicators(df):
     df = df.copy()
-    df["ema_short"] = df.Close.ewm(span=EMA_SHORT, adjust=False).mean()
-    df["ema_mid"]   = df.Close.ewm(span=EMA_MID,   adjust=False).mean()
-    df["ema_long"]  = df.Close.ewm(span=EMA_LONG,  adjust=False).mean()
+    df["ema_short"] = df.Close.ewm(span=EMA_SHORT, adjust=False).mean() if EMA_SHORT > 0 else np.nan
+    df["ema_mid"]   = df.Close.ewm(span=EMA_MID,   adjust=False).mean() if EMA_MID   > 0 else np.nan
+    df["ema_long"]  = df.Close.ewm(span=EMA_LONG,  adjust=False).mean() if EMA_LONG  > 0 else np.nan
     # ── ADX (14-period, Wilder smoothing) ────────────────────────────────────
     _adx_n   = 14
     _alpha   = 1.0 / _adx_n
@@ -809,12 +809,15 @@ def save_charts(df, trades, equity):
     if is_one_day:
         # ── 1-day: full-resolution OHLC candlestick chart ────────────────────
         # Plot EMA lines first to initialise the datetime x-axis scale
-        ax1.plot(dates, df.ema_long.values,  color="#ff6b6b", linewidth=1.4,
-                 label=f"EMA {EMA_LONG}", zorder=4)
-        ax1.plot(dates, df.ema_mid.values,  color="#ffd93d", linewidth=1.2,
-                 label=f"EMA {EMA_MID}", zorder=4)
-        ax1.plot(dates, df.ema_short.values, color="#6bcb77", linewidth=1.0,
-                 label=f"EMA {EMA_SHORT}", zorder=4)
+        if EMA_LONG > 0:
+            ax1.plot(dates, df.ema_long.values,  color="#ff6b6b", linewidth=1.4,
+                     label=f"EMA {EMA_LONG}", zorder=4)
+        if EMA_MID > 0:
+            ax1.plot(dates, df.ema_mid.values,  color="#ffd93d", linewidth=1.2,
+                     label=f"EMA {EMA_MID}", zorder=4)
+        if EMA_SHORT > 0:
+            ax1.plot(dates, df.ema_short.values, color="#6bcb77", linewidth=1.0,
+                     label=f"EMA {EMA_SHORT}", zorder=4)
         # Draw OHLC candlesticks using date-number coordinates
         _dt_nums = mdates.date2num(dates)
         _bw      = ((_dt_nums[1] - _dt_nums[0]) * 0.8) if len(_dt_nums) > 1 else (5 / 1440 * 0.8)
@@ -2193,9 +2196,9 @@ __VERSIONS_JSON__
     var _drDates = _dr.start && _dr.end ? fmtSbDate(_dr.start) + " \u2192 " + fmtSbDate(_dr.end) : "";
     lines.push("| Date Range | " + (_drDur ? _drDur : "") + (_drDur && _drDates ? " \u00b7 " : "") + _drDates + " |");
     lines.push("| Starting Cash | $" + (p.starting_cash || 0).toLocaleString() + " |");
-    lines.push("| EMA Short | "     + (p.ema_short     || "\u2014") + " |");
-    lines.push("| EMA Mid | "       + (p.ema_mid       || "\u2014") + " |");
-    lines.push("| EMA Long | "      + (p.ema_long      || "\u2014") + " |");
+    lines.push("| EMA Short | "     + (p.ema_short != null ? p.ema_short : "\u2014") + " |");
+    lines.push("| EMA Mid | "       + (p.ema_mid   != null ? p.ema_mid   : "\u2014") + " |");
+    lines.push("| EMA Long | "      + (p.ema_long  != null ? p.ema_long  : "\u2014") + " |");
     lines.push("| Stop Loss Level | " + (p.stop_loss_pips || "\u2014") + " pips |");
     lines.push("| RRR | 1:"         + (p.rrr || "\u2014") + " |");
     lines.push("| Risk / Trade | "  + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
@@ -3539,12 +3542,12 @@ __VERSIONS_JSON__
         return "<option value='" + o.value + "'" + (o.value === savedInterval ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
 
-    var savedEmaShort = run.ema_short || p.ema_short || 8;
-    var savedEmaMid   = run.ema_mid   || p.ema_mid   || 20;
-    var savedEmaLong  = run.ema_long  || p.ema_long  || 40;
-    var emaShortHtml = "<input id='bs-ema-short' type='number' class='bs-input' value='" + savedEmaShort + "' min='1' step='1'>";
-    var emaMidHtml   = "<input id='bs-ema-mid'   type='number' class='bs-input' value='" + savedEmaMid   + "' min='1' step='1'>";
-    var emaLongHtml  = "<input id='bs-ema-long'  type='number' class='bs-input' value='" + savedEmaLong  + "' min='1' step='1'>";
+    var savedEmaShort = run.ema_short != null ? run.ema_short : (p.ema_short != null ? p.ema_short : 8);
+    var savedEmaMid   = run.ema_mid   != null ? run.ema_mid   : (p.ema_mid   != null ? p.ema_mid   : 20);
+    var savedEmaLong  = run.ema_long  != null ? run.ema_long  : (p.ema_long  != null ? p.ema_long  : 40);
+    var emaShortHtml = "<input id='bs-ema-short' type='number' class='bs-input' value='" + savedEmaShort + "' min='0' step='1'>";
+    var emaMidHtml   = "<input id='bs-ema-mid'   type='number' class='bs-input' value='" + savedEmaMid   + "' min='0' step='1'>";
+    var emaLongHtml  = "<input id='bs-ema-long'  type='number' class='bs-input' value='" + savedEmaLong  + "' min='0' step='1'>";
 
     var savedStopPips  = run.stop_loss_pips || p.stop_loss_pips || 15;
     var stopPipsHtml   = "<input id='bs-stop-pips' type='number' class='bs-input' value='" + savedStopPips + "' min='1' step='1'>";
@@ -4129,9 +4132,9 @@ __VERSIONS_JSON__
     var _savedEmaShort = localStorage.getItem("bs_ema_short") || "8";
     var _savedEmaMid   = localStorage.getItem("bs_ema_mid")   || "20";
     var _savedEmaLong  = localStorage.getItem("bs_ema_long")  || "40";
-    var _emaShortHtml = "<input id='bs-ema-short' type='number' class='bs-input' value='" + _savedEmaShort + "' min='1' step='1'>";
-    var _emaMidHtml   = "<input id='bs-ema-mid'   type='number' class='bs-input' value='" + _savedEmaMid   + "' min='1' step='1'>";
-    var _emaLongHtml  = "<input id='bs-ema-long'  type='number' class='bs-input' value='" + _savedEmaLong  + "' min='1' step='1'>";
+    var _emaShortHtml = "<input id='bs-ema-short' type='number' class='bs-input' value='" + _savedEmaShort + "' min='0' step='1'>";
+    var _emaMidHtml   = "<input id='bs-ema-mid'   type='number' class='bs-input' value='" + _savedEmaMid   + "' min='0' step='1'>";
+    var _emaLongHtml  = "<input id='bs-ema-long'  type='number' class='bs-input' value='" + _savedEmaLong  + "' min='0' step='1'>";
 
     var _savedStopPips  = localStorage.getItem("bs_stop_pips") || "15";
     var _stopPipsHtml   = "<input id='bs-stop-pips' type='number' class='bs-input' value='" + _savedStopPips + "' min='1' step='1'>";
