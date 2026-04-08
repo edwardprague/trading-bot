@@ -2583,8 +2583,8 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type 2 | Width | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
-        lines.push("|---|--------|-------|-------|------|------------|-----|----------------------|-----------------------|------------|");
+        lines.push("| # | Type 2 | L# | Width | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
+        lines.push("|---|--------|----|----|-------|------|------------|-----|----------------------|-----------------------|------------|");
         var mdBarOutcome = {};
         (m.intraday || []).forEach(function (t) {
           if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
@@ -2594,6 +2594,8 @@ __VERSIONS_JSON__
         var mdCarriedN18 = "";
         var mdCarriedCycle = "";
         var mdCarriedN6Cycle = "";
+        var _mdLhCounter = 0;
+        var _mdPrevPrice = null;
         pvList.forEach(function (pv, idx) {
           var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? mf(pv.vert_dist, 1) : "\u2014";
           var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "\u2014";
@@ -2620,10 +2622,18 @@ __VERSIONS_JSON__
             mdType2 = pv.label + (pv.n6 ? " \u2022" : "");
           }
           var mdWidth = (pv.width_score !== null && pv.width_score !== undefined) ? String(pv.width_score) : "\u2014";
+          var mdLhNum = "\u2014";
+          if (pv.label === "LH" && _mdPrevPrice !== null && pv.price < _mdPrevPrice) {
+            _mdLhCounter++;
+            mdLhNum = String(_mdLhCounter);
+          } else if (_mdPrevPrice !== null && pv.price > _mdPrevPrice) {
+            _mdLhCounter = 0;
+          }
+          _mdPrevPrice = pv.price;
           var mdNum = String(idx + 1);
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
-          lines.push("| " + mdNum + " | " + (mdType2 || "\u2014") + " | " + mdWidth + " | " +
+          lines.push("| " + mdNum + " | " + (mdType2 || "\u2014") + " | " + mdLhNum + " | " + mdWidth + " | " +
             mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
         });
       }
@@ -3579,6 +3589,8 @@ __VERSIONS_JSON__
       var carriedN18 = "";  /* last-seen N=18 label, carried forward */
       var carriedCycle = "";  /* last-seen N18 cycle label, carried forward */
       var carriedN6Cycle = "";  /* last-seen N6 cycle label, carried forward */
+      var _lhCounter = 0;       /* consecutive LH count (lower than prev fractal) */
+      var _prevFractalPrice = null; /* price of previous fractal for L# tracking */
       pivotList.forEach(function (pv, idx) {
         var lbl  = pv.label || "\u2014";
         var bgClass = "";
@@ -3653,12 +3665,23 @@ __VERSIONS_JSON__
 
         var widthHtml = (pv.width_score !== null && pv.width_score !== undefined) ? String(pv.width_score) : "\u2014";
 
+        /* ── L#: consecutive lower-high count ── */
+        var lhNumHtml = "\u2014";
+        if (pv.label === "LH" && _prevFractalPrice !== null && pv.price < _prevFractalPrice) {
+          _lhCounter++;
+          lhNumHtml = String(_lhCounter);
+        } else if (_prevFractalPrice !== null && pv.price > _prevFractalPrice) {
+          _lhCounter = 0;
+        }
+        _prevFractalPrice = pv.price;
+
         pvRows +=
           "<tr" + bgClass + ">" +
           "<td class='nowrap'>" + numHtml + "</td>" +
           // "<td>" + type1Html + "</td>" +
           // "<td>" + cycleHtml + "</td>" +
           "<td>" + type2Html + "</td>" +
+          "<td>" + lhNumHtml + "</td>" +
           // "<td>" + n6CycleHtml + "</td>" +
           "<td>" + widthHtml + "</td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
@@ -3684,6 +3707,7 @@ __VERSIONS_JSON__
           // "<th>Type 1</th>" +
           // "<th>Cycle 1</th>" +
           "<th>Type 2</th>" +
+          "<th>L#</th>" +
           // "<th>Cycle 2</th>" +
           "<th>Width</th>" +
           "<th>Price</th>" +
