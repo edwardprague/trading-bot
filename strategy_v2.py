@@ -1105,11 +1105,11 @@ def save_charts(df, trades, equity):
             eidx = int(t.exit_idx)
             if idx < 0 or idx >= len(dates):
                 continue
-            # White vertical line behind the entry candle
             entry_date = dates.iloc[idx]
-            ax1.axvline(entry_date, color='#aaaaaa', linewidth=0.5,
-                        alpha=1.0, zorder=1)
             color  = "#6bcb77" if t.win else "#ff6b6b"
+            # Vertical line behind the entry candle (green win / red loss)
+            ax1.axvline(entry_date, color=color, linewidth=0.5,
+                        alpha=1.0, zorder=1)
             marker = "^" if t.direction == "long" else "v"
             exit_date  = dates.iloc[eidx] if 0 <= eidx < len(dates) else dates.iloc[-1]
             ax1.scatter(entry_date, t.entry, color=color,
