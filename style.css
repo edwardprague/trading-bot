@@ -168,13 +168,13 @@ body {
 .v-name {
     font-size: 14px;
     font-weight: 600;
-    color: #ddd;
+    color: #999;
     margin-right: 5px;
 }
 
 .v-instrument {
     font-size: 11px;
-    color: #4cc9f0;
+    color: #999;
     margin-top: 3px;
     font-weight: 500;
 }
@@ -1126,7 +1126,7 @@ tbody tr:hover td {
 .v-sub-metric-row {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 10px;
     margin-top: 5px;
 }
 
