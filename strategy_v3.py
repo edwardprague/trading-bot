@@ -2235,6 +2235,11 @@ def _build_html(versions_json):
   <div id="sidebar-header">
     <div class="sb-label">Strategy</div>
     <select id="version-select"></select>
+    <div class="sb-label" style="margin-top:8px;">Instrument</div>
+    <select id="instrument-select">
+      <option value="EURUSD">EURUSD</option>
+      <option value="GBPUSD">GBPUSD</option>
+    </select>
   </div>
   <div id="version-list"></div>
 </div>
@@ -2261,6 +2266,7 @@ __VERSIONS_JSON__
 
   var VERSIONS = JSON.parse(document.getElementById("versions-data").textContent);
   var currentVersion = "";  /* selected version name, e.g. "v1" */
+  var currentInstrument = "";  /* selected instrument, e.g. "EURUSD" */
   var devLogOpen = false;
   var activeVersionIdx = -1;
   var activeRunIdx     = 0;
@@ -2862,7 +2868,7 @@ __VERSIONS_JSON__
       return;
     }
 
-    /* Build flat list: every run from every matching version is a top-level item */
+    /* Build flat list: every run from every matching version, filtered by instrument */
     var flatItems = []; /* { vIdx, runIdx, v, run } */
     for (var ri = 0; ri < svs.length; ri++) {
       var entry = svs[ri];
@@ -2870,7 +2876,10 @@ __VERSIONS_JSON__
       var idx   = entry.idx;
       var runs  = getRuns(v);
       for (var si = 0; si < runs.length; si++) {
-        flatItems.push({ vIdx: idx, runIdx: si, v: v, run: runs[si] });
+        var _ri = runs[si];
+        var _rinst = (_ri.instrument || (v.params && v.params.ticker ? v.params.ticker.replace(/=X$/i, "") : "")).toUpperCase();
+        if (currentInstrument && _rinst && _rinst !== currentInstrument) continue;
+        flatItems.push({ vIdx: idx, runIdx: si, v: v, run: _ri });
       }
     }
 
@@ -4465,22 +4474,79 @@ __VERSIONS_JSON__
     document.getElementById("devlog-btn").classList.remove("active");
     renderSidebar();
 
+    /* Jump to the last run that matches the current instrument */
     var svs = getStrategyVersions();
-    if (svs.length > 0) {
-      var lastIdx = svs[svs.length - 1].idx;
-      var lastRuns = getRuns(svs[svs.length - 1].v);
-      activeVersionIdx = lastIdx;
-      activeRunIdx = lastRuns.length - 1;
-      renderSidebar();
-      renderContent(lastIdx, activeRunIdx);
+    var found = false;
+    for (var si = svs.length - 1; si >= 0; si--) {
+      var runs = getRuns(svs[si].v);
+      for (var ri = runs.length - 1; ri >= 0; ri--) {
+        var rinst = (runs[ri].instrument || (svs[si].v.params && svs[si].v.params.ticker ? svs[si].v.params.ticker.replace(/=X$/i, "") : "")).toUpperCase();
+        if (!currentInstrument || rinst === currentInstrument) {
+          activeVersionIdx = svs[si].idx;
+          activeRunIdx = ri;
+          renderSidebar();
+          renderContent(svs[si].idx, ri);
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+    if (!found) {
+      renderEmptyState();
+    }
+  }
+
+  /* ── Instrument selector: populate and wire ───────────────── */
+  function populateInstrumentSelector() {
+    var sel = document.getElementById("instrument-select");
+    var stored = localStorage.getItem("rb_instrument");
+    if (stored) {
+      currentInstrument = stored;
     } else {
+      currentInstrument = sel.options.length > 0 ? sel.options[0].value : "EURUSD";
+    }
+    sel.value = currentInstrument;
+  }
+
+  function onInstrumentChange() {
+    currentInstrument = document.getElementById("instrument-select").value;
+    localStorage.setItem("rb_instrument", currentInstrument);
+    devLogOpen = false;
+    document.getElementById("devlog-btn").classList.remove("active");
+    renderSidebar();
+
+    var svs = getStrategyVersions();
+    /* Find the last run matching the instrument within current strategy versions */
+    var found = false;
+    for (var si = svs.length - 1; si >= 0; si--) {
+      var runs = getRuns(svs[si].v);
+      for (var ri = runs.length - 1; ri >= 0; ri--) {
+        var rinst = (runs[ri].instrument || (svs[si].v.params && svs[si].v.params.ticker ? svs[si].v.params.ticker.replace(/=X$/i, "") : "")).toUpperCase();
+        if (rinst === currentInstrument) {
+          activeVersionIdx = svs[si].idx;
+          activeRunIdx = ri;
+          renderSidebar();
+          renderContent(svs[si].idx, ri);
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+    if (!found) {
+      activeVersionIdx = -1;
+      activeRunIdx = 0;
+      renderSidebar();
       renderEmptyState();
     }
   }
 
   /* ── Init ──────────────────────────────────────────────────── */
   populateVersionSelector();
+  populateInstrumentSelector();
   document.getElementById("version-select").addEventListener("change", onVersionChange);
+  document.getElementById("instrument-select").addEventListener("change", onInstrumentChange);
 
   document.getElementById("devlog-btn").addEventListener("click", function () {
     devLogOpen = !devLogOpen;
