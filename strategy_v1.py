@@ -3763,6 +3763,7 @@ __VERSIONS_JSON__
       var tabs = document.querySelectorAll(".report-tab");
       var panels = document.querySelectorAll(".tab-content");
       var quickNav = document.getElementById("quick-nav-bar");
+      var mainEl = document.getElementById("main");
       tabs.forEach(function (tab) {
         tab.addEventListener("click", function () {
           var target = tab.dataset.tab;
@@ -4232,7 +4233,21 @@ __VERSIONS_JSON__
     if (stored) {
       currentInstrument = stored;
     } else {
-      currentInstrument = sel.options.length > 0 ? sel.options[0].value : "EURUSD";
+      /* Default to the first instrument that actually has runs */
+      var firstWithData = "";
+      for (var oi = 0; oi < sel.options.length; oi++) {
+        var optVal = sel.options[oi].value;
+        for (var vi = 0; vi < VERSIONS.length; vi++) {
+          var runs = getRuns(VERSIONS[vi]);
+          for (var ri = 0; ri < runs.length; ri++) {
+            var rinst = (runs[ri].instrument || (VERSIONS[vi].params && VERSIONS[vi].params.ticker ? VERSIONS[vi].params.ticker.replace(/=X$/i, "") : "")).toUpperCase();
+            if (rinst === optVal) { firstWithData = optVal; break; }
+          }
+          if (firstWithData) break;
+        }
+        if (firstWithData) break;
+      }
+      currentInstrument = firstWithData || (sel.options.length > 0 ? sel.options[0].value : "EURUSD");
     }
     sel.value = currentInstrument;
   }

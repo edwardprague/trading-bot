@@ -87,6 +87,18 @@ server.py is the Flask web server that serves as the control layer between your 
 
 In short: server.py is the middleman — it takes your UI selections (instrument, interval, direction, dates), packages them as environment variables, launches strategy.py to do the actual backtest, and serves the resulting report back to your browser. strategy.py is the engine — it crunches the data and produces the results.
 
+#### Version Architecture
+
+Versions have the following file structure.
+
+| File             | Role                                                               |
+| ---------------- | ------------------------------------------------------------------ |
+| `strategy.py`    | Thin router — reads `VERSION` env var, delegates to versioned file |
+| `strategy_v1.py` | EMA-aligned fractal entry (original)                               |
+| `strategy_v2.py` | Pure fractal geometry entry — current baseline                     |
+| `strategy_v3.py` | v2 + N18 channel width filter                                      |
+| `server.py`      | Flask server, passes VERSION to strategy subprocess                |
+
 #### External Services
 
 - GitHub — version control and auto-push after each backtest
