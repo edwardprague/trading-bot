@@ -25,6 +25,7 @@ body {
 .v-duration {
     font-size: 13px;
     color: #fff;
+    font-weight: bold;
 }
 
 .rb-select {
@@ -168,6 +169,7 @@ body {
     font-size: 14px;
     font-weight: 600;
     color: #ddd;
+    margin-right: 5px;
 }
 
 .v-instrument {
@@ -180,7 +182,7 @@ body {
 .v-date {
     font-size: 12px;
     color: #ccc;
-    margin-top: 3px;
+    margin-top: 7px;
 }
 
 .v-pnl {
@@ -1125,8 +1127,8 @@ tbody tr:hover td {
 .v-sub-metric-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-top: 3px;
+    gap: 7px;
+    margin-top: 5px;
 }
 
 .v-sub-metric-row .v-duration {
