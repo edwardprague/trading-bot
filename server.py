@@ -302,9 +302,9 @@ function getSelectedDirection() {
 }
 
 function getSelectedInstrument() {
-  var el = document.getElementById("bs-instrument-select");
+  var el = document.getElementById("instrument-select");
   if (el) return el.value;
-  var stored = localStorage.getItem("bs_instrument");
+  var stored = localStorage.getItem("rb_instrument");
   return stored || "EURUSD";
 }
 

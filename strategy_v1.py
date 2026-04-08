@@ -1999,6 +1999,11 @@ def _build_html(versions_json):
   <div id="sidebar-header">
     <div class="sb-label">Strategy</div>
     <select id="version-select"></select>
+    <div class="sb-label" style="margin-top:8px;">Instrument</div>
+    <select id="instrument-select">
+      <option value="EURUSD">EURUSD</option>
+      <option value="GBPUSD">GBPUSD</option>
+    </select>
   </div>
   <div id="version-list"></div>
 </div>
@@ -2025,6 +2030,7 @@ __VERSIONS_JSON__
 
   var VERSIONS = JSON.parse(document.getElementById("versions-data").textContent);
   var currentVersion = "";  /* selected version name, e.g. "v1" */
+  var currentInstrument = "";  /* selected instrument, e.g. "EURUSD" */
   var devLogOpen = false;
   var activeVersionIdx = -1;
   var activeRunIdx     = 0;
@@ -2633,8 +2639,16 @@ __VERSIONS_JSON__
       var idx   = entry.idx;
       var runs  = getRuns(v);
       for (var si = 0; si < runs.length; si++) {
-        flatItems.push({ vIdx: idx, runIdx: si, v: v, run: runs[si] });
+        var _ri = runs[si];
+        var _rinst = (_ri.instrument || (v.params && v.params.ticker ? v.params.ticker.replace(/=X$/i, "") : "")).toUpperCase();
+        if (currentInstrument && _rinst && _rinst !== currentInstrument) continue;
+        flatItems.push({ vIdx: idx, runIdx: si, v: v, run: _ri });
       }
+    }
+
+    if (flatItems.length === 0) {
+      list.innerHTML = "<div class='sb-no-runs'>No runs for " + currentInstrument + " yet.</div>";
+      return;
     }
 
     /* Render oldest first so newest items appear at the bottom */
@@ -3510,16 +3524,6 @@ __VERSIONS_JSON__
         return "<option value='" + o.value + "'" + (o.value === savedDir ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
 
-    var instrOptions = [
-      { value: "EURUSD", label: "EURUSD" },
-      { value: "GBPUSD", label: "GBPUSD" }
-    ];
-    var savedInstr = (run.instrument || p.ticker || "EURUSD").replace(/=X$/i, "");
-    var instrSelectHtml = "<select id='bs-instrument-select' class='bs-select'>" +
-      instrOptions.map(function(o) {
-        return "<option value='" + o.value + "'" + (o.value === savedInstr ? " selected" : "") + ">" + o.label + "</option>";
-      }).join("") + "</select>";
-
     var intervalOptions = [
       { value: "1m", label: "1m" },
       { value: "5m", label: "5m" },
@@ -3557,11 +3561,11 @@ __VERSIONS_JSON__
     var rrrSelectHtml = rrrRiskHtml + "<span class='bs-rrr-colon'>:</span>" + rrrRewardHtml;
 
     if (ecData && ecData.length > 0) {
-      var ecRows = ecData.map(function(ec) {
+      var ecRows = ecData.filter(function(ec) {
+        return ec.condition !== "Instrument";
+      }).map(function(ec) {
         var ruleCell = ec.condition === "Direction"
           ? dirSelectHtml
-          : ec.condition === "Instrument"
-          ? instrSelectHtml
           : ec.condition === "Interval"
           ? intervalSelectHtml
           : ec.condition === "EMA Short"
@@ -3593,7 +3597,6 @@ __VERSIONS_JSON__
           "<div class='section-title'>Backtest Settings</div>" +
           "<table>" +
             "<tbody>" +
-            "<tr><td class='bs-td-cond'>Instrument</td><td class='bs-td-rule'>" + instrSelectHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>Interval</td><td class='bs-td-rule'>" + intervalSelectHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>EMA Short</td><td class='bs-td-rule'>" + emaShortHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>EMA Mid</td><td class='bs-td-rule'>" + emaMidHtml + "</td></tr>" +
@@ -3782,17 +3785,6 @@ __VERSIONS_JSON__
       if (stored) dirEl.value = stored;
       dirEl.addEventListener("change", function () {
         localStorage.setItem("bs_direction", dirEl.value);
-      });
-    }());
-
-    /* Wire instrument select — persist to localStorage on change */
-    (function () {
-      var instrEl = document.getElementById("bs-instrument-select");
-      if (!instrEl) return;
-      var stored = localStorage.getItem("bs_instrument");
-      if (stored) instrEl.value = stored;
-      instrEl.addEventListener("change", function () {
-        localStorage.setItem("bs_instrument", instrEl.value);
       });
     }());
 
@@ -4118,16 +4110,6 @@ __VERSIONS_JSON__
         return "<option value='" + o.value + "'" + (o.value === _savedDir ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
 
-    var _instrOptions = [
-      { value: "EURUSD", label: "EURUSD" },
-      { value: "GBPUSD", label: "GBPUSD" }
-    ];
-    var _savedInstr = localStorage.getItem("bs_instrument") || "EURUSD";
-    var _instrSelectHtml = "<select id='bs-instrument-select' class='bs-select'>" +
-      _instrOptions.map(function(o) {
-        return "<option value='" + o.value + "'" + (o.value === _savedInstr ? " selected" : "") + ">" + o.label + "</option>";
-      }).join("") + "</select>";
-
     var _intervalOptions = [
       { value: "1m", label: "1m" },
       { value: "5m", label: "5m" },
@@ -4169,7 +4151,6 @@ __VERSIONS_JSON__
         "<div class='section-title'>Backtest Settings</div>" +
         "<table>" +
           "<tbody>" +
-          "<tr><td class='bs-td-cond'>Instrument</td><td class='bs-td-rule'>" + _instrSelectHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>Interval</td><td class='bs-td-rule'>" + _intervalSelectHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>EMA Short</td><td class='bs-td-rule'>" + _emaShortHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>EMA Mid</td><td class='bs-td-rule'>" + _emaMidHtml + "</td></tr>" +
@@ -4184,8 +4165,6 @@ __VERSIONS_JSON__
     /* Wire localStorage persistence for the empty-state selects */
     var _dirEl = document.getElementById("bs-direction-select");
     if (_dirEl) _dirEl.addEventListener("change", function () { localStorage.setItem("bs_direction", _dirEl.value); });
-    var _instrEl = document.getElementById("bs-instrument-select");
-    if (_instrEl) _instrEl.addEventListener("change", function () { localStorage.setItem("bs_instrument", _instrEl.value); });
     var _intEl = document.getElementById("bs-interval-select");
     if (_intEl) _intEl.addEventListener("change", function () { localStorage.setItem("bs_interval", _intEl.value); });
     var _rrrRiskEl = document.getElementById("bs-rrr-risk");
@@ -4224,22 +4203,78 @@ __VERSIONS_JSON__
     document.getElementById("devlog-btn").classList.remove("active");
     renderSidebar();
 
+    /* Jump to the last run that matches the current instrument */
     var svs = getStrategyVersions();
-    if (svs.length > 0) {
-      var lastIdx = svs[svs.length - 1].idx;
-      var lastRuns = getRuns(svs[svs.length - 1].v);
-      activeVersionIdx = lastIdx;
-      activeRunIdx = lastRuns.length - 1;
-      renderSidebar();
-      renderContent(lastIdx, activeRunIdx);
+    var found = false;
+    for (var si = svs.length - 1; si >= 0; si--) {
+      var runs = getRuns(svs[si].v);
+      for (var ri = runs.length - 1; ri >= 0; ri--) {
+        var rinst = (runs[ri].instrument || (svs[si].v.params && svs[si].v.params.ticker ? svs[si].v.params.ticker.replace(/=X$/i, "") : "")).toUpperCase();
+        if (!currentInstrument || rinst === currentInstrument) {
+          activeVersionIdx = svs[si].idx;
+          activeRunIdx = ri;
+          renderSidebar();
+          renderContent(svs[si].idx, ri);
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+    if (!found) {
+      renderEmptyState();
+    }
+  }
+
+  function populateInstrumentSelector() {
+    var sel = document.getElementById("instrument-select");
+    var stored = localStorage.getItem("rb_instrument");
+    if (stored) {
+      currentInstrument = stored;
     } else {
+      currentInstrument = sel.options.length > 0 ? sel.options[0].value : "EURUSD";
+    }
+    sel.value = currentInstrument;
+  }
+
+  function onInstrumentChange() {
+    currentInstrument = document.getElementById("instrument-select").value;
+    localStorage.setItem("rb_instrument", currentInstrument);
+    devLogOpen = false;
+    document.getElementById("devlog-btn").classList.remove("active");
+    renderSidebar();
+
+    var svs = getStrategyVersions();
+    /* Find the last run matching the instrument within current strategy versions */
+    var found = false;
+    for (var si = svs.length - 1; si >= 0; si--) {
+      var runs = getRuns(svs[si].v);
+      for (var ri = runs.length - 1; ri >= 0; ri--) {
+        var rinst = (runs[ri].instrument || (svs[si].v.params && svs[si].v.params.ticker ? svs[si].v.params.ticker.replace(/=X$/i, "") : "")).toUpperCase();
+        if (rinst === currentInstrument) {
+          activeVersionIdx = svs[si].idx;
+          activeRunIdx = ri;
+          renderSidebar();
+          renderContent(svs[si].idx, ri);
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+    if (!found) {
+      activeVersionIdx = -1;
+      activeRunIdx = 0;
+      renderSidebar();
       renderEmptyState();
     }
   }
 
   /* ── Init ──────────────────────────────────────────────────── */
   populateVersionSelector();
+  populateInstrumentSelector();
   document.getElementById("version-select").addEventListener("change", onVersionChange);
+  document.getElementById("instrument-select").addEventListener("change", onInstrumentChange);
 
   document.getElementById("devlog-btn").addEventListener("click", function () {
     devLogOpen = !devLogOpen;
