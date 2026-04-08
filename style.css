@@ -130,6 +130,15 @@ body {
     color: #fff;
 }
 
+#instrument-select {
+    width: 100%;
+    border: none;
+    padding: 5px;
+    border-radius: 5px;
+    background-color: teal;
+    color: #fff;
+}
+
 #version-list {
     overflow-y: auto;
     flex: 1;
