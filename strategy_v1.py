@@ -3683,7 +3683,7 @@ __VERSIONS_JSON__
               ? fmtSbDate(dr.start) + " \u2192 " + fmtSbDate(dr.end) : "";
             return (dur ? dur : "") + (dur && dates ? " &middot; " : "") + dates;
           }())) +
-          row("Instrument",     "<span class='val-highlight'>" + esc(savedInstr) + "</span>") +
+          row("Instrument",     "<span class='val-highlight'>" + esc((run.instrument || p.ticker || "EURUSD").replace(/=X$/i, "")) + "</span>") +
           row("Interval",       "<span class='val-highlight'>" + esc(savedInterval) + "</span>") +
           row("EMA Short",      "<span class='val-highlight'>" + esc(savedEmaShort) + "</span>") +
           row("EMA Mid",        "<span class='val-highlight'>" + esc(savedEmaMid) + "</span>") +
