@@ -869,29 +869,30 @@ def save_charts(df, trades, equity):
     ds_fast  = df.ema_mid.values[ds_idx]
     ds_entry = df.ema_short.values[ds_idx]
 
-    # Cubic interpolation for silky-smooth EMA curves
-    try:
-        from scipy.interpolate import make_interp_spline
-        _has_scipy = True
-    except ImportError:
-        _has_scipy = False
+    # Cubic interpolation for silky-smooth EMA curves (skip if no EMAs or no data)
+    _any_ema = EMA_SHORT > 0 or EMA_MID > 0 or EMA_LONG > 0
+    if _any_ema and len(ds_dates) > 1:
+        try:
+            from scipy.interpolate import make_interp_spline
+            _has_scipy = True
+        except ImportError:
+            _has_scipy = False
 
-    _numx      = mdates.date2num(ds_dates)
-    _numx_fine = np.linspace(_numx[0], _numx[-1], MAX_CHART_PTS * 2)
-    _fine_dates = mdates.num2date(_numx_fine)
+        _numx      = mdates.date2num(ds_dates)
+        _numx_fine = np.linspace(_numx[0], _numx[-1], MAX_CHART_PTS * 2)
+        _fine_dates = mdates.num2date(_numx_fine)
 
-    def _smooth(y_sampled):
-        """Cubic B-spline through downsampled points → dense smooth curve."""
-        mask = ~np.isnan(y_sampled)
-        if not _has_scipy or mask.sum() < 4:
-            # Fallback: linear interpolation (still smoother than raw 5-min)
-            return _fine_dates, np.interp(_numx_fine, _numx, np.nan_to_num(y_sampled))
-        spl = make_interp_spline(_numx[mask], y_sampled[mask], k=3)
-        return _fine_dates, spl(_numx_fine)
+        def _smooth(y_sampled):
+            """Cubic B-spline through downsampled points → dense smooth curve."""
+            mask = ~np.isnan(y_sampled)
+            if not _has_scipy or mask.sum() < 4:
+                return _fine_dates, np.interp(_numx_fine, _numx, np.nan_to_num(y_sampled))
+            spl = make_interp_spline(_numx[mask], y_sampled[mask], k=3)
+            return _fine_dates, spl(_numx_fine)
 
-    sm_dates_slow,  sm_slow  = _smooth(ds_slow)
-    sm_dates_fast,  sm_fast  = _smooth(ds_fast)
-    sm_dates_entry, sm_entry = _smooth(ds_entry)
+        sm_dates_slow,  sm_slow  = _smooth(ds_slow)
+        sm_dates_fast,  sm_fast  = _smooth(ds_fast)
+        sm_dates_entry, sm_entry = _smooth(ds_entry)
 
     # ── Main chart: Price only (1 panel) ───────────────────────────────────────
     fig, ax1 = plt.subplots(1, 1, figsize=(16, 6))
