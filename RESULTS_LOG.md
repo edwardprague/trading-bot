@@ -280,3 +280,4 @@
 | v6 | 2026-04-08 18:52 | Trend Following | EURUSD=X | 5m | Fractal geometry entries — no EMA alignment | 10 | 50.0% | 1.21 | +$861.17 | -1.97% | 0.98 |
 | v6 | 2026-04-08 19:03 | Trend Following | EURUSD=X | 5m | Fractal geometry entries — no EMA alignment | 8 | 62.5% | 1.65 | +$1959.21 | -1.97% | 3.24 |
 | v6 | 2026-04-08 19:19 | Trend Following | EURUSD=X | 5m | Fractal geometry entries — no EMA alignment | 8 | 62.5% | 1.65 | +$1959.21 | -1.97% | 3.24 |
+| v6 | 2026-04-08 19:22 | Trend Following | EURUSD=X | 5m | Fractal geometry entries — no EMA alignment | 8 | 62.5% | 1.65 | +$1959.21 | -1.97% | 3.24 |
