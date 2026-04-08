@@ -198,9 +198,9 @@ def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
 
 def add_indicators(df):
     df = df.copy()
-    df["ema_short"] = df.Close.ewm(span=EMA_SHORT, adjust=False).mean() if EMA_SHORT > 0 else np.nan
-    df["ema_mid"]   = df.Close.ewm(span=EMA_MID,   adjust=False).mean() if EMA_MID   > 0 else np.nan
-    df["ema_long"]  = df.Close.ewm(span=EMA_LONG,  adjust=False).mean() if EMA_LONG  > 0 else np.nan
+    df["ema_short"] = df.Close.ewm(span=EMA_SHORT, adjust=False).mean() if EMA_SHORT > 0 else df.Close
+    df["ema_mid"]   = df.Close.ewm(span=EMA_MID,   adjust=False).mean() if EMA_MID   > 0 else df.Close
+    df["ema_long"]  = df.Close.ewm(span=EMA_LONG,  adjust=False).mean() if EMA_LONG  > 0 else df.Close
     # ── ADX (14-period, Wilder smoothing) ────────────────────────────────────
     _adx_n   = 14
     _alpha   = 1.0 / _adx_n
