@@ -203,7 +203,7 @@ body {
 
 
 #v-header h2 {
-    font-size: 21px;
+    font-size: 19px;
     font-weight: 700;
     color: #e4e4ff;
     display: flex;
@@ -615,7 +615,6 @@ tbody tr:hover td {
 /* ── Version header top row ───────────────────────────── */
 #v-header-top {
     display: flex;
-    align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
     margin-bottom: 20px;
@@ -690,7 +689,7 @@ tbody tr:hover td {
 /* ── Sidebar: no runs message ─────────────────────────── */
 .sb-no-runs {
     padding: 20px 16px;
-    color: #404060;
+    color: #aaa;
     font-size: 12px;
 }
 
