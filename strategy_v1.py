@@ -2359,7 +2359,7 @@ __VERSIONS_JSON__
         var mdCarriedCycle = "";
         var mdCarriedN6Cycle = "";
         var _mdLhCounter = 0;
-        var _mdPrevPrice = null;
+        var _mdPrevHighPrice = null;
         pvList.forEach(function (pv, idx) {
           var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? mf(pv.vert_dist, 1) : "\u2014";
           var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "\u2014";
@@ -2386,13 +2386,16 @@ __VERSIONS_JSON__
             mdType2 = pv.label + (pv.n6 ? " \u2022" : "");
           }
           var mdLhNum = "\u2014";
-          if (pv.label === "LH" && _mdPrevPrice !== null && pv.price < _mdPrevPrice) {
-            _mdLhCounter++;
-            mdLhNum = String(_mdLhCounter);
-          } else if (_mdPrevPrice !== null && pv.price > _mdPrevPrice) {
-            _mdLhCounter = 0;
+          var _mdIsHigh = (pv.label === "LH" || pv.label === "HH" || pv.label === "CH");
+          if (_mdIsHigh) {
+            if (pv.label === "LH" && _mdPrevHighPrice !== null && pv.price < _mdPrevHighPrice) {
+              _mdLhCounter++;
+              mdLhNum = String(_mdLhCounter);
+            } else if (_mdPrevHighPrice !== null && pv.price > _mdPrevHighPrice) {
+              _mdLhCounter = 0;
+            }
+            _mdPrevHighPrice = pv.price;
           }
-          _mdPrevPrice = pv.price;
           var mdNum = String(idx + 1);
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
@@ -3350,8 +3353,8 @@ __VERSIONS_JSON__
       var carriedN18 = "";  /* last-seen N=18 label, carried forward */
       var carriedCycle = "";  /* last-seen N18 cycle label, carried forward */
       var carriedN6Cycle = "";  /* last-seen N6 cycle label, carried forward */
-      var _lhCounter = 0;       /* consecutive LH count (lower than prev fractal) */
-      var _prevFractalPrice = null; /* price of previous fractal for L# tracking */
+      var _lhCounter = 0;            /* consecutive LH count (lower than prev high) */
+      var _prevHighPrice = null;    /* price of previous high-type fractal (CH/HH/LH) */
       pivotList.forEach(function (pv, idx) {
         var lbl  = pv.label || "\u2014";
         var bgClass = "";
@@ -3426,13 +3429,16 @@ __VERSIONS_JSON__
 
         /* ── L#: consecutive lower-high count ── */
         var lhNumHtml = "\u2014";
-        if (pv.label === "LH" && _prevFractalPrice !== null && pv.price < _prevFractalPrice) {
-          _lhCounter++;
-          lhNumHtml = String(_lhCounter);
-        } else if (_prevFractalPrice !== null && pv.price > _prevFractalPrice) {
-          _lhCounter = 0;
+        var _isHigh = (pv.label === "LH" || pv.label === "HH" || pv.label === "CH");
+        if (_isHigh) {
+          if (pv.label === "LH" && _prevHighPrice !== null && pv.price < _prevHighPrice) {
+            _lhCounter++;
+            lhNumHtml = String(_lhCounter);
+          } else if (_prevHighPrice !== null && pv.price > _prevHighPrice) {
+            _lhCounter = 0;
+          }
+          _prevHighPrice = pv.price;
         }
-        _prevFractalPrice = pv.price;
 
         pvRows +=
           "<tr" + bgClass + ">" +
