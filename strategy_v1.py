@@ -2383,11 +2383,11 @@ __VERSIONS_JSON__
         var _mdLhCounter = 0;
         var _mdPrevHighPrice = null;
         pvList.forEach(function (pv, idx) {
-          var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? mf(pv.vert_dist, 1) : "\u2014";
-          var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "\u2014";
-          var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? mf(pv.pullback_pct, 1) + "%" : "\u2014";
-          var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? mf(pv.atr, 1) : "\u2014";
-          var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? mf(pv.adx, 1) : "\u2014";
+          var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? mf(pv.vert_dist, 1) : "";
+          var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "";
+          var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? mf(pv.pullback_pct, 1) + "%" : "";
+          var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? mf(pv.atr, 1) : "";
+          var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? mf(pv.adx, 1) : "";
           var mdType1 = "";
           if (pv.n18 && pv.n18_label) {
             mdCarriedN18 = pv.n18_label;
@@ -2398,16 +2398,16 @@ __VERSIONS_JSON__
           if (pv.cycle_label) {
             mdCarriedCycle = pv.cycle_label;
           }
-          var mdCycle = mdCarriedCycle || "\u2014";
+          var mdCycle = mdCarriedCycle || "";
           if (pv.n6_cycle_label) {
             mdCarriedN6Cycle = pv.n6_cycle_label;
           }
-          var mdN6Cycle = mdCarriedN6Cycle || "\u2014";
+          var mdN6Cycle = mdCarriedN6Cycle || "";
           var mdType2 = "";
           if (pv.label) {
             mdType2 = pv.label + (pv.n6 ? " \u2022" : "");
           }
-          var mdLhNum = "\u2014";
+          var mdLhNum = "";
           var _mdIsHigh = (pv.label === "LH" || pv.label === "HH" || pv.label === "CH");
           if (_mdIsHigh) {
             if (pv.label === "LH" && _mdPrevHighPrice !== null && pv.price < _mdPrevHighPrice) {
@@ -2421,8 +2421,8 @@ __VERSIONS_JSON__
           var mdNum = String(idx + 1);
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
-          lines.push("| " + mdNum + " | " + (mdType2 || "\u2014") + " | " + mdLhNum + " | " +
-            pullbackD + " | " + mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " |");
+          lines.push("| " + mdNum + " | " + (mdType2 || "") + " | " + mdLhNum + " | " +
+            pullbackD + " | " + mf(pv.price, 5) + " | " + (pv.time || "") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " |");
         });
       }
       lines.push("");
@@ -3378,7 +3378,7 @@ __VERSIONS_JSON__
       var _lhCounter = 0;            /* consecutive LH count (lower than prev high) */
       var _prevHighPrice = null;    /* price of previous high-type fractal (CH/HH/LH) */
       pivotList.forEach(function (pv, idx) {
-        var lbl  = pv.label || "\u2014";
+        var lbl  = pv.label || "";
         var bgClass = "";
         if (lbl === "CH" || lbl === "CL") {
           bgClass = " class='fractal-row-consolidation'";
@@ -3402,8 +3402,8 @@ __VERSIONS_JSON__
           carriedCycle = pv.cycle_label;
         }
         if (carriedCycle) {
-          if (carriedCycle === "\u2014") {
-            cycleHtml = "\u2014";
+          if (carriedCycle === "" || carriedCycle === "\u2014") {
+            cycleHtml = "";
           } else {
             var cycleCls = carriedCycle.indexOf("\u2191") >= 0 ? "pos"
                          : carriedCycle.indexOf("\u2193") >= 0 ? "neg"
@@ -3418,8 +3418,8 @@ __VERSIONS_JSON__
           carriedN6Cycle = pv.n6_cycle_label;
         }
         if (carriedN6Cycle) {
-          if (carriedN6Cycle === "\u2014") {
-            n6CycleHtml = "\u2014";
+          if (carriedN6Cycle === "" || carriedN6Cycle === "\u2014") {
+            n6CycleHtml = "";
           } else {
             var n6CycleCls = carriedN6Cycle.indexOf("\u2191") >= 0 ? "pos"
                            : carriedN6Cycle.indexOf("\u2193") >= 0 ? "neg"
@@ -3436,11 +3436,11 @@ __VERSIONS_JSON__
           if (pv.n6) type2Html += " <span style='color:#ffffff;font-size:30px;line-height:1;vertical-align:-0.15em;' title='N=6 fractal'>\u2022</span>";
         }
 
-        var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? fmt(pv.vert_dist, 1)  : "\u2014";
-        var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "\u2014";
-        var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "\u2014";
-        var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? fmt(pv.atr, 1) : "\u2014";
-        var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? fmt(pv.adx, 1) : "\u2014";
+        var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? fmt(pv.vert_dist, 1)  : "";
+        var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "";
+        var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "";
+        var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? fmt(pv.atr, 1) : "";
+        var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? fmt(pv.adx, 1) : "";
         var numHtml = String(idx + 1);
         var outcome = barToOutcome[pv.bar];
         if (outcome === "win") {
@@ -3450,7 +3450,7 @@ __VERSIONS_JSON__
         }
 
         /* ── L#: consecutive lower-high count ── */
-        var lhNumHtml = "\u2014";
+        var lhNumHtml = "";
         var _isHigh = (pv.label === "LH" || pv.label === "HH" || pv.label === "CH");
         if (_isHigh) {
           if (pv.label === "LH" && _prevHighPrice !== null && pv.price < _prevHighPrice) {
@@ -3472,7 +3472,7 @@ __VERSIONS_JSON__
           "<td>" + pullbackD + "</td>" +
           // "<td>" + n6CycleHtml + "</td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
-          "<td class='nowrap'>" + esc(pv.time || "\u2014") + "</td>" +
+          "<td class='nowrap'>" + esc(pv.time || "") + "</td>" +
           "<td>" + atrD + "</td>" +
           "<td>" + adxD + "</td>" +
           "<td>" + vertD + "</td>" +
