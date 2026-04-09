@@ -1047,7 +1047,7 @@ def save_charts(df, trades, equity):
             # ── L# counter state (consecutive lower-highs) ───────────────
             _lh_counter = 0
             _prev_high_price = None
-            _lh_offset = max(_price_range * 0.028, 3e-5)  # above F# label
+            _lh_offset = max(_price_range * 0.045, 5e-5)  # above F# label
 
             for _pv_idx, _pv in enumerate(_pvd['pivots']):
                 _bar_i  = _pv['bar']
