@@ -1056,7 +1056,7 @@ tbody tr:hover td {
     align-items: center;
     gap: 8px;
     padding: 10px 16px;
-    background: #333;
+    background: #015656;
     cursor: pointer;
     border-bottom: 1px solid #333;
     user-select: none;
@@ -1064,12 +1064,12 @@ tbody tr:hover td {
 }
 
 .sb-section-header:hover {
-    background: #1a1a2e;
+    background: teal;
 }
 
 .sb-section-arrow {
     font-size: 9px;
-    color: #888;
+    color: #aaa;
     transition: transform 0.2s;
     display: inline-block;
 }
@@ -1081,14 +1081,14 @@ tbody tr:hover td {
 .sb-section-label {
     font-size: 11px;
     font-weight: 700;
-    color: #aaa;
+    color: #ccc;
     text-transform: uppercase;
     letter-spacing: 0.1em;
 }
 
 .sb-section-count {
     font-size: 11px;
-    color: #aaa;
+    color: #ccc;
     margin-left: auto;
 }
 

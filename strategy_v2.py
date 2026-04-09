@@ -1574,40 +1574,26 @@ def compute_pivot_diagnostics(df):
             pass   # continuation pivot — always dash
 
         elif lbl == 'CH':
-            # Only calculate when bar's close is BELOW EMA200
             # Prior range = most recent CH − most recent CL
             # Pullback    = this CH − most recent CL
-            try:
-                close_val = float(df['Close'].iloc[bidx])
-                ema_val   = float(ema200.iloc[bidx])
-                if close_val < ema_val:
-                    ref_ch = _last_price('CH', prior)
-                    ref_cl = _last_price('CL', prior)
-                    if ref_ch is not None and ref_cl is not None:
-                        prior_range = ref_ch - ref_cl
-                        pullback    = price  - ref_cl
-                        if abs(prior_range) > 1e-10:
-                            pb = pullback / prior_range * 100
-            except Exception:
-                pass
+            ref_ch = _last_price('CH', prior)
+            ref_cl = _last_price('CL', prior)
+            if ref_ch is not None and ref_cl is not None:
+                prior_range = ref_ch - ref_cl
+                pullback    = price  - ref_cl
+                if abs(prior_range) > 1e-10:
+                    pb = pullback / prior_range * 100
 
         elif lbl == 'CL':
-            # Only calculate when bar's close is ABOVE EMA200
             # Prior range = most recent CH − most recent CL
             # Pullback    = most recent CH − this CL
-            try:
-                close_val = float(df['Close'].iloc[bidx])
-                ema_val   = float(ema200.iloc[bidx])
-                if close_val > ema_val:
-                    ref_ch = _last_price('CH', prior)
-                    ref_cl = _last_price('CL', prior)
-                    if ref_ch is not None and ref_cl is not None:
-                        prior_range = ref_ch - ref_cl
-                        pullback    = ref_ch - price
-                        if abs(prior_range) > 1e-10:
-                            pb = pullback / prior_range * 100
-            except Exception:
-                pass
+            ref_ch = _last_price('CH', prior)
+            ref_cl = _last_price('CL', prior)
+            if ref_ch is not None and ref_cl is not None:
+                prior_range = ref_ch - ref_cl
+                pullback    = ref_ch - price
+                if abs(prior_range) > 1e-10:
+                    pb = pullback / prior_range * 100
 
         # Cap to valid range 0–150%; outside this range indicates bad prior data
         if pb is not None and pb < 0:
