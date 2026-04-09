@@ -916,17 +916,17 @@ def save_charts(df, trades, equity):
                     else:
                         _n6_lows_xy.append((_dt_nums[_bar_i], _pv_y))
 
-            # ── N=6 trendlines (white thin dashed) ──────────────────────────
-            if len(_n6_highs_xy) >= 2:
-                _hx = [p[0] for p in _n6_highs_xy]
-                _hy = [p[1] for p in _n6_highs_xy]
-                ax1.plot(_hx, _hy, color='#ffffff', linestyle='--',
-                         linewidth=0.5, alpha=0.5, zorder=4)
-            if len(_n6_lows_xy) >= 2:
-                _lx = [p[0] for p in _n6_lows_xy]
-                _ly = [p[1] for p in _n6_lows_xy]
-                ax1.plot(_lx, _ly, color='#ffffff', linestyle='--',
-                         linewidth=0.5, alpha=0.5, zorder=4)
+            # ── N=6 trendlines (white thin dashed) — disabled ─────────────
+            # if len(_n6_highs_xy) >= 2:
+            #     _hx = [p[0] for p in _n6_highs_xy]
+            #     _hy = [p[1] for p in _n6_highs_xy]
+            #     ax1.plot(_hx, _hy, color='#ffffff', linestyle='--',
+            #              linewidth=0.5, alpha=0.5, zorder=4)
+            # if len(_n6_lows_xy) >= 2:
+            #     _lx = [p[0] for p in _n6_lows_xy]
+            #     _ly = [p[1] for p in _n6_lows_xy]
+            #     ax1.plot(_lx, _ly, color='#ffffff', linestyle='--',
+            #              linewidth=0.5, alpha=0.5, zorder=4)
 
             # ── N=18 trendlines (yellow dashed) ──────────────────────────────
             if len(_n18_highs_xy) >= 2:
