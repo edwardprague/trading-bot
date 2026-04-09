@@ -3614,6 +3614,25 @@ __VERSIONS_JSON__
       }).join("") + "</select>";
     var rrrSelectHtml = rrrRiskHtml + "<span class='bs-rrr-colon'>:</span>" + rrrRewardHtml;
 
+    /* Blocked Hours checkboxes */
+    var _defaultBlocked = [4, 5, 6, 8, 10, 11, 14, 17];
+    var _savedBlocked = localStorage.getItem("bs_blocked_hours");
+    var _blockedSet = {};
+    if (_savedBlocked) {
+      _savedBlocked.split(",").forEach(function (h) { if (h) _blockedSet[parseInt(h, 10)] = true; });
+    } else {
+      _defaultBlocked.forEach(function (h) { _blockedSet[h] = true; });
+    }
+    var blockedHoursHtml = "<div class='bs-hours-grid'>";
+    for (var _bh = 1; _bh <= 19; _bh++) {
+      var _chk = _blockedSet[_bh] ? " checked" : "";
+      blockedHoursHtml +=
+        "<input type='checkbox' class='bs-hour-cb' id='bs-bh-" + _bh + "' value='" + _bh + "'" + _chk + ">" +
+        "<label class='bs-hour-label' for='bs-bh-" + _bh + "'>" + _bh + "</label>";
+    }
+    blockedHoursHtml += "</div>";
+    var blockedHoursRow = "<tr><td class='bs-td-cond' style='vertical-align:top;padding-top:8px'>Blocked Hours</td><td class='bs-td-rule'>" + blockedHoursHtml + "</td></tr>";
+
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.filter(function(ec) {
         return ec.condition !== "Instrument";
@@ -3642,7 +3661,7 @@ __VERSIONS_JSON__
         "<div class='section'>" +
           "<div class='section-title'>Backtest Settings</div>" +
           "<table>" +
-            "<tbody>" + ecRows + "</tbody>" +
+            "<tbody>" + ecRows + blockedHoursRow + "</tbody>" +
           "</table>" +
         "</div>";
     } else {
@@ -3658,6 +3677,7 @@ __VERSIONS_JSON__
             "<tr><td class='bs-td-cond'>Stop Loss Level</td><td class='bs-td-rule'>" + stopPipsHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>Direction</td><td class='bs-td-rule'>" + dirSelectHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>RRR</td><td class='bs-td-rule'>" + rrrSelectHtml + "</td></tr>" +
+            blockedHoursRow +
             "</tbody>" +
           "</table>" +
         "</div>";
@@ -3890,6 +3910,24 @@ __VERSIONS_JSON__
         rewardEl.addEventListener("change", function () {
           localStorage.setItem("bs_rrr_reward", rewardEl.value);
         });
+      }
+    }());
+
+    /* Wire Blocked Hours checkboxes — persist to localStorage on change */
+    (function () {
+      for (var _bh = 1; _bh <= 19; _bh++) {
+        (function (h) {
+          var cb = document.getElementById("bs-bh-" + h);
+          if (!cb) return;
+          cb.addEventListener("change", function () {
+            var checked = [];
+            for (var j = 1; j <= 19; j++) {
+              var el = document.getElementById("bs-bh-" + j);
+              if (el && el.checked) checked.push(j);
+            }
+            localStorage.setItem("bs_blocked_hours", checked.join(","));
+          });
+        })(_bh);
       }
     }());
 
@@ -4201,6 +4239,25 @@ __VERSIONS_JSON__
       }).join("") + "</select>";
     var _rrrSelectHtml = _rrrRiskHtml + "<span class='bs-rrr-colon'>:</span>" + _rrrRewardHtml;
 
+    /* Blocked Hours checkboxes (empty state) */
+    var _eDefaultBlocked = [4, 5, 6, 8, 10, 11, 14, 17];
+    var _eSavedBlocked = localStorage.getItem("bs_blocked_hours");
+    var _eBlockedSet = {};
+    if (_eSavedBlocked) {
+      _eSavedBlocked.split(",").forEach(function (h) { if (h) _eBlockedSet[parseInt(h, 10)] = true; });
+    } else {
+      _eDefaultBlocked.forEach(function (h) { _eBlockedSet[h] = true; });
+    }
+    var _eBlockedHtml = "<div class='bs-hours-grid'>";
+    for (var _ebh = 1; _ebh <= 19; _ebh++) {
+      var _echk = _eBlockedSet[_ebh] ? " checked" : "";
+      _eBlockedHtml +=
+        "<input type='checkbox' class='bs-hour-cb' id='bs-bh-" + _ebh + "' value='" + _ebh + "'" + _echk + ">" +
+        "<label class='bs-hour-label' for='bs-bh-" + _ebh + "'>" + _ebh + "</label>";
+    }
+    _eBlockedHtml += "</div>";
+    var _eBlockedRow = "<tr><td class='bs-td-cond' style='vertical-align:top;padding-top:8px'>Blocked Hours</td><td class='bs-td-rule'>" + _eBlockedHtml + "</td></tr>";
+
     document.getElementById("content").innerHTML =
       "<div class='section'>" +
         "<div class='section-title'>Backtest Settings</div>" +
@@ -4213,6 +4270,7 @@ __VERSIONS_JSON__
           "<tr><td class='bs-td-cond'>Stop Loss Level</td><td class='bs-td-rule'>" + _stopPipsHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>Direction</td><td class='bs-td-rule'>" + _dirSelectHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>RRR</td><td class='bs-td-rule'>" + _rrrSelectHtml + "</td></tr>" +
+          _eBlockedRow +
           "</tbody>" +
         "</table>" +
       "</div>";
@@ -4226,6 +4284,22 @@ __VERSIONS_JSON__
     if (_rrrRiskEl) _rrrRiskEl.addEventListener("change", function () { localStorage.setItem("bs_rrr_risk", _rrrRiskEl.value); });
     var _rrrRewardEl = document.getElementById("bs-rrr-reward");
     if (_rrrRewardEl) _rrrRewardEl.addEventListener("change", function () { localStorage.setItem("bs_rrr_reward", _rrrRewardEl.value); });
+
+    /* Wire blocked hours persistence (empty state) */
+    for (var _ebh2 = 1; _ebh2 <= 19; _ebh2++) {
+      (function (h) {
+        var cb = document.getElementById("bs-bh-" + h);
+        if (!cb) return;
+        cb.addEventListener("change", function () {
+          var checked = [];
+          for (var j = 1; j <= 19; j++) {
+            var el = document.getElementById("bs-bh-" + j);
+            if (el && el.checked) checked.push(j);
+          }
+          localStorage.setItem("bs_blocked_hours", checked.join(","));
+        });
+      })(_ebh2);
+    }
   }
 
   /* ── Version selector: populate and wire ─────────────────── */

@@ -357,6 +357,17 @@ function getSelectedRrrReward() {
   return stored || "2";
 }
 
+function getSelectedBlockedHours() {
+  var checked = [];
+  for (var h = 1; h <= 19; h++) {
+    var cb = document.getElementById("bs-bh-" + h);
+    if (cb && cb.checked) checked.push(h);
+  }
+  if (checked.length > 0) return checked.join(",");
+  var stored = localStorage.getItem("bs_blocked_hours");
+  return stored || "4,5,6,8,10,11,14,17";
+}
+
 function runNewVersion() {
   var instrument = getSelectedInstrument();
   var direction  = getSelectedDirection();
@@ -366,7 +377,7 @@ function runNewVersion() {
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, strategy_version: version, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
+    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, strategy_version: version, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -391,7 +402,7 @@ function runDateRange() {
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, strategy_version: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward() })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, strategy_version: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -655,6 +666,7 @@ def run_backtest():
     stop_pips   = (data.get("stop_loss_pips") or "").strip()
     rrr_risk    = (data.get("rrr_risk") or "").strip()
     rrr_reward  = (data.get("rrr_reward") or "").strip()
+    blocked_hours = (data.get("blocked_hours") or "").strip()
     strategy_version = (data.get("strategy_version") or "").strip()
     env_overrides = {"RUN_MODE": "new_version"}
     if strategy_version:
@@ -677,6 +689,7 @@ def run_backtest():
         env_overrides["RRR_RISK"] = rrr_risk
     if rrr_reward:
         env_overrides["RRR_REWARD"] = rrr_reward
+    env_overrides["BLOCKED_HOURS_UTC"] = blocked_hours if blocked_hours else ""
     t = threading.Thread(
         target=_version_with_auto_ranges,
         args=(env_overrides,),
@@ -716,6 +729,7 @@ def run_date_range():
     stop_pips      = (data.get("stop_loss_pips") or "").strip()
     rrr_risk       = (data.get("rrr_risk") or "").strip()
     rrr_reward     = (data.get("rrr_reward") or "").strip()
+    blocked_hours  = (data.get("blocked_hours") or "").strip()
     strategy_version = (data.get("strategy_version") or "").strip()
     env_overrides = {
         "RUN_MODE":       "date_range",
@@ -744,6 +758,7 @@ def run_date_range():
         env_overrides["RRR_RISK"] = rrr_risk
     if rrr_reward:
         env_overrides["RRR_REWARD"] = rrr_reward
+    env_overrides["BLOCKED_HOURS_UTC"] = blocked_hours if blocked_hours else ""
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),
