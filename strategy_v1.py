@@ -2660,7 +2660,13 @@ __VERSIONS_JSON__
   /* ── Sidebar ──────────────────────────────────────────────── */
 
   /* Track which section groups are expanded (persists across re-renders) */
-  var _sectionState = {}; /* key: section label → true = expanded */
+  var _sectionState = (function () {
+    try { return JSON.parse(localStorage.getItem("sb_section_state")) || {}; }
+    catch (_) { return {}; }
+  })();
+  function _saveSectionState() {
+    try { localStorage.setItem("sb_section_state", JSON.stringify(_sectionState)); } catch (_) {}
+  }
 
   function _durationDays(startStr, endStr) {
     if (!startStr || !endStr) return 0;
@@ -2746,6 +2752,7 @@ __VERSIONS_JSON__
       (function (secLabel, secEl) {
         secEl.addEventListener("click", function () {
           _sectionState[secLabel] = !_sectionState[secLabel];
+          _saveSectionState();
           renderSidebar();
         });
       })(secLabel, secEl);
@@ -4687,15 +4694,18 @@ __VERSIONS_JSON__
     main.scrollTo({ top: main.scrollHeight, behavior: "smooth" });
   });
 
-  /* ── Keyboard shortcuts: fn+1‥4 — Toggle sidebar sections ── */
+  /* ── Keyboard shortcuts: Shift+1‥4 — Toggle sidebar sections ── */
   (function () {
-    var _fnSectionMap = { F1: "Year", F2: "Month", F3: "Weeks", F4: "Day" };
+    var _shiftSectionMap = { Digit1: "Year", Digit2: "Month", Digit3: "Weeks", Digit4: "Day" };
     document.addEventListener("keydown", function (e) {
-      var sec = _fnSectionMap[e.key];
+      if (!e.shiftKey) return;
+      var sec = _shiftSectionMap[e.code];
       if (!sec) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (isInputFocused(e)) return;
       e.preventDefault();
       _sectionState[sec] = !_sectionState[sec];
+      _saveSectionState();
       renderSidebar();
     });
   })();
