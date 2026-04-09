@@ -1044,6 +1044,11 @@ def save_charts(df, trades, equity):
             _n6_highs_xy  = []  # list of (dt_num, price_y) for N=6 high pivots
             _n6_lows_xy   = []  # list of (dt_num, price_y) for N=6 low pivots
 
+            # ── L# counter state (consecutive lower-highs) ───────────────
+            _lh_counter = 0
+            _prev_high_price = None
+            _lh_offset = max(_price_range * 0.028, 3e-5)  # above F# label
+
             for _pv_idx, _pv in enumerate(_pvd['pivots']):
                 _bar_i  = _pv['bar']
                 # Priority: N=18 yellow > N=6 white > N=2 red/green
@@ -1070,6 +1075,22 @@ def save_charts(df, trades, equity):
                     ha='center', va='bottom' if _pv['kind'] == 'H' else 'top',
                     zorder=7,
                 )
+                # ── L# label (consecutive lower-highs) ──────────────
+                _is_high = _pv['label'] in ('LH', 'HH', 'CH')
+                _lh_num_str = None
+                if _is_high:
+                    if _pv['label'] == 'LH' and _prev_high_price is not None and _pv['price'] < _prev_high_price:
+                        _lh_counter += 1
+                        _lh_num_str = str(_lh_counter)
+                    elif _prev_high_price is not None and _pv['price'] > _prev_high_price:
+                        _lh_counter = 0
+                    _prev_high_price = _pv['price']
+                if _lh_num_str and _pv['kind'] == 'H':
+                    ax1.text(
+                        _dt_nums[_bar_i], _pv_y + _lh_offset, _lh_num_str,
+                        color='#ffffff', fontsize=6, fontweight='bold',
+                        ha='center', va='bottom', zorder=7,
+                    )
                 # Track N=18 pivots for trendlines
                 if _pv.get('n18'):
                     if _pv['kind'] == 'H':
