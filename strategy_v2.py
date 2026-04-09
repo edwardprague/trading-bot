@@ -2389,10 +2389,11 @@ __VERSIONS_JSON__
             if (pv.kind === "H") { mdVertHigh = _mdArrow + mf(pv.vert_dist, 1); }
             else                 { mdVertLow  = _mdArrow + mf(pv.vert_dist, 1); }
           }
-          var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "";
+          var horizD    = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "";
           var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? mf(pv.pullback_pct, 1) + "%" : "";
-          var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? mf(pv.atr, 1) : "";
-          var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? mf(pv.adx, 1) : "";
+          var atrD      = (pv.atr          !== null && pv.atr          !== undefined) ? mf(pv.atr, 1) : "";
+          var adxD      = (pv.adx          !== null && pv.adx          !== undefined) ? mf(pv.adx, 1) : "";
+          var mdHeight  = (pv.height       !== null && pv.height       !== undefined) ? mf(pv.height, 1) : "";
           var mdType1 = "";
           if (pv.n18 && pv.n18_label) {
             mdCarriedN18 = pv.n18_label;
@@ -2425,7 +2426,7 @@ __VERSIONS_JSON__
           var mdNum = String(idx + 1);
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
-          lines.push("| " + mdNum + " | " + (mdType2 || "") + " | " + mdVertHigh + " | " + mdVertLow + " | " + mdLhNum + " | " + pullbackD + " | " +
+          lines.push("| " + mdNum + " | " + (mdType2 || "") + " | " + mdVertHigh + " | " + mdVertLow + " | " + mdHeight + " | " + mdLhNum + " | " + pullbackD + " | " +
             mf(pv.price, 5) + " | " + (pv.time || "") + " | " + atrD + " | " + adxD + " | " + horizD + " |");
         });
       }
