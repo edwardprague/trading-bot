@@ -1325,6 +1325,13 @@ def compute_pivot_diagnostics(df):
         price     = pv['price']
         threshold = 0.5 * pv['atr']
 
+        # Height: distance from this pivot to the most recent opposite-kind pivot
+        height = None
+        for _back in reversed(classified[-5:]):
+            if _back['kind'] != pv['kind']:
+                height = round(abs(price - _back['price']) * 10000, 1)
+                break
+
         if pv['kind'] == 'H':
             label = 'H'
             if prev_high is None:
@@ -1346,6 +1353,7 @@ def compute_pivot_diagnostics(df):
                 'vert_dist':  vert_dist,
                 'vert_dir':   vert_dir,
                 'horiz_dist': horiz_dist,
+                'height':     height,
                 'bar':        pv['bar'],
                 'kind':       pv['kind'],
                 'atr':        round(pv['atr'] * 10000, 1),  # ATR in pips
@@ -1378,6 +1386,7 @@ def compute_pivot_diagnostics(df):
                 'vert_dist':  vert_dist,
                 'vert_dir':   vert_dir,
                 'horiz_dist': horiz_dist,
+                'height':     height,
                 'bar':        pv['bar'],
                 'kind':       pv['kind'],
                 'atr':        round(pv['atr'] * 10000, 1),  # ATR in pips
