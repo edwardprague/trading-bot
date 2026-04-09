@@ -2511,8 +2511,8 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type 2 | VD High | VD Low | L# | Pullback % | Width | Price | Time | ATR (pips) | ADX | Horiz Distance (bars) |");
-        lines.push("|---|--------|---------|--------|----|-----------|-------|-------|------|------------|-----|-----------------------|");
+        lines.push("| # | Type 2 | VD High | VD Low | Height | L# | Pullback % | Width | Price | Time | ATR (pips) | ADX | Horiz Distance (bars) |");
+        lines.push("|---|--------|---------|--------|--------|----|-----------|----- -|-------|------|------------|-----|-----------------------|");
         var mdBarOutcome = {};
         (m.intraday || []).forEach(function (t) {
           if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
@@ -3674,6 +3674,7 @@ __VERSIONS_JSON__
           }
         }
         var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "";
+        var heightD  = (pv.height       !== null && pv.height       !== undefined) ? fmt(pv.height, 1) : "";
         var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "";
         var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? fmt(pv.atr, 1) : "";
         var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? fmt(pv.adx, 1) : "";
@@ -3707,6 +3708,7 @@ __VERSIONS_JSON__
           "<td>" + type2Html + "</td>" +
           "<td>" + vertHigh + "</td>" +
           "<td>" + vertLow + "</td>" +
+          "<td>" + heightD + "</td>" +
           "<td>" + lhNumHtml + "</td>" +
           "<td>" + pullbackD + "</td>" +
           // "<td>" + n6CycleHtml + "</td>" +
@@ -3729,6 +3731,7 @@ __VERSIONS_JSON__
           "<th>Type 2</th>" +
           "<th>VD High</th>" +
           "<th>VD Low</th>" +
+          "<th>Height</th>" +
           "<th>L#</th>" +
           "<th>Pullback %</th>" +
           // "<th>Cycle 2</th>" +
