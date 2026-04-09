@@ -2229,6 +2229,12 @@ __VERSIONS_JSON__
     lines.push("| RRR | 1:"         + (p.rrr || "\u2014") + " |");
     lines.push("| Risk / Trade | "  + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
     lines.push("| Direction | "     + (p.trade_direction || "both") + " |");
+    lines.push("| Blocked Hours | " + (function () {
+      var bh = [];
+      for (var _k in _blockedSet) { if (_blockedSet[_k]) bh.push(parseInt(_k, 10)); }
+      bh.sort(function (a, b) { return a - b; });
+      return bh.length ? bh.join(", ") : "None";
+    }()) + " |");
     lines.push("");
 
     /* ── Performance by Direction ──────────────────── */
@@ -3862,6 +3868,12 @@ __VERSIONS_JSON__
           row("Stop Loss Level", "<span class='val-highlight'>" + esc(savedStopPips) + " pips</span>") +
           row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
           row("RRR",            (run.rrr_risk || p.rrr_risk || 1) + "&thinsp;:&thinsp;" + (run.rrr_reward || p.rrr_reward || 2)) +
+          row("Blocked Hours",  (function () {
+            var bh = [];
+            for (var _k in _blockedSet) { if (_blockedSet[_k]) bh.push(parseInt(_k, 10)); }
+            bh.sort(function (a, b) { return a - b; });
+            return bh.length ? bh.join(", ") : "<span class='dim'>None</span>";
+          }())) +
           row("Run on",         esc(fmtRunDate(run.date || ""))) +
           "</tbody></table>" +
         "</div>" +
