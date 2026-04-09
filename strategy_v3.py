@@ -2599,7 +2599,7 @@ __VERSIONS_JSON__
     /* ── Fractal Diagnostics (single-day ranges only) ──── */
     var pvd = m.pivot_diagnostics;
     if (pvd && pvd.is_single_day) {
-      lines.push("### Fractal Diagnostics");
+      lines.push("### Fractals");
       lines.push("");
       var pvList = pvd.pivots || [];
       if (pvList.length === 0) {
@@ -3663,7 +3663,7 @@ __VERSIONS_JSON__
       if (pivotList.length === 0) {
         pivotDiagHtml =
           "<div class='section' id='anchor-fractal-diag'>" +
-            "<div class='section-title'>Fractal Diagnostics</div>" +
+            "<div class='section-title'>Fractals</div>" +
             "<div style='padding:10px;color:var(--text-dim,#888);font-size:13px;'>" +
               "No fractal pivot points detected in this date range." +
             "</div>" +
@@ -3801,7 +3801,7 @@ __VERSIONS_JSON__
 
       pivotDiagHtml =
         "<div class='section' id='anchor-fractal-diag'>" +
-          "<div class='section-title'>Fractal Diagnostics</div>" +
+          "<div class='section-title'>Fractals</div>" +
           "<table><thead><tr>" +
           "<th style='width:52px'>#</th>" +
           // "<th>Type 1</th>" +
