@@ -1589,6 +1589,7 @@ def compute_pivot_diagnostics(df):
             if prev_high is None:
                 label      = 'CH'         # first pivot high — no prior to compare, treat as consolidating
                 vert_dist  = None
+                vert_dir   = None
                 horiz_dist = None
             else:
                 diff = price - prev_high['price']
@@ -1599,6 +1600,7 @@ def compute_pivot_diagnostics(df):
                 else:
                     label = 'HH'
                 vert_dist  = round(abs(diff) * 10000, 1)   # pips
+                vert_dir   = 'up' if diff >= 0 else 'down'
                 horiz_dist = pv['bar'] - prev_high['bar']
 
             _n6_key  = (pv['bar'], 'H')
@@ -1608,6 +1610,7 @@ def compute_pivot_diagnostics(df):
                 'price':      price,
                 'time':       pv['time'],
                 'vert_dist':  vert_dist,
+                'vert_dir':   vert_dir,
                 'horiz_dist': horiz_dist,
                 'bar':        pv['bar'],
                 'kind':       pv['kind'],
@@ -1624,6 +1627,7 @@ def compute_pivot_diagnostics(df):
             if prev_low is None:
                 label      = 'CL'         # first pivot low — no prior to compare, treat as consolidating
                 vert_dist  = None
+                vert_dir   = None
                 horiz_dist = None
             else:
                 diff = price - prev_low['price']
@@ -1634,6 +1638,7 @@ def compute_pivot_diagnostics(df):
                 else:
                     label = 'LL'
                 vert_dist  = round(abs(diff) * 10000, 1)
+                vert_dir   = 'up' if diff >= 0 else 'down'
                 horiz_dist = pv['bar'] - prev_low['bar']
 
             _n6_key  = (pv['bar'], 'L')
@@ -1643,6 +1648,7 @@ def compute_pivot_diagnostics(df):
                 'price':      price,
                 'time':       pv['time'],
                 'vert_dist':  vert_dist,
+                'vert_dir':   vert_dir,
                 'horiz_dist': horiz_dist,
                 'bar':        pv['bar'],
                 'kind':       pv['kind'],
@@ -2591,8 +2597,8 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type 2 | L# | Pullback % | Width | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) |");
-        lines.push("|---|--------|----|-----------|----|-------|------|------------|-----|----------------------|-----------------------|");
+        lines.push("| # | Type 2 | L# | Pullback % | Width | Price | Time | ATR (pips) | ADX | VD High | VD Low | Horiz Distance (bars) |");
+        lines.push("|---|--------|----|-----------|----|-------|------|------------|-----|---------|--------|-----------------------|");
         var mdBarOutcome = {};
         (m.intraday || []).forEach(function (t) {
           if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
@@ -2605,7 +2611,16 @@ __VERSIONS_JSON__
         var _mdLhCounter = 0;
         var _mdPrevHighPrice = null;
         pvList.forEach(function (pv, idx) {
-          var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? mf(pv.vert_dist, 1) : "";
+          var mdVertHigh = "";
+          var mdVertLow  = "";
+          if (pv.vert_dist !== null && pv.vert_dist !== undefined) {
+            var _mdVArrow = pv.vert_dir === "up" ? "▲ " : "▼ ";
+            if (pv.kind === "H") {
+              mdVertHigh = _mdVArrow + mf(pv.vert_dist, 1);
+            } else {
+              mdVertLow  = _mdVArrow + mf(pv.vert_dist, 1);
+            }
+          }
           var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "";
           var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? mf(pv.pullback_pct, 1) + "%" : "";
           var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? mf(pv.atr, 1) : "";
@@ -2645,7 +2660,7 @@ __VERSIONS_JSON__
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
           lines.push("| " + mdNum + " | " + (mdType2 || "") + " | " + mdLhNum + " | " + pullbackD + " | " + mdWidth + " | " +
-            mf(pv.price, 5) + " | " + (pv.time || "") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " |");
+            mf(pv.price, 5) + " | " + (pv.time || "") + " | " + atrD + " | " + adxD + " | " + mdVertHigh + " | " + mdVertLow + " | " + horizD + " |");
         });
       }
       lines.push("");
@@ -3333,11 +3348,13 @@ __VERSIONS_JSON__
       var barToPivot = {};
       var barToPullback = {};
       var barToVert = {};
+      var barToVertDir = {};
       var barToHoriz = {};
       pivotList.forEach(function (pv, idx) {
         barToPivot[pv.bar] = idx + 1;
         barToPullback[pv.bar] = pv.pullback_pct;
         barToVert[pv.bar] = pv.vert_dist;
+        barToVertDir[pv.bar] = pv.vert_dir;
         barToHoriz[pv.bar] = pv.horiz_dist;
       });
 
@@ -3365,7 +3382,7 @@ __VERSIONS_JSON__
           "<td>" + esc(fType) + "</td>" +
           "<td>" + atrD + "</td>" +
           "<td>" + adxD + "</td>" +
-          "<td>" + (function () { var v = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToVert[t.fractal_bar] : null; return (v !== null && v !== undefined) ? fmt(v, 1) : "\u2014"; }()) + "</td>" +
+          "<td>" + (function () { var v = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToVert[t.fractal_bar] : null; if (v === null || v === undefined) return "\u2014"; var vDir = barToVertDir[t.fractal_bar]; var vArrow = vDir === "up" ? "<span class='pos'>\u25B2</span> " : (vDir === "down" ? "<span class='neg'>\u25BC</span> " : ""); return vArrow + fmt(v, 1); }()) + "</td>" +
           "<td>" + (function () { var h = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToHoriz[t.fractal_bar] : null; return (h !== null && h !== undefined) ? h : "\u2014"; }()) + "</td>" +
           "<td>" + (function () { var pb = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToPullback[t.fractal_bar] : null; return (pb !== null && pb !== undefined) ? fmt(pb, 1) + "%" : "\u2014"; }()) + "</td>" +
           "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
@@ -3733,7 +3750,16 @@ __VERSIONS_JSON__
           if (pv.n6) type2Html += " <span style='color:#ffffff;font-size:30px;line-height:1;vertical-align:-0.15em;' title='N=6 fractal'>\u2022</span>";
         }
 
-        var vertD    = (pv.vert_dist    !== null && pv.vert_dist    !== undefined) ? fmt(pv.vert_dist, 1)  : "";
+        var vertHigh = "";
+        var vertLow  = "";
+        if (pv.vert_dist !== null && pv.vert_dist !== undefined) {
+          var _vArrow = pv.vert_dir === "up" ? "<span class='pos'>\u25B2</span> " : "<span class='neg'>\u25BC</span> ";
+          if (pv.kind === "H") {
+            vertHigh = _vArrow + fmt(pv.vert_dist, 1);
+          } else {
+            vertLow  = _vArrow + fmt(pv.vert_dist, 1);
+          }
+        }
         var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "";
         var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "";
         var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? fmt(pv.atr, 1) : "";
@@ -3775,7 +3801,8 @@ __VERSIONS_JSON__
           "<td class='nowrap'>" + esc(pv.time || "") + "</td>" +
           "<td>" + atrD + "</td>" +
           "<td>" + adxD + "</td>" +
-          "<td>" + vertD + "</td>" +
+          "<td>" + vertHigh + "</td>" +
+          "<td>" + vertLow + "</td>" +
           "<td>" + horizD + "</td>" +
           "</tr>";
       });
@@ -3801,7 +3828,8 @@ __VERSIONS_JSON__
           "<th>Time</th>" +
           "<th>ATR (pips)</th>" +
           "<th>ADX</th>" +
-          "<th>Vert Distance (pips)</th>" +
+          "<th>VD High</th>" +
+          "<th>VD Low</th>" +
           "<th>Horiz Distance (bars)</th>" +
           "</tr></thead><tbody>" + pvRows + "</tbody></table>" +
         "</div>";
