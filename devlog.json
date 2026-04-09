@@ -3,12 +3,12 @@
     "name": "v3",
     "params": [
       {
-        "name": "Paramters",
-        "desc": "Same as v2"
+        "desc": "Same as v2",
+        "name": "Paramters"
       },
       {
-        "name": "Update 1",
-        "desc": "Adding consolidation descriptions of 1-4 and blocking trades from narrow consolidation."
+        "desc": "Adding consolidation descriptions of 1-4 and blocking trades from narrow consolidation.",
+        "name": "Update 1"
       }
     ]
   },
@@ -20,7 +20,7 @@
         "name": "Trend Filter"
       },
       {
-        "desc": "When a lower level fractal forms, enter at the close of the 5th bar",
+        "desc": "When a lower level fractal forms, below the previous fractal,  enter at the close of the 5th bar",
         "name": "Entry Logic"
       },
       {
@@ -28,12 +28,8 @@
         "name": "Stop Placement"
       },
       {
-        "desc": "Block hours 04, 05, 06, 08, 10, 11, 14",
+        "desc": "Block hours 04, 05, 06, 08, 10, 11, 14, 17",
         "name": "Update 1"
-      },
-      {
-        "desc": "Block hour 17",
-        "name": "Update 2"
       }
     ]
   },
