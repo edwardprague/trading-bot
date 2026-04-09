@@ -3610,7 +3610,8 @@ __VERSIONS_JSON__
     var chartHtml = run.chart_b64
       ? "<div class='section' id='anchor-chart'><div class='section-title'>Chart</div>" +
         "<img id='chart-img' src='data:image/png;base64," + run.chart_b64 + "' alt='Backtest Chart'/></div>"
-      : "";
+      : "<div class='section' id='anchor-chart'><div class='section-title'>Chart</div>" +
+        "<p class='dim' style='padding:12px 0'>No chart available</p></div>";
 
     var eqDdChartHtml = run.eq_dd_chart_b64
       ? "<div class='section'><div class='section-title'>Equity and Drawdown</div>" +
@@ -4848,7 +4849,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
 
     # ── Load main chart as base64 ──────────────────────────────────────────────
     chart_b64 = ""
-    if os.path.exists(chart_path):
+    if chart_path and os.path.exists(chart_path):
         with open(chart_path, "rb") as fh:
             chart_b64 = base64.b64encode(fh.read()).decode("utf-8")
 
@@ -5224,8 +5225,23 @@ if __name__ == "__main__":
 
     print("PROGRESS:55:Printing results…", flush=True)
     print_results(trades, equity)
-    print("PROGRESS:60:Generating charts…", flush=True)
-    chart_path, eq_dd_chart_path = save_charts(df, trades, equity)
+
+    # ── Skip chart generation for runs longer than 62 days ───────────────────
+    _skip_charts = False
+    if run_mode == "date_range" and run_start_date and run_end_date:
+        _d0 = datetime.strptime(run_start_date, "%Y-%m-%d")
+        _d1 = datetime.strptime(run_end_date, "%Y-%m-%d")
+        if (_d1 - _d0).days > 62:
+            _skip_charts = True
+    elif DAYS_BACK > 62:
+        _skip_charts = True
+
+    if _skip_charts:
+        print("PROGRESS:60:Skipping charts (run > 62 days)…", flush=True)
+        chart_path, eq_dd_chart_path = None, None
+    else:
+        print("PROGRESS:60:Generating charts…", flush=True)
+        chart_path, eq_dd_chart_path = save_charts(df, trades, equity)
     print("PROGRESS:75:Building report…", flush=True)
     generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes,
                          blocked_signals=blocked_signals, df=df,
