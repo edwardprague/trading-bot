@@ -3454,10 +3454,10 @@ __VERSIONS_JSON__
       pivotList.forEach(function (pv, idx) {
         var lbl  = pv.label || "";
         var bgClass = "";
-        if (lbl === "CH" || lbl === "CL") {
-          bgClass = " class='fractal-row-consolidation'";
-        } else if (lbl === "LH" || lbl === "LL" || lbl === "HH" || lbl === "HL") {
-          bgClass = " class='fractal-row-directional'";
+        if (pv.vert_dir === "up") {
+          bgClass = " class='fractal-row-up'";
+        } else if (pv.vert_dir === "down") {
+          bgClass = " class='fractal-row-down'";
         }
 
         /* ── Type 1: N=18 cycle structure (carried forward) ── */
