@@ -2369,8 +2369,8 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type 2 | L# | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) | Pullback % |");
-        lines.push("|---|--------|----|-------|------|------------|-----|----------------------|-----------------------|------------|");
+        lines.push("| # | Type 2 | L# | Pullback % | Price | Time | ATR (pips) | ADX | Vert Distance (pips) | Horiz Distance (bars) |");
+        lines.push("|---|--------|----|-----------|-------|------|------------|-----|----------------------|-----------------------|");
         var mdBarOutcome = {};
         (m.intraday || []).forEach(function (t) {
           if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
@@ -2422,7 +2422,7 @@ __VERSIONS_JSON__
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
           lines.push("| " + mdNum + " | " + (mdType2 || "\u2014") + " | " + mdLhNum + " | " +
-            mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " | " + pullbackD + " |");
+            pullbackD + " | " + mf(pv.price, 5) + " | " + (pv.time || "\u2014") + " | " + atrD + " | " + adxD + " | " + vertD + " | " + horizD + " |");
         });
       }
       lines.push("");
@@ -3469,6 +3469,7 @@ __VERSIONS_JSON__
           // "<td>" + cycleHtml + "</td>" +
           "<td>" + type2Html + "</td>" +
           "<td>" + lhNumHtml + "</td>" +
+          "<td>" + pullbackD + "</td>" +
           // "<td>" + n6CycleHtml + "</td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
           "<td class='nowrap'>" + esc(pv.time || "\u2014") + "</td>" +
@@ -3476,7 +3477,6 @@ __VERSIONS_JSON__
           "<td>" + adxD + "</td>" +
           "<td>" + vertD + "</td>" +
           "<td>" + horizD + "</td>" +
-          "<td>" + pullbackD + "</td>" +
           "</tr>";
       });
 
@@ -3494,6 +3494,7 @@ __VERSIONS_JSON__
           // "<th>Cycle 1</th>" +
           "<th>Type 2</th>" +
           "<th>L#</th>" +
+          "<th>Pullback %</th>" +
           // "<th>Cycle 2</th>" +
           "<th>Price</th>" +
           "<th>Time</th>" +
@@ -3501,7 +3502,6 @@ __VERSIONS_JSON__
           "<th>ADX</th>" +
           "<th>Vert Distance (pips)</th>" +
           "<th>Horiz Distance (bars)</th>" +
-          "<th>Pullback %</th>" +
           "</tr></thead><tbody>" + pvRows + "</tbody></table>" +
         "</div>";
     }());
