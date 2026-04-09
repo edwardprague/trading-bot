@@ -359,7 +359,7 @@ function getSelectedRrrReward() {
 
 function getSelectedBlockedHours() {
   var checked = [];
-  for (var h = 1; h <= 19; h++) {
+  for (var h = 0; h <= 19; h++) {
     var cb = document.getElementById("bs-bh-" + h);
     if (cb && cb.checked) checked.push(h);
   }

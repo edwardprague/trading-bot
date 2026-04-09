@@ -3624,7 +3624,7 @@ __VERSIONS_JSON__
       _defaultBlocked.forEach(function (h) { _blockedSet[h] = true; });
     }
     var blockedHoursHtml = "<div class='bs-hours-grid'>";
-    for (var _bh = 1; _bh <= 19; _bh++) {
+    for (var _bh = 0; _bh <= 19; _bh++) {
       var _chk = _blockedSet[_bh] ? " checked" : "";
       blockedHoursHtml +=
         "<input type='checkbox' class='bs-hour-cb' id='bs-bh-" + _bh + "' value='" + _bh + "'" + _chk + ">" +
@@ -3915,13 +3915,13 @@ __VERSIONS_JSON__
 
     /* Wire Blocked Hours checkboxes — persist to localStorage on change */
     (function () {
-      for (var _bh = 1; _bh <= 19; _bh++) {
+      for (var _bh = 0; _bh <= 19; _bh++) {
         (function (h) {
           var cb = document.getElementById("bs-bh-" + h);
           if (!cb) return;
           cb.addEventListener("change", function () {
             var checked = [];
-            for (var j = 1; j <= 19; j++) {
+            for (var j = 0; j <= 19; j++) {
               var el = document.getElementById("bs-bh-" + j);
               if (el && el.checked) checked.push(j);
             }
@@ -4249,7 +4249,7 @@ __VERSIONS_JSON__
       _eDefaultBlocked.forEach(function (h) { _eBlockedSet[h] = true; });
     }
     var _eBlockedHtml = "<div class='bs-hours-grid'>";
-    for (var _ebh = 1; _ebh <= 19; _ebh++) {
+    for (var _ebh = 0; _ebh <= 19; _ebh++) {
       var _echk = _eBlockedSet[_ebh] ? " checked" : "";
       _eBlockedHtml +=
         "<input type='checkbox' class='bs-hour-cb' id='bs-bh-" + _ebh + "' value='" + _ebh + "'" + _echk + ">" +
@@ -4286,13 +4286,13 @@ __VERSIONS_JSON__
     if (_rrrRewardEl) _rrrRewardEl.addEventListener("change", function () { localStorage.setItem("bs_rrr_reward", _rrrRewardEl.value); });
 
     /* Wire blocked hours persistence (empty state) */
-    for (var _ebh2 = 1; _ebh2 <= 19; _ebh2++) {
+    for (var _ebh2 = 0; _ebh2 <= 19; _ebh2++) {
       (function (h) {
         var cb = document.getElementById("bs-bh-" + h);
         if (!cb) return;
         cb.addEventListener("change", function () {
           var checked = [];
-          for (var j = 1; j <= 19; j++) {
+          for (var j = 0; j <= 19; j++) {
             var el = document.getElementById("bs-bh-" + j);
             if (el && el.checked) checked.push(j);
           }
