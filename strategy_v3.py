@@ -368,21 +368,13 @@ def _sensitivity_run(df, rrr, swing_lookback):
             is_pl = (fl < lows_s[fi-1]  and fl < lows_s[fi-2]  and
                      fl < lows_s[fi+1]  and fl < lows_s[fi+2])
             if is_ph:
-                if prev_high_price_s is None:
-                    last_high_label_s = 'CH'
-                else:
-                    d = fh - prev_high_price_s
-                    last_high_label_s = 'CH' if abs(d) < thr else ('LH' if d < 0 else 'HH')
+                last_high_label_s = 'H'
                 prior_fractal_high_s = last_fractal_high_s
                 prev_high_price_s = float(fh)
                 last_fractal_high_s = float(fh)
                 _new_high_confirmed = True
             if is_pl:
-                if prev_low_price_s is None:
-                    last_low_label_s = 'CL'
-                else:
-                    d = fl - prev_low_price_s
-                    last_low_label_s = 'CL' if abs(d) < thr else ('HL' if d > 0 else 'LL')
+                last_low_label_s = 'L'
                 prior_fractal_low_s = last_fractal_low_s
                 prev_low_price_s = float(fl)
                 last_fractal_low_s = float(fl)
@@ -415,7 +407,7 @@ def _sensitivity_run(df, rrr, swing_lookback):
             # Long signal: newly confirmed HL whose low > prior low-type pivot
             long_sig = False
             long_fractal_price = None
-            if (_new_low_confirmed and last_low_label_s == 'HL'
+            if (_new_low_confirmed
                     and last_fractal_low_s is not None
                     and prior_fractal_low_s is not None
                     and last_fractal_low_s > prior_fractal_low_s):
@@ -425,7 +417,7 @@ def _sensitivity_run(df, rrr, swing_lookback):
             # Short signal: newly confirmed LH whose high < prior high-type pivot
             short_sig = False
             short_fractal_price = None
-            if (_new_high_confirmed and last_high_label_s == 'LH'
+            if (_new_high_confirmed
                     and last_fractal_high_s is not None
                     and prior_fractal_high_s is not None
                     and last_fractal_high_s < prior_fractal_high_s):
@@ -644,16 +636,7 @@ def run_backtest(df):
                      fl < lows[fi+1]  and fl < lows[fi+2])
 
             if is_ph:
-                if prev_high_price is None:
-                    last_high_label = 'CH'
-                else:
-                    diff = fh - prev_high_price
-                    if abs(diff) < threshold:
-                        last_high_label = 'CH'
-                    elif diff < 0:
-                        last_high_label = 'LH'
-                    else:
-                        last_high_label = 'HH'
+                last_high_label = 'H'
                 prior_fractal_high_price = last_fractal_high_price
                 prev_high_price = float(fh)
                 last_fractal_high_price = float(fh)
@@ -661,16 +644,7 @@ def run_backtest(df):
                 _new_high_confirmed = True
 
             if is_pl:
-                if prev_low_price is None:
-                    last_low_label = 'CL'
-                else:
-                    diff = fl - prev_low_price
-                    if abs(diff) < threshold:
-                        last_low_label = 'CL'
-                    elif diff > 0:
-                        last_low_label = 'HL'
-                    else:
-                        last_low_label = 'LL'
+                last_low_label = 'L'
                 prior_fractal_low_price = last_fractal_low_price
                 prev_low_price = float(fl)
                 last_fractal_low_price = float(fl)
@@ -710,7 +684,7 @@ def run_backtest(df):
             #    Fires only on the bar the HL fractal confirms.
             long_sig_raw = False
             long_fractal_price = None
-            if (_new_low_confirmed and last_low_label == 'HL'
+            if (_new_low_confirmed
                     and last_fractal_low_price is not None
                     and prior_fractal_low_price is not None
                     and last_fractal_low_price > prior_fractal_low_price):
@@ -721,7 +695,7 @@ def run_backtest(df):
             #    Fires only on the bar the LH fractal confirms.
             short_sig_raw = False
             short_fractal_price = None
-            if (_new_high_confirmed and last_high_label == 'LH'
+            if (_new_high_confirmed
                     and last_fractal_high_price is not None
                     and prior_fractal_high_price is not None
                     and last_fractal_high_price < prior_fractal_high_price):
@@ -1033,9 +1007,8 @@ def save_charts(df, trades, equity):
             _price_range   = _highs.max() - _lows.min()
             _pivot_offset  = max(_price_range * 0.008, 1e-5)
             _pivot_colors  = {
-                'CH': '#ef5350', 'CL': '#ef5350',   # red   — consolidation
-                'HH': '#6bcb77', 'HL': '#6bcb77',   # green — uptrend structure
-                'LH': '#6bcb77', 'LL': '#6bcb77',   # green — downtrend structure
+                'H': '#6bcb77',   # green — pivot high
+                'L': '#ef5350',   # red   — pivot low
             }
             _label_offset = max(_price_range * 0.018, 2e-5)
             # Collect N=18 and N=6 pivot coordinates for trendlines
@@ -1077,10 +1050,9 @@ def save_charts(df, trades, equity):
                     zorder=7,
                 )
                 # ── L# label (consecutive lower-highs) ──────────────
-                _is_high = _pv['label'] in ('LH', 'HH', 'CH')
                 _lh_num_str = None
-                if _is_high:
-                    if _pv['label'] == 'LH' and _prev_high_price is not None and _pv['price'] < _prev_high_price:
+                if _pv['kind'] == 'H':
+                    if _prev_high_price is not None and _pv['price'] < _prev_high_price:
                         _lh_counter += 1
                         _lh_num_str = str(_lh_counter)
                     elif _prev_high_price is not None and _pv['price'] > _prev_high_price:
@@ -1326,7 +1298,7 @@ def compute_pivot_diagnostics(df):
 
     n_days = _n_days
     if n_days > 31:
-        return {"is_single_day": False, "pivots": [], "structure": None}
+        return {"is_single_day": False, "pivots": []}
 
     # ── Compute ATR(14) using Wilder's smoothing ───────────────────────────────
     _n     = 14
@@ -1586,19 +1558,13 @@ def compute_pivot_diagnostics(df):
         threshold = 0.5 * pv['atr']
 
         if pv['kind'] == 'H':
+            label = 'H'
             if prev_high is None:
-                label      = 'CH'         # first pivot high — no prior to compare, treat as consolidating
                 vert_dist  = None
                 vert_dir   = None
                 horiz_dist = None
             else:
                 diff = price - prev_high['price']
-                if abs(diff) < threshold:
-                    label = 'CH'
-                elif diff < 0:
-                    label = 'LH'
-                else:
-                    label = 'HH'
                 vert_dist  = round(abs(diff) * 10000, 1)   # pips
                 vert_dir   = 'up' if diff >= 0 else 'down'
                 horiz_dist = pv['bar'] - prev_high['bar']
@@ -1624,19 +1590,13 @@ def compute_pivot_diagnostics(df):
             prev_high = pv
 
         else:  # kind == 'L'
+            label = 'L'
             if prev_low is None:
-                label      = 'CL'         # first pivot low — no prior to compare, treat as consolidating
                 vert_dist  = None
                 vert_dir   = None
                 horiz_dist = None
             else:
                 diff = price - prev_low['price']
-                if abs(diff) < threshold:
-                    label = 'CL'
-                elif diff > 0:
-                    label = 'HL'
-                else:
-                    label = 'LL'
                 vert_dist  = round(abs(diff) * 10000, 1)
                 vert_dir   = 'up' if diff >= 0 else 'down'
                 horiz_dist = pv['bar'] - prev_low['bar']
@@ -1678,96 +1638,41 @@ def compute_pivot_diagnostics(df):
         pv['width_score'] = _carried_width
 
     # ── Compute pullback % for each classified pivot ──────────────────────────
-    # Helper: scan backwards through history to find the most recent pivot of a
-    # given label, returning its price or None.  No ordering assumptions are made
-    # about how high and low pivots interleave chronologically.
-    def _last_price(label, history):
+    # Each H gets pb% = (this H − prev L) / (prev H − prev L) * 100
+    # Each L gets pb% = (prev H − this L) / (prev H − prev L) * 100
+    def _last_kind_price(kind, history):
         for p in reversed(history):
-            if p['label'] == label:
+            if p['kind'] == kind:
                 return p['price']
         return None
 
     for i, pv in enumerate(classified):
-        lbl   = pv['label']
         price = pv['price']
-        bidx  = pv['bar']
-        prior = classified[:i]   # all pivots that preceded this one
+        kind  = pv['kind']
+        prior = classified[:i]
 
-        pb = None  # default → "—" in UI
+        pb = None
 
-        if lbl == 'LH':
-            # Prior range = most recent LH − most recent LL
-            # Pullback    = this LH − most recent LL
-            ref_lh = _last_price('LH', prior)
-            ref_ll = _last_price('LL', prior)
-            if ref_lh is not None and ref_ll is not None:
-                prior_range = ref_lh - ref_ll
-                pullback    = price  - ref_ll
-                if abs(prior_range) > 1e-10:
-                    pb = pullback / prior_range * 100
+        ref_h = _last_kind_price('H', prior)
+        ref_l = _last_kind_price('L', prior)
 
-        elif lbl == 'HL':
-            # Prior range = most recent HH − most recent HL
-            # Pullback    = most recent HH − this HL
-            ref_hh = _last_price('HH', prior)
-            ref_hl = _last_price('HL', prior)
-            if ref_hh is not None and ref_hl is not None:
-                prior_range = ref_hh - ref_hl
-                pullback    = ref_hh - price
-                if abs(prior_range) > 1e-10:
-                    pb = pullback / prior_range * 100
+        if ref_h is not None and ref_l is not None:
+            prior_range = ref_h - ref_l
+            if abs(prior_range) > 1e-10:
+                if kind == 'H':
+                    pullback = price - ref_l
+                else:
+                    pullback = ref_h - price
+                pb = pullback / prior_range * 100
 
-        elif lbl == 'HH':
-            pass   # continuation pivot — always dash
-
-        elif lbl == 'LL':
-            pass   # continuation pivot — always dash
-
-        elif lbl == 'CH':
-            # Prior range = most recent CH − most recent CL
-            # Pullback    = this CH − most recent CL
-            ref_ch = _last_price('CH', prior)
-            ref_cl = _last_price('CL', prior)
-            if ref_ch is not None and ref_cl is not None:
-                prior_range = ref_ch - ref_cl
-                pullback    = price  - ref_cl
-                if abs(prior_range) > 1e-10:
-                    pb = pullback / prior_range * 100
-
-        elif lbl == 'CL':
-            # Prior range = most recent CH − most recent CL
-            # Pullback    = most recent CH − this CL
-            ref_ch = _last_price('CH', prior)
-            ref_cl = _last_price('CL', prior)
-            if ref_ch is not None and ref_cl is not None:
-                prior_range = ref_ch - ref_cl
-                pullback    = ref_ch - price
-                if abs(prior_range) > 1e-10:
-                    pb = pullback / prior_range * 100
-
-        # Cap to valid range 0–150%; outside this range indicates bad prior data
         if pb is not None and pb < 0:
             pb = None
 
         pv['pullback_pct'] = round(pb, 1) if pb is not None else None
 
-    # ── Determine market structure from last 3 classified pivots ──────────────
-    last_3 = classified[-3:] if len(classified) >= 3 else classified
-
-    structure = "Consolidating"
-    if len(last_3) >= 2:
-        hh_hl = sum(1 for p in last_3 if p['label'] in ('HH', 'HL'))
-        lh_ll = sum(1 for p in last_3 if p['label'] in ('LH', 'LL'))
-        ch_cl = sum(1 for p in last_3 if p['label'] in ('CH', 'CL'))
-        if hh_hl > lh_ll and hh_hl > ch_cl:
-            structure = "Trending Up"
-        elif lh_ll > hh_hl and lh_ll > ch_cl:
-            structure = "Trending Down"
-
     return {
         "is_single_day": True,
         "pivots":         classified,
-        "structure":      structure,
     }
 
 
@@ -2646,9 +2551,8 @@ __VERSIONS_JSON__
           }
           var mdWidth = (pv.width_score !== null && pv.width_score !== undefined) ? String(pv.width_score) : "";
           var mdLhNum = "";
-          var _mdIsHigh = (pv.label === "LH" || pv.label === "HH" || pv.label === "CH");
-          if (_mdIsHigh) {
-            if (pv.label === "LH" && _mdPrevHighPrice !== null && pv.price < _mdPrevHighPrice) {
+          if (pv.kind === "H") {
+            if (_mdPrevHighPrice !== null && pv.price < _mdPrevHighPrice) {
               _mdLhCounter++;
               mdLhNum = String(_mdLhCounter);
             } else if (_mdPrevHighPrice !== null && pv.price > _mdPrevHighPrice) {
@@ -3776,9 +3680,8 @@ __VERSIONS_JSON__
 
         /* ── L#: consecutive lower-high count ── */
         var lhNumHtml = "";
-        var _isHigh = (pv.label === "LH" || pv.label === "HH" || pv.label === "CH");
-        if (_isHigh) {
-          if (pv.label === "LH" && _prevHighPrice !== null && pv.price < _prevHighPrice) {
+        if (pv.kind === "H") {
+          if (_prevHighPrice !== null && pv.price < _prevHighPrice) {
             _lhCounter++;
             lhNumHtml = String(_lhCounter);
           } else if (_prevHighPrice !== null && pv.price > _prevHighPrice) {
@@ -3806,11 +3709,6 @@ __VERSIONS_JSON__
           "<td>" + horizD + "</td>" +
           "</tr>";
       });
-
-      var structure  = pvd.structure || "Consolidating";
-      var structCls  = structure === "Trending Up"   ? "pos"
-                     : structure === "Trending Down" ? "neg"
-                     : "neu";
 
       pivotDiagHtml =
         "<div class='section' id='anchor-fractal-diag'>" +
