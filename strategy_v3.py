@@ -2597,8 +2597,8 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type 2 | L# | Pullback % | Width | Price | Time | ATR (pips) | ADX | VD High | VD Low | Horiz Distance (bars) |");
-        lines.push("|---|--------|----|-----------|----|-------|------|------------|-----|---------|--------|-----------------------|");
+        lines.push("| # | Type 2 | VD High | VD Low | L# | Pullback % | Width | Price | Time | ATR (pips) | ADX | Horiz Distance (bars) |");
+        lines.push("|---|--------|---------|--------|----|-----------|-------|-------|------|------------|-----|-----------------------|");
         var mdBarOutcome = {};
         (m.intraday || []).forEach(function (t) {
           if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
@@ -2659,8 +2659,8 @@ __VERSIONS_JSON__
           var mdNum = String(idx + 1);
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
-          lines.push("| " + mdNum + " | " + (mdType2 || "") + " | " + mdLhNum + " | " + pullbackD + " | " + mdWidth + " | " +
-            mf(pv.price, 5) + " | " + (pv.time || "") + " | " + atrD + " | " + adxD + " | " + mdVertHigh + " | " + mdVertLow + " | " + horizD + " |");
+          lines.push("| " + mdNum + " | " + (mdType2 || "") + " | " + mdVertHigh + " | " + mdVertLow + " | " + mdLhNum + " | " + pullbackD + " | " + mdWidth + " | " +
+            mf(pv.price, 5) + " | " + (pv.time || "") + " | " + atrD + " | " + adxD + " | " + horizD + " |");
         });
       }
       lines.push("");
@@ -3793,6 +3793,8 @@ __VERSIONS_JSON__
           // "<td>" + type1Html + "</td>" +
           // "<td>" + cycleHtml + "</td>" +
           "<td>" + type2Html + "</td>" +
+          "<td>" + vertHigh + "</td>" +
+          "<td>" + vertLow + "</td>" +
           "<td>" + lhNumHtml + "</td>" +
           "<td>" + pullbackD + "</td>" +
           // "<td>" + n6CycleHtml + "</td>" +
@@ -3801,8 +3803,6 @@ __VERSIONS_JSON__
           "<td class='nowrap'>" + esc(pv.time || "") + "</td>" +
           "<td>" + atrD + "</td>" +
           "<td>" + adxD + "</td>" +
-          "<td>" + vertHigh + "</td>" +
-          "<td>" + vertLow + "</td>" +
           "<td>" + horizD + "</td>" +
           "</tr>";
       });
@@ -3820,6 +3820,8 @@ __VERSIONS_JSON__
           // "<th>Type 1</th>" +
           // "<th>Cycle 1</th>" +
           "<th>Type 2</th>" +
+          "<th>VD High</th>" +
+          "<th>VD Low</th>" +
           "<th>L#</th>" +
           "<th>Pullback %</th>" +
           // "<th>Cycle 2</th>" +
@@ -3828,8 +3830,6 @@ __VERSIONS_JSON__
           "<th>Time</th>" +
           "<th>ATR (pips)</th>" +
           "<th>ADX</th>" +
-          "<th>VD High</th>" +
-          "<th>VD Low</th>" +
           "<th>Horiz Distance (bars)</th>" +
           "</tr></thead><tbody>" + pvRows + "</tbody></table>" +
         "</div>";
