@@ -62,6 +62,13 @@ TRADE_DIRECTION   = os.environ.get("TRADE_DIRECTION", "both")   # "both" | "long
 
 MAX_DAILY_LOSS  = 2000.0            # stop trading if day's loss reaches $2,000 (2% of capital)
 
+# ── Time filter: record which hours were blocked (v1 doesn't filter, but stores for display)
+_blocked_env = os.environ.get("BLOCKED_HOURS_UTC", "").strip()
+if _blocked_env:
+    BLOCKED_HOURS_UTC = [int(h) for h in _blocked_env.split(",") if h.strip()]
+else:
+    BLOCKED_HOURS_UTC = [4, 5, 6, 8, 10, 11, 14, 17]
+
 VERSION = "v6"
 STRATEGY_VERSION_TAG = "v1"     # identifies which strategy file produced these results
 NOTES = "Fractal-based entries with EMA 8/20/40 alignment"
@@ -2133,10 +2140,12 @@ __VERSIONS_JSON__
     lines.push("| Risk / Trade | "  + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
     lines.push("| Direction | "     + (p.trade_direction || "both") + " |");
     lines.push("| Blocked Hours | " + (function () {
-      var bh = [];
-      for (var _k in _blockedSet) { if (_blockedSet[_k]) bh.push(parseInt(_k, 10)); }
-      bh.sort(function (a, b) { return a - b; });
-      return bh.length ? bh.join(", ") : "None";
+      var bh = run.blocked_hours;
+      if (bh && bh.length) {
+        var sorted = bh.slice().sort(function (a, b) { return a - b; });
+        return sorted.join(", ");
+      }
+      return "None";
     }()) + " |");
     lines.push("");
 
@@ -3772,10 +3781,12 @@ __VERSIONS_JSON__
           row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
           row("RRR",            (run.rrr_risk || p.rrr_risk || 1) + "&thinsp;:&thinsp;" + (run.rrr_reward || p.rrr_reward || 2)) +
           row("Blocked Hours",  (function () {
-            var bh = [];
-            for (var _k in _blockedSet) { if (_blockedSet[_k]) bh.push(parseInt(_k, 10)); }
-            bh.sort(function (a, b) { return a - b; });
-            return bh.length ? bh.join(", ") : "<span class='dim'>None</span>";
+            var bh = run.blocked_hours;
+            if (bh && bh.length) {
+              var sorted = bh.slice().sort(function (a, b) { return a - b; });
+              return sorted.join(", ");
+            }
+            return "<span class='dim'>None</span>";
           }())) +
           row("Run on",         esc(fmtRunDate(run.date || ""))) +
           "</tbody></table>" +
@@ -4823,6 +4834,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "stop_loss_pips":   int(FRACTAL_STOP_PIPS * 10000),
         "rrr_risk":         RRR_RISK,
         "rrr_reward":       RRR_REWARD,
+        "blocked_hours":    BLOCKED_HOURS_UTC,
         "notes":         notes.strip() if notes else "—",
         "chart_b64":        chart_b64,
         "eq_dd_chart_b64":  eq_dd_chart_b64,

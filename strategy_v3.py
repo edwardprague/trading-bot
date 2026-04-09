@@ -2373,10 +2373,12 @@ __VERSIONS_JSON__
     lines.push("| Risk / Trade | "  + ((p.risk_pct || 0) * 100).toFixed(1) + "% |");
     lines.push("| Direction | "     + (p.trade_direction || "both") + " |");
     lines.push("| Blocked Hours | " + (function () {
-      var bh = [];
-      for (var _k in _blockedSet) { if (_blockedSet[_k]) bh.push(parseInt(_k, 10)); }
-      bh.sort(function (a, b) { return a - b; });
-      return bh.length ? bh.join(", ") : "None";
+      var bh = run.blocked_hours;
+      if (bh && bh.length) {
+        var sorted = bh.slice().sort(function (a, b) { return a - b; });
+        return sorted.join(", ");
+      }
+      return "None";
     }()) + " |");
     lines.push("");
 
@@ -4020,10 +4022,12 @@ __VERSIONS_JSON__
           row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
           row("RRR",            (run.rrr_risk || p.rrr_risk || 1) + "&thinsp;:&thinsp;" + (run.rrr_reward || p.rrr_reward || 2)) +
           row("Blocked Hours",  (function () {
-            var bh = [];
-            for (var _k in _blockedSet) { if (_blockedSet[_k]) bh.push(parseInt(_k, 10)); }
-            bh.sort(function (a, b) { return a - b; });
-            return bh.length ? bh.join(", ") : "<span class='dim'>None</span>";
+            var bh = run.blocked_hours;
+            if (bh && bh.length) {
+              var sorted = bh.slice().sort(function (a, b) { return a - b; });
+              return sorted.join(", ");
+            }
+            return "<span class='dim'>None</span>";
           }())) +
           row("Run on",         esc(fmtRunDate(run.date || ""))) +
           "</tbody></table>" +
@@ -5072,6 +5076,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "stop_loss_pips":   int(FRACTAL_STOP_PIPS * 10000),
         "rrr_risk":         RRR_RISK,
         "rrr_reward":       RRR_REWARD,
+        "blocked_hours":    BLOCKED_HOURS_UTC,
         "notes":         notes.strip() if notes else "—",
         "chart_b64":        chart_b64,
         "eq_dd_chart_b64":  eq_dd_chart_b64,

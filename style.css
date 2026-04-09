@@ -166,7 +166,7 @@ body {
 
 .v-item.active {
     background: #333;
-    border-left-color: steelblue;
+    border-left-color: #fff;
 }
 
 .v-name {
@@ -898,6 +898,7 @@ tbody tr:hover td {
     flex-wrap: wrap;
     gap: 3px;
 }
+
 .bs-hour-label {
     display: flex;
     align-items: center;
@@ -913,14 +914,17 @@ tbody tr:hover td {
     user-select: none;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
+
 .bs-hour-label:hover {
     border-color: teal;
 }
+
 .bs-hour-cb {
     display: none;
 }
-.bs-hour-cb:checked + .bs-hour-label {
-    background: rgba(180,60,60,0.45);
+
+.bs-hour-cb:checked+.bs-hour-label {
+    background: rgba(180, 60, 60, 0.45);
     border-color: #c0392b;
     color: #ff8a80;
 }
