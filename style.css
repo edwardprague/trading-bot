@@ -25,7 +25,11 @@ body {
 .v-duration {
     font-size: 13px;
     color: #fff;
-    font-weight: bold;
+    /* font-weight: bold; */
+    background: steelblue;
+    padding: 2px 7px;
+    border-radius: 3px;
+
 }
 
 .rb-select {
