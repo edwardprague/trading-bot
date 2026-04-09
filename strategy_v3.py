@@ -4928,6 +4928,19 @@ __VERSIONS_JSON__
     e.preventDefault();
     main.scrollTo({ top: main.scrollHeight, behavior: "smooth" });
   });
+
+  /* ── Keyboard shortcuts: fn+1‥4 — Toggle sidebar sections ── */
+  (function () {
+    var _fnSectionMap = { F1: "Year", F2: "Month", F3: "Weeks", F4: "Day" };
+    document.addEventListener("keydown", function (e) {
+      var sec = _fnSectionMap[e.key];
+      if (!sec) return;
+      if (isInputFocused(e)) return;
+      e.preventDefault();
+      _sectionState[sec] = !_sectionState[sec];
+      renderSidebar();
+    });
+  })();
 })();
 </script>
 
