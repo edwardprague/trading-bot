@@ -1106,7 +1106,7 @@ tbody tr:hover td {
 
 .sb-section-arrow {
     font-size: 9px;
-    color: #aaa;
+    color: #fff;
     transition: transform 0.2s;
     display: inline-block;
 }
@@ -1118,14 +1118,14 @@ tbody tr:hover td {
 .sb-section-label {
     font-size: 11px;
     font-weight: 700;
-    color: #ccc;
+    color: #fff;
     text-transform: uppercase;
     letter-spacing: 0.1em;
 }
 
 .sb-section-count {
     font-size: 11px;
-    color: #ccc;
+    color: #fff;
     margin-left: auto;
 }
 
