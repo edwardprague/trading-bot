@@ -1050,6 +1050,48 @@ tbody tr:hover td {
     border-radius: 3px;
 }
 
+/* ── Sidebar: date-range section headers ─────────────── */
+.sb-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #10101c;
+    cursor: pointer;
+    border-bottom: 1px solid #333;
+    user-select: none;
+    transition: background 0.15s;
+}
+
+.sb-section-header:hover {
+    background: #1a1a2e;
+}
+
+.sb-section-arrow {
+    font-size: 9px;
+    color: #888;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+.sb-section-header.expanded .sb-section-arrow {
+    transform: rotate(90deg);
+}
+
+.sb-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.sb-section-count {
+    font-size: 10px;
+    color: #555;
+    margin-left: auto;
+}
+
 /* ── Sidebar: collapsible versions ───────────────────── */
 .v-item-row {
     display: flex;
@@ -1063,56 +1105,6 @@ tbody tr:hover td {
     min-width: 0;
 }
 
-.v-expand-arrow {
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 9px;
-    color: #fff;
-    transition: transform 0.15s, color 0.15s;
-    cursor: pointer;
-    border-radius: 24px;
-    margin-top: 2px;
-    background: #999;
-}
-
-.v-expand-arrow:hover {
-    background: green;
-}
-
-.v-expand-arrow.expanded {
-    transform: rotate(90deg);
-}
-
-.v-run-count {
-    font-size: 10px;
-    color: #505070;
-    margin-top: 2px;
-}
-
-.v-sub-item {
-    padding-left: 15px !important;
-    background: #012020;
-    border-left: 5px solid transparent;
-    line-height: 1.3;
-}
-
-.v-sub-item:hover {
-    background: #333 !important;
-}
-
-.v-sub-item.active {
-    background: #222 !important;
-    border-left-color: steelblue !important;
-}
-
-.v-sub-name {
-    font-size: 12px !important;
-    font-weight: 500 !important;
-}
 
 /* ── Sub-item top row (instrument + delete) ─────────── */
 .v-sub-top-row {
@@ -1154,7 +1146,6 @@ tbody tr:hover td {
     transition: opacity 0.15s, color 0.15s;
 }
 
-.v-sub-item:hover .v-sub-delete-btn,
 .v-item:hover .v-sub-delete-btn {
     opacity: 1;
 }
@@ -1164,14 +1155,6 @@ tbody tr:hover td {
 }
 
 /* ── Drag-and-drop states ─────────────────────────────── */
-.v-sub-item {
-    cursor: grab;
-}
-
-.v-sub-item:active {
-    cursor: grabbing;
-}
-
 .v-item.dragging {
     opacity: 0.3;
     pointer-events: none;

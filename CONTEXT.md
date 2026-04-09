@@ -4,11 +4,10 @@ Building a backtesting dashboard for a systematic algorithmic trading system.
 
 # 1. Workflow
 
-1. I will provide you with development tasks for you to complete. Always ask questions and provide comments if needed.
-
-2. ⁠When adding functionality, always put new styles into the style.css file and never use inline styles.
-
-3. When you are finished with a task, let me know if it requires the following actions to view updates:
+1. I will provide you with development tasks for you to complete.
+2. Always ask questions and provide comments if needed.
+3. ⁠When adding functionality, always put new styles into the style.css file and never use inline styles.
+4. When you are finished with each task, let me know if it requires the following actions to view updates:
 
 - Restart the flask server
 - Run a backtest to regenerate report.html
