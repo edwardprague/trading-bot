@@ -1069,9 +1069,10 @@ def save_charts(df, trades, equity):
                     color=_pv_clr, marker='o', s=18, zorder=6,
                     edgecolors='none',
                 )
+                _fnum_clr = _pivot_colors.get(_pv['label'], '#ffffff')
                 ax1.text(
                     _dt_nums[_bar_i], _lbl_y, str(_pv_idx + 1),
-                    color=_pv_clr, fontsize=6, fontweight='bold',
+                    color=_fnum_clr, fontsize=6, fontweight='bold',
                     ha='center', va='bottom' if _pv['kind'] == 'H' else 'top',
                     zorder=7,
                 )
