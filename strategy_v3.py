@@ -2895,6 +2895,31 @@ __VERSIONS_JSON__
   }
 
   /* ── Sidebar ──────────────────────────────────────────────── */
+
+  /* Track which section groups are expanded (persists across re-renders) */
+  var _sectionState = {}; /* key: section label → true = expanded */
+
+  function _durationDays(startStr, endStr) {
+    if (!startStr || !endStr) return 0;
+    var s = new Date(startStr.slice(0,10) + "T00:00:00");
+    var e = new Date(endStr.slice(0,10) + "T00:00:00");
+    var d = Math.round((e - s) / 86400000) + 1;
+    return d < 1 ? 1 : d;
+  }
+
+  function _sectionFor(days) {
+    if (days >= 365) return "Year";
+    if (days >= 28 && days <= 31) return "Month";
+    if (days >= 2 && days <= 27) return "Weeks";
+    if (days === 1) return "Day";
+    /* 32-364 days that aren't exactly a month — group with Weeks as closest fit */
+    if (days > 31 && days < 365) return "Weeks";
+    return "Other";
+  }
+
+  /* Canonical order for sections */
+  var _sectionOrder = ["Year", "Month", "Weeks", "Day", "Other"];
+
   function renderSidebar() {
     var svs  = getStrategyVersions();
     var list = document.getElementById("version-list");
@@ -2905,9 +2930,7 @@ __VERSIONS_JSON__
       return;
     }
 
-    /* After building flatItems, check if instrument filter eliminated everything */
-
-    /* Build flat list: every run from every matching version, filtered by instrument */
+    /* Build flat list: every run from every matching version is a top-level item */
     var flatItems = []; /* { vIdx, runIdx, v, run } */
     for (var ri = 0; ri < svs.length; ri++) {
       var entry = svs[ri];
@@ -2927,185 +2950,227 @@ __VERSIONS_JSON__
       return;
     }
 
-    /* Render oldest first so newest items appear at the bottom */
+    /* ── Group items by date-range section ── */
+    var groups = {}; /* sectionLabel → [ item, ... ] */
     for (var fi = 0; fi < flatItems.length; fi++) {
       var item = flatItems[fi];
       var run  = item.run;
-      var pnl  = run.metrics ? run.metrics.net_profit : null;
-      var pc   = pnl === null ? "" : (pnl >= 0 ? "pos" : "neg");
-      var ptxt = pnl === null ? "" : (pnl >= 0 ? "+" : "") + "$" + commaFmt(pnl);
-
       var range = run.start_date && run.end_date
         ? { start: run.start_date, end: run.end_date }
         : fullRunRange(run);
-      var dateRange = range.start && range.end
-        ? fmtSbDate(range.start) + " \u2192 " + fmtSbDate(range.end) : "";
-      var dur = calcDuration(range.start, range.end);
+      var days = _durationDays(range.start, range.end);
+      var sec  = _sectionFor(days);
+      if (!groups[sec]) groups[sec] = [];
+      groups[sec].push(item);
+    }
 
-      var runInstrument = run.instrument || (item.v.params && item.v.params.ticker ? item.v.params.ticker.replace(/=X$/i, "") : "");
+    /* Render sections in canonical order */
+    for (var si = 0; si < _sectionOrder.length; si++) {
+      var secLabel = _sectionOrder[si];
+      var secItems = groups[secLabel];
+      if (!secItems || secItems.length === 0) continue;
 
-      var el = document.createElement("div");
-      el.className = "v-item" + (item.vIdx === activeVersionIdx && item.runIdx === activeRunIdx ? " active" : "");
-      el.dataset.idx = item.vIdx;
-      el.dataset.runIdx = item.runIdx;
-      el.draggable = true;
+      var isExpanded = !!_sectionState[secLabel]; /* collapsed by default */
 
-      var totalRuns = getRuns(item.v).length;
+      /* ── Section header row ── */
+      var secEl = document.createElement("div");
+      secEl.className = "sb-section-header" + (isExpanded ? " expanded" : "");
+      secEl.innerHTML =
+        "<span class='sb-section-arrow'>\u25B6</span>" +
+        "<span class='sb-section-label'>" + esc(secLabel) + "</span>" +
+        "<span class='sb-section-count'>" + secItems.length + "</span>";
 
-      el.innerHTML =
-        "<div class='v-item-row'>" +
-          "<div class='v-item-content'>" +
-            "<div class='v-sub-top-row'>" +
-              "<div class='v-name'>" + esc(item.v.strategy_version || item.v.name) + "</div>" +
-              (runInstrument ? "<div class='v-instrument'>" + esc(runInstrument) + "</div>" : "") +
-            "</div>" +
-            "<div class='v-sub-metric-row'>" +
-              (dur ? "<div class='v-duration'>" + esc(dur) + "</div>" : "") +
-              (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "") +
-            "</div>" +
-            (dateRange ? "<div class='v-date date-link' data-start='" + esc(range.start) + "' data-end='" + esc(range.end) + "'>" + esc(dateRange) + "</div>" : "") +
-          "</div>" +
-          "<button class='v-sub-delete-btn' title='Delete run'>&times;</button>" +
-        "</div>";
-
-      (function (el, vIdx, rIdx, verName, totalRuns) {
-        el.addEventListener("click", function (e) {
-          if (e.target.closest(".v-sub-delete-btn")) return;
-          var dl = e.target.closest(".date-link[data-start]");
-          if (dl) { setDatePicker(dl.dataset.start, dl.dataset.end); return; }
-          devLogOpen = false;
-          document.getElementById("devlog-btn").classList.remove("active");
-          activeVersionIdx = vIdx;
-          activeRunIdx = rIdx;
+      (function (secLabel, secEl) {
+        secEl.addEventListener("click", function () {
+          _sectionState[secLabel] = !_sectionState[secLabel];
           renderSidebar();
-          renderContent(vIdx, rIdx);
         });
-        /* Wire delete button */
-        var delBtn = el.querySelector(".v-sub-delete-btn");
-        if (delBtn) delBtn.addEventListener("click", function (e) {
-          e.stopPropagation();
-          if (totalRuns <= 1) {
-            /* Only run in this version — delete the entire version */
-            if (!confirm("Delete this version and its only run?")) return;
-            delBtn.disabled = true;
-            fetch("/delete_version", {
+      })(secLabel, secEl);
+
+      list.appendChild(secEl);
+
+      /* ── Section items (hidden when collapsed) ── */
+      if (!isExpanded) continue;
+
+      for (var ii = 0; ii < secItems.length; ii++) {
+        var item = secItems[ii];
+        var run  = item.run;
+        var pnl  = run.metrics ? run.metrics.net_profit : null;
+        var pc   = pnl === null ? "" : (pnl >= 0 ? "pos" : "neg");
+        var ptxt = pnl === null ? "" : (pnl >= 0 ? "+" : "") + "$" + commaFmt(pnl);
+
+        var range = run.start_date && run.end_date
+          ? { start: run.start_date, end: run.end_date }
+          : fullRunRange(run);
+        var dateRange = range.start && range.end
+          ? fmtSbDate(range.start) + " \u2192 " + fmtSbDate(range.end) : "";
+        var dur = calcDuration(range.start, range.end);
+
+        var runInstrument = run.instrument || (item.v.params && item.v.params.ticker ? item.v.params.ticker.replace(/=X$/i, "") : "");
+
+        var el = document.createElement("div");
+        el.className = "v-item" + (item.vIdx === activeVersionIdx && item.runIdx === activeRunIdx ? " active" : "");
+        el.dataset.idx = item.vIdx;
+        el.dataset.runIdx = item.runIdx;
+        el.draggable = true;
+
+        var totalRuns = getRuns(item.v).length;
+
+        el.innerHTML =
+          "<div class='v-item-row'>" +
+            "<div class='v-item-content'>" +
+              "<div class='v-sub-top-row'>" +
+                "<div class='v-name'>" + esc(item.v.strategy_version || item.v.name) + "</div>" +
+                (runInstrument ? "<div class='v-instrument'>" + esc(runInstrument) + "</div>" : "") +
+              "</div>" +
+              "<div class='v-sub-metric-row'>" +
+                (dur ? "<div class='v-duration'>" + esc(dur) + "</div>" : "") +
+                (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "") +
+              "</div>" +
+              (dateRange ? "<div class='v-date date-link' data-start='" + esc(range.start) + "' data-end='" + esc(range.end) + "'>" + esc(dateRange) + "</div>" : "") +
+            "</div>" +
+            "<button class='v-sub-delete-btn' title='Delete run'>&times;</button>" +
+          "</div>";
+
+        (function (el, vIdx, rIdx, verName, totalRuns) {
+          el.addEventListener("click", function (e) {
+            if (e.target.closest(".v-sub-delete-btn")) return;
+            var dl = e.target.closest(".date-link[data-start]");
+            if (dl) { setDatePicker(dl.dataset.start, dl.dataset.end); return; }
+            devLogOpen = false;
+            document.getElementById("devlog-btn").classList.remove("active");
+            activeVersionIdx = vIdx;
+            activeRunIdx = rIdx;
+            renderSidebar();
+            renderContent(vIdx, rIdx);
+          });
+          /* Wire delete button */
+          var delBtn = el.querySelector(".v-sub-delete-btn");
+          if (delBtn) delBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (totalRuns <= 1) {
+              /* Only run in this version — delete the entire version */
+              if (!confirm("Delete this version and its only run?")) return;
+              delBtn.disabled = true;
+              fetch("/delete_version", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: verName })
+              })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.ok) { window.location.reload(); }
+                else { delBtn.disabled = false; alert("Delete failed: " + (data.error || "Unknown error")); }
+              })
+              .catch(function () { delBtn.disabled = false; alert("Delete failed — is the server running?"); });
+            } else {
+              /* Multiple runs — delete just this run */
+              if (!confirm("Delete this run?")) return;
+              delBtn.disabled = true;
+              fetch("/delete_run", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: verName, run_idx: rIdx })
+              })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (data.ok) {
+                  localStorage.setItem("rb_pending_delete_version", verName);
+                  var focusIdx = rIdx - 1;
+                  localStorage.setItem("rb_pending_delete_run_idx", String(focusIdx < 0 ? 0 : focusIdx));
+                  window.location.reload();
+                } else { delBtn.disabled = false; alert("Delete failed: " + (data.error || "Unknown error")); }
+              })
+              .catch(function () { delBtn.disabled = false; alert("Delete failed — is the server running?"); });
+            }
+          });
+
+          /* ── Drag-and-drop reorder ── */
+          el.addEventListener("dragstart", function (e) {
+            e.stopPropagation();
+            _dragSub = { vIdx: vIdx, runIdx: rIdx, verName: verName };
+            /* Delay adding dragging class so the drag image captures the full item */
+            setTimeout(function () { el.classList.add("dragging"); }, 0);
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", "");
+          });
+          el.addEventListener("dragend", function () {
+            el.classList.remove("dragging");
+            _dragSub = null;
+            document.querySelectorAll(".v-item.drag-over-above, .v-item.drag-over-below").forEach(function (x) {
+              x.classList.remove("drag-over-above", "drag-over-below");
+            });
+          });
+          el.addEventListener("dragover", function (e) {
+            if (!_dragSub || _dragSub.vIdx !== vIdx) return;
+            if (_dragSub.runIdx === rIdx) return; /* skip self */
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            /* Clear indicators on all siblings first */
+            document.querySelectorAll(".v-item.drag-over-above, .v-item.drag-over-below").forEach(function (x) {
+              if (x !== el) x.classList.remove("drag-over-above", "drag-over-below");
+            });
+            var rect = el.getBoundingClientRect();
+            var mid = rect.top + rect.height / 2;
+            if (e.clientY < mid) {
+              el.classList.add("drag-over-above");
+              el.classList.remove("drag-over-below");
+            } else {
+              el.classList.add("drag-over-below");
+              el.classList.remove("drag-over-above");
+            }
+          });
+          el.addEventListener("dragleave", function (e) {
+            /* Only clear if truly leaving this element (not entering a child) */
+            if (!el.contains(e.relatedTarget)) {
+              el.classList.remove("drag-over-above", "drag-over-below");
+            }
+          });
+          el.addEventListener("drop", function (e) {
+            e.preventDefault();
+            el.classList.remove("drag-over-above", "drag-over-below");
+            if (!_dragSub || _dragSub.vIdx !== vIdx) return;
+            var fromIdx = _dragSub.runIdx;
+            var rect = el.getBoundingClientRect();
+            var mid = rect.top + rect.height / 2;
+            var toIdx = e.clientY < mid ? rIdx : rIdx + 1;
+            if (toIdx > fromIdx) toIdx--;
+            if (fromIdx === toIdx) return;
+
+            /* Build new order */
+            var runs = getRuns(VERSIONS[vIdx]);
+            var order = [];
+            for (var oi = 0; oi < runs.length; oi++) order.push(oi);
+            var moved = order.splice(fromIdx, 1)[0];
+            order.splice(toIdx, 0, moved);
+
+            fetch("/reorder_runs", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name: verName })
-            })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-              if (data.ok) { window.location.reload(); }
-              else { delBtn.disabled = false; alert("Delete failed: " + (data.error || "Unknown error")); }
-            })
-            .catch(function () { delBtn.disabled = false; alert("Delete failed — is the server running?"); });
-          } else {
-            /* Multiple runs — delete just this run */
-            if (!confirm("Delete this run?")) return;
-            delBtn.disabled = true;
-            fetch("/delete_run", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name: verName, run_idx: rIdx })
+              body: JSON.stringify({ name: verName, order: order })
             })
             .then(function (r) { return r.json(); })
             .then(function (data) {
               if (data.ok) {
-                localStorage.setItem("rb_pending_delete_version", verName);
-                var focusIdx = rIdx - 1;
-                localStorage.setItem("rb_pending_delete_run_idx", String(focusIdx < 0 ? 0 : focusIdx));
-                window.location.reload();
-              } else { delBtn.disabled = false; alert("Delete failed: " + (data.error || "Unknown error")); }
+                var oldRuns = VERSIONS[vIdx].runs;
+                VERSIONS[vIdx].runs = [];
+                for (var ri = 0; ri < order.length; ri++) VERSIONS[vIdx].runs.push(oldRuns[order[ri]]);
+                activeVersionIdx = vIdx;
+                activeRunIdx = toIdx;
+                renderSidebar();
+                renderContent(vIdx, activeRunIdx);
+              } else {
+                alert("Reorder failed: " + (data.error || "Unknown error"));
+              }
             })
-            .catch(function () { delBtn.disabled = false; alert("Delete failed — is the server running?"); });
-          }
-        });
-
-        /* ── Drag-and-drop reorder ── */
-        el.addEventListener("dragstart", function (e) {
-          e.stopPropagation();
-          _dragSub = { vIdx: vIdx, runIdx: rIdx, verName: verName };
-          /* Delay adding dragging class so the drag image captures the full item */
-          setTimeout(function () { el.classList.add("dragging"); }, 0);
-          e.dataTransfer.effectAllowed = "move";
-          e.dataTransfer.setData("text/plain", "");
-        });
-        el.addEventListener("dragend", function () {
-          el.classList.remove("dragging");
-          _dragSub = null;
-          document.querySelectorAll(".v-item.drag-over-above, .v-item.drag-over-below").forEach(function (x) {
-            x.classList.remove("drag-over-above", "drag-over-below");
+            .catch(function () {
+              alert("Reorder failed — is the server running?");
+            });
           });
-        });
-        el.addEventListener("dragover", function (e) {
-          if (!_dragSub || _dragSub.vIdx !== vIdx) return;
-          if (_dragSub.runIdx === rIdx) return; /* skip self */
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-          /* Clear indicators on all siblings first */
-          document.querySelectorAll(".v-item.drag-over-above, .v-item.drag-over-below").forEach(function (x) {
-            if (x !== el) x.classList.remove("drag-over-above", "drag-over-below");
-          });
-          var rect = el.getBoundingClientRect();
-          var mid = rect.top + rect.height / 2;
-          if (e.clientY < mid) {
-            el.classList.add("drag-over-above");
-            el.classList.remove("drag-over-below");
-          } else {
-            el.classList.add("drag-over-below");
-            el.classList.remove("drag-over-above");
-          }
-        });
-        el.addEventListener("dragleave", function (e) {
-          /* Only clear if truly leaving this element (not entering a child) */
-          if (!el.contains(e.relatedTarget)) {
-            el.classList.remove("drag-over-above", "drag-over-below");
-          }
-        });
-        el.addEventListener("drop", function (e) {
-          e.preventDefault();
-          el.classList.remove("drag-over-above", "drag-over-below");
-          if (!_dragSub || _dragSub.vIdx !== vIdx) return;
-          var fromIdx = _dragSub.runIdx;
-          var rect = el.getBoundingClientRect();
-          var mid = rect.top + rect.height / 2;
-          var toIdx = e.clientY < mid ? rIdx : rIdx + 1;
-          if (toIdx > fromIdx) toIdx--;
-          if (fromIdx === toIdx) return;
+        })(el, item.vIdx, item.runIdx, item.v.name, totalRuns);
 
-          /* Build new order */
-          var runs = getRuns(VERSIONS[vIdx]);
-          var order = [];
-          for (var oi = 0; oi < runs.length; oi++) order.push(oi);
-          var moved = order.splice(fromIdx, 1)[0];
-          order.splice(toIdx, 0, moved);
-
-          fetch("/reorder_runs", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: verName, order: order })
-          })
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (data.ok) {
-              var oldRuns = VERSIONS[vIdx].runs;
-              VERSIONS[vIdx].runs = [];
-              for (var ri = 0; ri < order.length; ri++) VERSIONS[vIdx].runs.push(oldRuns[order[ri]]);
-              activeVersionIdx = vIdx;
-              activeRunIdx = toIdx;
-              renderSidebar();
-              renderContent(vIdx, activeRunIdx);
-            } else {
-              alert("Reorder failed: " + (data.error || "Unknown error"));
-            }
-          })
-          .catch(function () {
-            alert("Reorder failed — is the server running?");
-          });
-        });
-      })(el, item.vIdx, item.runIdx, item.v.name, totalRuns);
-
-      list.appendChild(el);
+        list.appendChild(el);
+      }
     }
 
     /* Expose the currently active version name globally for the run-bar */

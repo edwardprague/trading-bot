@@ -33,7 +33,11 @@ Terminal command - `source venv/bin/activate`
 #### Starting a Session
 
 Double-click `start.command` from Finder — auto-pulls latest, starts Flask server.
-Open browser: `http://localhost:8080`
+
+#### Opening in Browser
+
+- If it would be advantagous to view the dashboard in the browser, ask for permission and it will be allowed.
+- Dashboard address: `http://localhost:8080`
 
 #### Data Source
 
