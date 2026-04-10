@@ -4621,11 +4621,13 @@ __VERSIONS_JSON__
     if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
     if (devLogOpen) return;
 
-    /* Build flat list of sidebar items in render order (oldest first),
-       filtering by currentInstrument to match what renderSidebar shows */
+    /* Build flat list mirroring the exact sidebar render order:
+       filter by instrument, group by section, iterate in _sectionOrder */
     var svs = getStrategyVersions();
     if (svs.length === 0) return;
-    var items = []; /* { vIdx, runIdx } */
+
+    /* 1. Collect instrument-filtered items (same as renderSidebar) */
+    var _kbFlat = [];
     for (var ri = 0; ri < svs.length; ri++) {
       var entry = svs[ri];
       var vIdx  = entry.idx;
@@ -4634,7 +4636,31 @@ __VERSIONS_JSON__
         var _kbRun = runs[si];
         var _kbInst = (_kbRun.instrument || (entry.v.params && entry.v.params.ticker ? entry.v.params.ticker.replace(/=X$/i, "") : "")).toUpperCase();
         if (currentInstrument && _kbInst && _kbInst !== currentInstrument) continue;
-        items.push({ vIdx: vIdx, runIdx: si });
+        _kbFlat.push({ vIdx: vIdx, runIdx: si, run: _kbRun, v: entry.v });
+      }
+    }
+
+    /* 2. Group by section (same logic as renderSidebar) */
+    var _kbGroups = {};
+    for (var fi = 0; fi < _kbFlat.length; fi++) {
+      var _kbItem = _kbFlat[fi];
+      var _kbRange = _kbItem.run.start_date && _kbItem.run.end_date
+        ? { start: _kbItem.run.start_date, end: _kbItem.run.end_date }
+        : fullRunRange(_kbItem.run);
+      var _kbDays = _durationDays(_kbRange.start, _kbRange.end);
+      var _kbSec  = _sectionFor(_kbDays);
+      if (!_kbGroups[_kbSec]) _kbGroups[_kbSec] = [];
+      _kbGroups[_kbSec].push(_kbItem);
+    }
+
+    /* 3. Build items array in section order, tracking which section each belongs to */
+    var items = []; /* { vIdx, runIdx, sec } */
+    for (var oi = 0; oi < _sectionOrder.length; oi++) {
+      var _kbSecLabel = _sectionOrder[oi];
+      var _kbSecItems = _kbGroups[_kbSecLabel];
+      if (!_kbSecItems || _kbSecItems.length === 0) continue;
+      for (var ii = 0; ii < _kbSecItems.length; ii++) {
+        items.push({ vIdx: _kbSecItems[ii].vIdx, runIdx: _kbSecItems[ii].runIdx, sec: _kbSecLabel });
       }
     }
     if (items.length === 0) return;
@@ -4654,6 +4680,13 @@ __VERSIONS_JSON__
 
     e.preventDefault();
     var target = items[newPos];
+
+    /* Auto-expand the target section if it's collapsed */
+    if (!_sectionState[target.sec]) {
+      _sectionState[target.sec] = true;
+      _saveSectionState();
+    }
+
     activeVersionIdx = target.vIdx;
     activeRunIdx     = target.runIdx;
     renderSidebar();
