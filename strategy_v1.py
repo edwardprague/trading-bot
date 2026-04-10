@@ -4621,7 +4621,8 @@ __VERSIONS_JSON__
     if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
     if (devLogOpen) return;
 
-    /* Build flat list of sidebar items in render order (oldest first) */
+    /* Build flat list of sidebar items in render order (oldest first),
+       filtering by currentInstrument to match what renderSidebar shows */
     var svs = getStrategyVersions();
     if (svs.length === 0) return;
     var items = []; /* { vIdx, runIdx } */
@@ -4630,6 +4631,9 @@ __VERSIONS_JSON__
       var vIdx  = entry.idx;
       var runs  = getRuns(entry.v);
       for (var si = 0; si < runs.length; si++) {
+        var _kbRun = runs[si];
+        var _kbInst = (_kbRun.instrument || (entry.v.params && entry.v.params.ticker ? entry.v.params.ticker.replace(/=X$/i, "") : "")).toUpperCase();
+        if (currentInstrument && _kbInst && _kbInst !== currentInstrument) continue;
         items.push({ vIdx: vIdx, runIdx: si });
       }
     }
