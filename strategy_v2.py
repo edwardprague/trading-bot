@@ -3634,8 +3634,8 @@ __VERSIONS_JSON__
 
         pvRows +=
           "<tr" + bgClass + ">" +
-          "<td class='nowrap'>" + esc(pv.time || "") + "</td>" +
           "<td class='nowrap'>" + numHtml + "</td>" +
+          "<td class='nowrap'>" + esc(pv.time || "") + "</td>" +
           // "<td>" + type1Html + "</td>" +
           // "<td>" + cycleHtml + "</td>" +
           "<td>" + type2Html + "</td>" +
@@ -3657,8 +3657,8 @@ __VERSIONS_JSON__
         "<div class='section' id='anchor-fractal-diag'>" +
           "<div class='section-title'>Fractals</div>" +
           "<table><thead><tr>" +
-          "<th>Time</th>" +
           "<th style='width:52px'>#</th>" +
+          "<th>Time</th>" +
           // "<th>Type 1</th>" +
           // "<th>Cycle 1</th>" +
           "<th>Type</th>" +

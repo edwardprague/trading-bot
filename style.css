@@ -32,10 +32,21 @@ body {
 }
 
 /* Section-specific duration badge colors */
-.v-dur-year   { background: #7c5cbf; }
-.v-dur-month  { background: steelblue; }
-.v-dur-weeks  { background: #2e8b7a; }
-.v-dur-day    { background: #b07d3a; }
+.v-dur-year {
+    background: #7c5cbf;
+}
+
+.v-dur-month {
+    background: steelblue;
+}
+
+.v-dur-weeks {
+    background: #2e8b7a;
+}
+
+.v-dur-day {
+    background: #b07d3a;
+}
 
 .rb-select {
     background: #444 !important;
@@ -1130,7 +1141,7 @@ tbody tr:hover td {
 
 .sb-section-arrow {
     font-size: 9px;
-    color: #fff;
+    color: #000;
     transition: transform 0.2s;
     display: inline-block;
 }
@@ -1142,14 +1153,14 @@ tbody tr:hover td {
 .sb-section-label {
     font-size: 11px;
     font-weight: 700;
-    color: #fff;
+    color: #000;
     text-transform: uppercase;
     letter-spacing: 0.1em;
 }
 
 .sb-section-count {
     font-size: 11px;
-    color: #fff;
+    color: #000;
     margin-left: auto;
 }
 
