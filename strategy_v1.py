@@ -2240,8 +2240,8 @@ __VERSIONS_JSON__
       if (intradayData.length === 0) return;
       lines.push("### Intraday Performance");
       lines.push("");
-      lines.push("| Date | Entry Time | Duration | Direction | Stop | Target | F # | F Type | L# | ATR | ADX | VD | HD | PB % | P&L |");
-      lines.push("|------|------------|----------|-----------|------|--------|-----|--------|----|----|-----|-----|-----|------|-----|");
+      lines.push("| Date | Entry Time | Duration | Direction | Stop | Target | F # | F Type | L# | ATR | ADX | VD | PB % | P&L |");
+      lines.push("|------|------------|----------|-----------|------|--------|-----|--------|----|----|-----|-----|------|-----|");
       /* Build bar→pivot# lookup from pivot diagnostics */
       var mdPvd = m.pivot_diagnostics || {};
       var mdPivotList = mdPvd.pivots || [];
@@ -2286,11 +2286,9 @@ __VERSIONS_JSON__
         var mdLhNumVal = (t.fractal_bar !== null && t.fractal_bar !== undefined && mdBarToLhNum[t.fractal_bar]) ? mdBarToLhNum[t.fractal_bar] : "\u2014";
         var vdVal = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? mdBarToVert[t.fractal_bar] : null;
         var vdD = (vdVal !== null && vdVal !== undefined) ? mf(vdVal, 1) : "\u2014";
-        var hdVal = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? mdBarToHoriz[t.fractal_bar] : null;
-        var hdD = (hdVal !== null && hdVal !== undefined) ? hdVal : "\u2014";
         var pbVal = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? mdBarToPullback[t.fractal_bar] : null;
         var pbD = (pbVal !== null && pbVal !== undefined) ? mf(pbVal, 1) + "%" : "\u2014";
-        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + fNum + " | " + fType + " | " + mdLhNumVal + " | " + atrD + " | " + adxD + " | " + vdD + " | " + hdD + " | " + pbD + " | " + mfMoney(t.pnl) + " |");
+        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + fNum + " | " + fType + " | " + mdLhNumVal + " | " + atrD + " | " + adxD + " | " + vdD + " | " + pbD + " | " + mfMoney(t.pnl) + " |");
       });
       lines.push("");
     }());
@@ -2319,8 +2317,8 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| Time | # | Type | L# | VD High | VD Low | H6 | H3 | H1 | ATR (pips) | ADX | Pullback % | Price | Horiz Distance (bars) |");
-        lines.push("|------|---|------|----|---------|--------|-----|-----|-----|------------|-----|-----------|----- -|-----------------------|");
+        lines.push("| Time | # | Type | L# | VD High | VD Low | H6 | H3 | H1 | ATR (pips) | ADX | Pullback % | Price |");
+        lines.push("|------|---|------|----|---------|--------|-----|-----|-----|------------|-----|-----------|----- -|");
         var mdBarOutcome = {};
         (m.intraday || []).forEach(function (t) {
           if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
@@ -2340,7 +2338,6 @@ __VERSIONS_JSON__
             if (pv.kind === "H") { mdVertHigh = _mdArrow + mf(pv.vert_dist, 1); }
             else                 { mdVertLow  = _mdArrow + mf(pv.vert_dist, 1); }
           }
-          var horizD    = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? String(pv.horiz_dist) : "";
           var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? mf(pv.pullback_pct, 1) + "%" : "";
           var atrD      = (pv.atr          !== null && pv.atr          !== undefined) ? mf(pv.atr, 1) : "";
           var adxD      = (pv.adx          !== null && pv.adx          !== undefined) ? mf(pv.adx, 1) : "";
@@ -2380,7 +2377,7 @@ __VERSIONS_JSON__
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
           lines.push("| " + (pv.time || "") + " | " + mdNum + " | " + (mdType2 || "") + " | " + mdLhNum + " | " + mdVertHigh + " | " + mdVertLow + " | " + mdH6 + " | " + mdH3 + " | " + mdHeight + " | " + atrD + " | " + adxD + " | " +
-            pullbackD + " | " + mf(pv.price, 5) + " | " + horizD + " |");
+            pullbackD + " | " + mf(pv.price, 5) + " |");
         });
       }
       lines.push("");
@@ -3155,7 +3152,6 @@ __VERSIONS_JSON__
           "<td>" + atrD + "</td>" +
           "<td>" + adxD + "</td>" +
           "<td>" + (function () { var v = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToVert[t.fractal_bar] : null; if (v === null || v === undefined) return "\u2014"; var vDir = barToVertDir[t.fractal_bar]; var vArrow = vDir === "up" ? "<span class='pos'>\u25B2</span> " : (vDir === "down" ? "<span class='neg'>\u25BC</span> " : ""); return vArrow + fmt(v, 1); }()) + "</td>" +
-          "<td>" + (function () { var h = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToHoriz[t.fractal_bar] : null; return (h !== null && h !== undefined) ? h : "\u2014"; }()) + "</td>" +
           "<td>" + (function () { var pb = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToPullback[t.fractal_bar] : null; return (pb !== null && pb !== undefined) ? fmt(pb, 1) + "%" : "\u2014"; }()) + "</td>" +
           "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
           "</tr>";
@@ -3165,7 +3161,7 @@ __VERSIONS_JSON__
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
           "<table><thead><tr>" +
-          "<th>Date</th><th>Entry Time</th><th>Duration</th><th>Direction</th><th>Stop</th><th>Target</th><th>F #</th><th>F Type</th><th>L#</th><th>ATR</th><th>ADX</th><th>VD</th><th>HD</th><th>PB %</th><th>P&amp;L</th>" +
+          "<th>Date</th><th>Entry Time</th><th>Duration</th><th>Direction</th><th>Stop</th><th>Target</th><th>F #</th><th>F Type</th><th>L#</th><th>ATR</th><th>ADX</th><th>VD</th><th>PB %</th><th>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 
@@ -3532,7 +3528,6 @@ __VERSIONS_JSON__
             vertLow  = _vArrow + fmt(pv.vert_dist, 1);
           }
         }
-        var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "";
         var heightD  = (pv.height       !== null && pv.height       !== undefined) ? fmt(pv.height, 1) : "";
         var h6D      = (pv.h6           !== null && pv.h6           !== undefined) ? fmt(pv.h6, 1) : "";
         var h3D      = (pv.h3           !== null && pv.h3           !== undefined) ? fmt(pv.h3, 1) : "";
@@ -3577,7 +3572,6 @@ __VERSIONS_JSON__
           "<td>" + pullbackD + "</td>" +
           // "<td>" + n6CycleHtml + "</td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
-          "<td>" + horizD + "</td>" +
           "</tr>";
       });
 
@@ -3601,7 +3595,6 @@ __VERSIONS_JSON__
           "<th>Pullback %</th>" +
           // "<th>Cycle 2</th>" +
           "<th>Price</th>" +
-          "<th>Horiz Distance (bars)</th>" +
           "</tr></thead><tbody>" + pvRows + "</tbody></table>" +
         "</div>";
     }());
