@@ -60,7 +60,7 @@ FRACTAL_STOP_PIPS = float(os.environ.get("FRACTAL_STOP_PIPS", 15)) / 10000  # pi
 
 TRADE_DIRECTION   = os.environ.get("TRADE_DIRECTION", "both")   # "both" | "long_only" | "short_only"
 
-MAX_DAILY_LOSS  = 2000.0            # stop trading if day's loss reaches $2,000 (2% of capital)
+MAX_DAILY_LOSSES = 2               # stop trading after this many losing trades in a single UTC day
 
 # ── Time filter: skip entries during these UTC hours ─────────────────────────
 _blocked_env = os.environ.get("BLOCKED_HOURS_UTC", "").strip()
@@ -283,7 +283,7 @@ def _sensitivity_run(df, rrr, swing_lookback):
 
     # Daily loss limit state
     _daily_loss_day = None
-    _daily_loss_pnl = 0.0
+    _daily_loss_count = 0
 
     # Rolling fractal state — mirrors run_backtest exactly
     prev_high_price_s = None
@@ -327,23 +327,8 @@ def _sensitivity_run(df, rrr, swing_lookback):
                 hit_tp = (direction == "long"  and c >= tp) or \
                          (direction == "short" and c <= tp)
 
-            # Daily loss limit force-close check
-            force_close = False
-            if not (hit_sl or hit_tp):
-                _unrealised = (c - entry_p) * size if direction == "long" \
-                              else (entry_p - c) * size
-                _bar_utc = pd.to_datetime(ts)
-                _bar_utc = _bar_utc.tz_convert('UTC') if _bar_utc.tzinfo else _bar_utc.tz_localize('UTC')
-                _bar_day = _bar_utc.date()
-                _day_pnl = _daily_loss_pnl if _bar_day == _daily_loss_day else 0.0
-                if (_day_pnl + _unrealised) <= -MAX_DAILY_LOSS:
-                    force_close = True
-
-            if hit_sl or hit_tp or force_close:
-                if force_close:
-                    exit_p = c
-                else:
-                    exit_p = sl if hit_sl else tp
+            if hit_sl or hit_tp:
+                exit_p = sl if hit_sl else tp
                 pnl = (exit_p - entry_p) * size if direction == "long" \
                       else (entry_p - exit_p) * size
                 cash += pnl
@@ -353,8 +338,9 @@ def _sensitivity_run(df, rrr, swing_lookback):
                 _exit_day = _exit_utc.date()
                 if _exit_day != _daily_loss_day:
                     _daily_loss_day = _exit_day
-                    _daily_loss_pnl = 0.0
-                _daily_loss_pnl += pnl
+                    _daily_loss_count = 0
+                if pnl < 0:
+                    _daily_loss_count += 1
                 trades_s.append({"pnl": pnl, "win": pnl > 0})
                 in_trade = False
 
@@ -438,8 +424,8 @@ def _sensitivity_run(df, rrr, swing_lookback):
             _today = _ts_day_utc.date()
             if _today != _daily_loss_day:
                 _daily_loss_day = _today
-                _daily_loss_pnl = 0.0
-            if _daily_loss_pnl <= -MAX_DAILY_LOSS:
+                _daily_loss_count = 0
+            if _daily_loss_count >= MAX_DAILY_LOSSES:
                 continue
 
             # Time filter
@@ -487,12 +473,8 @@ def _sensitivity_run(df, rrr, swing_lookback):
 
 # ── Backtest ──────────────────────────────────────────────────────────────────
 
-def run_backtest(df, range_start=None):
-    """Run bar-by-bar backtest.  *range_start* (pd.Timestamp or None) is the
-    first UTC instant of the user-requested date range.  When supplied, only
-    trades whose entry falls on or after this boundary contribute to the daily
-    loss tracker – pre-buffer trades are excluded so the limit is enforced
-    consistently with the (post-filtered) report the user sees."""
+def run_backtest(df):
+    """Run bar-by-bar backtest."""
     cash          = STARTING_CASH
     equity        = [cash]
     trades        = []
@@ -506,11 +488,10 @@ def run_backtest(df, range_start=None):
     entry_fractal_bar   = None  # bar index of the fractal that triggered entry
     entry_fractal_label = None  # label (HL, LH, etc.) of the triggering fractal
     entry_ts         = None  # timestamp of the entry bar (for time-of-day diagnostics)
-    _entry_in_range  = False  # True when the current trade entered within the requested range
     blocked_signals  = []    # signals that were filtered out (for Filter Impact Summary)
     _debug_entries   = 0     # counter for entry timezone debug prints
     _daily_loss_day  = None  # current calendar day (UTC date) for daily loss tracking
-    _daily_loss_pnl  = 0.0   # cumulative closed-trade P&L for _daily_loss_day
+    _daily_loss_count = 0    # number of losing trades on _daily_loss_day
 
     # ── Rolling fractal state ─────────────────────────────────────────────────
     highs = df['High'].values
@@ -572,23 +553,8 @@ def run_backtest(df, range_start=None):
                          (direction == "short" and c <= tp)
 
             # ── Determine exit type ───────────────────────────────────────────
-            force_close = False
-            if not (hit_sl or hit_tp):
-                # Check daily loss limit with unrealised P&L
-                _unrealised = (c - entry_p) * size if direction == "long" \
-                              else (entry_p - c) * size
-                _bar_utc = pd.to_datetime(ts)
-                _bar_utc = _bar_utc.tz_convert('UTC') if _bar_utc.tzinfo else _bar_utc.tz_localize('UTC')
-                _bar_day = _bar_utc.date()
-                _day_pnl = _daily_loss_pnl if _bar_day == _daily_loss_day else 0.0
-                if (_day_pnl + _unrealised) <= -MAX_DAILY_LOSS:
-                    force_close = True
-
-            if hit_sl or hit_tp or force_close:
-                if force_close:
-                    exit_p = c          # force-close at current bar's close
-                else:
-                    exit_p = sl if hit_sl else tp
+            if hit_sl or hit_tp:
+                exit_p = sl if hit_sl else tp
                 pnl     = (exit_p - entry_p) * size if direction == "long" \
                           else (entry_p - exit_p) * size
                 mae     = abs(entry_p - worst_adverse)
@@ -599,14 +565,10 @@ def run_backtest(df, range_start=None):
                 _exit_day = _exit_utc.date()
                 if _exit_day != _daily_loss_day:
                     _daily_loss_day = _exit_day
-                    _daily_loss_pnl = 0.0
-                # Only accumulate P&L from trades whose entry is within the
-                # requested date range (or when no range is set).  Pre-buffer
-                # trades are excluded so the daily loss limit aligns with the
-                # post-filtered report the user sees.
-                if _entry_in_range:
-                    _daily_loss_pnl += pnl
-                result_label = "DD" if force_close else ("TP" if hit_tp else "SL")
+                    _daily_loss_count = 0
+                if pnl < 0:
+                    _daily_loss_count += 1
+                result_label = "TP" if hit_tp else "SL"
                 trades.append({
                     "entry_idx": entry_idx,
                     "exit_idx":  i,
@@ -745,8 +707,8 @@ def run_backtest(df, range_start=None):
             _today = _ts_day_utc.date()
             if _today != _daily_loss_day:
                 _daily_loss_day = _today
-                _daily_loss_pnl = 0.0
-            if _daily_loss_pnl <= -MAX_DAILY_LOSS:
+                _daily_loss_count = 0
+            if _daily_loss_count >= MAX_DAILY_LOSSES:
                 continue
 
             # ── Time filter: skip entries during blocked UTC hours ────────────
@@ -815,7 +777,6 @@ def run_backtest(df, range_start=None):
                     entry_atr     = float(df.atr14.iloc[i])
                     entry_fractal_bar   = last_fractal_low_bar
                     entry_fractal_label = last_low_label
-                    _entry_in_range = (range_start is None or _ts_day_utc >= range_start)
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
@@ -839,7 +800,6 @@ def run_backtest(df, range_start=None):
                     entry_atr     = float(df.atr14.iloc[i])
                     entry_fractal_bar   = last_fractal_high_bar
                     entry_fractal_label = last_high_label
-                    _entry_in_range = (range_start is None or _ts_day_utc >= range_start)
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
@@ -5178,7 +5138,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "min_stop":          MIN_STOP,
         "max_stop":          MAX_STOP,
         "trade_direction":   TRADE_DIRECTION,
-        "max_daily_loss": MAX_DAILY_LOSS,
+        "max_daily_losses": MAX_DAILY_LOSSES,
     }
 
     if run_mode == "date_range" and existing_versions:
@@ -5395,7 +5355,7 @@ if __name__ == "__main__":
         except Exception as _e:
             print(f"  Date filter error: {_e}")
     print("PROGRESS:35:Running backtest…", flush=True)
-    trades, equity, blocked_signals = run_backtest(df, range_start=_range_start)
+    trades, equity, blocked_signals = run_backtest(df)
 
     # ── Trim buffer bars from date-range results ────────────────────────────
     # Both pre-start and post-end buffers are trimmed here so the df, trades,
