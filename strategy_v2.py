@@ -2315,8 +2315,8 @@ __VERSIONS_JSON__
       if (intradayData.length === 0) return;
       lines.push("### Intraday Performance");
       lines.push("");
-      lines.push("| Date | Entry Time | Duration | Direction | Stop | Target | F # | F Type | ATR | ADX | VD | HD | PB % | P&L |");
-      lines.push("|------|------------|----------|-----------|------|--------|-----|--------|-----|-----|-----|-----|------|-----|");
+      lines.push("| Date | Entry Time | Duration | Direction | Stop | Target | F # | F Type | L# | ATR | ADX | VD | HD | PB % | P&L |");
+      lines.push("|------|------------|----------|-----------|------|--------|-----|--------|----|----|-----|-----|-----|------|-----|");
       /* Build bar→pivot# lookup from pivot diagnostics */
       var mdPvd = m.pivot_diagnostics || {};
       var mdPivotList = mdPvd.pivots || [];
@@ -2324,11 +2324,24 @@ __VERSIONS_JSON__
       var mdBarToPullback = {};
       var mdBarToVert = {};
       var mdBarToHoriz = {};
+      var mdBarToLhNum = {};
+      var _mdILhCounter = 0;
+      var _mdIPrevHighPrice = null;
       mdPivotList.forEach(function (pv, idx) {
         mdBarToPivot[pv.bar] = idx + 1;
         mdBarToPullback[pv.bar] = pv.pullback_pct;
         mdBarToVert[pv.bar] = pv.vert_dist;
         mdBarToHoriz[pv.bar] = pv.horiz_dist;
+        /* L#: consecutive lower-high count */
+        if (pv.kind === "H") {
+          if (_mdIPrevHighPrice !== null && pv.price < _mdIPrevHighPrice) {
+            _mdILhCounter++;
+            mdBarToLhNum[pv.bar] = String(_mdILhCounter);
+          } else if (_mdIPrevHighPrice !== null && pv.price > _mdIPrevHighPrice) {
+            _mdILhCounter = 0;
+          }
+          _mdIPrevHighPrice = pv.price;
+        }
       });
       var mdIMnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
       function mdFmtDur(mins) {
@@ -2345,13 +2358,14 @@ __VERSIONS_JSON__
         var adxD = (t.adx     !== null && t.adx     !== undefined) ? mf(t.adx, 1)      : "\u2014";
         var fNum  = (t.fractal_bar !== null && t.fractal_bar !== undefined && mdBarToPivot[t.fractal_bar]) ? mdBarToPivot[t.fractal_bar] : "\u2014";
         var fType = t.fractal_label || "\u2014";
+        var mdLhNumVal = (t.fractal_bar !== null && t.fractal_bar !== undefined && mdBarToLhNum[t.fractal_bar]) ? mdBarToLhNum[t.fractal_bar] : "\u2014";
         var vdVal = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? mdBarToVert[t.fractal_bar] : null;
         var vdD = (vdVal !== null && vdVal !== undefined) ? mf(vdVal, 1) : "\u2014";
         var hdVal = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? mdBarToHoriz[t.fractal_bar] : null;
         var hdD = (hdVal !== null && hdVal !== undefined) ? hdVal : "\u2014";
         var pbVal = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? mdBarToPullback[t.fractal_bar] : null;
         var pbD = (pbVal !== null && pbVal !== undefined) ? mf(pbVal, 1) + "%" : "\u2014";
-        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + fNum + " | " + fType + " | " + atrD + " | " + adxD + " | " + vdD + " | " + hdD + " | " + pbD + " | " + mfMoney(t.pnl) + " |");
+        lines.push("| " + iDateLabel + " | " + t.entry_time + " UTC | " + mdFmtDur(t.duration) + " | " + dir + " | " + stopD + " | " + targetD + " | " + fNum + " | " + fType + " | " + mdLhNumVal + " | " + atrD + " | " + adxD + " | " + vdD + " | " + hdD + " | " + pbD + " | " + mfMoney(t.pnl) + " |");
       });
       lines.push("");
     }());
@@ -3129,12 +3143,25 @@ __VERSIONS_JSON__
       var barToVert = {};
       var barToVertDir = {};
       var barToHoriz = {};
+      var barToLhNum = {};
+      var _iLhCounter = 0;
+      var _iPrevHighPrice = null;
       pivotList.forEach(function (pv, idx) {
         barToPivot[pv.bar] = idx + 1;
         barToPullback[pv.bar] = pv.pullback_pct;
         barToVert[pv.bar] = pv.vert_dist;
         barToVertDir[pv.bar] = pv.vert_dir;
         barToHoriz[pv.bar] = pv.horiz_dist;
+        /* L#: consecutive lower-high count */
+        if (pv.kind === "H") {
+          if (_iPrevHighPrice !== null && pv.price < _iPrevHighPrice) {
+            _iLhCounter++;
+            barToLhNum[pv.bar] = String(_iLhCounter);
+          } else if (_iPrevHighPrice !== null && pv.price > _iPrevHighPrice) {
+            _iLhCounter = 0;
+          }
+          _iPrevHighPrice = pv.price;
+        }
       });
 
       var iRows = "";
@@ -3149,6 +3176,7 @@ __VERSIONS_JSON__
         var adxD = (t.adx     !== null && t.adx     !== undefined) ? fmt(t.adx, 1)      : "\u2014";
         var fNum  = (t.fractal_bar !== null && t.fractal_bar !== undefined && barToPivot[t.fractal_bar]) ? barToPivot[t.fractal_bar] : "\u2014";
         var fType = t.fractal_label || "\u2014";
+        var lhNum = (t.fractal_bar !== null && t.fractal_bar !== undefined && barToLhNum[t.fractal_bar]) ? barToLhNum[t.fractal_bar] : "\u2014";
         iRows +=
           "<tr>" +
           "<td>" + esc(iDateLabel) + "</td>" +
@@ -3159,6 +3187,7 @@ __VERSIONS_JSON__
           "<td>" + targetD + "</td>" +
           "<td>" + fNum + "</td>" +
           "<td>" + esc(fType) + "</td>" +
+          "<td>" + lhNum + "</td>" +
           "<td>" + atrD + "</td>" +
           "<td>" + adxD + "</td>" +
           "<td>" + (function () { var v = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToVert[t.fractal_bar] : null; if (v === null || v === undefined) return "\u2014"; var vDir = barToVertDir[t.fractal_bar]; var vArrow = vDir === "up" ? "<span class='pos'>\u25B2</span> " : (vDir === "down" ? "<span class='neg'>\u25BC</span> " : ""); return vArrow + fmt(v, 1); }()) + "</td>" +
@@ -3172,7 +3201,7 @@ __VERSIONS_JSON__
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
           "<table><thead><tr>" +
-          "<th>Date</th><th>Entry Time</th><th>Duration</th><th>Direction</th><th>Stop</th><th>Target</th><th>F #</th><th>F Type</th><th>ATR</th><th>ADX</th><th>VD</th><th>HD</th><th>PB %</th><th>P&amp;L</th>" +
+          "<th>Date</th><th>Entry Time</th><th>Duration</th><th>Direction</th><th>Stop</th><th>Target</th><th>F #</th><th>F Type</th><th>L#</th><th>ATR</th><th>ADX</th><th>VD</th><th>HD</th><th>PB %</th><th>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 
