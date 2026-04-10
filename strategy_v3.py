@@ -60,7 +60,7 @@ FRACTAL_STOP_PIPS = float(os.environ.get("FRACTAL_STOP_PIPS", 15)) / 10000  # pi
 
 TRADE_DIRECTION   = os.environ.get("TRADE_DIRECTION", "both")   # "both" | "long_only" | "short_only"
 
-MAX_DAILY_LOSSES = 2               # stop trading after this many losing trades in a single UTC day
+MAX_DAILY_LOSSES = int(os.environ.get("MAX_DAILY_LOSSES", 2))  # stop trading after this many losing trades in a single UTC day
 
 # ── Time filter: skip entries during these UTC hours ─────────────────────────
 _blocked_env = os.environ.get("BLOCKED_HOURS_UTC", "").strip()
@@ -110,6 +110,10 @@ ENTRY_CONDITIONS = [
     {
         "condition":       "RRR",
         "rule":            f"{RRR_RISK}:{RRR_REWARD}",
+    },
+    {
+        "condition":       "Max DD",
+        "rule":            str(MAX_DAILY_LOSSES),
     },
 ]
 
@@ -3939,6 +3943,13 @@ __VERSIONS_JSON__
       }).join("") + "</select>";
     var rrrSelectHtml = rrrRiskHtml + "<span class='bs-rrr-colon'>:</span>" + rrrRewardHtml;
 
+    var maxDdOptions = [1, 2, 3, 4, 5];
+    var savedMaxDd = run.max_daily_losses != null ? run.max_daily_losses : (p.max_daily_losses != null ? p.max_daily_losses : 2);
+    var maxDdSelectHtml = "<select id='bs-max-dd' class='bs-select bs-select-narrow'>" +
+      maxDdOptions.map(function(n) {
+        return "<option value='" + n + "'" + (n === savedMaxDd ? " selected" : "") + ">" + n + "</option>";
+      }).join("") + "</select>";
+
     /* Blocked Hours checkboxes */
     var _defaultBlocked = [4, 5, 6, 8, 10, 11, 14, 17];
     var _savedBlocked = localStorage.getItem("bs_blocked_hours");
@@ -3976,6 +3987,8 @@ __VERSIONS_JSON__
           ? stopPipsHtml
           : ec.condition === "RRR"
           ? rrrSelectHtml
+          : ec.condition === "Max DD"
+          ? maxDdSelectHtml
           : esc(ec.rule);
         return "<tr>" +
           "<td class='bs-td-cond'>" + esc(ec.condition) + "</td>" +
@@ -4002,6 +4015,7 @@ __VERSIONS_JSON__
             "<tr><td class='bs-td-cond'>Stop Loss Level</td><td class='bs-td-rule'>" + stopPipsHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>Direction</td><td class='bs-td-rule'>" + dirSelectHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>RRR</td><td class='bs-td-rule'>" + rrrSelectHtml + "</td></tr>" +
+            "<tr><td class='bs-td-cond'>Max DD</td><td class='bs-td-rule'>" + maxDdSelectHtml + "</td></tr>" +
             blockedHoursRow +
             "</tbody>" +
           "</table>" +
@@ -4244,6 +4258,17 @@ __VERSIONS_JSON__
           localStorage.setItem("bs_rrr_reward", rewardEl.value);
         });
       }
+    }());
+
+    /* Wire Max DD select — persist to localStorage on change */
+    (function () {
+      var maxDdEl = document.getElementById("bs-max-dd");
+      if (!maxDdEl) return;
+      var stored = localStorage.getItem("bs_max_dd");
+      if (stored) maxDdEl.value = stored;
+      maxDdEl.addEventListener("change", function () {
+        localStorage.setItem("bs_max_dd", maxDdEl.value);
+      });
     }());
 
     /* Wire Blocked Hours checkboxes — persist to localStorage on change */
@@ -4572,6 +4597,13 @@ __VERSIONS_JSON__
       }).join("") + "</select>";
     var _rrrSelectHtml = _rrrRiskHtml + "<span class='bs-rrr-colon'>:</span>" + _rrrRewardHtml;
 
+    var _savedMaxDd = localStorage.getItem("bs_max_dd") || "2";
+    var _maxDdOpts = [1, 2, 3, 4, 5];
+    var _maxDdSelectHtml = "<select id='bs-max-dd' class='bs-select bs-select-narrow'>" +
+      _maxDdOpts.map(function(n) {
+        return "<option value='" + n + "'" + (String(n) === _savedMaxDd ? " selected" : "") + ">" + n + "</option>";
+      }).join("") + "</select>";
+
     /* Blocked Hours checkboxes (empty state) */
     var _eDefaultBlocked = [4, 5, 6, 8, 10, 11, 14, 17];
     var _eSavedBlocked = localStorage.getItem("bs_blocked_hours");
@@ -4603,6 +4635,7 @@ __VERSIONS_JSON__
           "<tr><td class='bs-td-cond'>Stop Loss Level</td><td class='bs-td-rule'>" + _stopPipsHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>Direction</td><td class='bs-td-rule'>" + _dirSelectHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>RRR</td><td class='bs-td-rule'>" + _rrrSelectHtml + "</td></tr>" +
+          "<tr><td class='bs-td-cond'>Max DD</td><td class='bs-td-rule'>" + _maxDdSelectHtml + "</td></tr>" +
           _eBlockedRow +
           "</tbody>" +
         "</table>" +
@@ -4617,6 +4650,8 @@ __VERSIONS_JSON__
     if (_rrrRiskEl) _rrrRiskEl.addEventListener("change", function () { localStorage.setItem("bs_rrr_risk", _rrrRiskEl.value); });
     var _rrrRewardEl = document.getElementById("bs-rrr-reward");
     if (_rrrRewardEl) _rrrRewardEl.addEventListener("change", function () { localStorage.setItem("bs_rrr_reward", _rrrRewardEl.value); });
+    var _maxDdEl = document.getElementById("bs-max-dd");
+    if (_maxDdEl) _maxDdEl.addEventListener("change", function () { localStorage.setItem("bs_max_dd", _maxDdEl.value); });
 
     /* Wire blocked hours persistence (empty state) */
     for (var _ebh2 = 0; _ebh2 <= 23; _ebh2++) {
@@ -5183,6 +5218,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "rrr_risk":         RRR_RISK,
         "rrr_reward":       RRR_REWARD,
         "blocked_hours":    BLOCKED_HOURS_UTC,
+        "max_daily_losses": MAX_DAILY_LOSSES,
         "notes":         notes.strip() if notes else "—",
         "chart_b64":        chart_b64,
         "eq_dd_chart_b64":  eq_dd_chart_b64,
