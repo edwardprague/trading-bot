@@ -2319,7 +2319,7 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type 2 | VD High | VD Low | H6 | H3 | Height | L# | Pullback % | Price | Time | ATR (pips) | ADX | Horiz Distance (bars) |");
+        lines.push("| # | Type 2 | VD High | VD Low | H6 | H3 | H1 | L# | Pullback % | Price | Time | ATR (pips) | ADX | Horiz Distance (bars) |");
         lines.push("|---|--------|---------|--------|-----|-----|--------|----|-----------|----- -|------|------------|-----|-----------------------|");
         var mdBarOutcome = {};
         (m.intraday || []).forEach(function (t) {
@@ -3593,7 +3593,7 @@ __VERSIONS_JSON__
           "<th>VD Low</th>" +
           "<th>H6</th>" +
           "<th>H3</th>" +
-          "<th>Height</th>" +
+          "<th>H1</th>" +
           "<th>L#</th>" +
           "<th>Pullback %</th>" +
           // "<th>Cycle 2</th>" +
