@@ -1092,7 +1092,7 @@ tbody tr:hover td {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 16px;
+    padding: 5px 16px;
     background: royalblue;
     cursor: pointer;
     border-bottom: 1px solid #333;
