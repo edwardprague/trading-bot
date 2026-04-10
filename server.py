@@ -261,6 +261,12 @@ function resetButtons() {
   newBtn.disabled   = false;
   newBtn.innerHTML   = "&#9654;&nbsp; Add Year";
   rangeBtn.disabled = false;
+  /* Uncheck all monthly checkboxes and re-enable date inputs */
+  document.querySelectorAll(".mo-check:checked").forEach(function (cb) { cb.checked = false; });
+  var startEl = document.getElementById("rb-start");
+  var endEl   = document.getElementById("rb-end");
+  if (startEl) startEl.disabled = false;
+  if (endEl)   endEl.disabled   = false;
   updateRangeButtonLabel();
 }
 
@@ -388,6 +394,29 @@ function runNewVersion() {
 }
 
 function runDateRange() {
+  /* ── Check for multi-select mode (monthly checkboxes) ──── */
+  var selectedRanges = (typeof window.getSelectedMonthRanges === "function") ? window.getSelectedMonthRanges() : [];
+  if (selectedRanges.length > 0) {
+    /* Batch mode: run all selected date ranges sequentially */
+    var instrument     = getSelectedInstrument();
+    var targetVersion  = getCurrentVersionName();
+    var version        = getSelectedVersion();
+    localStorage.setItem("rb_pending_run_type", "date_range_batch");
+    localStorage.setItem("rb_pending_run_version", targetVersion);
+    setRunning();
+    fetch("/run_batch", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ranges: selectedRanges, instrument: instrument, target_version: targetVersion, strategy_version: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours() })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.started) { pollStatus(); }
+      else { localStorage.removeItem("rb_pending_run_type"); localStorage.removeItem("rb_pending_run_version"); resetButtons(); showError(data.error); }
+    })
+    .catch(function () { localStorage.removeItem("rb_pending_run_type"); localStorage.removeItem("rb_pending_run_version"); resetButtons(); showError("Request failed"); });
+    return;
+  }
+  /* ── Single date range mode ──── */
   var startDate = document.getElementById("rb-start").value;
   var endDate   = document.getElementById("rb-end").value;
   if (!startDate || !endDate) {
@@ -762,6 +791,95 @@ def run_date_range():
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),
+        daemon=True,
+    )
+    t.start()
+    return jsonify({"ok": True, "started": True})
+
+
+def _batch_worker(ranges, shared_params):
+    """Run multiple date-range backtests sequentially in a single thread."""
+    total = len(ranges)
+    for idx, rng in enumerate(ranges):
+        with _bt_lock:
+            _bt_state["stage"] = "Running date range %d of %d\u2026" % (idx + 1, total)
+            _bt_state["progress"] = 0
+        env_overrides = {
+            "RUN_MODE":       "date_range",
+            "RUN_START_DATE": rng["start"],
+            "RUN_END_DATE":   rng["end"],
+        }
+        for key, val in shared_params.items():
+            if val:
+                env_overrides[key] = val
+        result = _run_backtest_sync(env_overrides)
+        if not result["ok"]:
+            with _bt_lock:
+                _bt_state["ok"]      = False
+                _bt_state["error"]   = result.get("error", "Batch run failed on range %d" % (idx + 1))
+                _bt_state["running"] = False
+                _bt_state["stage"]   = ""
+            return
+    # All ranges completed successfully
+    with _bt_lock:
+        _bt_state["ok"]      = True
+        _bt_state["no_data"] = False
+        _bt_state["error"]   = None
+        _bt_state["running"] = False
+        _bt_state["stage"]   = ""
+
+
+@app.route("/run_batch", methods=["POST"])
+def run_batch():
+    """Run multiple date-range backtests sequentially."""
+    data = request.get_json(force=True) or {}
+    ranges = data.get("ranges", [])
+    if not ranges or not isinstance(ranges, list):
+        return jsonify({"ok": False, "error": "No date ranges provided"})
+    # Validate all ranges have start and end
+    for rng in ranges:
+        if not rng.get("start") or not rng.get("end"):
+            return jsonify({"ok": False, "error": "Each range must have start and end dates"})
+
+    with _bt_lock:
+        if _bt_state["running"]:
+            return jsonify({"ok": False, "error": "A backtest is already running"})
+        _bt_state["running"] = True
+        _bt_state["ok"]      = None
+        _bt_state["error"]   = None
+        _bt_state["no_data"] = False
+        _bt_state["stage"]   = ""
+        _bt_state["progress"] = 0
+
+    # Build shared params dict (same for all ranges)
+    shared_params = {}
+    strategy_version = (data.get("strategy_version") or "").strip()
+    instrument       = (data.get("instrument") or "").strip()
+    target_version   = (data.get("target_version") or "").strip()
+    direction        = (data.get("direction") or "").strip()
+    interval         = (data.get("interval") or "").strip()
+    ema_short        = (data.get("ema_short") or "").strip()
+    ema_mid          = (data.get("ema_mid") or "").strip()
+    ema_long         = (data.get("ema_long") or "").strip()
+    stop_pips        = (data.get("stop_loss_pips") or "").strip()
+    rrr_risk         = (data.get("rrr_risk") or "").strip()
+    rrr_reward       = (data.get("rrr_reward") or "").strip()
+    blocked_hours    = (data.get("blocked_hours") or "").strip()
+    if strategy_version: shared_params["STRATEGY_VERSION"] = strategy_version
+    if instrument:       shared_params["INSTRUMENT"]       = instrument
+    if target_version:   shared_params["TARGET_VERSION"]   = target_version
+    if direction:        shared_params["TRADE_DIRECTION"]  = direction
+    if interval:         shared_params["INTERVAL"]         = interval
+    if ema_short:        shared_params["EMA_SHORT"]        = ema_short
+    if ema_mid:          shared_params["EMA_MID"]          = ema_mid
+    if ema_long:         shared_params["EMA_LONG"]         = ema_long
+    if stop_pips:        shared_params["FRACTAL_STOP_PIPS"] = stop_pips
+    if rrr_risk:         shared_params["RRR_RISK"]         = rrr_risk
+    if rrr_reward:       shared_params["RRR_REWARD"]       = rrr_reward
+    shared_params["BLOCKED_HOURS_UTC"] = blocked_hours if blocked_hours else ""
+    t = threading.Thread(
+        target=_batch_worker,
+        args=(ranges, shared_params),
         daemon=True,
     )
     t.start()

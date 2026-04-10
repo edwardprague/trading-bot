@@ -989,6 +989,25 @@ tbody tr:hover td {
     color: #4cc9f0;
 }
 
+/* ── Monthly multi-select checkboxes ─────────────────── */
+.mo-check-header {
+    width: 32px;
+    padding: 0 4px;
+}
+
+.mo-check-cell {
+    text-align: center;
+    width: 32px;
+    padding: 0 4px;
+}
+
+.mo-check {
+    cursor: pointer;
+    width: 14px;
+    height: 14px;
+    accent-color: #4cc9f0;
+}
+
 /* ── Intraday Performance direction colors ───────────── */
 .intraday-dir-short {
     color: #ff6b6b;

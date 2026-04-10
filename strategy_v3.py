@@ -2808,6 +2808,37 @@ __VERSIONS_JSON__
     endEl.dispatchEvent(new Event("change"));
   };
 
+  /* ── Monthly multi-select checkbox logic ─────────────────── */
+  window.getSelectedMonthRanges = function () {
+    var checked = document.querySelectorAll(".mo-check:checked");
+    var ranges = [];
+    checked.forEach(function (cb) {
+      ranges.push({ start: cb.dataset.start, end: cb.dataset.end });
+    });
+    return ranges;
+  };
+
+  window.onMonthCheckChange = function () {
+    var selected = window.getSelectedMonthRanges();
+    var startEl  = document.getElementById("rb-start");
+    var endEl    = document.getElementById("rb-end");
+    var rangeBtn = document.getElementById("run-range-btn");
+    if (selected.length > 0) {
+      /* Disable date inputs and switch button label */
+      if (startEl) startEl.disabled = true;
+      if (endEl)   endEl.disabled   = true;
+      var displayName = window._currentVersionDisplayName || (typeof getCurrentVersionName === "function" ? getCurrentVersionName() : "");
+      var label = "&#9654;&nbsp; Add Selected Dates";
+      if (displayName) label += " (" + displayName + ")";
+      if (rangeBtn) rangeBtn.innerHTML = label;
+    } else {
+      /* Re-enable date inputs and restore normal label */
+      if (startEl) startEl.disabled = false;
+      if (endEl)   endEl.disabled   = false;
+      if (typeof updateRangeButtonLabel === "function") updateRangeButtonLabel();
+    }
+  };
+
 
   function calcDuration(startStr, endStr) {
     if (!startStr || !endStr) return "";
@@ -3198,17 +3229,18 @@ __VERSIONS_JSON__
         "<td class='neg'>" + mo.losses + "</td>" +
         "<td class='" + (mo.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(mo.win_rate, 1) + "%</td>" +
         "<td class='" + mPnlCls + "'>" + fmtMoney(mo.net_pnl) + "</td>" +
+        "<td class='mo-check-cell'><input type='checkbox' class='mo-check' data-start='" + mStart + "' data-end='" + mEnd + "' onchange='window.onMonthCheckChange()'></td>" +
         "</tr>";
     });
     if (!mRows) {
-      mRows = "<tr><td colspan='6' class='td-empty'>No data</td></tr>";
+      mRows = "<tr><td colspan='7' class='td-empty'>No data</td></tr>";
     }
     var monthHtml =
       "<div class='section'>" +
         "<div class='section-title'>Monthly Performance</div>" +
         "<table><thead><tr>" +
         "<th>Month</th><th>Trades</th><th>Wins</th><th>Losses</th>" +
-        "<th>Win Rate</th><th>Net P&amp;L</th>" +
+        "<th>Win Rate</th><th>Net P&amp;L</th><th class='mo-check-header'></th>" +
         "</tr></thead><tbody>" + mRows + "</tbody></table></div>";
 
     /* 2b. Daily Performance (≤ 31 day ranges only) */
