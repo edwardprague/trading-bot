@@ -2385,6 +2385,7 @@ __VERSIONS_JSON__
       }
       return "None";
     }()) + " |");
+    lines.push("| Max DD | " + (run.max_daily_losses != null ? run.max_daily_losses : (p.max_daily_losses != null ? p.max_daily_losses : 2)) + " |");
     lines.push("");
 
     /* ── Performance by Direction ──────────────────── */
@@ -4112,6 +4113,7 @@ __VERSIONS_JSON__
             }
             return "<span class='dim'>None</span>";
           }())) +
+          row("Max DD",         "<span class='val-highlight'>" + (run.max_daily_losses != null ? run.max_daily_losses : (p.max_daily_losses != null ? p.max_daily_losses : 2)) + "</span>") +
           row("Run on",         esc(fmtRunDate(run.date || ""))) +
           "</tbody></table>" +
         "</div>" +
