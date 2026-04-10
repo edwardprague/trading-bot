@@ -1501,15 +1501,30 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
     try:
         t2 = trades.copy()
         t2["_month"] = pd.to_datetime(t2["timestamp"]).dt.to_period("M")
+        _ts_m = pd.to_datetime(t2["entry_ts"] if "entry_ts" in t2.columns else t2["timestamp"])
+        if _ts_m.dt.tz is not None:
+            _ts_m = _ts_m.dt.tz_convert("UTC")
+        else:
+            _ts_m = _ts_m.dt.tz_localize("UTC")
+        t2["_date"] = _ts_m.dt.date
         for period, grp in t2.groupby("_month"):
             grp_w = grp[grp.win]
             grp_l = grp[~grp.win]
+            _pnls = grp.pnl.values
+            _cum  = np.cumsum(_pnls)
+            _peak = np.maximum.accumulate(_cum)
+            _dd_arr = _cum - _peak
+            _max_dd = float(_dd_arr.min()) if len(_dd_arr) > 0 else 0.0
+            _day_pnl = grp.groupby("_date")["pnl"].sum()
+            _max_daily_dd = float(_day_pnl.min()) if len(_day_pnl) > 0 else 0.0
             monthly.append({
                 "month":    str(period),
                 "trades":   int(len(grp)),
                 "wins":     int(len(grp_w)),
                 "losses":   int(len(grp_l)),
                 "win_rate": round(len(grp_w) / len(grp) * 100, 1),
+                "max_dd":   round(_max_dd, 2),
+                "max_daily_dd": round(_max_daily_dd, 2),
                 "net_pnl":  round(float(grp.pnl.sum()), 2),
             })
     except Exception:
@@ -2153,17 +2168,17 @@ __VERSIONS_JSON__
     /* ── Monthly Performance ────────────────────────── */
     lines.push("### Monthly Performance");
     lines.push("");
-    lines.push("| Month | Trades | Wins | Losses | Win Rate | Net P&L |");
-    lines.push("|-------|--------|------|--------|----------|---------|");
+    lines.push("| Month | Trades | Wins | Losses | Win Rate | DD1 | DD2 | Net P&L |");
+    lines.push("|-------|--------|------|--------|----------|-----|-----|---------|");
     var monthly = m.monthly || [];
     if (monthly.length === 0) {
-      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
+      lines.push("| \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 | \u2014 |");
     } else {
       monthly.forEach(function (mo) {
         var mnames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         var parts  = String(mo.month).split("-");
         var mLabel = parts.length >= 2 ? mnames[parseInt(parts[1], 10) - 1] + "-" + parts[0].slice(2) : mo.month;
-        lines.push("| " + mLabel + " | " + mo.trades + " | " + mo.wins + " | " + mo.losses + " | " + mf(mo.win_rate, 1) + "% | " + mfMoney(mo.net_pnl) + " |");
+        lines.push("| " + mLabel + " | " + mo.trades + " | " + mo.wins + " | " + mo.losses + " | " + mf(mo.win_rate, 1) + "% | " + mfMoney(mo.max_dd || 0) + " | " + mfMoney(mo.max_daily_dd || 0) + " | " + mfMoney(mo.net_pnl) + " |");
       });
     }
     lines.push("");
@@ -2978,19 +2993,21 @@ __VERSIONS_JSON__
         "<td class='pos'>" + mo.wins + "</td>" +
         "<td class='neg'>" + mo.losses + "</td>" +
         "<td class='" + (mo.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(mo.win_rate, 1) + "%</td>" +
+        "<td class='neg'>" + fmtMoney(mo.max_dd || 0) + "</td>" +
+        "<td class='neg'>" + fmtMoney(mo.max_daily_dd || 0) + "</td>" +
         "<td class='" + mPnlCls + "'>" + fmtMoney(mo.net_pnl) + "</td>" +
         "<td class='mo-check-cell'><input type='checkbox' class='mo-check' data-start='" + mStart + "' data-end='" + mEnd + "' onchange='window.onMonthCheckChange()'></td>" +
         "</tr>";
     });
     if (!mRows) {
-      mRows = "<tr><td colspan='7' class='td-empty'>No data</td></tr>";
+      mRows = "<tr><td colspan='9' class='td-empty'>No data</td></tr>";
     }
     var monthHtml =
       "<div class='section'>" +
         "<div class='section-title'>Monthly Performance</div>" +
         "<table><thead><tr>" +
         "<th>Month</th><th>Trades</th><th>Wins</th><th>Losses</th>" +
-        "<th>Win Rate</th><th>Net P&amp;L</th><th class='mo-check-header'></th>" +
+        "<th>Win Rate</th><th>DD1</th><th>DD2</th><th>Net P&amp;L</th><th class='mo-check-header'></th>" +
         "</tr></thead><tbody>" + mRows + "</tbody></table></div>";
 
     /* 2b. Daily Performance (≤ 31 day ranges only) */
