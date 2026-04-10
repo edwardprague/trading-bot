@@ -59,12 +59,14 @@ body {
 
 .rb-date {
     font-size: 13px !important;
-    background: #444 !important;
+    background: steelblue !important;
     /* color: #fff !important; */
 }
 
 .rb-date-overlay {
     color: #fff !important;
+    font-weight: bold;
+    font-size: 14px !important;
 }
 
 .rb-devlog-btn {
