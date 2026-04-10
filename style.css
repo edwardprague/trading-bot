@@ -1112,7 +1112,7 @@ tbody tr:hover td {
     align-items: center;
     gap: 8px;
     padding: 5px 16px;
-    background: royalblue;
+    background: #888;
     cursor: pointer;
     border-bottom: 1px solid #333;
     user-select: none;
@@ -1120,7 +1120,7 @@ tbody tr:hover td {
 }
 
 .sb-section-header:hover {
-    background: teal;
+    background: #999;
 }
 
 .sb-section-arrow {
