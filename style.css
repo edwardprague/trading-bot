@@ -1316,15 +1316,17 @@ tbody tr:hover td {
 }
 
 .fractal-outcome-win {
-    background: #6bcb77;
+    background: #3e8448;
     color: #fff;
-    padding: 5px;
+    padding: 2px;
     font-weight: bold;
+    margin-left: 7px;
 }
 
 .fractal-outcome-loss {
-    background: #ef5350;
+    background: #b73d3b;
     color: #fff;
-    padding: 5px;
+    padding: 2px;
     font-weight: bold;
+    margin-left: 7px;
 }

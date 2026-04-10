@@ -382,7 +382,12 @@ def _sensitivity_run(df, rrr, swing_lookback):
 
 # ── Backtest ──────────────────────────────────────────────────────────────────
 
-def run_backtest(df):
+def run_backtest(df, range_start=None):
+    """Run bar-by-bar backtest.  *range_start* (pd.Timestamp or None) is the
+    first UTC instant of the user-requested date range.  When supplied, only
+    trades whose entry falls on or after this boundary contribute to the daily
+    loss tracker – pre-buffer trades are excluded so the limit is enforced
+    consistently with the (post-filtered) report the user sees."""
     cash          = STARTING_CASH
     equity        = [cash]
     trades        = []
@@ -396,6 +401,7 @@ def run_backtest(df):
     entry_fractal_bar   = None  # bar index of the fractal that triggered entry
     entry_fractal_label = None  # label (HL, LH, etc.) of the triggering fractal
     entry_ts         = None  # timestamp of the entry bar (for time-of-day diagnostics)
+    _entry_in_range  = False  # True when the current trade entered within the requested range
     blocked_signals  = []    # signals that were filtered out (for Filter Impact Summary)
     _debug_entries   = 0     # counter for entry timezone debug prints
     _daily_loss_day  = None  # current calendar day (UTC date) for daily loss tracking
@@ -481,7 +487,12 @@ def run_backtest(df):
                 if _exit_day != _daily_loss_day:
                     _daily_loss_day = _exit_day
                     _daily_loss_pnl = 0.0
-                _daily_loss_pnl += pnl
+                # Only accumulate P&L from trades whose entry is within the
+                # requested date range (or when no range is set).  Pre-buffer
+                # trades are excluded so the daily loss limit aligns with the
+                # post-filtered report the user sees.
+                if _entry_in_range:
+                    _daily_loss_pnl += pnl
                 result_label = "DD" if force_close else ("TP" if hit_tp else "SL")
                 trades.append({
                     "entry_idx": entry_idx,
@@ -618,6 +629,7 @@ def run_backtest(df):
                     entry_atr     = float(df.atr14.iloc[i])
                     entry_fractal_bar   = last_fractal_low_bar
                     entry_fractal_label = last_low_label
+                    _entry_in_range = (range_start is None or _ts_day_utc >= range_start)
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
@@ -641,6 +653,7 @@ def run_backtest(df):
                     entry_atr     = float(df.atr14.iloc[i])
                     entry_fractal_bar   = last_fractal_high_bar
                     entry_fractal_label = last_high_label
+                    _entry_in_range = (range_start is None or _ts_day_utc >= range_start)
                     if _debug_entries < 5:
                         _ts_dbg = pd.to_datetime(ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
@@ -5139,7 +5152,7 @@ if __name__ == "__main__":
         except Exception as _e:
             print(f"  Date filter error: {_e}")
     print("PROGRESS:35:Running backtest…", flush=True)
-    trades, equity, blocked_signals = run_backtest(df)
+    trades, equity, blocked_signals = run_backtest(df, range_start=_range_start)
 
     # ── Trim buffer bars from date-range results ────────────────────────────
     # Both pre-start and post-end buffers are trimmed here so the df, trades,
