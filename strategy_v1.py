@@ -2780,7 +2780,7 @@ __VERSIONS_JSON__
                 (runInstrument ? "<div class='v-instrument'>" + esc(runInstrument) + "</div>" : "") +
               "</div>" +
               "<div class='v-sub-metric-row'>" +
-                (dur ? "<div class='v-duration'>" + esc(dur) + "</div>" : "") +
+                (dur ? "<div class='v-duration v-dur-" + secLabel.toLowerCase() + "'>" + esc(dur) + "</div>" : "") +
                 (pnl !== null ? "<div class='v-pnl " + pc + "'>" + ptxt + "</div>" : "") +
               "</div>" +
               (dateRange ? "<div class='v-date date-link' data-start='" + esc(range.start) + "' data-end='" + esc(range.end) + "'>" + esc(dateRange) + "</div>" : "") +

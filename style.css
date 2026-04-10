@@ -29,8 +29,13 @@ body {
     background: steelblue;
     padding: 2px 7px;
     border-radius: 3px;
-
 }
+
+/* Section-specific duration badge colors */
+.v-dur-year   { background: #7c5cbf; }
+.v-dur-month  { background: steelblue; }
+.v-dur-weeks  { background: #2e8b7a; }
+.v-dur-day    { background: #b07d3a; }
 
 .rb-select {
     background: #444 !important;
