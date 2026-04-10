@@ -3269,6 +3269,7 @@ __VERSIONS_JSON__
         var dateLabel = dMnames[um - 1] + "-" + String(ud).padStart(2, "0") + "-" + String(uy).slice(2);
         var dateLinkTd = "<td><span class='date-link' onclick=\"setDatePicker('" + ds + "','" + ds + "')\">" + dateLabel + "</span></td>";
         var d   = dailyLookup[ds];
+        var dCheckTd = "<td class='mo-check-cell'><input type='checkbox' class='mo-check' data-start='" + ds + "' data-end='" + ds + "' onchange='window.onMonthCheckChange()'></td>";
         if (d) {
           var dPnlCls = d.net_pnl >= 0 ? "mo-pnl-pos" : "mo-pnl-neg";
           dRows +=
@@ -3279,6 +3280,7 @@ __VERSIONS_JSON__
             "<td class='neg'>" + d.losses + "</td>" +
             "<td class='" + (d.win_rate >= 50 ? "pos" : "neg") + "'>" + fmt(d.win_rate, 1) + "%</td>" +
             "<td class='" + dPnlCls + "'>" + fmtMoney(d.net_pnl) + "</td>" +
+            dCheckTd +
             "</tr>";
         } else {
           dRows +=
@@ -3289,6 +3291,7 @@ __VERSIONS_JSON__
             "<td>\u2014</td>" +
             "<td>\u2014</td>" +
             "<td>\u2014</td>" +
+            dCheckTd +
             "</tr>";
         }
         cur.setUTCDate(cur.getUTCDate() + 1);
@@ -3299,7 +3302,7 @@ __VERSIONS_JSON__
           "<div class='section-title'>Daily Performance</div>" +
           "<table><thead><tr>" +
           "<th>Date</th><th>Trades</th><th>Wins</th><th>Losses</th>" +
-          "<th>Win Rate</th><th>Net P&amp;L</th>" +
+          "<th>Win Rate</th><th>Net P&amp;L</th><th class='mo-check-header'></th>" +
           "</tr></thead><tbody>" + dRows + "</tbody></table></div>";
     }());
 
