@@ -1401,6 +1401,13 @@ def compute_pivot_diagnostics(df):
                 height = round(abs(price - _back['price']) * 10000, 1)
                 break
 
+        # H6: average of the last 6 height values (including current)
+        recent_heights = [c['height'] for c in classified if c['height'] is not None]
+        if height is not None:
+            recent_heights.append(height)
+        recent_heights = recent_heights[-6:]
+        h6 = round(sum(recent_heights) / len(recent_heights), 1) if recent_heights else None
+
         if pv['kind'] == 'H':
             label = 'H'
             if prev_high is None:
@@ -1423,6 +1430,7 @@ def compute_pivot_diagnostics(df):
                 'vert_dir':   vert_dir,
                 'horiz_dist': horiz_dist,
                 'height':     height,
+                'h6':         h6,
                 'bar':        pv['bar'],
                 'kind':       pv['kind'],
                 'atr':        round(pv['atr'] * 10000, 1),  # ATR in pips
@@ -1456,6 +1464,7 @@ def compute_pivot_diagnostics(df):
                 'vert_dir':   vert_dir,
                 'horiz_dist': horiz_dist,
                 'height':     height,
+                'h6':         h6,
                 'bar':        pv['bar'],
                 'kind':       pv['kind'],
                 'atr':        round(pv['atr'] * 10000, 1),  # ATR in pips
@@ -2384,8 +2393,8 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| # | Type 2 | VD High | VD Low | Height | L# | Pullback % | Price | Time | ATR (pips) | ADX | Horiz Distance (bars) |");
-        lines.push("|---|--------|---------|--------|--------|----|-----------|----- -|------|------------|-----|-----------------------|");
+        lines.push("| # | Type 2 | VD High | VD Low | H6 | Height | L# | Pullback % | Price | Time | ATR (pips) | ADX | Horiz Distance (bars) |");
+        lines.push("|---|--------|---------|--------|-----|--------|----|-----------|----- -|------|------------|-----|-----------------------|");
         var mdBarOutcome = {};
         (m.intraday || []).forEach(function (t) {
           if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
@@ -2410,6 +2419,7 @@ __VERSIONS_JSON__
           var atrD      = (pv.atr          !== null && pv.atr          !== undefined) ? mf(pv.atr, 1) : "";
           var adxD      = (pv.adx          !== null && pv.adx          !== undefined) ? mf(pv.adx, 1) : "";
           var mdHeight  = (pv.height       !== null && pv.height       !== undefined) ? mf(pv.height, 1) : "";
+          var mdH6     = (pv.h6           !== null && pv.h6           !== undefined) ? mf(pv.h6, 1) : "";
           var mdType1 = "";
           if (pv.n18 && pv.n18_label) {
             mdCarriedN18 = pv.n18_label;
@@ -2442,7 +2452,7 @@ __VERSIONS_JSON__
           var mdNum = String(idx + 1);
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
-          lines.push("| " + mdNum + " | " + (mdType2 || "") + " | " + mdVertHigh + " | " + mdVertLow + " | " + mdHeight + " | " + mdLhNum + " | " + pullbackD + " | " +
+          lines.push("| " + mdNum + " | " + (mdType2 || "") + " | " + mdVertHigh + " | " + mdVertLow + " | " + mdH6 + " | " + mdHeight + " | " + mdLhNum + " | " + pullbackD + " | " +
             mf(pv.price, 5) + " | " + (pv.time || "") + " | " + atrD + " | " + adxD + " | " + horizD + " |");
         });
       }
@@ -3597,6 +3607,7 @@ __VERSIONS_JSON__
         }
         var horizD   = (pv.horiz_dist   !== null && pv.horiz_dist   !== undefined) ? pv.horiz_dist : "";
         var heightD  = (pv.height       !== null && pv.height       !== undefined) ? fmt(pv.height, 1) : "";
+        var h6D      = (pv.h6           !== null && pv.h6           !== undefined) ? fmt(pv.h6, 1) : "";
         var pullbackD = (pv.pullback_pct !== null && pv.pullback_pct !== undefined) ? fmt(pv.pullback_pct, 1) + "%" : "";
         var atrD     = (pv.atr          !== null && pv.atr          !== undefined) ? fmt(pv.atr, 1) : "";
         var adxD     = (pv.adx          !== null && pv.adx          !== undefined) ? fmt(pv.adx, 1) : "";
@@ -3628,6 +3639,7 @@ __VERSIONS_JSON__
           "<td>" + type2Html + "</td>" +
           "<td>" + vertHigh + "</td>" +
           "<td>" + vertLow + "</td>" +
+          "<td>" + h6D + "</td>" +
           "<td>" + heightD + "</td>" +
           "<td>" + lhNumHtml + "</td>" +
           "<td>" + pullbackD + "</td>" +
@@ -3650,6 +3662,7 @@ __VERSIONS_JSON__
           "<th>Type 2</th>" +
           "<th>VD High</th>" +
           "<th>VD Low</th>" +
+          "<th>H6</th>" +
           "<th>Height</th>" +
           "<th>L#</th>" +
           "<th>Pullback %</th>" +
