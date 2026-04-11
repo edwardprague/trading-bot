@@ -97,9 +97,9 @@ Versions have the following file structure.
 | File             | Role                                                               |
 | ---------------- | ------------------------------------------------------------------ |
 | `strategy.py`    | Thin router — reads `VERSION` env var, delegates to versioned file |
-| `strategy_v1.py` | EMA-aligned fractal entry (original)                               |
-| `strategy_v2.py` | Pure fractal geometry entry — current baseline                     |
-| `strategy_v3.py` | v2 + N18 channel width filter                                      |
+| `strategy_v1.py` | Baseline (original)                                                |
+| `strategy_v2.py` | TBD                                                                |
+| `strategy_v3.py` | TBD                                                                |
 | `server.py`      | Flask server, passes VERSION to strategy subprocess                |
 
 #### External Services
