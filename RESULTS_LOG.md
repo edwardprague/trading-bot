@@ -21,3 +21,4 @@
 | v2 | 2026-04-11 10:44 | Trend Following | GBPUSD=X | 5m | v1 + EMA position filter — long above / short below EMA Long | 600 | 52.8% | 1.10 | +$35620.61 | -13.10% | 0.40 |
 | v2 | 2026-04-11 10:46 | Trend Following | GBPUSD=X | 5m | v1 + EMA position filter — long above / short below EMA Long | 617 | 49.6% | 0.97 | -$7844.76 | -23.21% | -0.06 |
 | v2 | 2026-04-11 11:00 | Trend Following | GBPUSD=X | 5m | v1 + EMA position filter — long above / short below EMA Long | 54 | 42.6% | 0.73 | -$8016.10 | -11.57% | -1.09 |
+| v1 | 2026-04-11 11:03 | Trend Following | GBPUSD=X | 5m | Fractal geometry entries — no EMA alignment | 80 | 57.5% | 1.35 | +$12671.45 | -6.08% | 1.32 |
