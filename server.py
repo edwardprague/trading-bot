@@ -171,9 +171,9 @@ INJECT_HTML = """
   var _actSep    = document.getElementById("rb-act-sep");
   var _copyBtn   = document.getElementById("copy-btn");
   if (_actGroup) {
-    if (_devlogBtn) { _devlogBtn.className = "rb-devlog-btn"; _devlogBtn.style.display = ""; _actGroup.appendChild(_devlogBtn); }
-    if (_actSep)    { _actSep.className = "rb-sep";  _actGroup.appendChild(_actSep); }
     if (_copyBtn)   { _copyBtn.className = "rb-btn rb-btn-copy"; _actGroup.appendChild(_copyBtn); }
+    if (_actSep)    { _actSep.className = "rb-sep";  _actGroup.appendChild(_actSep); }
+    if (_devlogBtn) { _devlogBtn.className = "rb-devlog-btn"; _devlogBtn.style.display = ""; _actGroup.appendChild(_devlogBtn); }
   }
 
   /* ── Date overlay helper: show Mon-DD-YY on top of native date input ── */
