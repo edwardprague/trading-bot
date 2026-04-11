@@ -69,7 +69,7 @@ if _blocked_env:
 else:
     BLOCKED_HOURS_UTC = [4, 5, 6, 8, 10, 11, 14, 17]
 
-VERSION = "v6"
+VERSION = "v1"
 STRATEGY_VERSION_TAG = "v1"     # identifies which strategy file produced these results
 NOTES = "Fractal geometry entries — no EMA alignment"
 STRATEGY        = "Trend Following"

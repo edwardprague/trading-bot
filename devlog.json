@@ -1,19 +1,6 @@
 [
   {
-    "name": "v3",
-    "params": [
-      {
-        "desc": "Same as v2",
-        "name": "Paramters"
-      },
-      {
-        "desc": "Adding consolidation descriptions of 1-4 and blocking trades from narrow consolidation.",
-        "name": "Update 1"
-      }
-    ]
-  },
-  {
-    "name": "v2",
+    "name": "v1",
     "params": [
       {
         "desc": "None",
@@ -21,23 +8,6 @@
       },
       {
         "desc": "When a lower level fractal forms, below the previous fractal,  enter at the close of the 5th bar",
-        "name": "Entry Logic"
-      },
-      {
-        "desc": "Above the entry fractal (user defined)",
-        "name": "Stop Placement"
-      }
-    ]
-  },
-  {
-    "name": "V1",
-    "params": [
-      {
-        "desc": "Short < Mid < Long EMA",
-        "name": "Trend Filter"
-      },
-      {
-        "desc": "When a fractal forms between the Short and Mid EMA, enter at the close of the 5th bar",
         "name": "Entry Logic"
       },
       {
