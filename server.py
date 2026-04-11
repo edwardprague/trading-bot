@@ -221,7 +221,7 @@ INJECT_HTML = """
   (function () {
     var sel = document.getElementById("version-select");
     if (!sel) return;
-    var required = ["v1"];
+    var required = ["v1", "v2"];
     var existing = {};
     for (var k = 0; k < sel.options.length; k++) existing[sel.options[k].value] = true;
     required.forEach(function (v) {
