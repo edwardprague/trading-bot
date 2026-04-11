@@ -221,7 +221,7 @@ INJECT_HTML = """
   (function () {
     var sel = document.getElementById("version-select");
     if (!sel) return;
-    var required = ["v1", "v2", "v3"];
+    var required = ["v1"];
     var existing = {};
     for (var k = 0; k < sel.options.length; k++) existing[sel.options[k].value] = true;
     required.forEach(function (v) {
@@ -378,7 +378,7 @@ function getSelectedBlockedHours() {
   }
   if (checked.length > 0) return checked.join(",");
   var stored = localStorage.getItem("bs_blocked_hours");
-  return stored || "4,5,6,8,10,11,14,17";
+  return stored || "";
 }
 
 function runNewVersion() {

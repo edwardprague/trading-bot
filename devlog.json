@@ -26,10 +26,6 @@
       {
         "desc": "Above the entry fractal (user defined)",
         "name": "Stop Placement"
-      },
-      {
-        "desc": "Block hours 04, 05, 06, 08, 10, 11, 14, 17",
-        "name": "Update 1"
       }
     ]
   },

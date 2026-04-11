@@ -62,7 +62,7 @@ TRADE_DIRECTION   = os.environ.get("TRADE_DIRECTION", "both")   # "both" | "long
 
 MAX_DAILY_LOSSES = int(os.environ.get("MAX_DAILY_LOSSES", 2))  # stop trading after this many losing trades in a single UTC day
 
-# ── Time filter: record which hours were blocked (v1 doesn't filter, but stores for display)
+# ── Time filter: skip entries during these UTC hours ─────────────────────────
 _blocked_env = os.environ.get("BLOCKED_HOURS_UTC", "").strip()
 if _blocked_env:
     BLOCKED_HOURS_UTC = [int(h) for h in _blocked_env.split(",") if h.strip()]
@@ -71,7 +71,7 @@ else:
 
 VERSION = "v6"
 STRATEGY_VERSION_TAG = "v1"     # identifies which strategy file produced these results
-NOTES = "Fractal-based entries with EMA 8/20/40 alignment"
+NOTES = "Fractal geometry entries — no EMA alignment"
 STRATEGY        = "Trend Following"
 
 ENTRY_CONDITIONS = [
@@ -265,8 +265,8 @@ def _scan_outcome(df, entry_idx, direction, entry_p, sl, tp, size, ts, reason):
 # ── Sensitivity helper ────────────────────────────────────────────────────────
 
 def _sensitivity_run(df, rrr, swing_lookback):
-    """Stripped-down backtest with a specific RRR.
-    Uses fractal-based entries; swing_lookback is unused but kept for API compat.
+    """Backtest with a specific RRR, using identical entry/filter logic to run_backtest.
+    swing_lookback is unused but kept for API compat.
     Returns condensed metrics dict, or None if no trades."""
     df2 = df.copy()
 
@@ -281,16 +281,25 @@ def _sensitivity_run(df, rrr, swing_lookback):
     entry_p = sl = tp = size = 0.0
     direction = None
 
+    # Daily loss limit state
+    _daily_loss_day = None
+    _daily_loss_count = 0
+
+    # Rolling fractal state — mirrors run_backtest exactly
     prev_high_price_s = None
     prev_low_price_s  = None
     last_high_label_s = None
     last_low_label_s  = None
-    last_fractal_low_s  = None
-    last_fractal_high_s = None
+    last_fractal_low_s   = None
+    last_fractal_high_s  = None
+    prior_fractal_high_s = None
+    prior_fractal_low_s  = None
 
     for i in range(1, len(df2)):
-        c    = float(df2["Close"].iloc[i])
+        c  = float(df2["Close"].iloc[i])
+        ts = df2['Datetime'].iloc[i]
 
+        # ── Check exits ──────────────────────────────────────────────────────
         if in_trade:
             bar_hi = float(df2["High"].iloc[i])
             bar_lo = float(df2["Low"].iloc[i])
@@ -311,17 +320,29 @@ def _sensitivity_run(df, rrr, swing_lookback):
                          (direction == "short" and c >= sl)
                 hit_tp = (direction == "long"  and c >= tp) or \
                          (direction == "short" and c <= tp)
+
             if hit_sl or hit_tp:
                 exit_p = sl if hit_sl else tp
-                pnl    = (exit_p - entry_p) * size if direction == "long" \
-                         else (entry_p - exit_p) * size
-                cash  += pnl
+                pnl = (exit_p - entry_p) * size if direction == "long" \
+                      else (entry_p - exit_p) * size
+                cash += pnl
+                # Update daily loss counter
+                _exit_utc = pd.to_datetime(ts)
+                _exit_utc = _exit_utc.tz_convert('UTC') if _exit_utc.tzinfo else _exit_utc.tz_localize('UTC')
+                _exit_day = _exit_utc.date()
+                if _exit_day != _daily_loss_day:
+                    _daily_loss_day = _exit_day
+                    _daily_loss_count = 0
+                if pnl < 0:
+                    _daily_loss_count += 1
                 trades_s.append({"pnl": pnl, "win": pnl > 0})
                 in_trade = False
 
         equity_s.append(cash)
 
-        # Rolling fractal detection
+        # ── Rolling fractal detection ────────────────────────────────────────
+        _new_high_confirmed = False
+        _new_low_confirmed  = False
         if i >= 4:
             fi = i - 2
             fh = highs_s[fi]; fl = lows_s[fi]
@@ -332,35 +353,66 @@ def _sensitivity_run(df, rrr, swing_lookback):
                      fl < lows_s[fi+1]  and fl < lows_s[fi+2])
             if is_ph:
                 last_high_label_s = 'H'
+                prior_fractal_high_s = last_fractal_high_s
                 prev_high_price_s = float(fh)
                 last_fractal_high_s = float(fh)
+                _new_high_confirmed = True
             if is_pl:
                 last_low_label_s = 'L'
+                prior_fractal_low_s = last_fractal_low_s
                 prev_low_price_s = float(fl)
                 last_fractal_low_s = float(fl)
+                _new_low_confirmed = True
 
-        if not in_trade and i >= 4:
-            es = float(df2["ema_short"].iloc[i])
-            em = float(df2["ema_mid"].iloc[i])
-            el = float(df2["ema_long"].iloc[i])
+        # ── Check entries ────────────────────────────────────────────────────
+        if not in_trade:
+            # Long signal: newly confirmed HL whose low > prior low-type pivot
+            long_sig = False
+            long_fractal_price = None
+            if (_new_low_confirmed
+                    and last_fractal_low_s is not None
+                    and prior_fractal_low_s is not None
+                    and last_fractal_low_s > prior_fractal_low_s):
+                long_sig = True
+                long_fractal_price = last_fractal_low_s
 
-            long_sig = (last_low_label_s == 'L' and last_high_label_s == 'H'
-                        and es > em > el and last_fractal_low_s is not None
-                        and min(es, em) <= last_fractal_low_s <= max(es, em)
-                        and TRADE_DIRECTION != "short_only")
-            short_sig = (last_high_label_s == 'H' and last_low_label_s == 'L'
-                         and es < em < el and last_fractal_high_s is not None
-                         and min(es, em) <= last_fractal_high_s <= max(es, em)
-                         and TRADE_DIRECTION != "long_only")
+            # Short signal: newly confirmed LH whose high < prior high-type pivot
+            short_sig = False
+            short_fractal_price = None
+            if (_new_high_confirmed
+                    and last_fractal_high_s is not None
+                    and prior_fractal_high_s is not None
+                    and last_fractal_high_s < prior_fractal_high_s):
+                short_sig = True
+                short_fractal_price = last_fractal_high_s
+
+            # Direction filter
+            long_sig  = long_sig  and (TRADE_DIRECTION != "short_only")
+            short_sig = short_sig and (TRADE_DIRECTION != "long_only")
+
+            # Daily loss limit (max losing trades per day)
+            _ts_day = pd.to_datetime(ts)
+            _ts_day_utc = _ts_day.tz_convert('UTC') if _ts_day.tzinfo else _ts_day.tz_localize('UTC')
+            _today = _ts_day_utc.date()
+            if _today != _daily_loss_day:
+                _daily_loss_day = _today
+                _daily_loss_count = 0
+            if _daily_loss_count >= MAX_DAILY_LOSSES:
+                continue
+
+            # Time filter
+            _entry_hour_utc = _ts_day_utc.hour
+            if _entry_hour_utc in BLOCKED_HOURS_UTC:
+                continue
 
             if long_sig:
-                sl_p = last_fractal_low_s - FRACTAL_STOP_PIPS
+                sl_p = long_fractal_price - FRACTAL_STOP_PIPS
                 dist = c - sl_p
                 if MIN_STOP <= dist <= MAX_STOP:
                     direction = "long"; entry_p = c; sl = sl_p
                     tp = c + dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
             elif short_sig:
-                sl_p = last_fractal_high_s + FRACTAL_STOP_PIPS
+                sl_p = short_fractal_price + FRACTAL_STOP_PIPS
                 dist = sl_p - c
                 if MIN_STOP <= dist <= MAX_STOP:
                     direction = "short"; entry_p = c; sl = sl_p
@@ -419,6 +471,8 @@ def run_backtest(df):
     last_fractal_high_price = None   # price of the most recent confirmed pivot high
     last_fractal_low_bar    = None   # bar index of the most recent confirmed pivot low
     last_fractal_high_bar   = None   # bar index of the most recent confirmed pivot high
+    prior_fractal_high_price = None  # price of the high-type pivot before the current one
+    prior_fractal_low_price  = None  # price of the low-type pivot before the current one
 
     for i in range(1, len(df)):
         c     = float(df.Close.iloc[i])
@@ -457,14 +511,13 @@ def run_backtest(df):
                 hit_tp = (direction == "long"  and c >= tp) or \
                          (direction == "short" and c <= tp)
 
-            # ── Determine exit type ───────────────────────────────────────────
             if hit_sl or hit_tp:
                 exit_p = sl if hit_sl else tp
                 pnl     = (exit_p - entry_p) * size if direction == "long" \
                           else (entry_p - exit_p) * size
                 mae     = abs(entry_p - worst_adverse)
                 cash   += pnl
-                # ── Update daily loss tracker on exit ─────────────────────────
+                # ── Update daily loss counter on exit ─────────────────────────
                 _exit_utc = pd.to_datetime(ts)
                 _exit_utc = _exit_utc.tz_convert('UTC') if _exit_utc.tzinfo else _exit_utc.tz_localize('UTC')
                 _exit_day = _exit_utc.date()
@@ -501,6 +554,8 @@ def run_backtest(df):
         # ── Rolling fractal detection (confirmed at bar i, formed at bar i-2) ─
         # A fractal needs 2 bars on each side, so the earliest confirmable
         # pivot is at index 2.  At bar i we confirm the pivot at bar i-2.
+        _new_high_confirmed = False  # set True when a new pivot high confirms this bar
+        _new_low_confirmed  = False  # set True when a new pivot low confirms this bar
         if i >= 4:
             fi = i - 2   # fractal bar index
             fh = highs[fi]
@@ -517,48 +572,46 @@ def run_backtest(df):
 
             if is_ph:
                 last_high_label = 'H'
+                prior_fractal_high_price = last_fractal_high_price
                 prev_high_price = float(fh)
                 last_fractal_high_price = float(fh)
                 last_fractal_high_bar   = fi
+                _new_high_confirmed = True
 
             if is_pl:
                 last_low_label = 'L'
+                prior_fractal_low_price = last_fractal_low_price
                 prev_low_price = float(fl)
                 last_fractal_low_price = float(fl)
                 last_fractal_low_bar   = fi
+                _new_low_confirmed = True
 
         # ── Check entries ─────────────────────────────────────────────────────
         if not in_trade:
-            ema_s = float(df.ema_short.iloc[i])
-            ema_m = float(df.ema_mid.iloc[i])
-            ema_l = float(df.ema_long.iloc[i])
+            # Signal fires only on the confirmation bar (i == fractal bar + 2)
+            # to ensure each fractal triggers at most one entry attempt.
 
-            ema_bullish = ema_s > ema_m > ema_l
-            ema_bearish = ema_s < ema_m < ema_l
-
-            # ── Long signal: HL fractal just confirmed, after an HH,
-            #    fractal low between EMA short and EMA mid ─────────────────────
+            # ── Long signal: N2 HL whose low > prior low-type pivot's low
+            #    Fires only on the bar the HL fractal confirms.
             long_sig_raw = False
             long_fractal_price = None
-            if (i >= 4 and last_low_label == 'L' and last_high_label == 'H'
-                    and ema_bullish and last_fractal_low_price is not None):
-                fp = last_fractal_low_price
-                # Fractal low must sit between EMA 8 and EMA 20
-                if min(ema_s, ema_m) <= fp <= max(ema_s, ema_m):
-                    long_sig_raw = True
-                    long_fractal_price = fp
+            if (_new_low_confirmed
+                    and last_fractal_low_price is not None
+                    and prior_fractal_low_price is not None
+                    and last_fractal_low_price > prior_fractal_low_price):
+                long_sig_raw = True
+                long_fractal_price = last_fractal_low_price
 
-            # ── Short signal: LH fractal just confirmed, after an LL,
-            #    fractal high between EMA short and EMA mid ────────────────────
+            # ── Short signal: N2 LH whose high < prior high-type pivot's high
+            #    Fires only on the bar the LH fractal confirms.
             short_sig_raw = False
             short_fractal_price = None
-            if (i >= 4 and last_high_label == 'H' and last_low_label == 'L'
-                    and ema_bearish and last_fractal_high_price is not None):
-                fp = last_fractal_high_price
-                # Fractal high must sit between EMA 8 and EMA 20
-                if min(ema_s, ema_m) <= fp <= max(ema_s, ema_m):
-                    short_sig_raw = True
-                    short_fractal_price = fp
+            if (_new_high_confirmed
+                    and last_fractal_high_price is not None
+                    and prior_fractal_high_price is not None
+                    and last_fractal_high_price < prior_fractal_high_price):
+                short_sig_raw = True
+                short_fractal_price = last_fractal_high_price
 
             # ── Track direction-blocked signals ───────────────────────────────
             if TRADE_DIRECTION == "short_only" and long_sig_raw:
@@ -582,7 +635,7 @@ def run_backtest(df):
             long_sig  = long_sig_raw  and (TRADE_DIRECTION != "short_only")
             short_sig = short_sig_raw and (TRADE_DIRECTION != "long_only")
 
-            # ── Daily loss limit ──────────────────────────────────────────────
+            # ── Daily loss limit (max losing trades per day) ─────────────────
             _ts_day = pd.to_datetime(ts)
             _ts_day_utc = _ts_day.tz_convert('UTC') if _ts_day.tzinfo else _ts_day.tz_localize('UTC')
             _today = _ts_day_utc.date()
@@ -590,6 +643,27 @@ def run_backtest(df):
                 _daily_loss_day = _today
                 _daily_loss_count = 0
             if _daily_loss_count >= MAX_DAILY_LOSSES:
+                continue
+
+            # ── Time filter: skip entries during blocked UTC hours ────────────
+            _entry_hour_utc = _ts_day_utc.hour
+            if _entry_hour_utc in BLOCKED_HOURS_UTC:
+                if long_sig:
+                    _sl_t = long_fractal_price - FRACTAL_STOP_PIPS
+                    _dist_t = c - _sl_t
+                    if MIN_STOP <= _dist_t <= MAX_STOP:
+                        blocked_signals.append(_scan_outcome(
+                            df, i, "long", c, _sl_t,
+                            c + _dist_t * RRR,
+                            (cash * RISK_PCT) / _dist_t, ts, "time"))
+                elif short_sig:
+                    _sl_t = short_fractal_price + FRACTAL_STOP_PIPS
+                    _dist_t = _sl_t - c
+                    if MIN_STOP <= _dist_t <= MAX_STOP:
+                        blocked_signals.append(_scan_outcome(
+                            df, i, "short", c, _sl_t,
+                            c - _dist_t * RRR,
+                            (cash * RISK_PCT) / _dist_t, ts, "time"))
                 continue
 
             if long_sig:
@@ -1324,6 +1398,7 @@ def compute_pivot_diagnostics(df):
         threshold = 0.5 * pv['atr']
 
         # Height: distance from this pivot to the most recent opposite-kind pivot
+        # (look back up to 5 entries in classified for the nearest opposite kind)
         height = None
         for _back in reversed(classified[-5:]):
             if _back['kind'] != pv['kind']:
@@ -1518,6 +1593,7 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
     try:
         t2 = trades.copy()
         t2["_month"] = pd.to_datetime(t2["timestamp"]).dt.to_period("M")
+        # Prepare daily P&L for max-daily-drawdown per month
         _ts_m = pd.to_datetime(t2["entry_ts"] if "entry_ts" in t2.columns else t2["timestamp"])
         if _ts_m.dt.tz is not None:
             _ts_m = _ts_m.dt.tz_convert("UTC")
@@ -1527,11 +1603,13 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
         for period, grp in t2.groupby("_month"):
             grp_w = grp[grp.win]
             grp_l = grp[~grp.win]
+            # DD1: peak-to-trough equity drawdown within the month
             _pnls = grp.pnl.values
             _cum  = np.cumsum(_pnls)
             _peak = np.maximum.accumulate(_cum)
             _dd_arr = _cum - _peak
             _max_dd = float(_dd_arr.min()) if len(_dd_arr) > 0 else 0.0
+            # DD2: worst single-day net P&L within the month
             _day_pnl = grp.groupby("_date")["pnl"].sum()
             _max_daily_dd = float(_day_pnl.min()) if len(_day_pnl) > 0 else 0.0
             monthly.append({
@@ -1985,6 +2063,7 @@ __VERSIONS_JSON__
   "use strict";
 
   var VERSIONS = JSON.parse(document.getElementById("versions-data").textContent);
+  var DEFAULT_BLOCKED_HOURS = __DEFAULT_BLOCKED_HOURS__;
   var currentVersion = "";  /* selected version name, e.g. "v1" */
   var currentInstrument = "";  /* selected instrument, e.g. "EURUSD" */
   var devLogOpen = false;
@@ -2381,8 +2460,8 @@ __VERSIONS_JSON__
           var mdNum = String(idx + 1);
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
-          lines.push("| " + (pv.time || "") + " | " + mdNum + " | " + (mdType2 || "") + " | " + mdLhNum + " | " + mdVertHigh + " | " + mdVertLow + " | " + mdH6 + " | " + mdH3 + " | " + mdHeight + " | " + atrD + " | " + adxD + " | " +
-            pullbackD + " | " + mf(pv.price, 5) + " |");
+          lines.push("| " + (pv.time || "") + " | " + mdNum + " | " + (mdType2 || "") + " | " + mdLhNum + " | " + mdVertHigh + " | " + mdVertLow + " | " + mdH6 + " | " + mdH3 + " | " + mdHeight + " | " + atrD + " | " + adxD + " | " + pullbackD + " | " +
+            mf(pv.price, 5) + " |");
         });
       }
       lines.push("");
@@ -3725,7 +3804,7 @@ __VERSIONS_JSON__
       }).join("") + "</select>";
 
     /* Blocked Hours checkboxes */
-    var _defaultBlocked = [4, 5, 6, 8, 10, 11, 14, 17];
+    var _defaultBlocked = DEFAULT_BLOCKED_HOURS;
     var _savedBlocked = localStorage.getItem("bs_blocked_hours");
     var _blockedSet = {};
     if (_savedBlocked) {
@@ -4380,7 +4459,7 @@ __VERSIONS_JSON__
       }).join("") + "</select>";
 
     /* Blocked Hours checkboxes (empty state) */
-    var _eDefaultBlocked = [4, 5, 6, 8, 10, 11, 14, 17];
+    var _eDefaultBlocked = DEFAULT_BLOCKED_HOURS;
     var _eSavedBlocked = localStorage.getItem("bs_blocked_hours");
     var _eBlockedSet = {};
     if (_eSavedBlocked) {
@@ -4427,7 +4506,6 @@ __VERSIONS_JSON__
     if (_rrrRewardEl) _rrrRewardEl.addEventListener("change", function () { localStorage.setItem("bs_rrr_reward", _rrrRewardEl.value); });
     var _maxDdEl = document.getElementById("bs-max-dd");
     if (_maxDdEl) _maxDdEl.addEventListener("change", function () { localStorage.setItem("bs_max_dd", _maxDdEl.value); });
-
     /* Wire blocked hours persistence (empty state) */
     for (var _ebh2 = 0; _ebh2 <= 23; _ebh2++) {
       (function (h) {
@@ -4446,11 +4524,11 @@ __VERSIONS_JSON__
   }
 
   /* ── Version selector: populate and wire ─────────────────── */
-  /* The selector shows strategy versions (v1, v2) — always both present.
+  /* The selector shows strategy versions.
      currentVersion holds the selected strategy version tag. */
   function populateVersionSelector() {
     var sel = document.getElementById("version-select");
-    var stratVersions = ["v1", "v2"];
+    var stratVersions = ["v1"];
     sel.innerHTML = "";
     for (var j = 0; j < stratVersions.length; j++) {
       var opt = document.createElement("option");
@@ -4891,7 +4969,10 @@ __VERSIONS_JSON__
 
 </body>
 </html>"""
-    return template.replace("__VERSIONS_JSON__", versions_json)
+    return (template
+        .replace("__VERSIONS_JSON__", versions_json)
+        .replace("__DEFAULT_BLOCKED_HOURS__", json.dumps(BLOCKED_HOURS_UTC))
+    )
 
 
 def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes="",
@@ -5021,6 +5102,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
 
     if run_mode == "date_range" and existing_versions:
         # Append run to the specified target version (or most recent as fallback)
+        # Filter by strategy_version so different strategies don't collide
         target_version_name = os.environ.get("TARGET_VERSION", "").strip()
         target = None
         if target_version_name:
