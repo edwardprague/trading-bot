@@ -12,7 +12,7 @@
       },
       {
         "desc": "Enter at the close of the 5th bar",
-        "name": "Entry Logic"
+        "name": "Entry Signal"
       },
       {
         "desc": "Above the entry fractal (user defined)",
