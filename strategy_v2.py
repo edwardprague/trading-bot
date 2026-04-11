@@ -4792,6 +4792,7 @@ __VERSIONS_JSON__
 
   /* ── Keyboard shortcuts: 1-9 to scroll to section rows ── */
   document.addEventListener("keydown", function (e) {
+    if (_chordActive) return;   /* yield to V+N / I+N chord */
     if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
     var tag = (e.target.tagName || "").toLowerCase();
     if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
@@ -4827,10 +4828,11 @@ __VERSIONS_JSON__
   }
 
   /* ── Keyboard chord shortcuts: V+1‥9 (Version), I+1‥9 (Instrument) ── */
+  var _chordActive = false;  /* shared flag so other digit shortcuts can yield */
   (function () {
     var _chordKey = null;   /* "v" or "i" */
     var _chordTimer = null;
-    function clearChord() { _chordKey = null; clearTimeout(_chordTimer); _chordTimer = null; }
+    function clearChord() { _chordKey = null; _chordActive = false; clearTimeout(_chordTimer); _chordTimer = null; }
 
     document.addEventListener("keydown", function (e) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -4841,6 +4843,7 @@ __VERSIONS_JSON__
       if ((key === "v" || key === "i") && !_chordKey) {
         e.preventDefault();
         _chordKey = key;
+        _chordActive = true;
         clearTimeout(_chordTimer);
         _chordTimer = setTimeout(clearChord, 800);
         return;
@@ -4953,6 +4956,7 @@ __VERSIONS_JSON__
 
   /* ── Keyboard shortcut: 0 — Scroll to bottom ─────────────── */
   document.addEventListener("keydown", function (e) {
+    if (_chordActive) return;   /* yield to V+N / I+N chord */
     if (e.key !== "0") return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (isInputFocused(e)) return;
