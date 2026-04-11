@@ -3643,6 +3643,8 @@ __VERSIONS_JSON__
       ? fmtSbDate(hdrRange.start) + " \u2192 " + fmtSbDate(hdrRange.end) : "";
     var hdrDur = calcDuration(hdrRange.start, hdrRange.end);
     var hdrParts = [esc(v.strategy_version || v.name)];
+    var hdrInstr = (run.instrument || (v.params && v.params.ticker) || "").replace(/=X$/i, "");
+    if (hdrInstr) hdrParts.push(esc(hdrInstr));
     if (hdrDateStr) hdrParts.push(hdrDateStr);
     if (hdrDur) hdrParts.push(hdrDur);
     var headerTitle = hdrParts.join(" \u00b7 ");
