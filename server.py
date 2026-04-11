@@ -387,6 +387,7 @@ function runNewVersion() {
   var interval   = getSelectedInterval();
   var version    = getSelectedVersion();
   localStorage.setItem("rb_pending_run_type", "new_version_auto");
+  localStorage.setItem("rb_strategy_version", version);
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },

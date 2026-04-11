@@ -4487,7 +4487,14 @@ __VERSIONS_JSON__
      currentVersion holds the selected strategy version tag. */
   function populateVersionSelector() {
     var sel = document.getElementById("version-select");
-    var stratVersions = ["v1"];
+    /* Dynamically detect strategy versions from the data */
+    var seen = {};
+    var stratVersions = [];
+    for (var j = 0; j < VERSIONS.length; j++) {
+      var sv = VERSIONS[j].strategy_version || "v1";
+      if (!seen[sv]) { seen[sv] = true; stratVersions.push(sv); }
+    }
+    if (stratVersions.length === 0) stratVersions.push("v1");
     sel.innerHTML = "";
     for (var j = 0; j < stratVersions.length; j++) {
       var opt = document.createElement("option");
@@ -4500,7 +4507,7 @@ __VERSIONS_JSON__
     if (stored && stratVersions.indexOf(stored) >= 0) {
       currentVersion = stored;
     } else {
-      currentVersion = "v1";
+      currentVersion = stratVersions[0];
     }
     sel.value = currentVersion;
   }
@@ -4650,8 +4657,20 @@ __VERSIONS_JSON__
     /* If we just came back from a new version with auto date ranges */
     if (pendingRunType === "new_version_auto") {
       localStorage.removeItem("rb_pending_run_type");
-      activeVersionIdx = lastIdx;
-      activeRunIdx = 0;
+      /* Switch selector to the strategy version of the newest entry */
+      var newestSV = VERSIONS[VERSIONS.length - 1].strategy_version || "v1";
+      if (newestSV !== currentVersion) {
+        currentVersion = newestSV;
+        var sel = document.getElementById("version-select");
+        if (sel) sel.value = currentVersion;
+        localStorage.setItem("rb_strategy_version", currentVersion);
+      }
+      /* Re-resolve after possible filter switch */
+      var svs2 = getStrategyVersions();
+      if (svs2.length > 0) {
+        activeVersionIdx = svs2[svs2.length - 1].idx;
+        activeRunIdx = 0;
+      }
     }
 
     /* If we just deleted a run, focus on the item above it */
