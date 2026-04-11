@@ -18,3 +18,4 @@
 | v2 | 2026-04-11 10:31 | Trend Following | EURUSD=X | 5m | v1 + EMA position filter — long above / short below EMA Long | 46 | 54.3% | 1.18 | +$3841.32 | -6.82% | 0.58 |
 | v1 | 2026-04-11 10:31 | Trend Following | EURUSD=X | 5m | Fractal geometry entries — no EMA alignment | 76 | 47.4% | 0.89 | -$4284.75 | -8.87% | -0.45 |
 | v3 | 2026-04-11 10:40 | Trend Following | GBPUSD=X | 5m | v1 + EMA position filter — long above / short below EMA Long | 633 | 54.8% | 1.21 | +$78312.73 | -12.47% | 0.69 |
+| v2 | 2026-04-11 10:44 | Trend Following | GBPUSD=X | 5m | v1 + EMA position filter — long above / short below EMA Long | 600 | 52.8% | 1.10 | +$35620.61 | -13.10% | 0.40 |
