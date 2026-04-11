@@ -7,6 +7,10 @@
         "name": "Trend Filter"
       },
       {
+        "name": "Entry Setup",
+        "desc": "asdf"
+      },
+      {
         "desc": "When a lower level fractal forms, below the previous fractal,  enter at the close of the 5th bar",
         "name": "Entry Logic"
       },
