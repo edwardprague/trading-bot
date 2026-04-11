@@ -2029,9 +2029,9 @@ def _build_html(versions_json):
 <div id="copy-toast">&#10003;&nbsp; Copied to clipboard!</div>
 
 <!-- Action buttons: hidden by default, moved into the run bar by server.py -->
-<button id="devlog-btn" title="Development Log" style="display:none;"><span class="material-symbols-outlined">list</span></button>
-<span class="rb-sep" id="rb-act-sep" style="display:none;"></span>
 <button id="copy-btn" style="display:none;">Copy Report</button>
+<span class="rb-sep" id="rb-act-sep" style="display:none;"></span>
+<button id="devlog-btn" title="Development Log" style="display:none;"><span class="material-symbols-outlined">list</span></button>
 
 <script type="application/json" id="versions-data">
 __VERSIONS_JSON__
