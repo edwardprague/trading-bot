@@ -894,11 +894,9 @@ def save_charts(df, trades, equity):
                 'L': '#ef5350',   # red   — pivot low
             }
             _label_offset = max(_price_range * 0.018, 2e-5)
-            # Collect N=18 and N=6 pivot coordinates for trendlines
+            # Collect N=18 pivot coordinates for trendlines
             _n18_highs_xy = []  # list of (dt_num, price_y) for N=18 high pivots
             _n18_lows_xy  = []  # list of (dt_num, price_y) for N=18 low pivots
-            _n6_highs_xy  = []  # list of (dt_num, price_y) for N=6 high pivots
-            _n6_lows_xy   = []  # list of (dt_num, price_y) for N=6 low pivots
 
             # ── L# counter state (consecutive lower-highs) ───────────────
             _lh_counter = 0
@@ -953,25 +951,6 @@ def save_charts(df, trades, equity):
                         _n18_highs_xy.append((_dt_nums[_bar_i], _pv_y))
                     else:
                         _n18_lows_xy.append((_dt_nums[_bar_i], _pv_y))
-                # Track N=6 pivots for trendlines
-                if _pv.get('n6'):
-                    if _pv['kind'] == 'H':
-                        _n6_highs_xy.append((_dt_nums[_bar_i], _pv_y))
-                    else:
-                        _n6_lows_xy.append((_dt_nums[_bar_i], _pv_y))
-
-            # ── N=6 trendlines (white thin dashed) — disabled ─────────────
-            # if len(_n6_highs_xy) >= 2:
-            #     _hx = [p[0] for p in _n6_highs_xy]
-            #     _hy = [p[1] for p in _n6_highs_xy]
-            #     ax1.plot(_hx, _hy, color='#ffffff', linestyle='--',
-            #              linewidth=0.5, alpha=0.5, zorder=4)
-            # if len(_n6_lows_xy) >= 2:
-            #     _lx = [p[0] for p in _n6_lows_xy]
-            #     _ly = [p[1] for p in _n6_lows_xy]
-            #     ax1.plot(_lx, _ly, color='#ffffff', linestyle='--',
-            #              linewidth=0.5, alpha=0.5, zorder=4)
-
             # ── N=18 trendlines (yellow dashed) ──────────────────────────────
             if len(_n18_highs_xy) >= 2:
                 _hx = [p[0] for p in _n18_highs_xy]
@@ -3535,12 +3514,6 @@ __VERSIONS_JSON__
         }
       });
 
-      /* Type 1 = N=18 cycle structure (carried forward).
-         Cycle  = market cycle state derived from last 10 N=18 fractals (carried forward).
-         Type 2 = N=2 entry texture + N=6 dot overlay. */
-      var carriedN18 = "";  /* last-seen N=18 label, carried forward */
-      var carriedCycle = "";  /* last-seen N18 cycle label, carried forward */
-      var carriedN6Cycle = "";  /* last-seen N6 cycle label, carried forward */
       var _lhCounter = 0;            /* consecutive LH count (lower than prev high) */
       var _prevHighPrice = null;    /* price of previous high-type fractal (CH/HH/LH) */
       pivotList.forEach(function (pv, idx) {
@@ -3550,48 +3523,6 @@ __VERSIONS_JSON__
           bgClass = " class='fractal-row-up'";
         } else if (pv.vert_dir === "down") {
           bgClass = " class='fractal-row-down'";
-        }
-
-        /* ── Type 1: N=18 cycle structure (carried forward) ── */
-        var type1Html = "";
-        if (pv.n18 && pv.n18_label) {
-          carriedN18 = pv.n18_label;
-          type1Html = "<strong>" + esc(pv.n18_label) + "</strong>" +
-            " <span style='color:#ffd700;font-size:30px;line-height:1;vertical-align:-0.15em;' title='N=18 fractal'>\u2022</span>";
-        } else if (carriedN18) {
-          type1Html = "<strong>" + esc(carriedN18) + "</strong>";
-        }
-
-        /* ── Cycle: market cycle state (carried forward from N=18 pivots) ── */
-        var cycleHtml = "";
-        if (pv.cycle_label) {
-          carriedCycle = pv.cycle_label;
-        }
-        if (carriedCycle) {
-          if (carriedCycle === "" || carriedCycle === "\u2014") {
-            cycleHtml = "";
-          } else {
-            var cycleCls = carriedCycle.indexOf("\u2191") >= 0 ? "pos"
-                         : carriedCycle.indexOf("\u2193") >= 0 ? "neg"
-                         : "neu";
-            cycleHtml = "<span class='" + cycleCls + "'>" + esc(carriedCycle) + "</span>";
-          }
-        }
-
-        /* ── N6 Cycle: market cycle state (carried forward from N=6 pivots) ── */
-        var n6CycleHtml = "";
-        if (pv.n6_cycle_label) {
-          carriedN6Cycle = pv.n6_cycle_label;
-        }
-        if (carriedN6Cycle) {
-          if (carriedN6Cycle === "" || carriedN6Cycle === "\u2014") {
-            n6CycleHtml = "";
-          } else {
-            var n6CycleCls = carriedN6Cycle.indexOf("\u2191") >= 0 ? "pos"
-                           : carriedN6Cycle.indexOf("\u2193") >= 0 ? "neg"
-                           : "neu";
-            n6CycleHtml = "<span class='" + n6CycleCls + "'>" + esc(carriedN6Cycle) + "</span>";
-          }
         }
 
         /* ── Type 2: N=2 entry texture + optional N=6 dot ── */
@@ -3642,8 +3573,6 @@ __VERSIONS_JSON__
           "<tr" + bgClass + ">" +
           "<td class='nowrap'>" + numHtml + "</td>" +
           "<td class='nowrap'>" + esc(pv.time || "") + "</td>" +
-          // "<td>" + type1Html + "</td>" +
-          // "<td>" + cycleHtml + "</td>" +
           "<td>" + type2Html + "</td>" +
           "<td>" + lhNumHtml + "</td>" +
           "<td>" + vertHigh + "</td>" +
@@ -3654,7 +3583,6 @@ __VERSIONS_JSON__
           "<td>" + atrD + "</td>" +
           "<td>" + adxD + "</td>" +
           "<td>" + pullbackD + "</td>" +
-          // "<td>" + n6CycleHtml + "</td>" +
           "<td class='nowrap'>" + fmt(pv.price, 5) + "</td>" +
           "</tr>";
       });
@@ -3665,8 +3593,6 @@ __VERSIONS_JSON__
           "<table><thead><tr>" +
           "<th style='width:52px'>#</th>" +
           "<th>Time</th>" +
-          // "<th>Type 1</th>" +
-          // "<th>Cycle 1</th>" +
           "<th>Type</th>" +
           "<th>L#</th>" +
           "<th>VD High</th>" +
@@ -3677,7 +3603,6 @@ __VERSIONS_JSON__
           "<th>ATR (pips)</th>" +
           "<th>ADX</th>" +
           "<th>Pullback %</th>" +
-          // "<th>Cycle 2</th>" +
           "<th>Price</th>" +
           "</tr></thead><tbody>" + pvRows + "</tbody></table>" +
         "</div>";
