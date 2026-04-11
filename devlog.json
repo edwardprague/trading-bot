@@ -1,5 +1,14 @@
 [
   {
+    "name": "v2",
+    "params": [
+      {
+        "name": "Update from V1",
+        "desc": "Added a Trend Filter based on the EMA long"
+      }
+    ]
+  },
+  {
     "name": "v1",
     "params": [
       {

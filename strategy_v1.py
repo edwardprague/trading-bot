@@ -4794,16 +4794,52 @@ __VERSIONS_JSON__
     return tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable;
   }
 
-  /* ── Keyboard shortcut: V or Shift+V — Add Year ───── */
-  document.addEventListener("keydown", function (e) {
-    if (e.key !== "v" && e.key !== "V") return;
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (isInputFocused(e)) return;
-    var btn = document.getElementById("run-new-btn");
-    if (!btn || btn.disabled) return;
-    e.preventDefault();
-    btn.click();
-  });
+  /* ── Keyboard chord shortcuts: V+1‥9 (Version), I+1‥9 (Instrument) ── */
+  (function () {
+    var _chordKey = null;   /* "v" or "i" */
+    var _chordTimer = null;
+    function clearChord() { _chordKey = null; clearTimeout(_chordTimer); _chordTimer = null; }
+
+    document.addEventListener("keydown", function (e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isInputFocused(e)) return;
+      var key = e.key.toLowerCase();
+
+      /* First press: V or I starts the chord */
+      if ((key === "v" || key === "i") && !_chordKey) {
+        e.preventDefault();
+        _chordKey = key;
+        clearTimeout(_chordTimer);
+        _chordTimer = setTimeout(clearChord, 800);
+        return;
+      }
+
+      /* Second press: digit 1‥9 completes the chord */
+      if (_chordKey) {
+        var m = (e.code || "").match(/^Digit(\d)$/);
+        if (!m) { clearChord(); return; }
+        var num = parseInt(m[1], 10);
+        if (num < 1 || num > 9) { clearChord(); return; }
+        e.preventDefault();
+        var idx = num - 1;
+
+        if (_chordKey === "v") {
+          var sel = document.getElementById("version-select");
+          if (sel && idx < sel.options.length) {
+            sel.value = sel.options[idx].value;
+            sel.dispatchEvent(new Event("change"));
+          }
+        } else if (_chordKey === "i") {
+          var sel = document.getElementById("instrument-select");
+          if (sel && idx < sel.options.length) {
+            sel.value = sel.options[idx].value;
+            sel.dispatchEvent(new Event("change"));
+          }
+        }
+        clearChord();
+      }
+    });
+  })();
 
   /* ── Keyboard shortcut: D or Shift+D — Add Date Range ────── */
   document.addEventListener("keydown", function (e) {
