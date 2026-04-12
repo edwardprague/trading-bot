@@ -400,33 +400,23 @@ def _sensitivity_run(df, rrr, swing_lookback):
             if _daily_loss_count >= MAX_DAILY_LOSSES:
                 continue
 
-            # Time filter (check next bar's hour since entry is at open of i+1)
-            if i + 1 >= len(df2):
-                continue
-            _next_ts = pd.to_datetime(df2['Datetime'].iloc[i + 1])
-            _next_ts_utc = _next_ts.tz_convert('UTC') if _next_ts.tzinfo else _next_ts.tz_localize('UTC')
-            _entry_hour_utc = _next_ts_utc.hour
+            # Time filter
+            _entry_hour_utc = _ts_day_utc.hour
             if _entry_hour_utc in BLOCKED_HOURS_UTC:
                 continue
 
             if long_sig:
                 sl_p = long_fractal_price - FRACTAL_STOP_PIPS
                 dist = c - sl_p
-                if MIN_STOP <= dist <= MAX_STOP and i + 1 < len(df2):
-                    entry_p = float(df2["Open"].iloc[i + 1])
-                    dist = entry_p - sl_p
-                    if MIN_STOP <= dist <= MAX_STOP:
-                        direction = "long"; sl = sl_p
-                        tp = entry_p + dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
+                if MIN_STOP <= dist <= MAX_STOP:
+                    direction = "long"; entry_p = c; sl = sl_p
+                    tp = c + dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
             elif short_sig:
                 sl_p = short_fractal_price + FRACTAL_STOP_PIPS
                 dist = sl_p - c
-                if MIN_STOP <= dist <= MAX_STOP and i + 1 < len(df2):
-                    entry_p = float(df2["Open"].iloc[i + 1])
-                    dist = sl_p - entry_p
-                    if MIN_STOP <= dist <= MAX_STOP:
-                        direction = "short"; sl = sl_p
-                        tp = entry_p - dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
+                if MIN_STOP <= dist <= MAX_STOP:
+                    direction = "short"; entry_p = c; sl = sl_p
+                    tp = c - dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
 
     if not trades_s:
         return None
@@ -656,11 +646,7 @@ def run_backtest(df):
                 continue
 
             # ── Time filter: skip entries during blocked UTC hours ────────────
-            if i + 1 >= len(df):
-                continue
-            _next_ts = pd.to_datetime(df['Datetime'].iloc[i + 1])
-            _next_ts_utc = _next_ts.tz_convert('UTC') if _next_ts.tzinfo else _next_ts.tz_localize('UTC')
-            _entry_hour_utc = _next_ts_utc.hour
+            _entry_hour_utc = _ts_day_utc.hour
             if _entry_hour_utc in BLOCKED_HOURS_UTC:
                 if long_sig:
                     _sl_t = long_fractal_price - FRACTAL_STOP_PIPS
@@ -682,53 +668,49 @@ def run_backtest(df):
 
             if long_sig:
                 sl_price      = long_fractal_price - FRACTAL_STOP_PIPS
-                dist          = c - sl_price                          # preliminary distance at confirmation bar
-                if MIN_STOP <= dist <= MAX_STOP and i + 1 < len(df):
-                    entry_p       = float(df.Open.iloc[i + 1])        # enter at open of next bar
-                    dist          = entry_p - sl_price                # recalculate with actual entry price
-                    if MIN_STOP <= dist <= MAX_STOP:
-                        direction     = "long"
-                        sl            = sl_price
-                        tp            = entry_p + dist * RRR
-                        size          = (cash * RISK_PCT) / dist
-                        in_trade      = True
-                        entry_idx     = i + 1
-                        entry_ts      = df['Datetime'].iloc[i + 1]
-                        worst_adverse = entry_p
-                        entry_adx     = float(df.adx.iloc[i + 1])
-                        entry_atr     = float(df.atr14.iloc[i + 1])
-                        entry_fractal_bar   = last_fractal_low_bar
-                        entry_fractal_label = last_low_label
-                        if _debug_entries < 5:
-                            _ts_dbg = pd.to_datetime(entry_ts)
-                            _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
-                            print(f"  [DBG entry {_debug_entries+1}] raw={entry_ts}  utc_hour={_ts_utc_dbg.hour}  direction=long  fractal_low={long_fractal_price:.5f}")
-                            _debug_entries += 1
+                dist          = c - sl_price                          # actual distance: entry close → stop level
+                if MIN_STOP <= dist <= MAX_STOP:
+                    direction     = "long"
+                    entry_p       = c                                 # enter at close of confirming candle
+                    sl            = sl_price
+                    tp            = c + dist * RRR
+                    size          = (cash * RISK_PCT) / dist
+                    in_trade      = True
+                    entry_idx     = i
+                    entry_ts      = ts
+                    worst_adverse = c
+                    entry_adx     = float(df.adx.iloc[i])
+                    entry_atr     = float(df.atr14.iloc[i])
+                    entry_fractal_bar   = last_fractal_low_bar
+                    entry_fractal_label = last_low_label
+                    if _debug_entries < 5:
+                        _ts_dbg = pd.to_datetime(ts)
+                        _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
+                        print(f"  [DBG entry {_debug_entries+1}] raw={ts}  utc_hour={_ts_utc_dbg.hour}  direction=long  fractal_low={long_fractal_price:.5f}")
+                        _debug_entries += 1
 
             elif short_sig:
                 sl_price      = short_fractal_price + FRACTAL_STOP_PIPS
-                dist          = sl_price - c                          # preliminary distance at confirmation bar
-                if MIN_STOP <= dist <= MAX_STOP and i + 1 < len(df):
-                    entry_p       = float(df.Open.iloc[i + 1])        # enter at open of next bar
-                    dist          = sl_price - entry_p                # recalculate with actual entry price
-                    if MIN_STOP <= dist <= MAX_STOP:
-                        direction     = "short"
-                        sl            = sl_price
-                        tp            = entry_p - dist * RRR
-                        size          = (cash * RISK_PCT) / dist
-                        in_trade      = True
-                        entry_idx     = i + 1
-                        entry_ts      = df['Datetime'].iloc[i + 1]
-                        worst_adverse = entry_p
-                        entry_adx     = float(df.adx.iloc[i + 1])
-                        entry_atr     = float(df.atr14.iloc[i + 1])
-                        entry_fractal_bar   = last_fractal_high_bar
-                        entry_fractal_label = last_high_label
-                        if _debug_entries < 5:
-                            _ts_dbg = pd.to_datetime(entry_ts)
-                            _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
-                            print(f"  [DBG entry {_debug_entries+1}] raw={entry_ts}  utc_hour={_ts_utc_dbg.hour}  direction=short  fractal_high={short_fractal_price:.5f}")
-                            _debug_entries += 1
+                dist          = sl_price - c                          # actual distance: stop level → entry close
+                if MIN_STOP <= dist <= MAX_STOP:
+                    direction     = "short"
+                    entry_p       = c                                 # enter at close of confirming candle
+                    sl            = sl_price
+                    tp            = c - dist * RRR
+                    size          = (cash * RISK_PCT) / dist
+                    in_trade      = True
+                    entry_idx     = i
+                    entry_ts      = ts
+                    worst_adverse = c
+                    entry_adx     = float(df.adx.iloc[i])
+                    entry_atr     = float(df.atr14.iloc[i])
+                    entry_fractal_bar   = last_fractal_high_bar
+                    entry_fractal_label = last_high_label
+                    if _debug_entries < 5:
+                        _ts_dbg = pd.to_datetime(ts)
+                        _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
+                        print(f"  [DBG entry {_debug_entries+1}] raw={ts}  utc_hour={_ts_utc_dbg.hour}  direction=short  fractal_high={short_fractal_price:.5f}")
+                        _debug_entries += 1
 
     return pd.DataFrame(trades), equity, blocked_signals
 

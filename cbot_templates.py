@@ -322,10 +322,9 @@ namespace FractalBot
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = PlaceLimitOrder(
+                    var result = ExecuteMarketOrder(
                         TradeType.Buy, Symbol.Name, volume,
-                        close, label: Symbol.Name,
-                        stopLossPips: stopPips, takeProfitPips: tpPips
+                        Symbol.Name, stopPips, tpPips
                     );
 
                     if (result.IsSuccessful)
@@ -349,10 +348,9 @@ namespace FractalBot
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = PlaceLimitOrder(
+                    var result = ExecuteMarketOrder(
                         TradeType.Sell, Symbol.Name, volume,
-                        close, label: Symbol.Name,
-                        stopLossPips: stopPips, takeProfitPips: tpPips
+                        Symbol.Name, stopPips, tpPips
                     );
 
                     if (result.IsSuccessful)
@@ -672,10 +670,9 @@ namespace FractalBot
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = PlaceLimitOrder(
+                    var result = ExecuteMarketOrder(
                         TradeType.Buy, Symbol.Name, volume,
-                        close, label: Symbol.Name,
-                        stopLossPips: stopPips, takeProfitPips: tpPips
+                        Symbol.Name, stopPips, tpPips
                     );
 
                     if (result.IsSuccessful)
@@ -700,10 +697,9 @@ namespace FractalBot
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = PlaceLimitOrder(
+                    var result = ExecuteMarketOrder(
                         TradeType.Sell, Symbol.Name, volume,
-                        close, label: Symbol.Name,
-                        stopLossPips: stopPips, takeProfitPips: tpPips
+                        Symbol.Name, stopPips, tpPips
                     );
 
                     if (result.IsSuccessful)
