@@ -322,9 +322,9 @@ namespace FractalBot
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = ExecuteMarketOrder(
+                    var result = PlaceLimitOrder(
                         TradeType.Buy, Symbol.Name, volume,
-                        Symbol.Name, stopPips, tpPips
+                        close, Symbol.Name, stopPips, tpPips
                     );
 
                     if (result.IsSuccessful)
@@ -348,9 +348,9 @@ namespace FractalBot
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = ExecuteMarketOrder(
+                    var result = PlaceLimitOrder(
                         TradeType.Sell, Symbol.Name, volume,
-                        Symbol.Name, stopPips, tpPips
+                        close, Symbol.Name, stopPips, tpPips
                     );
 
                     if (result.IsSuccessful)
@@ -670,9 +670,9 @@ namespace FractalBot
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = ExecuteMarketOrder(
+                    var result = PlaceLimitOrder(
                         TradeType.Buy, Symbol.Name, volume,
-                        Symbol.Name, stopPips, tpPips
+                        close, Symbol.Name, stopPips, tpPips
                     );
 
                     if (result.IsSuccessful)
@@ -697,9 +697,9 @@ namespace FractalBot
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = ExecuteMarketOrder(
+                    var result = PlaceLimitOrder(
                         TradeType.Sell, Symbol.Name, volume,
-                        Symbol.Name, stopPips, tpPips
+                        close, Symbol.Name, stopPips, tpPips
                     );
 
                     if (result.IsSuccessful)
