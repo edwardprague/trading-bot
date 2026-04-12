@@ -2062,6 +2062,7 @@ def _build_html(versions_json):
 
 <!-- Action buttons: hidden by default, moved into the run bar by server.py -->
 <button id="copy-btn" style="display:none;">Copy Report</button>
+<button id="cbot-btn" style="display:none;">Create cBot</button>
 <span class="rb-sep" id="rb-act-sep" style="display:none;"></span>
 <button id="devlog-btn" title="Development Log" style="display:none;"><span class="material-symbols-outlined">list</span></button>
 
@@ -4128,14 +4129,32 @@ __VERSIONS_JSON__
         });
       };
     }(v, run));
+
+    /* Wire cBot button (lives in the run bar) */
+    (function (ver, runData) {
+      var btn = document.getElementById("cbot-btn");
+      if (!btn) return;
+      btn.style.display = "";
+      btn.disabled = false;
+      btn.classList.remove("downloaded");
+      btn.textContent = "Create cBot";
+      /* Expose version + run data globally for the run-bar createCbot() handler */
+      window._cbotVersion = ver;
+      window._cbotRun     = runData;
+      btn.onclick = function () { if (typeof createCbot === "function") createCbot(); };
+    }(v, run));
   }
 
   /* ── Hide run-bar action buttons ──────────────────────────── */
   function hideActionButtons() {
     var btn = document.getElementById("copy-btn");
+    var cbotBtn = document.getElementById("cbot-btn");
     var sep = document.getElementById("rb-act-sep");
     if (btn) { btn.style.display = "none"; btn.onclick = null; }
+    if (cbotBtn) { cbotBtn.style.display = "none"; cbotBtn.onclick = null; }
     if (sep) { sep.style.display = "none"; }
+    window._cbotVersion = null;
+    window._cbotRun     = null;
   }
 
   /* ── Dev Log ──────────────────────────────────────────────── */

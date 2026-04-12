@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import threading
 from pathlib import Path
+from cbot_templates import generate_cbot
 
 # ── Auto-install Flask if missing ─────────────────────────────────────────────
 try:
@@ -136,6 +137,9 @@ INJECT_HTML = """
   .rb-btn-copy { background: green; }
   .rb-btn-copy:hover:not(:disabled) { background: #02bc02; }
   .rb-btn-copy.copied { background: transparent !important; color: #6bcb77; border: 1px solid #6bcb77; }
+  .rb-btn-cbot { background: teal; }
+  .rb-btn-cbot:hover:not(:disabled) { background: #02b5b5; }
+  .rb-btn-cbot.downloaded { background: transparent !important; color: #4cc9f0; border: 1px solid #4cc9f0; }
   .rb-btn-delete { background: crimson; }
   .rb-btn-delete:hover:not(:disabled) { background: #f4254e; }
 
@@ -170,8 +174,10 @@ INJECT_HTML = """
   var _devlogBtn = document.getElementById("devlog-btn");
   var _actSep    = document.getElementById("rb-act-sep");
   var _copyBtn   = document.getElementById("copy-btn");
+  var _cbotBtn   = document.getElementById("cbot-btn");
   if (_actGroup) {
     if (_copyBtn)   { _copyBtn.className = "rb-btn rb-btn-copy"; _actGroup.appendChild(_copyBtn); }
+    if (_cbotBtn)   { _cbotBtn.className = "rb-btn rb-btn-cbot"; _actGroup.appendChild(_cbotBtn); }
     if (_actSep)    { _actSep.className = "rb-sep";  _actGroup.appendChild(_actSep); }
     if (_devlogBtn) { _devlogBtn.className = "rb-devlog-btn"; _devlogBtn.style.display = ""; _actGroup.appendChild(_devlogBtn); }
   }
@@ -248,7 +254,7 @@ INJECT_HTML = """
 
 function setRunning() {
   var btns = [document.getElementById("run-new-btn"), document.getElementById("run-range-btn"),
-              document.getElementById("copy-btn")];
+              document.getElementById("copy-btn"), document.getElementById("cbot-btn")];
   btns.forEach(function (b) { if (b) b.disabled = true; });
   document.getElementById("run-status").innerHTML =
     '<span class="rb-spin"></span><span id="rb-progress-text">Starting\u2026</span>';
@@ -268,6 +274,71 @@ function resetButtons() {
   if (startEl) startEl.disabled = false;
   if (endEl)   endEl.disabled   = false;
   updateRangeButtonLabel();
+}
+
+function createCbot() {
+  var btn = document.getElementById("cbot-btn");
+  if (!btn || btn.disabled) return;
+
+  /* Read current version + run data from globals set by renderContent */
+  var ver = window._cbotVersion;
+  var run = window._cbotRun;
+  if (!ver || !run) { return; }
+
+  var stratVer = ver.strategy_version || ver.name || "v1";
+  var payload = {
+    strategy_version: stratVer,
+    ema_short:        String(run.ema_short   || (ver.params && ver.params.ema_short) || 8),
+    ema_mid:          String(run.ema_mid     || (ver.params && ver.params.ema_mid)   || 20),
+    ema_long:         String(run.ema_long    || (ver.params && ver.params.ema_long)  || 40),
+    stop_loss_pips:   String(run.stop_loss_pips || (ver.params && ver.params.stop_loss_pips) || 15),
+    rrr_risk:         String(run.rrr_risk    || (ver.params && ver.params.rrr_risk)  || 1),
+    rrr_reward:       String(run.rrr_reward  || (ver.params && ver.params.rrr_reward) || 2),
+    max_daily_losses: String(run.max_daily_losses || (ver.params && ver.params.max_daily_losses) || 2),
+    trade_direction:  run.trade_direction || (ver.params && ver.params.trade_direction) || "both",
+    blocked_hours:    Array.isArray(run.blocked_hours) ? run.blocked_hours.join(",") : String(run.blocked_hours || ""),
+    instrument:       run.instrument || (ver.params && ver.params.ticker ? ver.params.ticker.replace(/=X$/i, "") : "EURUSD")
+  };
+
+  btn.disabled = true;
+  btn.textContent = "Generating\u2026";
+
+  fetch("/generate_cbot", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  })
+  .then(function (r) {
+    if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || "Server error"); });
+    var disp = r.headers.get("Content-Disposition") || "";
+    var match = disp.match(/filename=(.+)/);
+    var fname = match ? match[1] : "FractalBot_" + stratVer + ".cs";
+    return r.blob().then(function (blob) { return { blob: blob, fname: fname }; });
+  })
+  .then(function (data) {
+    /* Trigger browser download */
+    var url = URL.createObjectURL(data.blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = data.fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    btn.textContent = "\u2713 Downloaded!";
+    btn.classList.add("downloaded");
+    if (typeof showToast === "function") showToast("cBot downloaded: " + data.fname);
+    setTimeout(function () {
+      btn.textContent = "Create cBot";
+      btn.classList.remove("downloaded");
+      btn.disabled = false;
+    }, 2200);
+  })
+  .catch(function (err) {
+    btn.textContent = "Failed";
+    if (typeof showToast === "function") showToast("cBot generation failed: " + err.message);
+    setTimeout(function () { btn.textContent = "Create cBot"; btn.disabled = false; }, 2500);
+  });
 }
 
 function getCurrentVersionName() {
@@ -1069,6 +1140,46 @@ def reorder_runs():
     REPORT_FILE.write_text(new_html, encoding="utf-8")
 
     return jsonify({"ok": True})
+
+
+# ── cBot Generator ────────────────────────────────────────────────────────────
+
+@app.route("/generate_cbot", methods=["POST"])
+def generate_cbot_endpoint():
+    """Generate a C# cBot (.cs) file from the current version and parameters."""
+    try:
+        data = request.get_json(force=True) or {}
+        strategy_version = (data.get("strategy_version") or "").strip()
+        if not strategy_version:
+            return jsonify({"ok": False, "error": "No strategy version provided"})
+
+        params = {
+            "ema_short":        data.get("ema_short", "8"),
+            "ema_mid":          data.get("ema_mid", "20"),
+            "ema_long":         data.get("ema_long", "40"),
+            "stop_loss_pips":   data.get("stop_loss_pips", "15"),
+            "rrr_risk":         data.get("rrr_risk", "1"),
+            "rrr_reward":       data.get("rrr_reward", "2"),
+            "max_daily_losses": data.get("max_daily_losses", "2"),
+            "trade_direction":  data.get("trade_direction", "both"),
+            "blocked_hours":    data.get("blocked_hours", ""),
+            "instrument":       data.get("instrument", "EURUSD"),
+        }
+
+        filename, cs_code = generate_cbot(strategy_version, params)
+
+        return Response(
+            cs_code,
+            mimetype="text/plain",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Type": "text/plain; charset=utf-8",
+            },
+        )
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"Generation failed: {exc}"})
 
 
 # ── Dev Log API (devlog.json) ─────────────────────────────────────────────────
