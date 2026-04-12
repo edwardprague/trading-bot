@@ -324,7 +324,8 @@ namespace FractalBot
 
                     var result = PlaceLimitOrder(
                         TradeType.Buy, Symbol.Name, volume,
-                        close, Symbol.Name, stopPips, tpPips
+                        close, Symbol.Name,
+                        stopLoss: stopPips, takeProfit: tpPips
                     );
 
                     if (result.IsSuccessful)
@@ -350,7 +351,8 @@ namespace FractalBot
 
                     var result = PlaceLimitOrder(
                         TradeType.Sell, Symbol.Name, volume,
-                        close, Symbol.Name, stopPips, tpPips
+                        close, Symbol.Name,
+                        stopLoss: stopPips, takeProfit: tpPips
                     );
 
                     if (result.IsSuccessful)
@@ -672,7 +674,8 @@ namespace FractalBot
 
                     var result = PlaceLimitOrder(
                         TradeType.Buy, Symbol.Name, volume,
-                        close, Symbol.Name, stopPips, tpPips
+                        close, Symbol.Name,
+                        stopLoss: stopPips, takeProfit: tpPips
                     );
 
                     if (result.IsSuccessful)
@@ -699,7 +702,8 @@ namespace FractalBot
 
                     var result = PlaceLimitOrder(
                         TradeType.Sell, Symbol.Name, volume,
-                        close, Symbol.Name, stopPips, tpPips
+                        close, Symbol.Name,
+                        stopLoss: stopPips, takeProfit: tpPips
                     );
 
                     if (result.IsSuccessful)
