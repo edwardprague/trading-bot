@@ -373,13 +373,6 @@ namespace FractalBot
 
             _lastCloseBar = Bars.Count;
 
-            DateTime closeDay = Server.Time.Date;
-            if (closeDay != _currentDay)
-            {{
-                _currentDay     = closeDay;
-                _dailyLossCount = 0;
-            }}
-
             if (args.Position.NetProfit < 0)
                 _dailyLossCount++;
         }}
@@ -729,13 +722,6 @@ namespace FractalBot
                 return;
 
             _lastCloseBar = Bars.Count;
-
-            DateTime closeDay = Server.Time.Date;
-            if (closeDay != _currentDay)
-            {{
-                _currentDay     = closeDay;
-                _dailyLossCount = 0;
-            }}
 
             if (args.Position.NetProfit < 0)
                 _dailyLossCount++;
