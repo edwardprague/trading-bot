@@ -97,9 +97,9 @@ Versions have the following file structure.
 | File             | Role                                                               |
 | ---------------- | ------------------------------------------------------------------ |
 | `strategy.py`    | Thin router — reads `VERSION` env var, delegates to versioned file |
-| `strategy_v1.py` | Baseline (original)                                                |
-| `strategy_v2.py` | TBD                                                                |
-| `strategy_v3.py` | TBD                                                                |
+| `strategy_v1.py` |                                                                    |
+| `strategy_v2.py` |                                                                    |
+| `strategy_v3.py` |                                                                    |
 | `server.py`      | Flask server, passes VERSION to strategy subprocess                |
 
 #### External Services
@@ -160,26 +160,3 @@ The cTrader migration and integration has been completed, and the following note
 - Time filter hours passed as comma-separated string parameter — cTrader does not support array parameters
 
 ---
-
-# 4. Backtesting Architecture
-
-The dashboard runs 2 types of backtests, Version Testing and Date Range Testing.
-
-**Version Test** = change to entry conditions or strategy logic
-**Date Range Test** = same version, different time period
-
-Backtests are displayed in the side bar as top item (versions) and sub item (date ranges) levels.
-
----
-
-## Keyboard Shortcuts
-
-Sidebar item level up: `up arrow`
-Sidebar item level down: `down arrow`
-Quick Links: `shift+1,2,3...`
-Scroll to top: `shift+t and t`
-Add new version: `shift+v and v`
-Add date rage: `shift+d and d`
-Copy: `shift+c and c`
-Delete: `shift+delete`
-Dvelopment log: `shift+l and l`
