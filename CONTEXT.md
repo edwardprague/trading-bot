@@ -28,7 +28,6 @@ Terminal command - `source venv/bin/activate`
 #### Repository
 
 - GitHub: `https://github.com/edwardprague/trading-bot` (public)
-- GitHub Pages: `https://edwardprague.github.io/trading-bot/report.html`
 
 #### Starting a Session
 
