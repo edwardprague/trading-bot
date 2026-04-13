@@ -55,3 +55,4 @@
 | v1 | 2026-04-12 18:20 | Trend Following | GBPUSD=X | 5m | Fractal geometry entries — no EMA alignment | 892 | 57.0% | 1.38 | +$223654.76 | -12.95% | 1.19 |
 | v1 | 2026-04-13 18:22 | Trend Following | GBPUSD=X | 5m | Fractal geometry entries — no EMA alignment | 5 | 60.0% | 1.49 | +$989.40 | -2.01% | 2.05 |
 | v1 | 2026-04-13 18:52 | Trend Following | GBPUSD=X | 5m | Fractal geometry entries — no EMA alignment | 5 | 60.0% | 1.49 | +$989.40 | -2.01% | 2.05 |
+| v1 | 2026-04-13 19:05 | Trend Following | GBPUSD=X | 5m | Fractal geometry entries — no EMA alignment | 94 | 67.0% | 2.03 | +$37068.47 | -3.95% | 3.23 |

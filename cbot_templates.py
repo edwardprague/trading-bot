@@ -325,13 +325,14 @@ namespace FractalBot
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = ExecuteMarketOrder(
+                    var result = PlaceLimitOrder(
                         TradeType.Buy, Symbol.Name, volume,
-                        Symbol.Name, stopPips, tpPips
+                        close, Symbol.Name, stopPips, tpPips,
+                        Server.Time.AddMinutes(5)
                     );
 
                     if (result.IsSuccessful)
-                        Print($"[LONG]  {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
+                        Print($"[LONG LIMIT]  {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
                               $"Entry ~{{close:F5}} | SL {{stopPips:F1}} pips | " +
                               $"TP {{tpPips:F1}} pips | {{volume:F0}} units");
                     else
@@ -351,13 +352,14 @@ namespace FractalBot
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = ExecuteMarketOrder(
+                    var result = PlaceLimitOrder(
                         TradeType.Sell, Symbol.Name, volume,
-                        Symbol.Name, stopPips, tpPips
+                        close, Symbol.Name, stopPips, tpPips,
+                        Server.Time.AddMinutes(5)
                     );
 
                     if (result.IsSuccessful)
-                        Print($"[SHORT] {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
+                        Print($"[SHORT LIMIT] {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
                               $"Entry ~{{close:F5}} | SL {{stopPips:F1}} pips | " +
                               $"TP {{tpPips:F1}} pips | {{volume:F0}} units");
                     else
@@ -676,13 +678,14 @@ namespace FractalBot
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = ExecuteMarketOrder(
+                    var result = PlaceLimitOrder(
                         TradeType.Buy, Symbol.Name, volume,
-                        Symbol.Name, stopPips, tpPips
+                        close, Symbol.Name, stopPips, tpPips,
+                        Server.Time.AddMinutes(5)
                     );
 
                     if (result.IsSuccessful)
-                        Print($"[LONG]  {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
+                        Print($"[LONG LIMIT]  {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
                               $"Entry ~{{close:F5}} | SL {{stopPips:F1}} pips | " +
                               $"TP {{tpPips:F1}} pips | {{volume:F0}} units | " +
                               $"EMA Long {{emaLongVal:F5}}");
@@ -703,13 +706,14 @@ namespace FractalBot
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = ExecuteMarketOrder(
+                    var result = PlaceLimitOrder(
                         TradeType.Sell, Symbol.Name, volume,
-                        Symbol.Name, stopPips, tpPips
+                        close, Symbol.Name, stopPips, tpPips,
+                        Server.Time.AddMinutes(5)
                     );
 
                     if (result.IsSuccessful)
-                        Print($"[SHORT] {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
+                        Print($"[SHORT LIMIT] {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
                               $"Entry ~{{close:F5}} | SL {{stopPips:F1}} pips | " +
                               $"TP {{tpPips:F1}} pips | {{volume:F0}} units | " +
                               $"EMA Long {{emaLongVal:F5}}");
