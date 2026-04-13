@@ -201,12 +201,13 @@ namespace FractalBot
         // ── Main logic: OnBar ────────────────────────────────────────────
         //
         // Execution order mirrors Python backtest:
-        //   1. Fractal detection (confirmed at bar i-2)
-        //   2. Entry signal generation (higher-low / lower-high)
-        //   3. Direction filter
-        //   4. Daily loss limit
-        //   5. Time filter (allowed hours)
-        //   6. Stop validation & order execution
+        //   1. Daily loss limit reset
+        //   2. Fractal detection (confirmed at bar i-2)
+        //   3. Entry signal generation (higher-low / lower-high)
+        //   4. Direction filter
+        //   5. Daily loss limit check
+        //   6. Time filter (allowed hours)
+        //   7. Stop validation & order execution
 
         protected override void OnBar()
         {{
@@ -214,7 +215,15 @@ namespace FractalBot
             if (Bars.Count < 6)
                 return;
 
-            // ── 1. Fractal detection ─────────────────────────────────────
+            // ── 1. Daily loss limit reset ────────────────────────────────
+            DateTime today = Server.Time.Date;
+            if (today != _currentDay)
+            {{
+                _currentDay     = today;
+                _dailyLossCount = 0;
+            }}
+
+            // ── 2. Fractal detection ─────────────────────────────────────
             // Python: at bar i, confirm fractal at bar i-2 (needs i-4..i).
             // cTrader: Last(1) = just-closed bar = Python's bar i.
             //          Fractal candidate = Last(3) = Python's bar i-2.
@@ -261,7 +270,7 @@ namespace FractalBot
 
             double close = Bars.ClosePrices.Last(1);
 
-            // ── 2. Entry signals ─────────────────────────────────────────
+            // ── 3. Entry signals ─────────────────────────────────────────
             // Long: new higher-low fractal confirmed
             //   (last fractal low > prior fractal low)
             bool longSig = newLowConfirmed
@@ -277,7 +286,7 @@ namespace FractalBot
                          && _lastFractalHighPrice < _priorFractalHighPrice;
 
 
-            // ── 3. Direction filter ──────────────────────────────────────
+            // ── 4. Direction filter ──────────────────────────────────────
             {"if (!longSig && !shortSig) return;" if not allow_long and not allow_short else
              "longSig = false;  // short_only" if not allow_long else
              "shortSig = false;  // long_only" if not allow_short else
@@ -287,23 +296,17 @@ namespace FractalBot
                 return;
 
 
-            // ── 4. Daily loss limit ──────────────────────────────────────
-            DateTime today = Server.Time.Date;
-            if (today != _currentDay)
-            {{
-                _currentDay     = today;
-                _dailyLossCount = 0;
-            }}
+            // ── 5. Daily loss limit ──────────────────────────────────────
             if (_dailyLossCount >= MaxDailyLosses)
                 return;
 
 
-            // ── 5. Time filter ───────────────────────────────────────────
+            // ── 6. Time filter ───────────────────────────────────────────
             if (!IsAllowedHour(Server.Time.Hour))
                 return;
 
 
-            // ── 6. Stop validation & execution ───────────────────────────
+            // ── 7. Stop validation & execution ───────────────────────────
             double fractalStopOffset = FractalStopPips * Symbol.PipSize;
             double minStopPrice      = MinStopPips * Symbol.PipSize;
             double maxStopPrice      = MaxStopPips * Symbol.PipSize;
@@ -545,20 +548,29 @@ namespace FractalBot
         // ── Main logic: OnBar ────────────────────────────────────────────
         //
         // Execution order mirrors Python backtest:
-        //   1. Fractal detection (confirmed at bar i-2)
-        //   2. Entry signal generation (higher-low / lower-high)
-        //   3. Direction filter
-        //   4. EMA position filter (v2: long above EMA Long, short below)
-        //   5. Daily loss limit
-        //   6. Time filter (allowed hours)
-        //   7. Stop validation & order execution
+        //   1. Daily loss limit reset
+        //   2. Fractal detection (confirmed at bar i-2)
+        //   3. Entry signal generation (higher-low / lower-high)
+        //   4. Direction filter
+        //   5. EMA position filter (v2: long above EMA Long, short below)
+        //   6. Daily loss limit check
+        //   7. Time filter (allowed hours)
+        //   8. Stop validation & order execution
 
         protected override void OnBar()
         {{
             if (Bars.Count < 6)
                 return;
 
-            // ── 1. Fractal detection ─────────────────────────────────────
+            // ── 1. Daily loss limit reset ────────────────────────────────
+            DateTime today = Server.Time.Date;
+            if (today != _currentDay)
+            {{
+                _currentDay     = today;
+                _dailyLossCount = 0;
+            }}
+
+            // ── 2. Fractal detection ─────────────────────────────────────
 
             double fHigh = Bars.HighPrices.Last(3);
             double fLow  = Bars.LowPrices.Last(3);
@@ -602,7 +614,7 @@ namespace FractalBot
             double close = Bars.ClosePrices.Last(1);
 
 
-            // ── 2. Entry signals ─────────────────────────────────────────
+            // ── 3. Entry signals ─────────────────────────────────────────
 
             bool longSig = newLowConfirmed
                         && !double.IsNaN(_lastFractalLowPrice)
@@ -615,14 +627,14 @@ namespace FractalBot
                          && _lastFractalHighPrice < _priorFractalHighPrice;
 
 
-            // ── 3. Direction filter ──────────────────────────────────────
+            // ── 4. Direction filter ──────────────────────────────────────
             {"if (!longSig && !shortSig) return;" if not allow_long and not allow_short else
              "longSig = false;  // short_only" if not allow_long else
              "shortSig = false;  // long_only" if not allow_short else
              "// Direction: both (no filter)"}
 
 
-            // ── 4. EMA position filter (v2) ──────────────────────────────
+            // ── 5. EMA position filter (v2) ──────────────────────────────
             // Long entries require close above EMA Long.
             // Short entries require close below EMA Long.
             double emaLongVal = _emaLong.Result.Last(1);
@@ -635,23 +647,17 @@ namespace FractalBot
                 return;
 
 
-            // ── 5. Daily loss limit ──────────────────────────────────────
-            DateTime today = Server.Time.Date;
-            if (today != _currentDay)
-            {{
-                _currentDay     = today;
-                _dailyLossCount = 0;
-            }}
+            // ── 6. Daily loss limit ──────────────────────────────────────
             if (_dailyLossCount >= MaxDailyLosses)
                 return;
 
 
-            // ── 6. Time filter ───────────────────────────────────────────
+            // ── 7. Time filter ───────────────────────────────────────────
             if (!IsAllowedHour(Server.Time.Hour))
                 return;
 
 
-            // ── 7. Stop validation & execution ───────────────────────────
+            // ── 8. Stop validation & execution ───────────────────────────
             double fractalStopOffset = FractalStopPips * Symbol.PipSize;
             double minStopPrice      = MinStopPips * Symbol.PipSize;
             double maxStopPrice      = MaxStopPips * Symbol.PipSize;
