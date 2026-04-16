@@ -5126,18 +5126,33 @@ __VERSIONS_JSON__
     if (!menu.contains(e.target)) hideMenu();
   });
 
-  /* Apply saved state on load */
-  document.addEventListener("DOMContentLoaded", function () {
-    var state = loadState();
-    syncCheckboxes(state);
-    applyAll(state);
-  });
-  /* Also apply immediately in case DOM is already ready */
-  if (document.readyState !== "loading") {
-    var state = loadState();
-    syncCheckboxes(state);
-    applyAll(state);
+  /* Watch for the intraday table being injected into the DOM, then apply state */
+  function applyWhenReady() {
+    var table = document.getElementById("intraday-table");
+    if (table) {
+      var state = loadState();
+      syncCheckboxes(state);
+      applyAll(state);
+    }
   }
+
+  var _observer = new MutationObserver(function (mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      var nodes = mutations[i].addedNodes;
+      for (var j = 0; j < nodes.length; j++) {
+        var n = nodes[j];
+        if (n.nodeType !== 1) continue;
+        if (n.id === "intraday-table" || (n.querySelector && n.querySelector("#intraday-table"))) {
+          applyWhenReady();
+          return;
+        }
+      }
+    }
+  });
+  _observer.observe(document.body, { childList: true, subtree: true });
+
+  /* Also apply immediately in case the table is already in the DOM */
+  applyWhenReady();
 }());
 </script>
 
