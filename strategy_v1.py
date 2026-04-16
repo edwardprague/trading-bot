@@ -3204,28 +3204,28 @@ __VERSIONS_JSON__
         var lhNum = (t.fractal_bar !== null && t.fractal_bar !== undefined && barToLhNum[t.fractal_bar]) ? barToLhNum[t.fractal_bar] : "\u2014";
         iRows +=
           "<tr>" +
-          "<td>" + esc(iDateLabel) + "</td>" +
-          "<td>" + esc(t.entry_time) + " UTC</td>" +
-          "<td>" + fmtDur(t.duration) + "</td>" +
-          "<td class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
-          "<td>" + stopD + "</td>" +
-          "<td>" + targetD + "</td>" +
-          "<td>" + fNum + "</td>" +
-          "<td>" + esc(fType) + "</td>" +
-          "<td>" + lhNum + "</td>" +
-          "<td>" + atrD + "</td>" +
-          "<td>" + adxD + "</td>" +
-          "<td>" + (function () { var v = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToVert[t.fractal_bar] : null; if (v === null || v === undefined) return "\u2014"; var vDir = barToVertDir[t.fractal_bar]; var vArrow = vDir === "up" ? "<span class='pos'>\u25B2</span> " : (vDir === "down" ? "<span class='neg'>\u25BC</span> " : ""); return vArrow + fmt(v, 1); }()) + "</td>" +
-          "<td>" + (function () { var pb = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToPullback[t.fractal_bar] : null; return (pb !== null && pb !== undefined) ? fmt(pb, 1) + "%" : "\u2014"; }()) + "</td>" +
-          "<td class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
+          "<td data-col='date'>" + esc(iDateLabel) + "</td>" +
+          "<td data-col='entry-time'>" + esc(t.entry_time) + " UTC</td>" +
+          "<td data-col='duration'>" + fmtDur(t.duration) + "</td>" +
+          "<td data-col='direction' class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
+          "<td data-col='stop'>" + stopD + "</td>" +
+          "<td data-col='target'>" + targetD + "</td>" +
+          "<td data-col='f-num'>" + fNum + "</td>" +
+          "<td data-col='f-type'>" + esc(fType) + "</td>" +
+          "<td data-col='l-num'>" + lhNum + "</td>" +
+          "<td data-col='atr'>" + atrD + "</td>" +
+          "<td data-col='adx'>" + adxD + "</td>" +
+          "<td data-col='vd'>" + (function () { var v = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToVert[t.fractal_bar] : null; if (v === null || v === undefined) return "\u2014"; var vDir = barToVertDir[t.fractal_bar]; var vArrow = vDir === "up" ? "<span class='pos'>\u25B2</span> " : (vDir === "down" ? "<span class='neg'>\u25BC</span> " : ""); return vArrow + fmt(v, 1); }()) + "</td>" +
+          "<td data-col='pb-pct'>" + (function () { var pb = (t.fractal_bar !== null && t.fractal_bar !== undefined) ? barToPullback[t.fractal_bar] : null; return (pb !== null && pb !== undefined) ? fmt(pb, 1) + "%" : "\u2014"; }()) + "</td>" +
+          "<td data-col='pnl' class='" + pnlCls + "'>" + fmtMoney(t.pnl) + "</td>" +
           "</tr>";
       });
 
       intradayPerfHtml =
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
-          "<table><thead><tr>" +
-          "<th>Date</th><th>Entry Time</th><th>Duration</th><th>Direction</th><th>Stop</th><th>Target</th><th>F #</th><th>F Type</th><th>L#</th><th>ATR</th><th>ADX</th><th>VD</th><th>PB %</th><th>P&amp;L</th>" +
+          "<table id='intraday-table'><thead><tr id='intraday-thead-row'>" +
+          "<th data-col='date'>Date</th><th data-col='entry-time'>Entry Time</th><th data-col='duration'>Duration</th><th data-col='direction'>Direction</th><th data-col='stop'>Stop</th><th data-col='target'>Target</th><th data-col='f-num'>F #</th><th data-col='f-type'>F Type</th><th data-col='l-num'>L#</th><th data-col='atr'>ATR</th><th data-col='adx'>ADX</th><th data-col='vd'>VD</th><th data-col='pb-pct'>PB %</th><th data-col='pnl'>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 
@@ -4968,6 +4968,145 @@ __VERSIONS_JSON__
       renderSidebar();
     });
   })();
+})();
+
+/* ── Intraday column-visibility context menu ─────────────────────────────── */
+(function () {
+  var STORAGE_KEY = "intraday_col_visibility";
+
+  /* Column definitions: data-col value → display label */
+  var COLS = [
+    { col: "date",       label: "Date" },
+    { col: "entry-time", label: "Entry Time" },
+    { col: "duration",   label: "Duration" },
+    { col: "direction",  label: "Direction" },
+    { col: "stop",       label: "Stop" },
+    { col: "target",     label: "Target" },
+    { col: "f-num",      label: "F #" },
+    { col: "f-type",     label: "F Type" },
+    { col: "l-num",      label: "L#" },
+    { col: "atr",        label: "ATR" },
+    { col: "adx",        label: "ADX" },
+    { col: "vd",         label: "VD" },
+    { col: "pb-pct",     label: "PB %" },
+    { col: "pnl",        label: "P&L" }
+  ];
+
+  /* Load saved state; default all visible */
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    var s = {};
+    COLS.forEach(function (c) { s[c.col] = true; });
+    return s;
+  }
+
+  function saveState(state) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  /* Apply visibility to all cells for a given col key */
+  function applyCol(col, visible) {
+    var els = document.querySelectorAll(
+      "#intraday-table [data-col='" + col + "']"
+    );
+    els.forEach(function (el) {
+      el.style.display = visible ? "" : "none";
+    });
+  }
+
+  function applyAll(state) {
+    COLS.forEach(function (c) { applyCol(c.col, state[c.col] !== false); });
+  }
+
+  /* Build the floating menu */
+  var menu = document.createElement("div");
+  menu.id = "intraday-col-menu";
+  menu.className = "intraday-col-menu";
+  menu.innerHTML =
+    "<div class='intraday-col-menu-title'>Show / Hide Columns</div>" +
+    "<div class='intraday-col-menu-list'>" +
+    COLS.map(function (c) {
+      return (
+        "<label class='intraday-col-menu-item'>" +
+        "<input type='checkbox' data-col-toggle='" + c.col + "'> " +
+        c.label +
+        "</label>"
+      );
+    }).join("") +
+    "</div>";
+  document.body.appendChild(menu);
+
+  /* Sync checkbox states from saved state */
+  function syncCheckboxes(state) {
+    COLS.forEach(function (c) {
+      var cb = menu.querySelector("input[data-col-toggle='" + c.col + "']");
+      if (cb) cb.checked = state[c.col] !== false;
+    });
+  }
+
+  /* Show / hide menu */
+  function showMenu(x, y) {
+    menu.style.left = x + "px";
+    menu.style.top  = y + "px";
+    menu.classList.add("intraday-col-menu--visible");
+  }
+  function hideMenu() {
+    menu.classList.remove("intraday-col-menu--visible");
+  }
+
+  /* Checkbox change handler */
+  menu.addEventListener("change", function (e) {
+    var cb = e.target;
+    if (!cb.dataset.colToggle) return;
+    var state = loadState();
+    state[cb.dataset.colToggle] = cb.checked;
+    saveState(state);
+    applyCol(cb.dataset.colToggle, cb.checked);
+  });
+
+  /* Right-click on thead row */
+  document.addEventListener("contextmenu", function (e) {
+    var th = e.target.closest ? e.target.closest("#intraday-thead-row th") : null;
+    if (!th) { hideMenu(); return; }
+    e.preventDefault();
+    var state = loadState();
+    syncCheckboxes(state);
+    /* Position: keep inside viewport */
+    var mx = e.clientX + window.scrollX;
+    var my = e.clientY + window.scrollY;
+    menu.style.visibility = "hidden";
+    menu.classList.add("intraday-col-menu--visible");
+    var mw = menu.offsetWidth, mh = menu.offsetHeight;
+    menu.classList.remove("intraday-col-menu--visible");
+    menu.style.visibility = "";
+    var vw = document.documentElement.clientWidth + window.scrollX;
+    var vh = document.documentElement.clientHeight + window.scrollY;
+    if (mx + mw > vw) mx = vw - mw - 8;
+    if (my + mh > vh) my = vh - mh - 8;
+    showMenu(mx, my);
+  });
+
+  /* Click outside closes menu */
+  document.addEventListener("click", function (e) {
+    if (!menu.contains(e.target)) hideMenu();
+  });
+
+  /* Apply saved state on load */
+  document.addEventListener("DOMContentLoaded", function () {
+    var state = loadState();
+    syncCheckboxes(state);
+    applyAll(state);
+  });
+  /* Also apply immediately in case DOM is already ready */
+  if (document.readyState !== "loading") {
+    var state = loadState();
+    syncCheckboxes(state);
+    applyAll(state);
+  }
+}());
 })();
 </script>
 
