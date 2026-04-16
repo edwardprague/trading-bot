@@ -5139,7 +5139,6 @@ __VERSIONS_JSON__
     applyAll(state);
   }
 }());
-})();
 </script>
 
 
