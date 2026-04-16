@@ -1684,18 +1684,20 @@ def compute_metrics(trades, equity, blocked_signals=None, df=None):
                 _stop_pips = round(abs(float(row_t["entry"]) - float(row_t["stop"])) * 10000, 1)
                 _target_pips = round(abs(float(row_t["entry"]) - float(row_t["target"])) * 10000, 1)
                 intraday_trades.append({
-                    "date":       row_t["_date"],
-                    "entry_time": row_t["_entry_time"],
-                    "exit_time":  row_t["_exit_time"],
-                    "duration":   int(row_t["_duration"]),
-                    "direction":  row_t["direction"],
-                    "stop_pips":  _stop_pips,
+                    "date":        row_t["_date"],
+                    "entry_time":  row_t["_entry_time"],
+                    "exit_time":   row_t["_exit_time"],
+                    "entry_price": round(float(row_t["entry"]), 5),
+                    "exit_price":  round(float(row_t["exit"]), 5),
+                    "duration":    int(row_t["_duration"]),
+                    "direction":   row_t["direction"],
+                    "stop_pips":   _stop_pips,
                     "target_pips": _target_pips,
-                    "atr_pips":   round(float(row_t["atr_at_entry"]) * 10000, 1),
-                    "adx":        round(float(row_t["adx_at_entry"]), 1),
+                    "atr_pips":    round(float(row_t["atr_at_entry"]) * 10000, 1),
+                    "adx":         round(float(row_t["adx_at_entry"]), 1),
                     "fractal_bar":   int(row_t["fractal_bar"]) if row_t.get("fractal_bar") is not None else None,
                     "fractal_label": row_t.get("fractal_label"),
-                    "pnl":        round(float(row_t["pnl"]), 2),
+                    "pnl":         round(float(row_t["pnl"]), 2),
                 })
     except Exception:
         intraday_trades = []
@@ -3238,6 +3240,9 @@ __VERSIONS_JSON__
           "<tr>" +
           "<td data-col='date'>" + esc(iDateLabel) + "</td>" +
           "<td data-col='entry-time'>" + esc(t.entry_time) + " UTC</td>" +
+          "<td data-col='closing-time'>" + (t.exit_time ? esc(t.exit_time) + " UTC" : "\u2014") + "</td>" +
+          "<td data-col='entry-price'>" + (t.entry_price !== null && t.entry_price !== undefined ? fmt(t.entry_price, 5) : "\u2014") + "</td>" +
+          "<td data-col='closing-price'>" + (t.exit_price !== null && t.exit_price !== undefined ? fmt(t.exit_price, 5) : "\u2014") + "</td>" +
           "<td data-col='duration'>" + fmtDur(t.duration) + "</td>" +
           "<td data-col='direction' class='" + dirCls + "'>" + esc(t.direction.charAt(0).toUpperCase() + t.direction.slice(1)) + "</td>" +
           "<td data-col='stop'>" + stopD + "</td>" +
@@ -3257,7 +3262,7 @@ __VERSIONS_JSON__
         "<div class='section' id='anchor-intraday-perf'>" +
           "<div class='section-title'>Intraday Performance</div>" +
           "<table id='intraday-table'><thead><tr id='intraday-thead-row'>" +
-          "<th data-col='date'>Date</th><th data-col='entry-time'>Entry Time</th><th data-col='duration'>Duration</th><th data-col='direction'>Direction</th><th data-col='stop'>Stop</th><th data-col='target'>Target</th><th data-col='f-num'>F #</th><th data-col='f-type'>F Type</th><th data-col='l-num'>L#</th><th data-col='atr'>ATR</th><th data-col='adx'>ADX</th><th data-col='vd'>VD</th><th data-col='pb-pct'>PB %</th><th data-col='pnl'>P&amp;L</th>" +
+          "<th data-col='date'>Date</th><th data-col='entry-time'>Entry Time</th><th data-col='closing-time'>Closing Time</th><th data-col='entry-price'>Entry Price</th><th data-col='closing-price'>Closing Price</th><th data-col='duration'>Duration</th><th data-col='direction'>Direction</th><th data-col='stop'>Stop</th><th data-col='target'>Target</th><th data-col='f-num'>F #</th><th data-col='f-type'>F Type</th><th data-col='l-num'>L#</th><th data-col='atr'>ATR</th><th data-col='adx'>ADX</th><th data-col='vd'>VD</th><th data-col='pb-pct'>PB %</th><th data-col='pnl'>P&amp;L</th>" +
           "</tr></thead><tbody>" + iRows + "</tbody></table></div>";
     }());
 
@@ -5008,9 +5013,12 @@ __VERSIONS_JSON__
 
   /* Column definitions: data-col value → display label */
   var COLS = [
-    { col: "date",       label: "Date" },
-    { col: "entry-time", label: "Entry Time" },
-    { col: "duration",   label: "Duration" },
+    { col: "date",          label: "Date" },
+    { col: "entry-time",    label: "Entry Time" },
+    { col: "closing-time",  label: "Closing Time" },
+    { col: "entry-price",   label: "Entry Price" },
+    { col: "closing-price", label: "Closing Price" },
+    { col: "duration",      label: "Duration" },
     { col: "direction",  label: "Direction" },
     { col: "stop",       label: "Stop" },
     { col: "target",     label: "Target" },
