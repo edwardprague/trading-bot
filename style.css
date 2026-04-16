@@ -1061,6 +1061,69 @@ tbody tr:hover td {
     font-weight: 600;
 }
 
+/* ── Intraday column-visibility context menu ──────────────────────────────── */
+.intraday-col-menu {
+    display: none;
+    position: absolute;
+    z-index: 9999;
+    background: #1e2530;
+    border: 1px solid #3a4255;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    padding: 6px 0;
+    min-width: 170px;
+    user-select: none;
+}
+
+.intraday-col-menu--visible {
+    display: block;
+}
+
+.intraday-col-menu-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6b7a99;
+    padding: 4px 14px 6px;
+    border-bottom: 1px solid #2e3748;
+    margin-bottom: 4px;
+}
+
+.intraday-col-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.intraday-col-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 14px;
+    font-size: 13px;
+    color: #c8d0e0;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.intraday-col-menu-item:hover {
+    background: #29334a;
+}
+
+.intraday-col-menu-item input[type="checkbox"] {
+    accent-color: #4c8bf5;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* Cursor cue on the header row */
+#intraday-thead-row th {
+    cursor: context-menu;
+}
+
 /* ── Time-of-day best / worst row highlight ───────────── */
 .tod-row-best {
     background: rgba(107, 203, 119, 0.07);
