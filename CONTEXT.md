@@ -1,8 +1,8 @@
-# 1. Project Overview
+# Project Overview
 
 Building a backtesting dashboard for a systematic algorithmic trading system.
 
-# 1. Workflow
+# Workflow
 
 1. I will provide you with development tasks for you to complete.
 2. Always ask questions and provide comments if needed.
@@ -15,7 +15,7 @@ Building a backtesting dashboard for a systematic algorithmic trading system.
 
 ---
 
-# 2. Technical Setup
+# Technical Setup
 
 #### File Directory Path
 
@@ -130,7 +130,7 @@ After git clone on new machine:
 
 ---
 
-# 3. cTrader Integration
+# cTrader Integration
 
 The cTrader migration and integration has been completed, and the following notes are available for reference if needed:
 
