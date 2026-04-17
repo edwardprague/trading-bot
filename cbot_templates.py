@@ -319,21 +319,21 @@ namespace FractalBot
 
                 if (dist >= minStopPrice && dist <= maxStopPrice)
                 {{
-                    double tpPrice    = close + dist * rrr;
+                    double stopPips = dist / Symbol.PipSize;
+                    double tpPips   = stopPips * rrr;
 
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = PlaceLimitOrder(
+                    var result = ExecuteMarketOrder(
                         TradeType.Buy, Symbol.Name, volume,
-                        close, Symbol.Name, slPrice, tpPrice,
-                        Server.Time.AddMinutes(5)
+                        Symbol.Name, stopPips, tpPips
                     );
 
                     if (result.IsSuccessful)
-                        Print($"[LONG LIMIT]  {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
-                              $"Entry ~{{close:F5}} | SL {{slPrice:F5}} | " +
-                              $"TP {{tpPrice:F5}} | {{volume:F0}} units");
+                        Print($"[LONG]  {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
+                              $"Entry ~{{close:F5}} | SL {{stopPips:F1}} pips | " +
+                              $"TP {{tpPips:F1}} pips | {{volume:F0}} units");
                     else
                         Print($"[ORDER FAILED] {{Server.Time:yyyy-MM-dd HH:mm}} — {{result.Error}}");
                 }}
@@ -345,21 +345,21 @@ namespace FractalBot
 
                 if (dist >= minStopPrice && dist <= maxStopPrice)
                 {{
-                    double tpPrice    = close - dist * rrr;
+                    double stopPips = dist / Symbol.PipSize;
+                    double tpPips   = stopPips * rrr;
 
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = PlaceLimitOrder(
+                    var result = ExecuteMarketOrder(
                         TradeType.Sell, Symbol.Name, volume,
-                        close, Symbol.Name, slPrice, tpPrice,
-                        Server.Time.AddMinutes(5)
+                        Symbol.Name, stopPips, tpPips
                     );
 
                     if (result.IsSuccessful)
-                        Print($"[SHORT LIMIT] {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
-                              $"Entry ~{{close:F5}} | SL {{slPrice:F5}} | " +
-                              $"TP {{tpPrice:F5}} | {{volume:F0}} units");
+                        Print($"[SHORT] {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
+                              $"Entry ~{{close:F5}} | SL {{stopPips:F1}} pips | " +
+                              $"TP {{tpPips:F1}} pips | {{volume:F0}} units");
                     else
                         Print($"[ORDER FAILED] {{Server.Time:yyyy-MM-dd HH:mm}} — {{result.Error}}");
                 }}
@@ -670,21 +670,21 @@ namespace FractalBot
 
                 if (dist >= minStopPrice && dist <= maxStopPrice)
                 {{
-                    double tpPrice    = close + dist * rrr;
+                    double stopPips = dist / Symbol.PipSize;
+                    double tpPips   = stopPips * rrr;
 
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = PlaceLimitOrder(
+                    var result = ExecuteMarketOrder(
                         TradeType.Buy, Symbol.Name, volume,
-                        close, Symbol.Name, slPrice, tpPrice,
-                        Server.Time.AddMinutes(5)
+                        Symbol.Name, stopPips, tpPips
                     );
 
                     if (result.IsSuccessful)
-                        Print($"[LONG LIMIT]  {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
-                              $"Entry ~{{close:F5}} | SL {{slPrice:F5}} | " +
-                              $"TP {{tpPrice:F5}} | {{volume:F0}} units | " +
+                        Print($"[LONG]  {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
+                              $"Entry ~{{close:F5}} | SL {{stopPips:F1}} pips | " +
+                              $"TP {{tpPips:F1}} pips | {{volume:F0}} units | " +
                               $"EMA Long {{emaLongVal:F5}}");
                     else
                         Print($"[ORDER FAILED] {{Server.Time:yyyy-MM-dd HH:mm}} — {{result.Error}}");
@@ -697,21 +697,21 @@ namespace FractalBot
 
                 if (dist >= minStopPrice && dist <= maxStopPrice)
                 {{
-                    double tpPrice    = close - dist * rrr;
+                    double stopPips = dist / Symbol.PipSize;
+                    double tpPips   = stopPips * rrr;
 
                     double riskAmount = Account.Equity * (RiskPercent / 100.0);
                     double volume     = Symbol.NormalizeVolumeInUnits(riskAmount / dist);
 
-                    var result = PlaceLimitOrder(
+                    var result = ExecuteMarketOrder(
                         TradeType.Sell, Symbol.Name, volume,
-                        close, Symbol.Name, slPrice, tpPrice,
-                        Server.Time.AddMinutes(5)
+                        Symbol.Name, stopPips, tpPips
                     );
 
                     if (result.IsSuccessful)
-                        Print($"[SHORT LIMIT] {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
-                              $"Entry ~{{close:F5}} | SL {{slPrice:F5}} | " +
-                              $"TP {{tpPrice:F5}} | {{volume:F0}} units | " +
+                        Print($"[SHORT] {{Server.Time:yyyy-MM-dd HH:mm}} UTC | " +
+                              $"Entry ~{{close:F5}} | SL {{stopPips:F1}} pips | " +
+                              $"TP {{tpPips:F1}} pips | {{volume:F0}} units | " +
                               $"EMA Long {{emaLongVal:F5}}");
                     else
                         Print($"[ORDER FAILED] {{Server.Time:yyyy-MM-dd HH:mm}} — {{result.Error}}");
