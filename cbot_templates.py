@@ -83,10 +83,10 @@ def _generate_v1(params):
     allow_long  = direction != "short_only"
     allow_short = direction != "long_only"
 
-    filename = f"FractalBot_v1_{instrument}.cs"
+    filename = "FractalBot_v1.cs"
 
     cs = f'''\
-// FractalBot_v1_{instrument}.cs
+// FractalBot_v1.cs
 // ════════════════════════════════════════════════════════════════
 // cTrader Automate cBot — Strategy v1: Fractal Geometry Entries
 // Generated from Trading Bot Dashboard
@@ -429,10 +429,10 @@ def _generate_v2(params):
     allow_long  = direction != "short_only"
     allow_short = direction != "long_only"
 
-    filename = f"FractalBot_v2_{instrument}.cs"
+    filename = "FractalBot_v2.cs"
 
     cs = f'''\
-// FractalBot_v2_{instrument}.cs
+// FractalBot_v2.cs
 // ════════════════════════════════════════════════════════════════
 // cTrader Automate cBot — Strategy v2: Fractal + EMA Position Filter
 // Generated from Trading Bot Dashboard
