@@ -407,16 +407,22 @@ def _sensitivity_run(df, rrr, swing_lookback):
 
             if long_sig:
                 sl_p = long_fractal_price - FRACTAL_STOP_PIPS
-                dist = c - sl_p
+                if i + 1 >= len(df2):
+                    continue
+                next_open = float(df2["Open"].iloc[i + 1])
+                dist = next_open - sl_p
                 if MIN_STOP <= dist <= MAX_STOP:
-                    direction = "long"; entry_p = c; sl = sl_p
-                    tp = c + dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
+                    direction = "long"; entry_p = next_open; sl = sl_p
+                    tp = next_open + dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
             elif short_sig:
                 sl_p = short_fractal_price + FRACTAL_STOP_PIPS
-                dist = sl_p - c
+                if i + 1 >= len(df2):
+                    continue
+                next_open = float(df2["Open"].iloc[i + 1])
+                dist = sl_p - next_open
                 if MIN_STOP <= dist <= MAX_STOP:
-                    direction = "short"; entry_p = c; sl = sl_p
-                    tp = c - dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
+                    direction = "short"; entry_p = next_open; sl = sl_p
+                    tp = next_open - dist * rrr; size = (cash * RISK_PCT) / dist; in_trade = True
 
     if not trades_s:
         return None
@@ -668,48 +674,56 @@ def run_backtest(df):
 
             if long_sig:
                 sl_price      = long_fractal_price - FRACTAL_STOP_PIPS
-                dist          = c - sl_price                          # actual distance: entry close → stop level
+                # Use open of next bar as entry price (matches cTrader OnBar execution)
+                if i + 1 >= len(df):
+                    continue                                          # no next bar available
+                next_open     = float(df.Open.iloc[i + 1])
+                dist          = next_open - sl_price                  # actual distance: entry → stop level
                 if MIN_STOP <= dist <= MAX_STOP:
                     direction     = "long"
-                    entry_p       = c                                 # enter at close of confirming candle
+                    entry_p       = next_open                         # enter at open of next bar (cTrader-aligned)
                     sl            = sl_price
-                    tp            = c + dist * RRR
+                    tp            = next_open + dist * RRR
                     size          = (cash * RISK_PCT) / dist
                     in_trade      = True
-                    entry_idx     = i
-                    entry_ts      = ts
-                    worst_adverse = c
+                    entry_idx     = i + 1
+                    entry_ts      = df['Datetime'].iloc[i + 1]
+                    worst_adverse = next_open
                     entry_adx     = float(df.adx.iloc[i])
                     entry_atr     = float(df.atr14.iloc[i])
                     entry_fractal_bar   = last_fractal_low_bar
                     entry_fractal_label = last_low_label
                     if _debug_entries < 5:
-                        _ts_dbg = pd.to_datetime(ts)
+                        _ts_dbg = pd.to_datetime(entry_ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
-                        print(f"  [DBG entry {_debug_entries+1}] raw={ts}  utc_hour={_ts_utc_dbg.hour}  direction=long  fractal_low={long_fractal_price:.5f}")
+                        print(f"  [DBG entry {_debug_entries+1}] raw={entry_ts}  utc_hour={_ts_utc_dbg.hour}  direction=long  fractal_low={long_fractal_price:.5f}")
                         _debug_entries += 1
 
             elif short_sig:
                 sl_price      = short_fractal_price + FRACTAL_STOP_PIPS
-                dist          = sl_price - c                          # actual distance: stop level → entry close
+                # Use open of next bar as entry price (matches cTrader OnBar execution)
+                if i + 1 >= len(df):
+                    continue                                          # no next bar available
+                next_open     = float(df.Open.iloc[i + 1])
+                dist          = sl_price - next_open                  # actual distance: stop level → entry
                 if MIN_STOP <= dist <= MAX_STOP:
                     direction     = "short"
-                    entry_p       = c                                 # enter at close of confirming candle
+                    entry_p       = next_open                         # enter at open of next bar (cTrader-aligned)
                     sl            = sl_price
-                    tp            = c - dist * RRR
+                    tp            = next_open - dist * RRR
                     size          = (cash * RISK_PCT) / dist
                     in_trade      = True
-                    entry_idx     = i
-                    entry_ts      = ts
-                    worst_adverse = c
+                    entry_idx     = i + 1
+                    entry_ts      = df['Datetime'].iloc[i + 1]
+                    worst_adverse = next_open
                     entry_adx     = float(df.adx.iloc[i])
                     entry_atr     = float(df.atr14.iloc[i])
                     entry_fractal_bar   = last_fractal_high_bar
                     entry_fractal_label = last_high_label
                     if _debug_entries < 5:
-                        _ts_dbg = pd.to_datetime(ts)
+                        _ts_dbg = pd.to_datetime(entry_ts)
                         _ts_utc_dbg = _ts_dbg.tz_convert('UTC') if _ts_dbg.tzinfo else _ts_dbg.tz_localize('UTC')
-                        print(f"  [DBG entry {_debug_entries+1}] raw={ts}  utc_hour={_ts_utc_dbg.hour}  direction=short  fractal_high={short_fractal_price:.5f}")
+                        print(f"  [DBG entry {_debug_entries+1}] raw={entry_ts}  utc_hour={_ts_utc_dbg.hour}  direction=short  fractal_high={short_fractal_price:.5f}")
                         _debug_entries += 1
 
     return pd.DataFrame(trades), equity, blocked_signals

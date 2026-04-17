@@ -250,6 +250,7 @@ namespace FractalBot
                 _priorFractalHighPrice = _lastFractalHighPrice;
                 _lastFractalHighPrice  = fHigh;
                 newHighConfirmed = true;
+                Print($"[FRACTAL HIGH] {{Bars.OpenTimes.Last(3):yyyy-MM-dd HH:mm}} UTC | Price {{fHigh:F5}} | Prior {{_priorFractalHighPrice:F5}}");
             }}
 
             if (isPivotLow)
@@ -257,6 +258,7 @@ namespace FractalBot
                 _priorFractalLowPrice = _lastFractalLowPrice;
                 _lastFractalLowPrice  = fLow;
                 newLowConfirmed = true;
+                Print($"[FRACTAL LOW]  {{Bars.OpenTimes.Last(3):yyyy-MM-dd HH:mm}} UTC | Price {{fLow:F5}} | Prior {{_priorFractalLowPrice:F5}}");
             }}
 
 
@@ -593,6 +595,7 @@ namespace FractalBot
                 _priorFractalHighPrice = _lastFractalHighPrice;
                 _lastFractalHighPrice  = fHigh;
                 newHighConfirmed = true;
+                Print($"[FRACTAL HIGH] {{Bars.OpenTimes.Last(3):yyyy-MM-dd HH:mm}} UTC | Price {{fHigh:F5}} | Prior {{_priorFractalHighPrice:F5}}");
             }}
 
             if (isPivotLow)
@@ -600,6 +603,7 @@ namespace FractalBot
                 _priorFractalLowPrice = _lastFractalLowPrice;
                 _lastFractalLowPrice  = fLow;
                 newLowConfirmed = true;
+                Print($"[FRACTAL LOW]  {{Bars.OpenTimes.Last(3):yyyy-MM-dd HH:mm}} UTC | Price {{fLow:F5}} | Prior {{_priorFractalLowPrice:F5}}");
             }}
 
 
