@@ -84,7 +84,6 @@ namespace FractalBot
         private int[]    _allowedHours;
         private int      _dailyLossCount;
         private DateTime _currentDay;
-        private int      _lastCloseBar = 0;
 
 
         // ── Lifecycle: OnStart ───────────────────────────────────────────
@@ -178,12 +177,6 @@ namespace FractalBot
             if (Positions.Find(Symbol.Name) != null)
                 return;
 
-            // ── One-bar cooldown after close ─────────────────────────────
-            if (Bars.Count <= _lastCloseBar + 1)
-                return;
-
-            double close = Bars.ClosePrices.Last(1);
-
             // ── 3. Entry signals ─────────────────────────────────────────
             // Long: new higher-low fractal confirmed
             //   (last fractal low > prior fractal low)
@@ -225,8 +218,9 @@ namespace FractalBot
 
             if (longSig)
             {
-                double slPrice = _lastFractalLowPrice - fractalStopOffset;
-                double dist    = close - slPrice;
+                double entryRef = Symbol.Ask;
+                double slPrice  = _lastFractalLowPrice - fractalStopOffset;
+                double dist     = entryRef - slPrice;
 
                 if (dist >= minStopPrice && dist <= maxStopPrice)
                 {
@@ -243,7 +237,7 @@ namespace FractalBot
 
                     if (result.IsSuccessful)
                         Print($"[LONG]  {Server.Time:yyyy-MM-dd HH:mm} UTC | " +
-                              $"Entry ~{close:F5} | SL {stopPips:F1} pips | " +
+                              $"Entry ~{entryRef:F5} | SL {stopPips:F1} pips | " +
                               $"TP {tpPips:F1} pips | {volume:F0} units");
                     else
                         Print($"[ORDER FAILED] {Server.Time:yyyy-MM-dd HH:mm} — {result.Error}");
@@ -251,8 +245,9 @@ namespace FractalBot
             }
             else if (shortSig)
             {
-                double slPrice = _lastFractalHighPrice + fractalStopOffset;
-                double dist    = slPrice - close;
+                double entryRef = Symbol.Bid;
+                double slPrice  = _lastFractalHighPrice + fractalStopOffset;
+                double dist     = slPrice - entryRef;
 
                 if (dist >= minStopPrice && dist <= maxStopPrice)
                 {
@@ -269,7 +264,7 @@ namespace FractalBot
 
                     if (result.IsSuccessful)
                         Print($"[SHORT] {Server.Time:yyyy-MM-dd HH:mm} UTC | " +
-                              $"Entry ~{close:F5} | SL {stopPips:F1} pips | " +
+                              $"Entry ~{entryRef:F5} | SL {stopPips:F1} pips | " +
                               $"TP {tpPips:F1} pips | {volume:F0} units");
                     else
                         Print($"[ORDER FAILED] {Server.Time:yyyy-MM-dd HH:mm} — {result.Error}");
@@ -284,8 +279,6 @@ namespace FractalBot
         {
             if (args.Position.Label != Symbol.Name)
                 return;
-
-            _lastCloseBar = Bars.Count;
 
             if (args.Position.NetProfit < 0)
                 _dailyLossCount++;
