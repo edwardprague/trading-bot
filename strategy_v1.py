@@ -1,7 +1,7 @@
 """
 Trading Bot — EMA Trend Following Strategy
 ==========================================
-Instrument : EURUSD hourly (Yahoo Finance)
+Instrument : EURUSD / GBPUSD (Massive.io)
 Strategy   : EMA 20/50/200 crossover with swing stop
 RRR        : 1:2
 Risk/Trade : 1% of equity
@@ -35,15 +35,15 @@ MASSIVE_API_KEY = os.getenv("MASSIVE_API_KEY")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-# Instrument mapping: INSTRUMENT env var → (Yahoo ticker, Massive ticker)
+# Instrument mapping: INSTRUMENT env var → Massive ticker
 _INSTRUMENT_MAP = {
-    "EURUSD": ("EURUSD=X", "C:EURUSD"),
-    "GBPUSD": ("GBPUSD=X", "C:GBPUSD"),
+    "EURUSD": "C:EURUSD",
+    "GBPUSD": "C:GBPUSD",
 }
 _INSTRUMENT     = os.environ.get("INSTRUMENT", "EURUSD")
-TICKER          = _INSTRUMENT_MAP.get(_INSTRUMENT, _INSTRUMENT_MAP["EURUSD"])[0]
-MASSIVE_TICKER  = _INSTRUMENT_MAP.get(_INSTRUMENT, _INSTRUMENT_MAP["EURUSD"])[1]
-INTERVAL        = os.environ.get("INTERVAL", "5m")  # bar interval — used by Massive (primary) and Yahoo (fallback)
+TICKER          = _INSTRUMENT if _INSTRUMENT in _INSTRUMENT_MAP else "EURUSD"
+MASSIVE_TICKER  = _INSTRUMENT_MAP.get(_INSTRUMENT, _INSTRUMENT_MAP["EURUSD"])
+INTERVAL        = os.environ.get("INTERVAL", "5m")  # bar interval — passed to Massive API
 DAYS_BACK       = 365             # Full 365-day run
 STARTING_CASH   = 100_000.0
 
@@ -140,66 +140,47 @@ def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
         _multiplier = 5
         _timespan   = "minute"
 
-    # ── Primary: Massive API ───────────────────────────────────────────────────
-    if MASSIVE_API_KEY:
-        try:
-            from massive import RESTClient
-            print(f"\nFetching {MASSIVE_TICKER} {interval} data from Massive ({days_back} days)...")
-            client = RESTClient(api_key=MASSIVE_API_KEY)
-            bars = list(client.list_aggs(
-                ticker    = MASSIVE_TICKER,
-                multiplier= _multiplier,
-                timespan  = _timespan,
-                from_     = start.strftime("%Y-%m-%d"),
-                to        = end.strftime("%Y-%m-%d"),
-                sort      = "asc",
-                limit     = 50000,
-            ))
-            if not bars:
-                raise ValueError("No bars returned from Massive API")
-            # Build DataFrame: timestamp is Unix milliseconds UTC
-            df = pd.DataFrame(
-                {
-                    "Open":   [b.open   for b in bars],
-                    "High":   [b.high   for b in bars],
-                    "Low":    [b.low    for b in bars],
-                    "Close":  [b.close  for b in bars],
-                    "Volume": [b.volume if b.volume is not None else 0.0 for b in bars],
-                },
-                index=pd.DatetimeIndex(
-                    [pd.Timestamp(b.timestamp, unit="ms", tz="UTC") for b in bars],
-                    name="Datetime",
-                ),
-            )
-            df = df[["Open", "High", "Low", "Close", "Volume"]].dropna()
-            print(f"  {len(df)} bars loaded | {df.index[0].date()} → {df.index[-1].date()}")
-            print(f"  Source: Massive API ({MASSIVE_TICKER}, {interval})")
-            return df
-        except Exception as e:
-            print(f"  Massive API fetch failed: {e}")
-            print(f"  Falling back to Yahoo Finance...")
-    else:
-        print(f"\nNo MASSIVE_API_KEY found — using Yahoo Finance fallback.")
+    # ── Massive API (sole data source) ─────────────────────────────────────────
+    if not MASSIVE_API_KEY:
+        print("ERROR: MASSIVE_API_KEY not found in environment.")
+        print("  Add MASSIVE_API_KEY=<your-key> to the .env file in the project root.")
+        sys.exit(1)
 
-    # ── Fallback: Yahoo Finance ────────────────────────────────────────────────
-    # Yahoo free tier: 5m data is capped at 60 days; use 1h for longer history
     try:
-        import yfinance as yf
-        yf_interval = "1h"
-        yf_days     = min(days_back, 720)
-        yf_start    = end - timedelta(days=yf_days)
-        print(f"\nFetching {ticker} {yf_interval} data from Yahoo ({yf_days} days)...")
-        df = yf.download(ticker, start=yf_start, end=end,
-                         interval=yf_interval, auto_adjust=True, progress=False)
-        if df.empty:
-            raise ValueError("Empty dataframe returned")
-        df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
+        from massive import RESTClient
+        print(f"\nFetching {MASSIVE_TICKER} {interval} data from Massive ({days_back} days)...")
+        client = RESTClient(api_key=MASSIVE_API_KEY)
+        bars = list(client.list_aggs(
+            ticker    = MASSIVE_TICKER,
+            multiplier= _multiplier,
+            timespan  = _timespan,
+            from_     = start.strftime("%Y-%m-%d"),
+            to        = end.strftime("%Y-%m-%d"),
+            sort      = "asc",
+            limit     = 50000,
+        ))
+        if not bars:
+            raise ValueError("No bars returned from Massive API")
+        # Build DataFrame: timestamp is Unix milliseconds UTC
+        df = pd.DataFrame(
+            {
+                "Open":   [b.open   for b in bars],
+                "High":   [b.high   for b in bars],
+                "Low":    [b.low    for b in bars],
+                "Close":  [b.close  for b in bars],
+                "Volume": [b.volume if b.volume is not None else 0.0 for b in bars],
+            },
+            index=pd.DatetimeIndex(
+                [pd.Timestamp(b.timestamp, unit="ms", tz="UTC") for b in bars],
+                name="Datetime",
+            ),
+        )
         df = df[["Open", "High", "Low", "Close", "Volume"]].dropna()
         print(f"  {len(df)} bars loaded | {df.index[0].date()} → {df.index[-1].date()}")
-        print(f"  Source: Yahoo Finance ({ticker}, 1h fallback)")
+        print(f"  Source: Massive API ({MASSIVE_TICKER}, {interval})")
         return df
     except Exception as e:
-        print(f"  Data fetch failed: {e}")
+        print(f"ERROR: Massive API fetch failed: {e}")
         sys.exit(1)
 
 # ── Indicators ────────────────────────────────────────────────────────────────
@@ -232,7 +213,7 @@ def add_indicators(df):
     df["adx"]   = _dx.ewm(alpha=_alpha, adjust=False).mean()
     df["atr14"] = _atr14
     df = df.dropna().reset_index()
-    # Normalise the datetime column to 'Datetime' regardless of yfinance version
+    # Normalise the datetime column to 'Datetime' after reset_index()
     for _col in ("Datetime", "Date", "index"):
         if _col in df.columns and _col != "Datetime":
             df = df.rename(columns={_col: "Datetime"})

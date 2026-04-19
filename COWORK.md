@@ -35,8 +35,7 @@ Double-click `start.command` from Finder — auto-pulls latest, starts Flask ser
 - `flask` — web server framework
 - `pandas` — data manipulation
 - `numpy` — numerical calculations
-- `yfinance` — Yahoo Finance data (fallback)
-- `massive` — Massive.io API client (primary data source)
+- `massive` — Massive.io API client (data source)
 - `python-dotenv` — loads API keys from .env file
 - `matplotlib` — chart generation
 - `ta` / `pandas-ta` — technical indicators (ADX, EMA calculations)
