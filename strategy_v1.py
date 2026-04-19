@@ -1413,11 +1413,13 @@ def compute_pivot_diagnostics(df):
                 vert_dist  = None
                 vert_dir   = None
                 horiz_dist = None
+                prior_price = None
             else:
                 diff = price - prev_high['price']
                 vert_dist  = round(abs(diff) * 10000, 1)   # pips
                 vert_dir   = 'up' if diff >= 0 else 'down'
                 horiz_dist = pv['bar'] - prev_high['bar']
+                prior_price = float(prev_high['price'])
 
             _n6_key  = (pv['bar'], 'H')
             _n18_key = (pv['bar'], 'H')
@@ -1439,6 +1441,7 @@ def compute_pivot_diagnostics(df):
                 'n6_label':   n6_labels.get(_n6_key),
                 'n18':        _n18_key in n18_labels,
                 'n18_label':  n18_labels.get(_n18_key),
+                'prior_price': prior_price,  # price of previous same-type fractal
             })
             prev_high = pv
 
@@ -1448,11 +1451,13 @@ def compute_pivot_diagnostics(df):
                 vert_dist  = None
                 vert_dir   = None
                 horiz_dist = None
+                prior_price = None
             else:
                 diff = price - prev_low['price']
                 vert_dist  = round(abs(diff) * 10000, 1)
                 vert_dir   = 'up' if diff >= 0 else 'down'
                 horiz_dist = pv['bar'] - prev_low['bar']
+                prior_price = float(prev_low['price'])
 
             _n6_key  = (pv['bar'], 'L')
             _n18_key = (pv['bar'], 'L')
@@ -1474,6 +1479,7 @@ def compute_pivot_diagnostics(df):
                 'n6_label':   n6_labels.get(_n6_key),
                 'n18':        _n18_key in n18_labels,
                 'n18_label':  n18_labels.get(_n18_key),
+                'prior_price': prior_price,  # price of previous same-type fractal
             })
             prev_low = pv
 
@@ -2397,8 +2403,8 @@ __VERSIONS_JSON__
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| Time | # | Type | L# | VD High | VD Low | H6 | H3 | H1 | ATR (pips) | ADX | Pullback % | Price |");
-        lines.push("|------|---|------|----|---------|--------|-----|-----|-----|------------|-----|-----------|----- -|");
+        lines.push("| Time | # | Type | Prior H | Prior L | L# | VD High | VD Low | H6 | H3 | H1 | ATR (pips) | ADX | Pullback % | Price |");
+        lines.push("|------|---|------|---------|---------|----|---------|--------|-----|-----|-----|------------|-----|-----------|----- -|");
         var mdBarOutcome = {};
         (m.intraday || []).forEach(function (t) {
           if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
@@ -2456,7 +2462,16 @@ __VERSIONS_JSON__
           var mdNum = String(idx + 1);
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
-          lines.push("| " + (pv.time || "") + " | " + mdNum + " | " + (mdType2 || "") + " | " + mdLhNum + " | " + mdVertHigh + " | " + mdVertLow + " | " + mdH6 + " | " + mdH3 + " | " + mdHeight + " | " + atrD + " | " + adxD + " | " + pullbackD + " | " +
+          var mdPriorHigh = "";
+          var mdPriorLow  = "";
+          if (pv.prior_price !== null && pv.prior_price !== undefined) {
+            if (pv.kind === "H") {
+              mdPriorHigh = mf(pv.prior_price, 5);
+            } else {
+              mdPriorLow  = mf(pv.prior_price, 5);
+            }
+          }
+          lines.push("| " + (pv.time || "") + " | " + mdNum + " | " + (mdType2 || "") + " | " + mdPriorHigh + " | " + mdPriorLow + " | " + mdLhNum + " | " + mdVertHigh + " | " + mdVertLow + " | " + mdH6 + " | " + mdH3 + " | " + mdHeight + " | " + atrD + " | " + adxD + " | " + pullbackD + " | " +
             mf(pv.price, 5) + " |");
         });
       }
@@ -3589,11 +3604,23 @@ __VERSIONS_JSON__
           _prevHighPrice = pv.price;
         }
 
+        var priorHighHtml = "";
+        var priorLowHtml  = "";
+        if (pv.prior_price !== null && pv.prior_price !== undefined) {
+          if (pv.kind === "H") {
+            priorHighHtml = fmt(pv.prior_price, 5);
+          } else {
+            priorLowHtml  = fmt(pv.prior_price, 5);
+          }
+        }
+
         pvRows +=
           "<tr" + bgClass + ">" +
           "<td class='nowrap'>" + numHtml + "</td>" +
           "<td class='nowrap'>" + esc(pv.time || "") + "</td>" +
           "<td>" + type2Html + "</td>" +
+          "<td class='nowrap'>" + priorHighHtml + "</td>" +
+          "<td class='nowrap'>" + priorLowHtml + "</td>" +
           "<td>" + lhNumHtml + "</td>" +
           "<td>" + vertHigh + "</td>" +
           "<td>" + vertLow + "</td>" +
@@ -3614,6 +3641,8 @@ __VERSIONS_JSON__
           "<th style='width:52px'>#</th>" +
           "<th>Time</th>" +
           "<th>Type</th>" +
+          "<th>Prior H</th>" +
+          "<th>Prior L</th>" +
           "<th>L#</th>" +
           "<th>VD High</th>" +
           "<th>VD Low</th>" +
