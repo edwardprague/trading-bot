@@ -971,6 +971,55 @@ tbody tr:hover td {
     color: #ff8a80;
 }
 
+/* ── Slippage toggle + checkbox (Backtest Settings) ───── */
+.bs-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.bs-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 1px solid #2a2a44;
+    border-radius: 3px;
+    background: #14142a;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s, border-color 0.15s;
+    margin: 0;
+}
+
+.bs-checkbox:hover {
+    border-color: teal;
+}
+
+.bs-checkbox:checked {
+    background: #2a7a7a;
+    border-color: #4cc9c9;
+}
+
+.bs-checkbox:checked::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.bs-toggle-label {
+    font-size: 12px;
+    color: #c0c0e0;
+}
+
 /* ── Small inline badge labels ────────────────────────── */
 .badge-pos {
     color: #6bcb77;

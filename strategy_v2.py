@@ -69,6 +69,15 @@ if _blocked_env:
 else:
     BLOCKED_HOURS_UTC = [4, 5, 6, 8, 10, 11, 14, 17]
 
+# ── Cost modeling (dashboard vs broker alignment) ────────────────────────────
+# APPLY_SLIPPAGE: on SL exits, fill at the bar's actual adverse extreme
+#   (low for longs, high for shorts) instead of the SL price.
+#   Models real fills on fast-moving bars that blow through the SL.
+# SPREAD_PIPS: round-trip spread cost per trade in pips, subtracted from P&L.
+APPLY_SLIPPAGE = os.environ.get("APPLY_SLIPPAGE", "true").strip().lower() in ("true", "1", "yes", "on")
+SPREAD_PIPS    = float(os.environ.get("SPREAD_PIPS", "1.0"))
+SPREAD_PRICE   = SPREAD_PIPS / 10000.0  # pips → price units
+
 VERSION = "v2"
 STRATEGY_VERSION_TAG = "v2"     # identifies which strategy file produced these results
 NOTES = "v1 + EMA position filter — long above / short below EMA Long"
@@ -307,9 +316,19 @@ def _sensitivity_run(df, rrr, swing_lookback):
                          (direction == "short" and c <= tp)
 
             if hit_sl or hit_tp:
-                exit_p = sl if hit_sl else tp
+                # SL slippage model: fill at the worse of SL or the bar's actual
+                # adverse extreme (mirrors real broker fills on fast bars).
+                if hit_sl and APPLY_SLIPPAGE:
+                    if direction == "long":
+                        exit_p = min(sl, bar_lo)
+                    else:
+                        exit_p = max(sl, bar_hi)
+                else:
+                    exit_p = sl if hit_sl else tp
                 pnl = (exit_p - entry_p) * size if direction == "long" \
                       else (entry_p - exit_p) * size
+                # Round-trip spread cost (applied once per trade).
+                pnl -= SPREAD_PRICE * size
                 cash += pnl
                 # Update daily loss counter
                 _exit_utc = pd.to_datetime(ts)
@@ -504,9 +523,19 @@ def run_backtest(df):
                          (direction == "short" and c <= tp)
 
             if hit_sl or hit_tp:
-                exit_p = sl if hit_sl else tp
+                # SL slippage model: fill at the worse of SL or the bar's actual
+                # adverse extreme (mirrors real broker fills on fast bars).
+                if hit_sl and APPLY_SLIPPAGE:
+                    if direction == "long":
+                        exit_p = min(sl, bar_lo)
+                    else:
+                        exit_p = max(sl, bar_hi)
+                else:
+                    exit_p = sl if hit_sl else tp
                 pnl     = (exit_p - entry_p) * size if direction == "long" \
                           else (entry_p - exit_p) * size
+                # Round-trip spread cost (applied once per trade).
+                pnl    -= SPREAD_PRICE * size
                 mae     = abs(entry_p - worst_adverse)
                 cash   += pnl
                 # ── Update daily loss counter on exit ─────────────────────────
@@ -3749,6 +3778,15 @@ __VERSIONS_JSON__
         return "<option value='" + n + "'" + (n === savedMaxDd ? " selected" : "") + ">" + n + "</option>";
       }).join("") + "</select>";
 
+    /* Slippage toggle */
+    var savedSlippage = run.apply_slippage != null ? run.apply_slippage : (p.apply_slippage != null ? p.apply_slippage : true);
+    var slippageCheckedAttr = savedSlippage ? " checked" : "";
+    var slippageHtml = "<label class='bs-toggle'><input id='bs-apply-slippage' type='checkbox' class='bs-checkbox'" + slippageCheckedAttr + "><span class='bs-toggle-label'>Enabled</span></label>";
+
+    /* Spread (pips) numeric input */
+    var savedSpread = run.spread_pips != null ? run.spread_pips : (p.spread_pips != null ? p.spread_pips : 1.0);
+    var spreadPipsHtml = "<input id='bs-spread-pips' type='number' class='bs-input' value='" + savedSpread + "' min='0' step='0.1'>";
+
     /* Blocked Hours checkboxes */
     var _defaultBlocked = DEFAULT_BLOCKED_HOURS;
     var _savedBlocked = localStorage.getItem("bs_blocked_hours");
@@ -3767,6 +3805,8 @@ __VERSIONS_JSON__
     }
     blockedHoursHtml += "</div>";
     var blockedHoursRow = "<tr><td class='bs-td-cond' style='vertical-align:top;padding-top:8px'>Blocked Hours</td><td class='bs-td-rule'>" + blockedHoursHtml + "</td></tr>";
+    var slippageRow = "<tr><td class='bs-td-cond'>Slippage</td><td class='bs-td-rule'>" + slippageHtml + "</td></tr>";
+    var spreadRow   = "<tr><td class='bs-td-cond'>Spread (pips)</td><td class='bs-td-rule'>" + spreadPipsHtml + "</td></tr>";
 
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.filter(function(ec) {
@@ -3798,7 +3838,7 @@ __VERSIONS_JSON__
         "<div class='section'>" +
           "<div class='section-title'>Backtest Settings</div>" +
           "<table>" +
-            "<tbody>" + ecRows + blockedHoursRow + "</tbody>" +
+            "<tbody>" + ecRows + slippageRow + spreadRow + blockedHoursRow + "</tbody>" +
           "</table>" +
         "</div>";
     } else {
@@ -3815,6 +3855,8 @@ __VERSIONS_JSON__
             "<tr><td class='bs-td-cond'>Direction</td><td class='bs-td-rule'>" + dirSelectHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>RRR</td><td class='bs-td-rule'>" + rrrSelectHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>Max DD</td><td class='bs-td-rule'>" + maxDdSelectHtml + "</td></tr>" +
+            slippageRow +
+            spreadRow +
             blockedHoursRow +
             "</tbody>" +
           "</table>" +
@@ -3912,6 +3954,8 @@ __VERSIONS_JSON__
             return "<span class='dim'>None</span>";
           }())) +
           row("Max DD",         "<span class='val-highlight'>" + (run.max_daily_losses != null ? run.max_daily_losses : (p.max_daily_losses != null ? p.max_daily_losses : 2)) + "</span>") +
+          row("Slippage",       "<span class='val-highlight'>" + ((run.apply_slippage != null ? run.apply_slippage : (p.apply_slippage != null ? p.apply_slippage : true)) ? "On" : "Off") + "</span>") +
+          row("Spread",         "<span class='val-highlight'>" + (run.spread_pips != null ? run.spread_pips : (p.spread_pips != null ? p.spread_pips : 1.0)) + " pips</span>") +
           row("Run on",         esc(fmtRunDate(run.date || ""))) +
           "</tbody></table>" +
         "</div>" +
@@ -4027,7 +4071,8 @@ __VERSIONS_JSON__
         { id: "bs-ema-short",  key: "bs_ema_short" },
         { id: "bs-ema-mid",    key: "bs_ema_mid" },
         { id: "bs-ema-long",   key: "bs_ema_long" },
-        { id: "bs-stop-pips",  key: "bs_stop_pips" }
+        { id: "bs-stop-pips",  key: "bs_stop_pips" },
+        { id: "bs-spread-pips", key: "bs_spread_pips" }
       ];
       ids.forEach(function (item) {
         var el = document.getElementById(item.id);
@@ -4037,6 +4082,17 @@ __VERSIONS_JSON__
         el.addEventListener("change", function () {
           localStorage.setItem(item.key, el.value);
         });
+      });
+    }());
+
+    /* Wire Slippage checkbox — persist to localStorage on change */
+    (function () {
+      var cb = document.getElementById("bs-apply-slippage");
+      if (!cb) return;
+      var stored = localStorage.getItem("bs_apply_slippage");
+      if (stored !== null) cb.checked = (stored === "true");
+      cb.addEventListener("change", function () {
+        localStorage.setItem("bs_apply_slippage", cb.checked ? "true" : "false");
       });
     }());
 
@@ -4402,6 +4458,13 @@ __VERSIONS_JSON__
     var _savedStopPips  = localStorage.getItem("bs_stop_pips") || "15";
     var _stopPipsHtml   = "<input id='bs-stop-pips' type='number' class='bs-input' value='" + _savedStopPips + "' min='1' step='1'>";
 
+    var _savedApplySlippage = localStorage.getItem("bs_apply_slippage");
+    var _slippageChecked = _savedApplySlippage === null ? true : (_savedApplySlippage === "true");
+    var _slippageHtml = "<label class='bs-toggle'><input id='bs-apply-slippage' type='checkbox' class='bs-checkbox'" + (_slippageChecked ? " checked" : "") + "><span class='bs-toggle-label'>Enabled</span></label>";
+
+    var _savedSpreadPips = localStorage.getItem("bs_spread_pips") || "1.0";
+    var _spreadPipsHtml  = "<input id='bs-spread-pips' type='number' class='bs-input' value='" + _savedSpreadPips + "' min='0' step='0.1'>";
+
     var _savedRrrRisk   = localStorage.getItem("bs_rrr_risk")   || "1";
     var _savedRrrReward = localStorage.getItem("bs_rrr_reward") || "2";
     var _rrrOpts = [1, 2, 3, 4, 5];
@@ -4454,6 +4517,8 @@ __VERSIONS_JSON__
           "<tr><td class='bs-td-cond'>Direction</td><td class='bs-td-rule'>" + _dirSelectHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>RRR</td><td class='bs-td-rule'>" + _rrrSelectHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>Max DD</td><td class='bs-td-rule'>" + _maxDdSelectHtml + "</td></tr>" +
+          "<tr><td class='bs-td-cond'>Slippage</td><td class='bs-td-rule'>" + _slippageHtml + "</td></tr>" +
+          "<tr><td class='bs-td-cond'>Spread (pips)</td><td class='bs-td-rule'>" + _spreadPipsHtml + "</td></tr>" +
           _eBlockedRow +
           "</tbody>" +
         "</table>" +
@@ -4470,6 +4535,10 @@ __VERSIONS_JSON__
     if (_rrrRewardEl) _rrrRewardEl.addEventListener("change", function () { localStorage.setItem("bs_rrr_reward", _rrrRewardEl.value); });
     var _maxDdEl = document.getElementById("bs-max-dd");
     if (_maxDdEl) _maxDdEl.addEventListener("change", function () { localStorage.setItem("bs_max_dd", _maxDdEl.value); });
+    var _slipEl = document.getElementById("bs-apply-slippage");
+    if (_slipEl) _slipEl.addEventListener("change", function () { localStorage.setItem("bs_apply_slippage", _slipEl.checked ? "true" : "false"); });
+    var _spreadEl = document.getElementById("bs-spread-pips");
+    if (_spreadEl) _spreadEl.addEventListener("change", function () { localStorage.setItem("bs_spread_pips", _spreadEl.value); });
     /* Wire blocked hours persistence (empty state) */
     for (var _ebh2 = 0; _ebh2 <= 23; _ebh2++) {
       (function (h) {
@@ -5253,6 +5322,8 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "rrr_reward":       RRR_REWARD,
         "blocked_hours":    BLOCKED_HOURS_UTC,
         "max_daily_losses": MAX_DAILY_LOSSES,
+        "apply_slippage":   bool(APPLY_SLIPPAGE),
+        "spread_pips":      float(SPREAD_PIPS),
         "notes":         notes.strip() if notes else "—",
         "chart_b64":        chart_b64,
         "eq_dd_chart_b64":  eq_dd_chart_b64,
@@ -5277,6 +5348,8 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "max_stop":          MAX_STOP,
         "trade_direction":   TRADE_DIRECTION,
         "max_daily_losses": MAX_DAILY_LOSSES,
+        "apply_slippage":   bool(APPLY_SLIPPAGE),
+        "spread_pips":      float(SPREAD_PIPS),
     }
 
     if run_mode == "date_range" and existing_versions:

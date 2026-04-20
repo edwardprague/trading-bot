@@ -452,6 +452,20 @@ function getSelectedBlockedHours() {
   return stored || "";
 }
 
+function getSelectedApplySlippage() {
+  var el = document.getElementById("bs-apply-slippage");
+  if (el) return el.checked ? "true" : "false";
+  var stored = localStorage.getItem("bs_apply_slippage");
+  return stored === null ? "true" : stored;
+}
+
+function getSelectedSpreadPips() {
+  var el = document.getElementById("bs-spread-pips");
+  if (el) return el.value;
+  var stored = localStorage.getItem("bs_spread_pips");
+  return stored || "1.0";
+}
+
 function runNewVersion() {
   var instrument = getSelectedInstrument();
   var direction  = getSelectedDirection();
@@ -462,7 +476,7 @@ function runNewVersion() {
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, strategy_version: version, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD() })
+    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, strategy_version: version, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -485,7 +499,7 @@ function runDateRange() {
     setRunning();
     fetch("/run_batch", { method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ranges: selectedRanges, instrument: instrument, target_version: targetVersion, strategy_version: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD() })
+      body: JSON.stringify({ ranges: selectedRanges, instrument: instrument, target_version: targetVersion, strategy_version: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips() })
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
@@ -510,7 +524,7 @@ function runDateRange() {
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, strategy_version: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD() })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, strategy_version: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -776,6 +790,8 @@ def run_backtest():
     rrr_reward  = (data.get("rrr_reward") or "").strip()
     blocked_hours = (data.get("blocked_hours") or "").strip()
     max_daily_losses = (data.get("max_daily_losses") or "").strip()
+    apply_slippage   = (data.get("apply_slippage") or "").strip()
+    spread_pips      = (data.get("spread_pips") or "").strip()
     strategy_version = (data.get("strategy_version") or "").strip()
     env_overrides = {"RUN_MODE": "new_version"}
     if strategy_version:
@@ -801,6 +817,10 @@ def run_backtest():
     env_overrides["BLOCKED_HOURS_UTC"] = blocked_hours if blocked_hours else ""
     if max_daily_losses:
         env_overrides["MAX_DAILY_LOSSES"] = max_daily_losses
+    if apply_slippage:
+        env_overrides["APPLY_SLIPPAGE"] = apply_slippage
+    if spread_pips:
+        env_overrides["SPREAD_PIPS"] = spread_pips
     t = threading.Thread(
         target=_version_with_auto_ranges,
         args=(env_overrides,),
@@ -842,6 +862,8 @@ def run_date_range():
     rrr_reward     = (data.get("rrr_reward") or "").strip()
     blocked_hours  = (data.get("blocked_hours") or "").strip()
     max_daily_losses = (data.get("max_daily_losses") or "").strip()
+    apply_slippage   = (data.get("apply_slippage") or "").strip()
+    spread_pips      = (data.get("spread_pips") or "").strip()
     strategy_version = (data.get("strategy_version") or "").strip()
     env_overrides = {
         "RUN_MODE":       "date_range",
@@ -873,6 +895,10 @@ def run_date_range():
     env_overrides["BLOCKED_HOURS_UTC"] = blocked_hours if blocked_hours else ""
     if max_daily_losses:
         env_overrides["MAX_DAILY_LOSSES"] = max_daily_losses
+    if apply_slippage:
+        env_overrides["APPLY_SLIPPAGE"] = apply_slippage
+    if spread_pips:
+        env_overrides["SPREAD_PIPS"] = spread_pips
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),
@@ -951,6 +977,8 @@ def run_batch():
     rrr_reward       = (data.get("rrr_reward") or "").strip()
     blocked_hours    = (data.get("blocked_hours") or "").strip()
     max_daily_losses = (data.get("max_daily_losses") or "").strip()
+    apply_slippage   = (data.get("apply_slippage") or "").strip()
+    spread_pips      = (data.get("spread_pips") or "").strip()
     if strategy_version: shared_params["STRATEGY_VERSION"] = strategy_version
     if instrument:       shared_params["INSTRUMENT"]       = instrument
     if target_version:   shared_params["TARGET_VERSION"]   = target_version
@@ -964,6 +992,8 @@ def run_batch():
     if rrr_reward:       shared_params["RRR_REWARD"]       = rrr_reward
     shared_params["BLOCKED_HOURS_UTC"] = blocked_hours if blocked_hours else ""
     if max_daily_losses: shared_params["MAX_DAILY_LOSSES"] = max_daily_losses
+    if apply_slippage:   shared_params["APPLY_SLIPPAGE"]   = apply_slippage
+    if spread_pips:      shared_params["SPREAD_PIPS"]      = spread_pips
     t = threading.Thread(
         target=_batch_worker,
         args=(ranges, shared_params),
