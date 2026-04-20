@@ -381,8 +381,12 @@ def _sensitivity_run(df, rrr, swing_lookback):
             if _daily_loss_count >= MAX_DAILY_LOSSES:
                 continue
 
-            # Time filter
-            _entry_hour_utc = _ts_day_utc.hour
+            # Time filter — use entry bar's hour (i+1), not confirmation bar's hour (i)
+            if i + 1 >= len(df2):
+                continue
+            _entry_bar_ts = pd.to_datetime(df2['Datetime'].iloc[i + 1])
+            _entry_bar_utc = _entry_bar_ts.tz_convert('UTC') if _entry_bar_ts.tzinfo else _entry_bar_ts.tz_localize('UTC')
+            _entry_hour_utc = _entry_bar_utc.hour
             if _entry_hour_utc in BLOCKED_HOURS_UTC:
                 continue
 
@@ -633,7 +637,12 @@ def run_backtest(df):
                 continue
 
             # ── Time filter: skip entries during blocked UTC hours ────────────
-            _entry_hour_utc = _ts_day_utc.hour
+            # Check entry bar's hour (i+1), not confirmation bar's hour (i)
+            if i + 1 >= len(df):
+                continue
+            _entry_bar_ts = pd.to_datetime(df['Datetime'].iloc[i + 1])
+            _entry_bar_utc = _entry_bar_ts.tz_convert('UTC') if _entry_bar_ts.tzinfo else _entry_bar_ts.tz_localize('UTC')
+            _entry_hour_utc = _entry_bar_utc.hour
             if _entry_hour_utc in BLOCKED_HOURS_UTC:
                 if long_sig:
                     _sl_t = long_fractal_price - FRACTAL_STOP_PIPS
