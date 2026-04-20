@@ -70,13 +70,16 @@ else:
     BLOCKED_HOURS_UTC = [4, 5, 6, 8, 10, 11, 14, 17]
 
 # ── Cost modeling (dashboard vs broker alignment) ────────────────────────────
-# APPLY_SLIPPAGE: on SL exits, fill at the bar's actual adverse extreme
-#   (low for longs, high for shorts) instead of the SL price.
-#   Models real fills on fast-moving bars that blow through the SL.
+# APPLY_SLIPPAGE: when on, SL exits fill at SL ± SL_SLIPPAGE_PIPS (long: sl − slip,
+#   short: sl + slip). Models real broker fills which typically land a pip or so
+#   past the stop. When off, SL exits fill exactly at the SL price.
+# SL_SLIPPAGE_PIPS: pips of adverse slippage on SL fills when APPLY_SLIPPAGE is on.
 # SPREAD_PIPS: round-trip spread cost per trade in pips, subtracted from P&L.
-APPLY_SLIPPAGE = os.environ.get("APPLY_SLIPPAGE", "true").strip().lower() in ("true", "1", "yes", "on")
-SPREAD_PIPS    = float(os.environ.get("SPREAD_PIPS", "1.0"))
-SPREAD_PRICE   = SPREAD_PIPS / 10000.0  # pips → price units
+APPLY_SLIPPAGE    = os.environ.get("APPLY_SLIPPAGE", "true").strip().lower() in ("true", "1", "yes", "on")
+SL_SLIPPAGE_PIPS  = float(os.environ.get("SL_SLIPPAGE_PIPS", "1.0"))
+SL_SLIPPAGE_PRICE = SL_SLIPPAGE_PIPS / 10000.0  # pips → price units
+SPREAD_PIPS       = float(os.environ.get("SPREAD_PIPS", "1.0"))
+SPREAD_PRICE      = SPREAD_PIPS / 10000.0  # pips → price units
 
 VERSION = "v1"
 STRATEGY_VERSION_TAG = "v1"     # identifies which strategy file produced these results
@@ -312,13 +315,13 @@ def _sensitivity_run(df, rrr, swing_lookback):
                          (direction == "short" and c <= tp)
 
             if hit_sl or hit_tp:
-                # SL slippage model: fill at the worse of SL or the bar's actual
-                # adverse extreme (mirrors real broker fills on fast bars).
+                # SL slippage: adverse fill SL_SLIPPAGE_PIPS past the stop
+                # (mirrors typical real broker fills near the stop level).
                 if hit_sl and APPLY_SLIPPAGE:
                     if direction == "long":
-                        exit_p = min(sl, bar_lo)
+                        exit_p = sl - SL_SLIPPAGE_PRICE
                     else:
-                        exit_p = max(sl, bar_hi)
+                        exit_p = sl + SL_SLIPPAGE_PRICE
                 else:
                     exit_p = sl if hit_sl else tp
                 pnl = (exit_p - entry_p) * size if direction == "long" \
@@ -522,13 +525,13 @@ def run_backtest(df):
                          (direction == "short" and c <= tp)
 
             if hit_sl or hit_tp:
-                # SL slippage model: fill at the worse of SL or the bar's actual
-                # adverse extreme (mirrors real broker fills on fast bars).
+                # SL slippage: adverse fill SL_SLIPPAGE_PIPS past the stop
+                # (mirrors typical real broker fills near the stop level).
                 if hit_sl and APPLY_SLIPPAGE:
                     if direction == "long":
-                        exit_p = min(sl, bar_lo)
+                        exit_p = sl - SL_SLIPPAGE_PRICE
                     else:
-                        exit_p = max(sl, bar_hi)
+                        exit_p = sl + SL_SLIPPAGE_PRICE
                 else:
                     exit_p = sl if hit_sl else tp
                 pnl     = (exit_p - entry_p) * size if direction == "long" \
@@ -3803,6 +3806,10 @@ __VERSIONS_JSON__
     var slippageCheckedAttr = savedSlippage ? " checked" : "";
     var slippageHtml = "<label class='bs-toggle'><input id='bs-apply-slippage' type='checkbox' class='bs-checkbox'" + slippageCheckedAttr + "><span class='bs-toggle-label'>Enabled</span></label>";
 
+    /* SL Slippage (pips) numeric input */
+    var savedSlSlippage = run.sl_slippage_pips != null ? run.sl_slippage_pips : (p.sl_slippage_pips != null ? p.sl_slippage_pips : 1.0);
+    var slSlippagePipsHtml = "<input id='bs-sl-slippage-pips' type='number' class='bs-input' value='" + savedSlSlippage + "' min='0' step='0.1'>";
+
     /* Spread (pips) numeric input */
     var savedSpread = run.spread_pips != null ? run.spread_pips : (p.spread_pips != null ? p.spread_pips : 1.0);
     var spreadPipsHtml = "<input id='bs-spread-pips' type='number' class='bs-input' value='" + savedSpread + "' min='0' step='0.1'>";
@@ -3825,8 +3832,9 @@ __VERSIONS_JSON__
     }
     blockedHoursHtml += "</div>";
     var blockedHoursRow = "<tr><td class='bs-td-cond' style='vertical-align:top;padding-top:8px'>Blocked Hours</td><td class='bs-td-rule'>" + blockedHoursHtml + "</td></tr>";
-    var slippageRow = "<tr><td class='bs-td-cond'>Slippage</td><td class='bs-td-rule'>" + slippageHtml + "</td></tr>";
-    var spreadRow   = "<tr><td class='bs-td-cond'>Spread (pips)</td><td class='bs-td-rule'>" + spreadPipsHtml + "</td></tr>";
+    var slippageRow    = "<tr><td class='bs-td-cond'>Slippage</td><td class='bs-td-rule'>" + slippageHtml + "</td></tr>";
+    var slSlippageRow  = "<tr><td class='bs-td-cond'>SL Slippage (pips)</td><td class='bs-td-rule'>" + slSlippagePipsHtml + "</td></tr>";
+    var spreadRow      = "<tr><td class='bs-td-cond'>Spread (pips)</td><td class='bs-td-rule'>" + spreadPipsHtml + "</td></tr>";
 
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.filter(function(ec) {
@@ -3858,7 +3866,7 @@ __VERSIONS_JSON__
         "<div class='section'>" +
           "<div class='section-title'>Backtest Settings</div>" +
           "<table>" +
-            "<tbody>" + ecRows + slippageRow + spreadRow + blockedHoursRow + "</tbody>" +
+            "<tbody>" + ecRows + slippageRow + slSlippageRow + spreadRow + blockedHoursRow + "</tbody>" +
           "</table>" +
         "</div>";
     } else {
@@ -3876,6 +3884,7 @@ __VERSIONS_JSON__
             "<tr><td class='bs-td-cond'>RRR</td><td class='bs-td-rule'>" + rrrSelectHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>Max DD</td><td class='bs-td-rule'>" + maxDdSelectHtml + "</td></tr>" +
             slippageRow +
+            slSlippageRow +
             spreadRow +
             blockedHoursRow +
             "</tbody>" +
@@ -3975,6 +3984,7 @@ __VERSIONS_JSON__
           }())) +
           row("Max DD",         "<span class='val-highlight'>" + (run.max_daily_losses != null ? run.max_daily_losses : (p.max_daily_losses != null ? p.max_daily_losses : 2)) + "</span>") +
           row("Slippage",       "<span class='val-highlight'>" + ((run.apply_slippage != null ? run.apply_slippage : (p.apply_slippage != null ? p.apply_slippage : true)) ? "On" : "Off") + "</span>") +
+          row("SL Slippage",    "<span class='val-highlight'>" + (run.sl_slippage_pips != null ? run.sl_slippage_pips : (p.sl_slippage_pips != null ? p.sl_slippage_pips : 1.0)) + " pips</span>") +
           row("Spread",         "<span class='val-highlight'>" + (run.spread_pips != null ? run.spread_pips : (p.spread_pips != null ? p.spread_pips : 1.0)) + " pips</span>") +
           row("Run on",         esc(fmtRunDate(run.date || ""))) +
           "</tbody></table>" +
@@ -4092,7 +4102,8 @@ __VERSIONS_JSON__
         { id: "bs-ema-mid",    key: "bs_ema_mid" },
         { id: "bs-ema-long",   key: "bs_ema_long" },
         { id: "bs-stop-pips",  key: "bs_stop_pips" },
-        { id: "bs-spread-pips", key: "bs_spread_pips" }
+        { id: "bs-spread-pips", key: "bs_spread_pips" },
+        { id: "bs-sl-slippage-pips", key: "bs_sl_slippage_pips" }
       ];
       ids.forEach(function (item) {
         var el = document.getElementById(item.id);
@@ -4485,6 +4496,9 @@ __VERSIONS_JSON__
     var _savedSpreadPips = localStorage.getItem("bs_spread_pips") || "1.0";
     var _spreadPipsHtml  = "<input id='bs-spread-pips' type='number' class='bs-input' value='" + _savedSpreadPips + "' min='0' step='0.1'>";
 
+    var _savedSlSlippagePips = localStorage.getItem("bs_sl_slippage_pips") || "1.0";
+    var _slSlippagePipsHtml  = "<input id='bs-sl-slippage-pips' type='number' class='bs-input' value='" + _savedSlSlippagePips + "' min='0' step='0.1'>";
+
     var _savedRrrRisk   = localStorage.getItem("bs_rrr_risk")   || "1";
     var _savedRrrReward = localStorage.getItem("bs_rrr_reward") || "2";
     var _rrrOpts = [1, 2, 3, 4, 5];
@@ -4538,6 +4552,7 @@ __VERSIONS_JSON__
           "<tr><td class='bs-td-cond'>RRR</td><td class='bs-td-rule'>" + _rrrSelectHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>Max DD</td><td class='bs-td-rule'>" + _maxDdSelectHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>Slippage</td><td class='bs-td-rule'>" + _slippageHtml + "</td></tr>" +
+          "<tr><td class='bs-td-cond'>SL Slippage (pips)</td><td class='bs-td-rule'>" + _slSlippagePipsHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>Spread (pips)</td><td class='bs-td-rule'>" + _spreadPipsHtml + "</td></tr>" +
           _eBlockedRow +
           "</tbody>" +
@@ -4559,6 +4574,8 @@ __VERSIONS_JSON__
     if (_slipEl) _slipEl.addEventListener("change", function () { localStorage.setItem("bs_apply_slippage", _slipEl.checked ? "true" : "false"); });
     var _spreadEl = document.getElementById("bs-spread-pips");
     if (_spreadEl) _spreadEl.addEventListener("change", function () { localStorage.setItem("bs_spread_pips", _spreadEl.value); });
+    var _slSlipEl = document.getElementById("bs-sl-slippage-pips");
+    if (_slSlipEl) _slSlipEl.addEventListener("change", function () { localStorage.setItem("bs_sl_slippage_pips", _slSlipEl.value); });
     /* Wire blocked hours persistence (empty state) */
     for (var _ebh2 = 0; _ebh2 <= 23; _ebh2++) {
       (function (h) {
@@ -5343,6 +5360,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "blocked_hours":    BLOCKED_HOURS_UTC,
         "max_daily_losses": MAX_DAILY_LOSSES,
         "apply_slippage":   bool(APPLY_SLIPPAGE),
+        "sl_slippage_pips": float(SL_SLIPPAGE_PIPS),
         "spread_pips":      float(SPREAD_PIPS),
         "notes":         notes.strip() if notes else "—",
         "chart_b64":        chart_b64,
@@ -5369,6 +5387,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "trade_direction":   TRADE_DIRECTION,
         "max_daily_losses": MAX_DAILY_LOSSES,
         "apply_slippage":   bool(APPLY_SLIPPAGE),
+        "sl_slippage_pips": float(SL_SLIPPAGE_PIPS),
         "spread_pips":      float(SPREAD_PIPS),
     }
 

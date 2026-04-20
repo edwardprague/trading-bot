@@ -108,3 +108,5 @@ The EMA comparison uses the confirmation bar's close (not the entry reference) t
 
 - **Language**: C# (not Python — C# runs natively inside cTrader as a cBot, Python Open API is an external connection not suitable for prop firm use)
 - **Code generation**: `cbot_templates.py` renders `FractalBot_v{N}.cs` on demand from the dashboard's **Create cBot** button. Changes to the bot's logic must be made in `cbot_templates.py` (not in the `.cs` output file, which is overwritten on each generation).
+
+# Most Recent Tasks
