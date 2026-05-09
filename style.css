@@ -1405,51 +1405,76 @@ tbody tr:hover td {
 }
 
 /* ── Chart preview overlay (shown on eye-icon hover) ───── */
+/* Covers only the report area (right of the 228px sidebar) and shows a
+   semi-transparent backdrop behind the chart image. The image is rendered
+   at the same dimensions as #chart-img inside the report page. */
 #chart-preview-overlay {
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scale(0.98);
-    max-width: min(90vw, 1400px);
-    max-height: 86vh;
-    background: #1a1a1a;
-    border: 1px solid #333;
-    border-radius: 8px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-    padding: 12px;
+    top: 0;
+    left: 228px;        /* sidebar width — backdrop only over report area */
+    right: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    padding: 30px 38px 52px;  /* mirrors #main padding */
+    background: rgba(10, 10, 16, 0.65);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     z-index: 9999;
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
-    transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0.12s;
+    transition: opacity 0.12s ease, visibility 0s linear 0.12s;
 }
 
 #chart-preview-overlay.visible {
     opacity: 1;
     visibility: visible;
-    transform: translate(-50%, -50%) scale(1);
-    transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0s;
+    transition: opacity 0.12s ease, visibility 0s linear 0s;
+}
+
+/* Card wrapper mirrors .section so #chart-preview-img renders at the same
+   width/height as #chart-img inside the report's Chart section. */
+#chart-preview-card {
+    background: #000;
+    border: 1px solid #666;
+    border-radius: 10px;
+    padding: 15px;
+    box-sizing: border-box;
+    width: 100%;
+    max-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
 }
 
 #chart-preview-overlay #chart-preview-img {
     display: block;
-    max-width: 100%;
-    max-height: calc(86vh - 24px);
-    width: auto;
+    width: 100%;
     height: auto;
-    border-radius: 4px;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    border: 1px solid #1a1a2c;
 }
 
-#chart-preview-overlay.no-chart::after {
+#chart-preview-overlay.no-chart #chart-preview-card {
+    width: auto;
+}
+
+#chart-preview-overlay.no-chart #chart-preview-img {
+    display: none;
+}
+
+#chart-preview-overlay.no-chart #chart-preview-card::after {
     content: "No chart available";
     display: block;
     color: #888;
     padding: 24px 32px;
     font-size: 14px;
-}
-
-#chart-preview-overlay.no-chart #chart-preview-img {
-    display: none;
 }
 
 /* ── Drag-and-drop states ─────────────────────────────── */

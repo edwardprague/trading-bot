@@ -2073,7 +2073,9 @@ def _build_html(versions_json):
 <div id="copy-toast">&#10003;&nbsp; Copied to clipboard!</div>
 
 <div id="chart-preview-overlay" aria-hidden="true">
-  <img id="chart-preview-img" alt="Chart preview"/>
+  <div id="chart-preview-card">
+    <img id="chart-preview-img" alt="Chart preview"/>
+  </div>
 </div>
 
 <!-- Action buttons: hidden by default, moved into the run bar by server.py -->
