@@ -133,3 +133,4 @@
 | v1 | 2026-05-09 18:35 | Trend Following | GBPUSD | 5m | Fractal geometry entries — no EMA alignment | 5 | 80.0% | 3.00 | +$2412.47 | -1.20% | 5.11 |
 | v2 | 2026-05-09 18:40 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 1 | 100.0% | ∞ | +$926.96 | 0.00% | 4.91 |
 | v2 | 2026-05-09 18:41 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 3 | 33.3% | 0.41 | -$1330.71 | -2.27% | -2.36 |
+| v2 | 2026-05-09 18:43 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 49 | 44.9% | 0.67 | -$10074.80 | -14.19% | -1.38 |
