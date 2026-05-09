@@ -1365,6 +1365,93 @@ tbody tr:hover td {
     color: #e74c3c;
 }
 
+/* ── Sidebar action buttons (eye + delete) ─────────────── */
+.v-sub-action-btns {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.v-sub-preview-btn {
+    background: none;
+    border: none;
+    color: #666;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.v-sub-preview-btn .material-symbols-outlined {
+    font-size: 20px;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+.v-item:hover .v-sub-preview-btn {
+    opacity: 1;
+}
+
+.v-sub-preview-btn:hover {
+    color: #4aa3ff;
+}
+
+.v-sub-preview-btn:hover .material-symbols-outlined {
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+
+/* ── Chart preview overlay (shown on eye-icon hover) ───── */
+#chart-preview-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.98);
+    max-width: min(90vw, 1400px);
+    max-height: 86vh;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    padding: 12px;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0.12s;
+}
+
+#chart-preview-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+    transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0s;
+}
+
+#chart-preview-overlay #chart-preview-img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(86vh - 24px);
+    width: auto;
+    height: auto;
+    border-radius: 4px;
+}
+
+#chart-preview-overlay.no-chart::after {
+    content: "No chart available";
+    display: block;
+    color: #888;
+    padding: 24px 32px;
+    font-size: 14px;
+}
+
+#chart-preview-overlay.no-chart #chart-preview-img {
+    display: none;
+}
+
 /* ── Drag-and-drop states ─────────────────────────────── */
 .v-item.dragging {
     opacity: 0.3;

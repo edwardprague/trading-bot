@@ -2075,6 +2075,10 @@ def _build_html(versions_json):
 
 <div id="copy-toast">&#10003;&nbsp; Copied to clipboard!</div>
 
+<div id="chart-preview-overlay" aria-hidden="true">
+  <img id="chart-preview-img" alt="Chart preview"/>
+</div>
+
 <!-- Action buttons: hidden by default, moved into the run bar by server.py -->
 <button id="copy-btn" style="display:none;">Copy Report</button>
 <button id="cbot-btn" style="display:none;">Create cBot</button>
@@ -2172,6 +2176,30 @@ __VERSIONS_JSON__
     if (msg) toast.innerHTML = "&#10003;&nbsp; " + msg;
     toast.classList.add("show");
     setTimeout(function () { toast.classList.remove("show"); }, 2200);
+  }
+
+  /* ── Sidebar chart preview overlay ─────────────────────── */
+  function showChartPreview(chartB64) {
+    var overlay = document.getElementById("chart-preview-overlay");
+    var img = document.getElementById("chart-preview-img");
+    if (!overlay || !img) return;
+    if (!chartB64) {
+      img.removeAttribute("src");
+      overlay.classList.add("no-chart");
+    } else {
+      img.src = "data:image/png;base64," + chartB64;
+      overlay.classList.remove("no-chart");
+    }
+    overlay.classList.add("visible");
+    overlay.setAttribute("aria-hidden", "false");
+  }
+  function hideChartPreview() {
+    var overlay = document.getElementById("chart-preview-overlay");
+    var img = document.getElementById("chart-preview-img");
+    if (!overlay) return;
+    overlay.classList.remove("visible");
+    overlay.setAttribute("aria-hidden", "true");
+    if (img) img.removeAttribute("src");
   }
 
   /* ── Markdown builder (per run) ────────────────────────────── */
@@ -2896,12 +2924,16 @@ __VERSIONS_JSON__
               "</div>" +
               (dateRange ? "<div class='v-date date-link' data-start='" + esc(range.start) + "' data-end='" + esc(range.end) + "'>" + esc(dateRange) + "</div>" : "") +
             "</div>" +
-            "<button class='v-sub-delete-btn' title='Delete run'>&times;</button>" +
+            "<div class='v-sub-action-btns'>" +
+              "<button class='v-sub-preview-btn' title='Preview chart' type='button'><span class='material-symbols-outlined'>visibility</span></button>" +
+              "<button class='v-sub-delete-btn' title='Delete run' type='button'>&times;</button>" +
+            "</div>" +
           "</div>";
 
         (function (el, vIdx, rIdx, verName, totalRuns) {
           el.addEventListener("click", function (e) {
             if (e.target.closest(".v-sub-delete-btn")) return;
+            if (e.target.closest(".v-sub-preview-btn")) return;
             var dl = e.target.closest(".date-link[data-start]");
             if (dl) { setDatePicker(dl.dataset.start, dl.dataset.end); return; }
             devLogOpen = false;
@@ -2951,6 +2983,14 @@ __VERSIONS_JSON__
               .catch(function () { delBtn.disabled = false; alert("Delete failed — is the server running?"); });
             }
           });
+
+          /* Wire chart-preview hover button */
+          var prevBtn = el.querySelector(".v-sub-preview-btn");
+          if (prevBtn) {
+            prevBtn.addEventListener("mouseenter", function () { showChartPreview(run.chart_b64); });
+            prevBtn.addEventListener("mouseleave", function () { hideChartPreview(); });
+            prevBtn.addEventListener("click", function (e) { e.stopPropagation(); });
+          }
 
           /* ── Drag-and-drop reorder ── */
           el.addEventListener("dragstart", function (e) {
