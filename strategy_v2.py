@@ -2930,7 +2930,7 @@ __VERSIONS_JSON__
             "</div>" +
           "</div>";
 
-        (function (el, vIdx, rIdx, verName, totalRuns) {
+        (function (el, vIdx, rIdx, verName, totalRuns, chartB64) {
           el.addEventListener("click", function (e) {
             if (e.target.closest(".v-sub-delete-btn")) return;
             if (e.target.closest(".v-sub-preview-btn")) return;
@@ -2987,7 +2987,7 @@ __VERSIONS_JSON__
           /* Wire chart-preview hover button */
           var prevBtn = el.querySelector(".v-sub-preview-btn");
           if (prevBtn) {
-            prevBtn.addEventListener("mouseenter", function () { showChartPreview(run.chart_b64); });
+            prevBtn.addEventListener("mouseenter", function () { showChartPreview(chartB64); });
             prevBtn.addEventListener("mouseleave", function () { hideChartPreview(); });
             prevBtn.addEventListener("click", function (e) { e.stopPropagation(); });
           }
@@ -3074,7 +3074,7 @@ __VERSIONS_JSON__
               alert("Reorder failed — is the server running?");
             });
           });
-        })(el, item.vIdx, item.runIdx, item.v.name, totalRuns);
+        })(el, item.vIdx, item.runIdx, item.v.name, totalRuns, run.chart_b64 || "");
 
         list.appendChild(el);
       }
