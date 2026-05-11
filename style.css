@@ -281,16 +281,18 @@ body {
 
 .bs-collapsible {
     max-height: 0;
+    margin-bottom: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease;
+    transition: max-height 0.3s ease, margin-bottom 0.3s ease;
 }
 
 .bs-collapsible.open {
     max-height: 500px;
+    margin-bottom: 25px;
 }
 
 .bs-collapsible .section {
-    margin-bottom: 25px;
+    margin-bottom: 0;
 }
 
 .v-notes {
