@@ -5348,7 +5348,7 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
     if metrics is None:
         print("  No trades generated — skipping HTML report.")
         print("NO_DATA")
-        return
+        return None
     print("  Metrics complete. Building report...")
 
     # ── Load main chart as base64 ──────────────────────────────────────────────
@@ -5517,6 +5517,11 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
 
     print(f"  Report {action} → {report_path}  ({version_num} version{'s' if version_num > 1 else ''})")
     print(f"  Open with:    open {report_path}\n")
+
+    # Return the metrics we just computed so the caller can reuse them
+    # for update_results_log() without a second compute_metrics() pass
+    # (which re-ran the sensitivity sweeps).
+    return metrics
 
 # ── Results log ───────────────────────────────────────────────────────────────
 
@@ -5754,14 +5759,15 @@ if __name__ == "__main__":
         print("PROGRESS:60:Generating charts…", flush=True)
         chart_path, eq_dd_chart_path = save_charts(df, trades, equity)
     print("PROGRESS:75:Building report…", flush=True)
-    generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes,
-                         blocked_signals=blocked_signals, df=df,
-                         eq_dd_chart_path=eq_dd_chart_path,
-                         run_mode=run_mode,
-                         run_start_date=run_start_date,
-                         run_end_date=run_end_date)
-    print("PROGRESS:88:Computing metrics…", flush=True)
-    metrics = compute_metrics(trades, equity, blocked_signals=blocked_signals, df=df)
+    # generate_html_report() returns the metrics it just computed so we can
+    # reuse them downstream instead of paying for a second compute_metrics()
+    # (which also re-runs the sensitivity sweeps).
+    metrics = generate_html_report(trades, equity, chart_path=chart_path, notes=run_notes,
+                                   blocked_signals=blocked_signals, df=df,
+                                   eq_dd_chart_path=eq_dd_chart_path,
+                                   run_mode=run_mode,
+                                   run_start_date=run_start_date,
+                                   run_end_date=run_end_date)
     print("PROGRESS:92:Updating results log…", flush=True)
     update_results_log(metrics, notes=run_notes)
     print("PROGRESS:96:Pushing to git…", flush=True)
