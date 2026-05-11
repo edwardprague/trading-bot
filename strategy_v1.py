@@ -152,6 +152,32 @@ def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
         _multiplier = 5
         _timespan   = "minute"
 
+    # ── Local Parquet cache (silent fast-path) ─────────────────────────────────
+    # download_data.py writes data/<INSTRUMENT>_<interval>.parquet. When the
+    # file is present we serve the request straight from disk, filtered to the
+    # already-buffered [start, end] window. Any failure falls through to the
+    # Massive API path below, so the cache layer never blocks a backtest.
+    from pathlib import Path as _Path
+    _cache_path = _Path(__file__).resolve().parent / "data" / f"{_INSTRUMENT}_{interval}.parquet"
+    if _cache_path.exists():
+        try:
+            _cached = pd.read_parquet(_cache_path)
+            _lo = pd.Timestamp(start).tz_localize("UTC")
+            _hi = pd.Timestamp(end + timedelta(days=1)).tz_localize("UTC")
+            df_cached = _cached[(_cached.index >= _lo) & (_cached.index < _hi)].copy()
+            df_cached = df_cached[["Open", "High", "Low", "Close", "Volume"]].dropna()
+            if len(df_cached) > 0:
+                print(f"\nLoading {_INSTRUMENT} {interval} from local cache "
+                      f"({_cache_path.name})...")
+                print(f"  {len(df_cached)} bars loaded | "
+                      f"{df_cached.index[0].date()} → {df_cached.index[-1].date()}")
+                print(f"  Source: local cache ({_cache_path.name})")
+                return df_cached
+            # Empty filter result → fall through to API (covers the case where
+            # the user asks for a range outside what the cached file holds).
+        except Exception as _cache_err:
+            print(f"  Cache read failed ({_cache_err}); falling back to Massive API")
+
     # ── Massive API (sole data source) ─────────────────────────────────────────
     if not MASSIVE_API_KEY:
         print("ERROR: MASSIVE_API_KEY not found in environment.")

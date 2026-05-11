@@ -29,6 +29,8 @@ body {
     background: steelblue;
     padding: 2px 7px;
     border-radius: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 /* Section-specific duration badge colors */
