@@ -4072,6 +4072,9 @@ __VERSIONS_JSON__
       toggleBtn.addEventListener("click", function () {
         var isOpen = panel.classList.toggle("open");
         toggleBtn.classList.toggle("open", isOpen);
+        /* Set max-height dynamically so the panel grows to fit its content
+           without clipping the bottom rows. */
+        panel.style.maxHeight = isOpen ? panel.scrollHeight + "px" : "0";
       });
     }());
 

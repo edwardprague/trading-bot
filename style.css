@@ -287,7 +287,8 @@ body {
 }
 
 .bs-collapsible.open {
-    max-height: 500px;
+    /* max-height is set dynamically via JS (scrollHeight) so the panel
+       always fits its content without clipping. */
     margin-bottom: 25px;
 }
 
