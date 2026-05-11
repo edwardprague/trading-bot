@@ -1079,6 +1079,7 @@ tbody tr:hover td {
 .date-link {
     cursor: pointer;
     color: inherit;
+    white-space: nowrap;
 }
 
 .date-link:hover {
@@ -1416,11 +1417,13 @@ tbody tr:hover td {
 #chart-preview-overlay {
     position: fixed;
     top: 0;
-    left: 228px;        /* sidebar width — backdrop only over report area */
+    left: 228px;
+    /* sidebar width — backdrop only over report area */
     right: 0;
     bottom: 0;
     box-sizing: border-box;
-    padding: 30px 38px 52px;  /* mirrors #main padding */
+    padding: 30px 38px 52px;
+    /* mirrors #main padding */
     background: rgba(10, 10, 16, 0.65);
     backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
