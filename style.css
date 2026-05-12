@@ -1605,3 +1605,486 @@ tbody tr:hover td {
     font-weight: bold;
     margin-left: 7px;
 }
+
+/* ── Regime Discovery Report (regime_discovery.html) ───────────────────── */
+/* Standalone single-page report — overrides the dashboard's flex layout. */
+body.regime-report {
+    display: block;
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+    padding: 28px 24px 60px;
+    background: #0c0c14;
+    color: #d0d0e8;
+}
+
+.regime-container {
+    max-width: 1180px;
+    margin: 0 auto;
+}
+
+.regime-header {
+    margin-bottom: 24px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #1e1e30;
+}
+
+.regime-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+    letter-spacing: 0.01em;
+}
+
+.regime-header-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    font-size: 13px;
+    color: #d0d0e8;
+}
+
+.regime-header-meta strong {
+    color: #9090b0;
+    font-weight: 500;
+    margin-right: 4px;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+}
+
+.regime-card {
+    background: #10101c;
+    border: 1px solid #1e1e30;
+    border-radius: 8px;
+    padding: 20px 22px;
+    margin-bottom: 22px;
+}
+
+.regime-card h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 12px;
+    letter-spacing: 0.02em;
+}
+
+.regime-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 6px;
+}
+
+.regime-dim {
+    color: #9090b0;
+}
+
+.regime-small {
+    font-size: 12px;
+    margin-bottom: 14px;
+    line-height: 1.5;
+}
+
+.regime-chart-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.regime-chart-row img {
+    flex: 1 1 360px;
+    max-width: 100%;
+    border-radius: 6px;
+    background: #1a1a2e;
+}
+
+.regime-diag {
+    background: #0c0c14;
+    border: 1px solid #1e1e30;
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: #d0d0e8;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+}
+
+.regime-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.regime-table thead th {
+    background: #1a1a2e;
+    color: #aaa;
+    font-weight: 600;
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid #2a2a40;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.regime-table tbody td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #1e1e30;
+    color: #d0d0e8;
+}
+
+.regime-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.regime-profile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+.regime-profile {
+    margin-bottom: 0;
+}
+
+.regime-feature-list {
+    list-style: none;
+    margin-top: 10px;
+    padding: 0;
+}
+
+.regime-feature-list li {
+    padding: 6px 0;
+    border-bottom: 1px solid #1e1e30;
+    font-size: 12.5px;
+}
+
+.regime-feature-list li:last-child {
+    border-bottom: none;
+}
+
+.regime-pill {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-right: 6px;
+}
+
+/* ── Heatmap cells (warm = above mean, cool = below) ─────────────────── */
+.heat-pos-5 { background: #b71c1c; color: #fff; }
+.heat-pos-4 { background: #e53935; color: #fff; }
+.heat-pos-3 { background: #ef5350; color: #fff; }
+.heat-pos-2 { background: #ff8a65; color: #1a1a2e; }
+.heat-pos-1 { background: #ffcc80; color: #1a1a2e; }
+.heat-zero  { background: #2a2a40; color: #d0d0e8; }
+.heat-neg-1 { background: #b3e5fc; color: #1a1a2e; }
+.heat-neg-2 { background: #4fc3f7; color: #1a1a2e; }
+.heat-neg-3 { background: #29b6f6; color: #fff; }
+.heat-neg-4 { background: #1976d2; color: #fff; }
+.heat-neg-5 { background: #0d47a1; color: #fff; }
+
+/* ── Win-rate validation cell highlighting ────────────────────────────── */
+.win-good    { background: #1b5e20; color: #fff; font-weight: 600; }
+.win-bad     { background: #b71c1c; color: #fff; font-weight: 600; }
+.win-neutral { color: #d0d0e8; }
+
+/* ── Regime palette — one class per regime label (regime_labeler.html) ── */
+/* Color choices follow the user's spec: blues for downtrends, reds for
+   uptrends, greens for ranging, grey for transitioning.                  */
+.regime-color-trending-fast-down   { background: #0d47a1; }
+.regime-color-trending-medium-down { background: #1976d2; }
+.regime-color-trending-slow-down   { background: #90caf9; }
+.regime-color-trending-fast-up     { background: #b71c1c; }
+.regime-color-trending-medium-up   { background: #e53935; }
+.regime-color-trending-slow-up     { background: #ef9a9a; }
+.regime-color-ranging-narrow       { background: #1b5e20; }
+.regime-color-ranging-medium       { background: #388e3c; }
+.regime-color-ranging-wide         { background: #81c784; }
+.regime-color-transitioning        { background: #616161; }
+.regime-color-none                 { background: #1a1a2e; }
+/* "Inactive" — used for hourly chips where zero fractals were detected
+   in that hour. Distinctly darker than all regime colors (including the
+   transitioning grey) so an inactive hour reads as visually empty. */
+.regime-color-inactive             { background: #08080d; }
+
+/* ── Regime swatch (inline color tag) ─────────────────────────────────── */
+.regime-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    margin-right: 7px;
+    vertical-align: middle;
+    border: 1px solid rgba(0, 0, 0, 0.4);
+}
+
+.regime-chip {
+    display: inline-flex;
+    align-items: center;
+    margin: 4px 12px 4px 0;
+    font-size: 12.5px;
+    color: #d0d0e8;
+}
+
+.regime-breakdown {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+}
+
+.regime-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 14px;
+}
+
+/* ── Daily regime timeline strip ──────────────────────────────────────── */
+.regime-tl-strip {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 2px;
+    padding: 6px 0;
+    background: #0c0c14;
+    border: 1px solid #1e1e30;
+    border-radius: 6px;
+}
+
+.regime-tl-cell {
+    flex: 1 0 14px;
+    min-width: 8px;
+    height: 36px;
+    border-radius: 0;
+    cursor: help;
+    transition: transform 0.1s;
+}
+
+.regime-tl-cell:hover {
+    transform: scaleY(1.08);
+    outline: 1px solid #fff;
+}
+
+.regime-tl-weeks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 14px;
+    margin-top: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px;
+    color: #9090b0;
+}
+
+.regime-tl-week {
+    white-space: nowrap;
+}
+
+/* ── Regime summary cards ─────────────────────────────────────────────── */
+.regime-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+.regime-summary-card .regime-card-head {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.regime-summary-card .regime-card-head h3 {
+    margin-bottom: 0;
+}
+
+.regime-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 18px;
+    font-size: 13px;
+}
+
+.regime-card-grid > div {
+    display: flex;
+    flex-direction: column;
+}
+
+.regime-card-grid strong {
+    color: #fff;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+/* ── Daily breakdown table (regime_labeler.html) ──────────────────────── */
+.regime-daily-table {
+    font-size: 12.5px;
+}
+
+.regime-daily-table td {
+    vertical-align: middle;
+}
+
+.regime-hour-chips {
+    display: inline-flex;
+    gap: 1px;
+    line-height: 0;
+}
+
+.regime-hour-chip {
+    display: inline-block;
+    width: 11px;
+    height: 18px;
+    border-radius: 0;
+    border: none;
+    cursor: help;
+}
+
+.regime-pnl-pos { color: #6bcb77; font-weight: 600; }
+.regime-pnl-neg { color: #ef5350; font-weight: 600; }
+.regime-pnl-zero { color: #9090b0; }
+
+.regime-chart-cell {
+    text-align: right;
+    width: 44px;
+}
+
+/* Daily-table preview button — mirrors the dashboard sidebar's
+   .v-sub-preview-btn behavior: hidden by default, revealed when the parent
+   row is hovered, blue (and filled icon) when the icon itself is hovered.
+   The chart preview overlay then fades in on icon hover via the JS in
+   regime_labeler.html. */
+.regime-daily-table .v-sub-preview-btn {
+    background: none;
+    border: none;
+    color: #666;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+    opacity: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s, color 0.15s;
+}
+
+.regime-daily-table .v-sub-preview-btn .material-symbols-outlined {
+    font-size: 20px;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    transition: font-variation-settings 0.12s;
+}
+
+/* Row hover reveals the eye icon */
+.regime-daily-table tbody tr:hover .v-sub-preview-btn {
+    opacity: 1;
+}
+
+/* Icon hover — blue, filled variant, matches dashboard sidebar */
+.regime-daily-table .v-sub-preview-btn:hover:not(.disabled) {
+    color: #4aa3ff;
+}
+
+.regime-daily-table .v-sub-preview-btn:hover:not(.disabled) .material-symbols-outlined {
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+
+/* Disabled state — greyed-out, still visible on row hover, no preview action */
+.regime-daily-table .v-sub-preview-btn.disabled {
+    color: #3a3a52;
+    cursor: not-allowed;
+    pointer-events: auto;       /* keep tooltip on hover */
+}
+
+/* Subtle row hover background so the hover target is unmistakable */
+.regime-daily-table tbody tr {
+    transition: background 0.1s;
+}
+
+.regime-daily-table tbody tr:hover {
+    background: rgba(76, 163, 255, 0.05);
+}
+
+/* ── Low-activity day indicator (amber dot) ───────────────────────────── */
+.regime-low-activity-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #f59e0b;
+    margin-right: 6px;
+    vertical-align: middle;
+    cursor: help;
+    box-shadow: 0 0 4px rgba(245, 158, 11, 0.45);
+}
+
+/* When the dot appears inline inside a sentence/legend (rather than as a
+   row indicator), tighten the margin so it sits naturally with text. */
+.regime-low-activity-dot--inline {
+    margin-right: 4px;
+    margin-left: 2px;
+}
+
+/* Inline variant of the hour chip — used in the legend note so the same
+   dark "inactive" swatch can be referenced inside body text. */
+.regime-hour-chip--inline {
+    width: 11px;
+    height: 11px;
+    vertical-align: middle;
+    margin-right: 4px;
+    margin-left: 2px;
+}
+
+.regime-breakdown-note {
+    margin-top: 12px;
+    border-top: 1px solid #1e1e30;
+    padding-top: 10px;
+    line-height: 1.7;
+}
+
+.regime-perf-note {
+    margin-top: 12px;
+}
+
+/* ── Sortable column headers ──────────────────────────────────────────── */
+th.regime-sort {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 22px !important;
+}
+
+th.regime-sort::after {
+    content: "⇅";
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #555;
+    font-size: 11px;
+}
+
+th.regime-sort:hover {
+    color: #fff;
+}
+
+th.regime-sort-asc::after  { content: "▲"; color: #4cc9f0; }
+th.regime-sort-desc::after { content: "▼"; color: #4cc9f0; }
+
+/* ── Hover preview overlay — override for standalone regime page ──────── */
+/* The dashboard rule positions the overlay starting at left:228px to leave
+   room for the sidebar. The regime report has no sidebar, so cover the
+   whole viewport. */
+body.regime-report #chart-preview-overlay {
+    left: 0;
+}
+
+body.regime-report #chart-preview-card {
+    max-width: 1100px;
+    width: 92%;
+}
