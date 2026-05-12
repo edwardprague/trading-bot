@@ -1814,6 +1814,64 @@ body.regime-report {
    transitioning grey) so an inactive hour reads as visually empty. */
 .regime-color-inactive             { background: #08080d; }
 
+/* ── Macro regime palette — used by .macro-badge and .regime-tl-cell ──── */
+.macro-color-strong-down    { background: #0d47a1; }
+.macro-color-staircase-down { background: #1976d2; }
+.macro-color-flat           { background: #616161; }
+.macro-color-staircase-up   { background: #e53935; }
+.macro-color-strong-up      { background: #b71c1c; }
+
+/* Tag-style badges — used in the daily-breakdown row's Macro Regime column,
+   in the Trade-performance-by-macro and Trade-performance-by-regime tables,
+   and in the Macro-profile cards. The two classes share visual treatment;
+   only the palette and (for the regime palette only) a small dark-text
+   override on the pale colors differ. */
+.macro-badge,
+.regime-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+}
+
+/* The pale ends of the regime palette (slow trends and wide ranges) don't
+   have enough contrast against white text — use the dark theme's body color
+   instead so the labels stay readable. The macro palette has no pale
+   variants so no equivalent override is needed there. */
+.regime-badge.regime-color-trending-slow-down,
+.regime-badge.regime-color-trending-slow-up,
+.regime-badge.regime-color-ranging-wide {
+    color: #1a1a2e;
+}
+
+/* Two-row timeline: a left-side label, then the strip. */
+.regime-tl-row {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.regime-tl-row-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #9090b0;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    width: 48px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+.regime-tl-row .regime-tl-strip {
+    flex: 1;
+}
+
 /* ── Regime swatch (inline color tag) ─────────────────────────────────── */
 .regime-swatch {
     display: inline-block;
@@ -1866,11 +1924,37 @@ body.regime-report {
     border-radius: 0;
     cursor: help;
     transition: transform 0.1s;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .regime-tl-cell:hover {
     transform: scaleY(1.08);
     outline: 1px solid #fff;
+}
+
+/* Trade-count overlay — small number rendered inside each timeline cell when
+   trades were taken on that day. Sized small enough that the regime color
+   remains the dominant visual; text-shadow keeps the number legible against
+   both dark and pale regime palettes. */
+.regime-tl-cell-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.92);
+    line-height: 1;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.65);
+    pointer-events: none;
+    letter-spacing: 0.01em;
+}
+
+/* Pale regime backgrounds need dark text + light shadow to stay readable. */
+.regime-tl-cell.regime-color-trending-slow-down .regime-tl-cell-count,
+.regime-tl-cell.regime-color-trending-slow-up   .regime-tl-cell-count,
+.regime-tl-cell.regime-color-ranging-wide       .regime-tl-cell-count {
+    color: #1a1a2e;
+    text-shadow: 0 1px 1px rgba(255, 255, 255, 0.55);
 }
 
 .regime-tl-weeks {
@@ -1944,6 +2028,60 @@ body.regime-report {
     border-radius: 0;
     border: none;
     cursor: help;
+    position: relative;
+    vertical-align: top;
+}
+
+/* Trade-entry dot overlay — appears on chips where a trade entered during
+   that UTC hour. Up to 3 dots are stacked vertically, sitting slightly
+   above center so the chip color remains visible. The +N indicator is
+   appended below the 3 dots when more than 3 trades fell in the same hour.
+   A 1px white outline keeps every dot visible across all regime colors,
+   including the pale ranging-wide / slow-trend backgrounds. */
+.regime-hour-chip-trades {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    transform: translateY(-55%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    pointer-events: none;
+}
+
+.regime-hour-chip-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #b9f6ca;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-sizing: content-box;
+}
+
+.regime-hour-chip-dot--win {
+    background: #b9f6ca;
+}
+
+.regime-hour-chip-dot--loss {
+    background: #ef5350;
+}
+
+.regime-hour-chip-dot-more {
+    font-size: 7px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7);
+    margin-top: 1px;
+}
+
+/* In the chart-preview overlay the chips are stretched to span the card
+   width, so the dots would otherwise grow oversized relative to a normal
+   chip's narrow column. Cap the stack at the chip's height there too. */
+body.regime-report #chart-preview-chips .regime-hour-chip-trades {
+    transform: translateY(-55%);
 }
 
 .regime-pnl-pos { color: #6bcb77; font-weight: 600; }
@@ -2087,4 +2225,255 @@ body.regime-report #chart-preview-overlay {
 body.regime-report #chart-preview-card {
     max-width: 1100px;
     width: 92%;
+    /* The base #chart-preview-card uses flex-direction: row to center a
+       single image. We add the chip strip ABOVE the image, so switch to
+       column orientation and align children to start so the chips occupy
+       the full top edge of the card. */
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+}
+
+/* ── Hour-chip strip inside the chart hover preview ───────────────────── */
+/* The JS clones the hovered row's .regime-hour-chips element into
+   #chart-preview-chips. In this context the chips need to span the full
+   width of the preview card so they visually align with the chart image
+   below them, instead of using the compact 11px-per-chip table sizing. */
+body.regime-report #chart-preview-chips {
+    width: 100%;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+
+body.regime-report #chart-preview-chips .regime-hour-chips {
+    display: flex;
+    gap: 1px;
+    width: 100%;
+}
+
+body.regime-report #chart-preview-chips .regime-hour-chip {
+    flex: 1 1 0;
+    width: auto;
+    height: 14px;
+}
+
+/* Image already has width:100% from the dashboard CSS, but we explicitly
+   stop it from stretching vertically to fill the column. */
+body.regime-report #chart-preview-overlay #chart-preview-img {
+    flex-shrink: 1;
+    min-height: 0;
+}
+
+/* ── Header top row — title on the left, Copy Report button on the right ── */
+.regime-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+.regime-header-top h1 {
+    margin-bottom: 0;
+}
+
+.regime-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #10101c;
+    color: #d0d0e8;
+    border: 1px solid #1e1e30;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+.regime-copy-btn:hover {
+    background: #1a1a2e;
+    color: #fff;
+    border-color: #2a2a40;
+}
+
+.regime-copy-btn:focus-visible {
+    outline: 2px solid #4cc9f0;
+    outline-offset: 2px;
+}
+
+.regime-copy-btn .material-symbols-outlined {
+    font-size: 16px;
+    font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+    line-height: 1;
+}
+
+.regime-copy-btn.copied {
+    background: #1b5e20;
+    color: #fff;
+    border-color: #1b5e20;
+}
+
+.regime-copy-btn.copied .material-symbols-outlined {
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+
+/* ── Top-of-report summary stats bar ──────────────────────────────────────
+   Sits directly under the header. Six metric cards in a single horizontal
+   row (wraps on narrow viewports). Values for Win Rate and Total P&L pick
+   up green/red coloring via the conditional .regime-stat-good / -bad. */
+.regime-stats-bar {
+    margin-bottom: 22px;
+}
+
+.regime-stats-cards {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+}
+
+@media (max-width: 1000px) {
+    .regime-stats-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .regime-stats-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.regime-stat-card {
+    background: #10101c;
+    border: 1px solid #1e1e30;
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.regime-stat-label {
+    color: #9090b0;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+}
+
+.regime-stat-value {
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: 0.01em;
+}
+
+.regime-stat-good {
+    color: #6bcb77;
+}
+
+.regime-stat-bad {
+    color: #ef5350;
+}
+
+.regime-stat-neutral {
+    color: #fff;
+}
+
+.regime-stats-filter-label {
+    margin-top: 10px;
+    font-size: 11.5px;
+    color: #9090b0;
+    text-align: center;
+    letter-spacing: 0.03em;
+}
+
+.regime-stats-filter-label.regime-filter-on {
+    color: #ffd93d;
+}
+
+.regime-stats-filter-label.regime-filter-off {
+    color: #9090b0;
+}
+
+/* ── Macro-filter exclusion note (shown below perf tables) ───────────────── */
+.regime-macro-filter-note {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.regime-macro-filter-note strong {
+    color: #d0d0e8;
+    font-weight: 600;
+}
+
+.regime-macro-filter-note-icon {
+    font-size: 14px !important;
+    color: #ffd93d;
+    line-height: 1;
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+/* ── Blocked-row visual indicator (daily breakdown + macro perf table) ────
+   When the macro filter blocks a regime/day, the row gets a dimmed overlay
+   and a small yellow lock icon next to the macro badge. The styling is
+   shared between the daily-breakdown table and the macro perf table so
+   both convey the same meaning at a glance.
+
+   The lock-icon position is set by where the badge is placed in the cell:
+   the daily-breakdown table puts the lock AFTER the badge, while the macro
+   perf table puts it BEFORE — both use the same .regime-blocked-lock
+   class for the icon itself. The .regime-blocked-lock--leading modifier
+   (used when the lock precedes the badge) tightens the spacing on the
+   right so the icon sits flush against the badge. */
+.regime-table tr.regime-day-blocked td {
+    opacity: 0.55;
+}
+
+.regime-table tr.regime-day-blocked:hover td {
+    opacity: 0.85;
+}
+
+.regime-blocked-lock {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    margin-left: 6px;
+    color: #ffd93d;
+    cursor: help;
+}
+
+/* When the lock leads the cell (before the badge), flip the margin so the
+   gap appears on the right instead of the left. Selected via the badge
+   being the immediate next sibling — keeps the markup compact. */
+.regime-blocked-lock + .macro-badge {
+    margin-left: 6px;
+}
+
+.regime-blocked-lock:first-child {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.regime-blocked-lock .material-symbols-outlined {
+    font-size: 14px;
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+
+/* P&L cell that shows a counterfactual value (macro perf table, blocked
+   rows). The row-level dim from .regime-day-blocked handles the visual
+   muting; this rule just ensures the cell shows the help cursor on hover
+   so the tooltip discovery is obvious. */
+.regime-pnl-counterfactual {
+    cursor: help;
 }

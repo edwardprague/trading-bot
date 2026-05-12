@@ -126,6 +126,134 @@ REGIME_ORDER = list(REGIME_DISPLAY.keys())
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Macro regime configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# Tunable thresholds for the day-level macro classifier. All in pips.
+
+LARGE_DISPLACEMENT_PIPS = 30   # |close − open| ≥ this → "large" displacement
+SMALL_DISPLACEMENT_PIPS = 15   # |close − open| <  this → flat day (regardless of intraday)
+EMA_MACRO_PERIOD        = 40   # span for the within-day EMA used for slope
+N18_LOOKBACK            = 18   # bars each side for Williams N=18 fractal detection
+
+MACRO_REGIME_ORDER = [
+    "strong_down", "staircase_down", "flat", "staircase_up", "strong_up",
+]
+
+MACRO_REGIME_DISPLAY = {
+    "strong_down":    "Strong Down",
+    "staircase_down": "Staircase Down",
+    "flat":           "Flat",
+    "staircase_up":   "Staircase Up",
+    "strong_up":      "Strong Up",
+}
+
+# Color scheme per spec: deep→pale blue for down, deep→pale red for up, grey flat.
+MACRO_REGIME_COLORS = {
+    "strong_down":    "#0d47a1",
+    "staircase_down": "#1976d2",
+    "flat":           "#616161",
+    "staircase_up":   "#e53935",
+    "strong_up":      "#b71c1c",
+}
+
+
+def macro_class(label):
+    """CSS class for a macro regime label (e.g. 'strong_down' → 'macro-color-strong-down')."""
+    if not label:
+        return "macro-color-flat"
+    return "macro-color-" + label.replace("_", "-")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Macro regime filter — exclude trades on certain macro-regime days from
+# performance statistics. Filtered days still appear in the daily breakdown
+# table and regime timeline (with a visual indicator) so the user retains
+# the full context; only the aggregate stats, performance tables, win-rate
+# and profit-factor calculations are affected.
+#
+# Use the human-readable display names ("Flat", "Staircase Up", "Strong Up").
+# Internal keys ("flat", "staircase_up", "strong_up") are also accepted.
+# ─────────────────────────────────────────────────────────────────────────────
+
+BLOCKED_MACRO_REGIMES = ["Flat", "Staircase Up", "Strong Up"]
+APPLY_MACRO_FILTER    = True
+
+
+def _blocked_macro_keys():
+    """Convert BLOCKED_MACRO_REGIMES to the internal label-key set
+    (e.g. 'Strong Up' → 'strong_up'). Empty set when filter is disabled."""
+    if not APPLY_MACRO_FILTER:
+        return set()
+    display_to_key = {v: k for k, v in MACRO_REGIME_DISPLAY.items()}
+    keys = set()
+    for name in BLOCKED_MACRO_REGIMES:
+        if name in display_to_key:
+            keys.add(display_to_key[name])
+        elif name in MACRO_REGIME_ORDER:
+            keys.add(name)
+    return keys
+
+
+def _filter_trades_by_macro(trades_df, macro):
+    """Drop trades whose entry day falls on a blocked macro regime.
+    Returns (kept_trades_df, n_excluded, blocked_keys_set). If the filter is
+    off or no trades match, the original frame is returned unmodified."""
+    blocked = _blocked_macro_keys()
+    if not blocked or trades_df.empty:
+        return trades_df.copy(), 0, blocked
+    td = trades_df.copy()
+    ts = pd.to_datetime(td["entry_ts"])
+    ts_utc = ts.dt.tz_convert("UTC") if ts.dt.tz is not None else ts.dt.tz_localize("UTC")
+    entry_day = ts_utc.dt.strftime("%Y-%m-%d")
+    macro_label = entry_day.map(lambda d: macro.get(d, {}).get("label"))
+    blocked_mask = macro_label.isin(blocked)
+    n_excluded = int(blocked_mask.sum())
+    kept = td[~blocked_mask].reset_index(drop=True)
+    return kept, n_excluded, blocked
+
+
+def _compute_perf_df(trades_df):
+    """Per-regime aggregate metrics — same shape produced by stage3_trade_outcomes,
+    but rebuildable from any trades_df subset (e.g. after macro filtering)."""
+    perf = []
+    for label in REGIME_ORDER:
+        sub = trades_df[trades_df["regime"] == label] if not trades_df.empty else pd.DataFrame()
+        n = len(sub)
+        if n == 0:
+            perf.append({"regime": label, "trades": 0, "wins": 0, "win_rate": np.nan,
+                         "profit_factor": np.nan, "avg_pnl": np.nan, "total_pnl": 0.0})
+            continue
+        wins = int(sub["win"].sum())
+        win_rate = wins / n * 100
+        gross_win  = float(sub.loc[sub["pnl"] > 0, "pnl"].sum())
+        gross_loss = float(-sub.loc[sub["pnl"] < 0, "pnl"].sum())
+        pf = (gross_win / gross_loss) if gross_loss > 0 else (float("inf") if gross_win > 0 else 0.0)
+        perf.append({
+            "regime":   label, "trades": n, "wins": wins, "win_rate": win_rate,
+            "profit_factor": pf, "avg_pnl": float(sub["pnl"].mean()),
+            "total_pnl": float(sub["pnl"].sum()),
+        })
+    return pd.DataFrame(perf)
+
+
+def _compute_aggregate_stats(trades_df):
+    """Top-line stats for the report header: total/wins/losses/win-rate/PF/total P&L."""
+    n = int(len(trades_df))
+    if n == 0:
+        return {"total": 0, "wins": 0, "losses": 0,
+                "win_rate": float("nan"), "pf": float("nan"), "total_pnl": 0.0}
+    wins = int(trades_df["win"].sum())
+    losses = n - wins
+    win_rate = wins / n * 100
+    gw = float(trades_df.loc[trades_df["pnl"] > 0, "pnl"].sum())
+    gl = float(-trades_df.loc[trades_df["pnl"] < 0, "pnl"].sum())
+    pf = gw / gl if gl > 0 else (float("inf") if gw > 0 else 0.0)
+    return {"total": n, "wins": wins, "losses": losses,
+            "win_rate": win_rate, "pf": pf,
+            "total_pnl": float(trades_df["pnl"].sum())}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Stage 1 — Fractal extraction with rolling lookback metrics
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -524,6 +652,134 @@ def stage2_classify(fractal_df):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Stage 2b — Macro regime detection (per-day classification)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def classify_macro_regime(day_bars):
+    """Classify a single trading day's macro regime using three signals:
+      (1) Net displacement — first-bar open vs last-bar close, in pips.
+      (2) EMA-40 slope — within-day EMA evaluated at Q1 vs Q3.
+      (3) N18 fractal structure — sequentially lower (or higher) N=18 fractals.
+
+    Returns (label, details) where label is one of MACRO_REGIME_ORDER and
+    details is a dict carrying the raw signal values for display.
+
+    Logic:
+      • |displacement| < SMALL → flat (regardless of EMA/N18)
+      • Otherwise direction = sign of displacement
+      • Strong = displacement ≥ LARGE AND EMA slope agrees AND N18 confirms
+      • Staircase = direction-aligned EMA slope (no strong confirmation needed)
+      • Conflicting EMA slope vs displacement → flat (the day was indecisive)
+    """
+    details = {
+        "displacement_pips": float("nan"),
+        "ema_slope_pips":    float("nan"),
+        "n18_high_count":    0,
+        "n18_low_count":     0,
+        "bars":              len(day_bars),
+    }
+
+    # Need enough bars for EMA stabilisation and for N18 to even attempt
+    if len(day_bars) < max(N18_LOOKBACK * 2 + 1, EMA_MACRO_PERIOD):
+        return "flat", details
+
+    bars = day_bars.reset_index(drop=True)
+
+    # ── Signal 1: Net displacement ──────────────────────────────────────────
+    displacement_price = float(bars["Close"].iloc[-1]) - float(bars["Open"].iloc[0])
+    displacement_pips  = displacement_price * PIP
+    details["displacement_pips"] = displacement_pips
+    abs_disp = abs(displacement_pips)
+
+    # ── Signal 2: EMA-40 slope from Q1 → Q3 ─────────────────────────────────
+    ema = bars["Close"].ewm(span=EMA_MACRO_PERIOD, adjust=False).mean()
+    n = len(bars)
+    # Wait until the EMA has at least one full period of warmup before
+    # sampling, so the slope reflects mature smoothing.
+    q1 = max(EMA_MACRO_PERIOD, n // 4)
+    q3 = max(q1 + 1, 3 * n // 4)
+    q3 = min(q3, n - 1)
+    ema_slope_pips = (float(ema.iloc[q3]) - float(ema.iloc[q1])) * PIP
+    details["ema_slope_pips"] = ema_slope_pips
+
+    # ── Signal 3: N18 fractal structure ─────────────────────────────────────
+    highs = bars["High"].values
+    lows  = bars["Low"].values
+    n18_highs, n18_lows = [], []
+    for i in range(N18_LOOKBACK, len(bars) - N18_LOOKBACK):
+        is_ph = True
+        is_pl = True
+        for k in range(1, N18_LOOKBACK + 1):
+            if is_ph and (highs[i] <= highs[i - k] or highs[i] <= highs[i + k]):
+                is_ph = False
+            if is_pl and (lows[i] >= lows[i - k] or lows[i] >= lows[i + k]):
+                is_pl = False
+            if not is_ph and not is_pl:
+                break
+        if is_ph: n18_highs.append(float(highs[i]))
+        if is_pl: n18_lows.append(float(lows[i]))
+    details["n18_high_count"] = len(n18_highs)
+    details["n18_low_count"]  = len(n18_lows)
+
+    def _all_dropping(seq):
+        return len(seq) >= 2 and all(seq[i] < seq[i-1] for i in range(1, len(seq)))
+
+    def _all_rising(seq):
+        return len(seq) >= 2 and all(seq[i] > seq[i-1] for i in range(1, len(seq)))
+
+    n18_down_confirms = _all_dropping(n18_highs) and _all_dropping(n18_lows)
+    n18_up_confirms   = _all_rising(n18_highs)   and _all_rising(n18_lows)
+
+    # ── Combine ─────────────────────────────────────────────────────────────
+    if abs_disp < SMALL_DISPLACEMENT_PIPS:
+        return "flat", details
+
+    if displacement_pips < 0:
+        ema_aligned = ema_slope_pips < 0
+        if abs_disp >= LARGE_DISPLACEMENT_PIPS and ema_aligned and n18_down_confirms:
+            return "strong_down", details
+        if ema_aligned:
+            return "staircase_down", details
+        return "flat", details
+    else:
+        ema_aligned = ema_slope_pips > 0
+        if abs_disp >= LARGE_DISPLACEMENT_PIPS and ema_aligned and n18_up_confirms:
+            return "strong_up", details
+        if ema_aligned:
+            return "staircase_up", details
+        return "flat", details
+
+
+def stage2b_classify_macro(full_df):
+    """Run classify_macro_regime over every trading day in [START_DATE, END_DATE].
+    Returns dict keyed by YYYY-MM-DD with {'label': ..., 'details': {...}}."""
+    print("Stage 2b: Classifying macro regimes...")
+
+    trading_days = _trading_days_in_range(full_df)
+    dts = pd.to_datetime(full_df["Datetime"])
+    dts_utc = dts.dt.tz_convert("UTC") if dts.dt.tz is not None else dts.dt.tz_localize("UTC")
+
+    macro = {}
+    for day in trading_days:
+        day_start = pd.Timestamp(day, tz="UTC")
+        day_end   = day_start + pd.Timedelta(days=1)
+        day_bars  = full_df[(dts_utc >= day_start) & (dts_utc < day_end)]
+        label, details = classify_macro_regime(day_bars)
+        macro[day] = {"label": label, "details": details}
+
+    # Per-label summary print
+    counts = {}
+    for d in macro.values():
+        counts[d["label"]] = counts.get(d["label"], 0) + 1
+    print(f"Stage 2b complete: {len(macro)} days classified")
+    for lbl in MACRO_REGIME_ORDER:
+        if lbl in counts:
+            print(f"  {MACRO_REGIME_DISPLAY[lbl]}: {counts[lbl]}")
+
+    return macro
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Stage 3 — Trade outcome mapping
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -682,30 +938,39 @@ def generate_daily_charts(full_df):
             # rather than being clipped from the chart x-axis. Then remap
             # each trade's positional indices via real timestamps so trade
             # markers and the equity curve still line up.
+            #
+            # Important: we must thread the tz-aware UTC Datetime Series
+            # through end-to-end. Calling .values on a tz-aware Series
+            # strips the tz (numpy datetime64 doesn't carry tz), which
+            # would make reindex against the tz-aware full_grid silently
+            # match nothing — every row would come back NaN.
             if not df_view.empty:
-                # Snapshot the real timestamps that each trade index points to
-                # BEFORE padding, so we can re-locate them in the padded frame.
-                pre_padding_dts = pd.to_datetime(df_view["Datetime"])
-                pre_padding_dts = (pre_padding_dts.dt.tz_convert("UTC")
-                                   if pre_padding_dts.dt.tz is not None
-                                   else pre_padding_dts.dt.tz_localize("UTC"))
+                # Normalise the Datetime column to a tz-aware UTC Series
+                dt_col = pd.to_datetime(df_view["Datetime"])
+                if dt_col.dt.tz is None:
+                    dt_col = dt_col.dt.tz_localize("UTC")
+                else:
+                    dt_col = dt_col.dt.tz_convert("UTC")
+                df_view = df_view.copy()
+                df_view["Datetime"] = dt_col   # assign the Series — preserves tz
+
+                # Snapshot the real timestamps each trade index points to
+                # BEFORE padding so we can re-locate them in the padded frame.
                 if not trades.empty:
                     def _ts_at(idx_series):
                         idx_clamped = idx_series.astype(int).clip(
                             lower=0, upper=len(df_view) - 1).values
-                        return pre_padding_dts.iloc[idx_clamped].values
+                        return df_view["Datetime"].iloc[idx_clamped].tolist()
                     entry_ts_real = _ts_at(trades["entry_idx"])
                     exit_ts_real  = _ts_at(trades["exit_idx"])
                     fb_ts_real    = _ts_at(trades["fractal_bar"])
 
-                # Build the canonical 24h grid and reindex
+                # Build the canonical 24h grid (tz-aware UTC) and reindex
                 full_grid = pd.date_range(
                     start=r_start, end=r_end - pd.Timedelta(minutes=5),
                     freq="5min", tz="UTC",
                 )
-                df_view_idx = df_view.copy()
-                df_view_idx["Datetime"] = pre_padding_dts.values
-                df_view_idx = df_view_idx.set_index("Datetime")
+                df_view_idx = df_view.set_index("Datetime")   # tz-aware index
                 df_padded = df_view_idx.reindex(full_grid)
                 for col in df_padded.columns:
                     df_padded[col] = df_padded[col].ffill().bfill()
@@ -714,11 +979,8 @@ def generate_daily_charts(full_df):
 
                 # Re-locate trade indices in the padded grid
                 if not trades.empty:
-                    padded_ts = pd.to_datetime(df_view["Datetime"])
-                    padded_ts = (padded_ts.dt.tz_convert("UTC")
-                                 if padded_ts.dt.tz is not None
-                                 else padded_ts.dt.tz_localize("UTC"))
-                    ts_to_pos = {pd.Timestamp(ts): i for i, ts in enumerate(padded_ts)}
+                    ts_to_pos = {pd.Timestamp(ts): i
+                                 for i, ts in enumerate(df_view["Datetime"])}
                     def _remap(arr):
                         out = []
                         for ts in arr:
@@ -917,7 +1179,7 @@ LOW_ACTIVITY_FRACTAL_THRESHOLD = 3   # days with fewer than this many fractals
                                      # are flagged as "low activity"
 
 
-def build_hourly_chips(day_str, day_fractals):
+def build_hourly_chips(day_str, day_fractals, day_trades_by_hour=None):
     """Return HTML for 24 hourly chips, one per UTC hour of day_str.
 
     `day_fractals` is a DataFrame of fractals that occurred on this UTC date
@@ -926,7 +1188,18 @@ def build_hourly_chips(day_str, day_fractals):
     fractals show the regime-color-inactive (very dark) chip so it is visually
     obvious which hours had no classification at all — rather than letting
     forward-fill from prior periods make the day appear uniformly classified.
+
+    `day_trades_by_hour` is an optional dict `{hour_int: [win_bool, ...]}`
+    listing the trades that *entered* during each UTC hour of this day. Each
+    listed trade is rendered as a small dot on its hour's chip — light green
+    for a winning trade, red for a loss. Up to 3 dots are shown stacked
+    vertically; for 4+ trades in the same hour the 3 dots are followed by a
+    small "+N" indicator. On blocked-macro-regime rows the existing row-level
+    opacity rule dims the dots along with the rest of the cell, so
+    counterfactual entries are still visible at the same reduced opacity.
     """
+    day_trades_by_hour = day_trades_by_hour or {}
+
     # Pre-group fractals by hour for this day
     by_hour = {}
     if not day_fractals.empty:
@@ -939,28 +1212,253 @@ def build_hourly_chips(day_str, day_fractals):
     chips = []
     for h in range(24):
         regimes_in_hour = by_hour.get(h)
+        trades_this_hour = day_trades_by_hour.get(h, [])
+
+        # Determine chip class + base hover title
         if not regimes_in_hour:
-            title = f"{day_str} {h:02d}:00 — No fractal activity"
-            chips.append(
-                f"<span class='regime-hour-chip regime-color-inactive' title='{title}'></span>"
-            )
+            base_title = f"{day_str} {h:02d}:00 — No fractal activity"
+            chip_cls   = "regime-color-inactive"
         else:
             # Most common regime in this hour (ties broken by first occurrence)
             counts = {}
             for r in regimes_in_hour:
                 counts[r] = counts.get(r, 0) + 1
             top = max(counts, key=counts.get)
-            n = sum(counts.values())
+            n_frac = sum(counts.values())
             label = REGIME_DISPLAY.get(top, "Unknown")
-            title = f"{day_str} {h:02d}:00 — {label} ({n} fractal{'s' if n != 1 else ''})"
-            chips.append(
-                f"<span class='regime-hour-chip {regime_class(top)}' title='{title}'></span>"
+            base_title = (
+                f"{day_str} {h:02d}:00 — {label} "
+                f"({n_frac} fractal{'s' if n_frac != 1 else ''})"
             )
+            chip_cls = regime_class(top)
+
+        # Trade-entry dots overlay
+        if trades_this_hour:
+            n_tr   = len(trades_this_hour)
+            wins   = sum(1 for w in trades_this_hour if w)
+            losses = n_tr - wins
+            dots = []
+            for w in trades_this_hour[:3]:
+                dot_cls = ("regime-hour-chip-dot--win" if w
+                           else "regime-hour-chip-dot--loss")
+                dots.append(
+                    f"<span class='regime-hour-chip-dot {dot_cls}'></span>"
+                )
+            extra = n_tr - 3
+            if extra > 0:
+                dots.append(
+                    f"<span class='regime-hour-chip-dot-more'>+{extra}</span>"
+                )
+            trades_html = (
+                f"<span class='regime-hour-chip-trades'>{''.join(dots)}</span>"
+            )
+            title = (
+                f"{base_title} · {n_tr} trade{'s' if n_tr != 1 else ''} "
+                f"({wins}W / {losses}L)"
+            )
+        else:
+            trades_html = ""
+            title = base_title
+
+        chips.append(
+            f"<span class='regime-hour-chip {chip_cls}' title='{title}'>"
+            f"{trades_html}</span>"
+        )
     return f"<div class='regime-hour-chips'>{''.join(chips)}</div>"
 
 
+def _macro_trades_by_label(macro, trades_df):
+    """Helper — group trades by the macro regime label of their entry day.
+    Returns a DataFrame with an added `macro_label` column, plus a dict of
+    {macro_label: trade_count_for_that_label}."""
+    if trades_df.empty:
+        return trades_df.copy(), {}
+    td = trades_df.copy()
+    ts = pd.to_datetime(td["entry_ts"])
+    ts_utc = ts.dt.tz_convert("UTC") if ts.dt.tz is not None else ts.dt.tz_localize("UTC")
+    td["entry_day"] = ts_utc.dt.strftime("%Y-%m-%d")
+    td["macro_label"] = td["entry_day"].map(
+        lambda d: macro.get(d, {}).get("label")
+    )
+    counts = td.groupby("macro_label", dropna=False).size().to_dict()
+    return td, counts
+
+
+def build_macro_perf_table(macro, trades_df, blocked_macro_keys=None):
+    """Render the 'Trade performance by macro regime' table. Same column shape
+    as the micro perf table — Regime / Periods / Trades / Wins / Win rate /
+    Profit factor / Avg P&L / Total P&L. 'Periods' here is the count of days
+    classified into each macro regime.
+
+    Rows whose macro label appears in `blocked_macro_keys` are marked with
+    the `regime-day-blocked` class (same as the daily-breakdown table) so
+    they render at reduced opacity, and a lock icon is shown immediately
+    before the regime badge. Their Total P&L cell also gets a counterfactual
+    tooltip — the row still shows what the trades on those days would have
+    done, but visually communicates that they are excluded from the active
+    strategy's aggregate stats above.
+    """
+    days_per_label = {}
+    for d in macro.values():
+        days_per_label[d["label"]] = days_per_label.get(d["label"], 0) + 1
+
+    td, _ = _macro_trades_by_label(macro, trades_df)
+    blocked_macro_keys = blocked_macro_keys or set()
+
+    counterfactual_tip = (
+        "Counterfactual — these trades were filtered out by the macro "
+        "regime filter. This shows what would have occurred if the filter "
+        "was not applied."
+    )
+
+    rows = []
+    for label in MACRO_REGIME_ORDER:
+        days = days_per_label.get(label, 0)
+        if days == 0:
+            continue
+        is_blocked = label in blocked_macro_keys
+
+        if td.empty:
+            sub = td
+        else:
+            sub = td[td["macro_label"] == label]
+        n = int(len(sub))
+        if n > 0:
+            wins = int(sub["win"].sum())
+            wr   = wins / n * 100
+            gw   = float(sub.loc[sub["pnl"] > 0, "pnl"].sum())
+            gl   = float(-sub.loc[sub["pnl"] < 0, "pnl"].sum())
+            pf   = gw / gl if gl > 0 else (float("inf") if gw > 0 else 0.0)
+            avg  = float(sub["pnl"].mean())
+            tot  = float(sub["pnl"].sum())
+            wr_cls = winrate_class(wr, n)
+            wr_cell = f"<td class='{wr_cls}'>{_fmt_pct(wr)}</td>"
+            pf_cell  = f"<td>{_fmt_pf(pf)}</td>"
+            avg_cell = f"<td>{_fmt_money(avg)}</td>"
+            # Total P&L — color green/positive, red/negative on allowed rows;
+            # blocked rows pick up the row-level dim and a counterfactual tip.
+            tot_pnl_cls = ("regime-pnl-pos" if tot > 0
+                           else ("regime-pnl-neg" if tot < 0 else "regime-pnl-zero"))
+            tot_inner = f"<span class='{tot_pnl_cls}'>{_fmt_money(tot)}</span>"
+            if is_blocked:
+                tot_cell = (
+                    f"<td class='regime-pnl-counterfactual' title='{counterfactual_tip}'>"
+                    f"{tot_inner}</td>"
+                )
+            else:
+                tot_cell = f"<td>{tot_inner}</td>"
+            wins_cell = str(wins)
+        else:
+            wr_cell  = "<td class='regime-dim'>—</td>"
+            pf_cell  = "<td class='regime-dim'>—</td>"
+            avg_cell = "<td class='regime-dim'>—</td>"
+            if is_blocked:
+                tot_cell = (
+                    f"<td class='regime-dim regime-pnl-counterfactual' "
+                    f"title='{counterfactual_tip}'>—</td>"
+                )
+            else:
+                tot_cell = "<td class='regime-dim'>—</td>"
+            wins_cell = "—"
+
+        # Lock icon (same visual + classes as the daily-breakdown table),
+        # rendered immediately *before* the macro badge on blocked rows.
+        if is_blocked:
+            lock_html = (
+                "<span class='regime-blocked-lock' "
+                "title='Excluded from active strategy statistics by the macro filter' "
+                "aria-label='Filtered out'>"
+                "<span class='material-symbols-outlined'>lock</span>"
+                "</span>"
+            )
+        else:
+            lock_html = ""
+        row_class = "regime-day-blocked" if is_blocked else ""
+
+        rows.append(
+            f"<tr class='{row_class}'>"
+            f"<td>{lock_html}"
+            f"<span class='macro-badge {macro_class(label)}'>"
+            f"{MACRO_REGIME_DISPLAY[label]}</span></td>"
+            f"<td>{days}</td>"
+            f"<td>{n}</td>"
+            f"<td>{wins_cell}</td>"
+            f"{wr_cell}{pf_cell}{avg_cell}{tot_cell}"
+            f"</tr>"
+        )
+    table = f"""
+      <table class='regime-table'>
+        <thead><tr>
+          <th>Regime</th><th>Periods</th><th>Trades</th><th>Wins</th><th>Win rate</th>
+          <th>Profit factor</th><th>Avg P&amp;L</th><th>Total P&amp;L</th>
+        </tr></thead>
+        <tbody>{''.join(rows) or '<tr><td colspan=8 class=regime-dim>No macro regimes observed.</td></tr>'}</tbody>
+      </table>
+    """
+    return table
+
+
+def build_macro_summary_cards(macro, trades_df):
+    """Render one summary card per observed macro regime. Same look as the
+    micro summary cards but with macro-specific fields: days count, avg
+    displacement, avg EMA slope, trade count, win rate, PF."""
+    # Group days by label so we can aggregate signal averages
+    by_label = {}
+    for day, d in macro.items():
+        by_label.setdefault(d["label"], []).append(d["details"])
+
+    td, _ = _macro_trades_by_label(macro, trades_df)
+
+    cards = []
+    for label in MACRO_REGIME_ORDER:
+        details_list = by_label.get(label, [])
+        if not details_list:
+            continue
+        disp_vals = [d["displacement_pips"] for d in details_list
+                     if not pd.isna(d["displacement_pips"])]
+        slope_vals = [d["ema_slope_pips"] for d in details_list
+                      if not pd.isna(d["ema_slope_pips"])]
+        avg_disp  = float(np.mean(disp_vals))  if disp_vals  else float("nan")
+        avg_slope = float(np.mean(slope_vals)) if slope_vals else float("nan")
+
+        if td.empty:
+            n_trades = 0; wins = 0; wr = float("nan"); pf = float("nan")
+        else:
+            sub = td[td["macro_label"] == label]
+            n_trades = int(len(sub))
+            if n_trades > 0:
+                wins = int(sub["win"].sum())
+                wr   = wins / n_trades * 100
+                gw   = float(sub.loc[sub["pnl"] > 0, "pnl"].sum())
+                gl   = float(-sub.loc[sub["pnl"] < 0, "pnl"].sum())
+                pf   = gw / gl if gl > 0 else (float("inf") if gw > 0 else 0.0)
+            else:
+                wins = 0; wr = float("nan"); pf = float("nan")
+
+        slope_dir = "—" if pd.isna(avg_slope) else ("↗ positive" if avg_slope > 0 else "↘ negative")
+        cards.append(f"""
+          <div class='regime-card regime-summary-card'>
+            <div class='regime-card-head'>
+              <span class='macro-badge {macro_class(label)}'>
+                {MACRO_REGIME_DISPLAY[label]}
+              </span>
+            </div>
+            <div class='regime-card-grid'>
+              <div><span class='regime-dim regime-small'>Days</span><strong>{len(details_list)}</strong></div>
+              <div><span class='regime-dim regime-small'>Avg displacement</span><strong>{_fmt_num(avg_disp, 1)} pips</strong></div>
+              <div><span class='regime-dim regime-small'>Avg EMA slope</span><strong>{_fmt_num(avg_slope, 2)} pips ({slope_dir})</strong></div>
+              <div><span class='regime-dim regime-small'>Trades</span><strong>{n_trades}</strong></div>
+              <div><span class='regime-dim regime-small'>Win rate</span><strong>{_fmt_pct(wr)}</strong></div>
+              <div><span class='regime-dim regime-small'>Profit factor</span><strong>{_fmt_pf(pf)}</strong></div>
+            </div>
+          </div>
+        """)
+    return "".join(cards) if cards else "<p class='regime-dim'>No macro regimes observed.</p>"
+
+
 def build_daily_breakdown(periods, trades_df, full_df, available_chart_days,
-                          in_range_fractals, low_activity_days):
+                          in_range_fractals, low_activity_days,
+                          macro=None, blocked_macro_keys=None):
     """Build the sortable daily-breakdown table. Returns the full <table>…</table>
     HTML string.
 
@@ -988,6 +1486,20 @@ def build_daily_breakdown(periods, trades_df, full_df, available_chart_days,
     else:
         td = pd.DataFrame(columns=["entry_day", "win", "pnl"])
 
+    # Pre-group trade-entry timestamps by (day, UTC hour). Each chip in the
+    # hourly strip uses this to render small win/loss dots for any trade that
+    # *entered* in that hour. We use the full (unfiltered) trades_df so the
+    # hourly dots remain visible on blocked-macro-regime rows too — the
+    # row-level opacity rule will dim them to match the rest of the row.
+    trades_by_day_hour = {}
+    if not trades_df.empty:
+        _t = pd.to_datetime(trades_df["entry_ts"])
+        _t_utc = _t.dt.tz_convert("UTC") if _t.dt.tz is not None else _t.dt.tz_localize("UTC")
+        for _ts, _win in zip(_t_utc, trades_df["win"].values):
+            _d = _ts.strftime("%Y-%m-%d")
+            _h = int(_ts.hour)
+            trades_by_day_hour.setdefault(_d, {}).setdefault(_h, []).append(bool(_win))
+
     # Pre-group fractals by day so each row's chip-build only sees its own day
     fractals_by_day = {}
     if not in_range_fractals.empty:
@@ -1007,7 +1519,10 @@ def build_daily_breakdown(periods, trades_df, full_df, available_chart_days,
         day_fractals = fractals_by_day.get(
             day, pd.DataFrame(columns=["timestamp", "regime"])
         )
-        chips_html = build_hourly_chips(day, day_fractals)
+        chips_html = build_hourly_chips(
+            day, day_fractals,
+            day_trades_by_hour=trades_by_day_hour.get(day, {}),
+        )
 
         pnl_cls = "regime-pnl-pos" if pnl > 0 else ("regime-pnl-neg" if pnl < 0 else "regime-pnl-zero")
         pnl_html = f"<span class='{pnl_cls}'>{_fmt_money(pnl)}</span>"
@@ -1041,9 +1556,38 @@ def build_daily_breakdown(periods, trades_df, full_df, available_chart_days,
                 f"</button>"
             )
 
+        # Macro regime badge (new column) — colored badge for the day's
+        # day-level macro classification. Falls back to a neutral '—' cell
+        # if the macro layer wasn't computed.
+        is_blocked = False
+        if macro is not None and day in macro:
+            macro_label = macro[day]["label"]
+            if blocked_macro_keys and macro_label in blocked_macro_keys:
+                is_blocked = True
+                lock_html = (
+                    "<span class='regime-blocked-lock' "
+                    "title='Excluded from performance statistics by the macro filter' "
+                    "aria-label='Filtered out'>"
+                    "<span class='material-symbols-outlined'>lock</span>"
+                    "</span>"
+                )
+            else:
+                lock_html = ""
+            macro_cell = (
+                f"<span class='macro-badge {macro_class(macro_label)}'>"
+                f"{MACRO_REGIME_DISPLAY.get(macro_label, '—')}</span>"
+                f"{lock_html}"
+            )
+            macro_sort = MACRO_REGIME_ORDER.index(macro_label) if macro_label in MACRO_REGIME_ORDER else 99
+        else:
+            macro_cell = "<span class='regime-dim'>—</span>"
+            macro_sort = 99
+
+        row_class = "regime-day-blocked" if is_blocked else ""
         rows.append(
-            f"<tr>"
+            f"<tr class='{row_class}'>"
             f"<td data-sort-value='{day}'>{date_cell}</td>"
+            f"<td data-sort-value='{macro_sort}'>{macro_cell}</td>"
             f"<td>{chips_html}</td>"
             f"<td data-sort-value='{n_trades}'>{n_trades}</td>"
             f"<td data-sort-value='{n_wins}'>{n_wins}</td>"
@@ -1057,6 +1601,7 @@ def build_daily_breakdown(periods, trades_df, full_df, available_chart_days,
         <thead>
           <tr>
             <th class='regime-sort' data-sort-type='string'>Date</th>
+            <th class='regime-sort' data-sort-type='number'>Macro Regime</th>
             <th>Regime by hour (UTC)</th>
             <th class='regime-sort' data-sort-type='number'>Trades</th>
             <th>Wins</th>
@@ -1075,7 +1620,7 @@ def build_daily_breakdown(periods, trades_df, full_df, available_chart_days,
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
-                 full_df, available_chart_days):
+                 full_df, available_chart_days, macro):
     """Render results/regime_labeler.html and return its path."""
 
     # Trim to requested range for display counts
@@ -1125,29 +1670,33 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         trades_on_low_days = int(_t_date.isin(low_activity_days).sum())
         total_in_range_trades = int(len(trades_df))
 
-    # ── Timeline ────────────────────────────────────────────────────────────
-    timeline = build_daily_timeline(in_range_periods, START_DATE, END_DATE)
-    timeline_cells = []
-    for entry in timeline:
-        title = f"{entry['date']} — {entry['label']}"
-        timeline_cells.append(
-            f"<div class='regime-tl-cell {regime_class(entry['regime'])}' "
-            f"title='{title}'></div>"
+    # ── Macro-regime filter ─────────────────────────────────────────────────
+    # When APPLY_MACRO_FILTER is True, exclude trades whose entry day falls
+    # on a blocked macro regime from all aggregate stats, perf tables, win
+    # rate, and profit factor. Daily breakdown + timeline still show those
+    # days (marked with a lock icon) so the user can see them in context.
+    filtered_trades_df, n_excluded_by_macro, blocked_macro_keys = \
+        _filter_trades_by_macro(trades_df, macro)
+    perf_df_filtered = _compute_perf_df(filtered_trades_df)
+    # Use filtered perf_df for all aggregate displays. The unfiltered perf_df
+    # is kept only as a fallback shape reference.
+    perf_df = perf_df_filtered
+
+    blocked_display_names = [MACRO_REGIME_DISPLAY.get(k, k) for k in
+                             sorted(blocked_macro_keys,
+                                    key=lambda x: MACRO_REGIME_ORDER.index(x)
+                                    if x in MACRO_REGIME_ORDER else 99)]
+    if APPLY_MACRO_FILTER and blocked_display_names:
+        filter_state_label = (
+            "Filtered — excluding " + ", ".join(blocked_display_names) + " days"
         )
-    # Week labels
-    week_labels = []
-    for i, entry in enumerate(timeline):
-        if i == 0 or (pd.Timestamp(entry["date"]).weekday() == 0):
-            week_labels.append(f"<span class='regime-tl-week'>{entry['date'][5:]}</span>")
-    legend_items = []
-    for label in REGIME_ORDER:
-        if label in regime_count:
-            legend_items.append(
-                f"<span class='regime-chip'>"
-                f"<span class='regime-swatch {regime_class(label)}'></span>"
-                f"{REGIME_DISPLAY[label]}</span>"
-            )
-    legend_html = "".join(legend_items)
+        filter_state_class = "regime-filter-on"
+    else:
+        filter_state_label = "Unfiltered — all trades"
+        filter_state_class = "regime-filter-off"
+
+    # Aggregate stats for the top-of-report summary bar
+    agg_stats = _compute_aggregate_stats(filtered_trades_df)
 
     # ── Regime period table ─────────────────────────────────────────────────
     period_rows = []
@@ -1212,8 +1761,8 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
             total_cell   = "<td class='regime-dim'>—</td>"
         perf_rows.append(
             f"<tr>"
-            f"<td><span class='regime-swatch {regime_class(r['regime'])}'></span>"
-            f"{REGIME_DISPLAY[r['regime']]}</td>"
+            f"<td><span class='regime-badge {regime_class(r['regime'])}'>"
+            f"{REGIME_DISPLAY[r['regime']]}</span></td>"
             f"<td>{period_count}</td>"
             f"<td>{n_trades}</td>"
             f"<td>{wins_cell}</td>"
@@ -1252,6 +1801,47 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     else:
         perf_low_note = ""
 
+    # ── Notes on macro-filter exclusion ─────────────────────────────────────
+    # Two slightly different notes:
+    #   • macro_table_filter_note → shown under the macro perf table, where
+    #     blocked rows are still visible (dimmed) and their P&L is shown as
+    #     counterfactual.
+    #   • macro_filter_note → shown under the regime (micro) perf table,
+    #     where blocked-day trades are fully excluded from the numbers.
+    if APPLY_MACRO_FILTER and blocked_display_names and total_in_range_trades > 0:
+        _pct_excl = n_excluded_by_macro / total_in_range_trades * 100
+        macro_filter_note = (
+            f"<p class='regime-dim regime-small regime-perf-note regime-macro-filter-note'>"
+            f"<span class='material-symbols-outlined regime-macro-filter-note-icon'>filter_alt</span>"
+            f"{n_excluded_by_macro} of {total_in_range_trades} trades ({_pct_excl:.1f}%) "
+            f"were excluded by the macro filter. Blocked regimes: "
+            f"<strong>{', '.join(blocked_display_names)}</strong>. "
+            f"Statistics in this table reflect only trades from allowed macro regime days."
+            f"</p>"
+        )
+        macro_table_filter_note = (
+            f"<p class='regime-dim regime-small regime-perf-note regime-macro-filter-note'>"
+            f"<span class='material-symbols-outlined regime-macro-filter-note-icon'>filter_alt</span>"
+            f"Macro filter active — blocked regimes "
+            f"(<strong>{', '.join(blocked_display_names)}</strong>) are dimmed and "
+            f"marked with a lock icon. Their Total P&amp;L is shown as a "
+            f"counterfactual; those trades are excluded from the active strategy "
+            f"aggregate stats above."
+            f"</p>"
+        )
+    elif APPLY_MACRO_FILTER and blocked_display_names:
+        macro_filter_note = (
+            f"<p class='regime-dim regime-small regime-perf-note regime-macro-filter-note'>"
+            f"<span class='material-symbols-outlined regime-macro-filter-note-icon'>filter_alt</span>"
+            f"Macro filter is active. Blocked regimes: "
+            f"<strong>{', '.join(blocked_display_names)}</strong>."
+            f"</p>"
+        )
+        macro_table_filter_note = macro_filter_note
+    else:
+        macro_filter_note = ""
+        macro_table_filter_note = ""
+
     # ── Summary cards (only observed regimes) ───────────────────────────────
     cards = []
     for label in REGIME_ORDER:
@@ -1288,9 +1878,152 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         """)
 
     # ── Daily breakdown table ───────────────────────────────────────────────
+    # Daily breakdown keeps the *unfiltered* trades_df so every day still
+    # shows its real trade counts and P&L. Blocked days are marked with a
+    # row-level dim + lock icon via blocked_macro_keys.
     daily_table = build_daily_breakdown(in_range_periods, trades_df, full_df,
                                         available_chart_days,
-                                        in_range, low_activity_days)
+                                        in_range, low_activity_days,
+                                        macro=macro,
+                                        blocked_macro_keys=blocked_macro_keys)
+
+    # ── Macro layer pieces ──────────────────────────────────────────────────
+    # The macro perf table receives the *unfiltered* trades plus the set of
+    # blocked regime keys, so it can show every regime's actual (or
+    # counterfactual) P&L. Blocked rows are visually dimmed and locked, with
+    # a counterfactual tooltip on their Total P&L cell — see
+    # build_macro_perf_table for details.
+    macro_perf_table  = build_macro_perf_table(macro, trades_df,
+                                               blocked_macro_keys=blocked_macro_keys)
+    # Macro summary cards (the profile cards section) keep the filtered view
+    # so they reflect the active strategy's effective trade set.
+    macro_cards_html  = build_macro_summary_cards(macro, filtered_trades_df)
+
+    # Two-row timeline (Macro + Micro). The Micro row's color per day is the
+    # dominant micro regime across that day, computed via build_daily_timeline
+    # (still in the file as a helper from earlier).
+    macro_tl_cells = []
+    micro_tl_cells = []
+    timeline = build_daily_timeline(in_range_periods, START_DATE, END_DATE)
+
+    # Trade counts per day for the timeline cell overlay. Uses the unfiltered
+    # trades_df so blocked-macro days still surface their (counterfactual)
+    # trade activity in the timeline — the timeline's job is to show what
+    # happened across the date range, not what the filter kept.
+    trades_per_day = {}
+    if not trades_df.empty:
+        _ttp = pd.to_datetime(trades_df["entry_ts"])
+        _ttp_utc = _ttp.dt.tz_convert("UTC") if _ttp.dt.tz is not None else _ttp.dt.tz_localize("UTC")
+        for _d in _ttp_utc.dt.strftime("%Y-%m-%d"):
+            trades_per_day[_d] = trades_per_day.get(_d, 0) + 1
+
+    for entry in timeline:
+        day_count = trades_per_day.get(entry["date"], 0)
+        count_html = (
+            f"<span class='regime-tl-cell-count'>{day_count}</span>"
+            if day_count > 0 else ""
+        )
+        trade_suffix = (
+            f" · {day_count} trade{'s' if day_count != 1 else ''}"
+            if day_count > 0 else ""
+        )
+
+        # Micro cell
+        title = f"{entry['date']} — {entry['label']}{trade_suffix}"
+        micro_tl_cells.append(
+            f"<div class='regime-tl-cell {regime_class(entry['regime'])}' "
+            f"title='{title}'>{count_html}</div>"
+        )
+        # Macro cell
+        mac_label = macro.get(entry["date"], {}).get("label")
+        mac_title = (
+            f"{entry['date']} — "
+            f"{MACRO_REGIME_DISPLAY.get(mac_label, 'No data')}{trade_suffix}"
+        )
+        macro_tl_cells.append(
+            f"<div class='regime-tl-cell {macro_class(mac_label)}' "
+            f"title='{mac_title}'>{count_html}</div>"
+        )
+    # Week labels for the bottom axis
+    week_labels = []
+    for i, entry in enumerate(timeline):
+        if i == 0 or (pd.Timestamp(entry["date"]).weekday() == 0):
+            week_labels.append(f"<span class='regime-tl-week'>{entry['date'][5:]}</span>")
+    # Legend — micro regimes
+    legend_items = []
+    for label in REGIME_ORDER:
+        if label in regime_count:
+            legend_items.append(
+                f"<span class='regime-chip'>"
+                f"<span class='regime-swatch {regime_class(label)}'></span>"
+                f"{REGIME_DISPLAY[label]}</span>"
+            )
+    legend_html = "".join(legend_items)
+    # Legend — macro regimes (only those actually observed)
+    macro_observed = {d["label"] for d in macro.values()} if macro else set()
+    macro_legend_items = []
+    for label in MACRO_REGIME_ORDER:
+        if label in macro_observed:
+            macro_legend_items.append(
+                f"<span class='regime-chip'>"
+                f"<span class='regime-swatch {macro_class(label)}'></span>"
+                f"{MACRO_REGIME_DISPLAY[label]}</span>"
+            )
+    macro_legend_html = "".join(macro_legend_items)
+
+    # ── Top-of-report summary stats bar ─────────────────────────────────────
+    # Six cards reflecting the macro-filtered totals so the user gets an
+    # immediate top-line read of the strategy as it would actually be traded.
+    _wr = agg_stats["win_rate"]
+    if pd.isna(_wr) or agg_stats["total"] == 0:
+        wr_cls = "regime-stat-neutral"
+    elif _wr > 55:
+        wr_cls = "regime-stat-good"
+    elif _wr < 45:
+        wr_cls = "regime-stat-bad"
+    else:
+        wr_cls = "regime-stat-neutral"
+    pnl_total = agg_stats["total_pnl"]
+    if agg_stats["total"] == 0:
+        pnl_cls = "regime-stat-neutral"
+    elif pnl_total > 0:
+        pnl_cls = "regime-stat-good"
+    elif pnl_total < 0:
+        pnl_cls = "regime-stat-bad"
+    else:
+        pnl_cls = "regime-stat-neutral"
+
+    stats_bar_html = f"""
+    <section class="regime-stats-bar">
+      <div class="regime-stats-cards">
+        <div class="regime-stat-card">
+          <span class="regime-stat-label">Total Trades</span>
+          <span class="regime-stat-value">{agg_stats['total']}</span>
+        </div>
+        <div class="regime-stat-card">
+          <span class="regime-stat-label">Wins</span>
+          <span class="regime-stat-value">{agg_stats['wins']}</span>
+        </div>
+        <div class="regime-stat-card">
+          <span class="regime-stat-label">Losses</span>
+          <span class="regime-stat-value">{agg_stats['losses']}</span>
+        </div>
+        <div class="regime-stat-card">
+          <span class="regime-stat-label">Win Rate</span>
+          <span class="regime-stat-value {wr_cls}">{_fmt_pct(_wr)}</span>
+        </div>
+        <div class="regime-stat-card">
+          <span class="regime-stat-label">Profit Factor</span>
+          <span class="regime-stat-value">{_fmt_pf(agg_stats['pf'])}</span>
+        </div>
+        <div class="regime-stat-card">
+          <span class="regime-stat-label">Total P&amp;L</span>
+          <span class="regime-stat-value {pnl_cls}">{_fmt_money(pnl_total)}</span>
+        </div>
+      </div>
+      <div class="regime-stats-filter-label {filter_state_class}">{filter_state_label}</div>
+    </section>
+    """
 
     # ── Distribution charts ─────────────────────────────────────────────────
     ppb_vals = [p["pips_per_bar"] for p in periods if p["label"] in ("trending_up", "trending_down")
@@ -1322,7 +2055,14 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
   <div class="regime-container">
 
     <header class="regime-header">
-      <h1>Regime Labeler — GBPUSD 5m</h1>
+      <div class="regime-header-top">
+        <h1>Regime Labeler — GBPUSD 5m</h1>
+        <button id="regime-copy-btn" class="regime-copy-btn" type="button"
+                title="Copy report as markdown to clipboard">
+          <span class="material-symbols-outlined">content_copy</span>
+          <span class="regime-copy-btn-label">Copy Report</span>
+        </button>
+      </div>
       <div class="regime-header-meta">
         <span><strong>Range:</strong> {START_DATE} → {END_DATE}</span>
         <span><strong>Fractals:</strong> {len(in_range)}</span>
@@ -1336,24 +2076,46 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       </div>
     </header>
 
+    {stats_bar_html}
+
+    <section class="regime-card">
+      <h2>Trade performance by macro regime <span class="regime-dim regime-small">(daily context)</span></h2>
+      <p class="regime-dim regime-small">
+        Day-level performance by overall daily character — answers whether
+        the strategy should be trading on certain types of days at all.
+      </p>
+      {macro_perf_table}
+      {macro_table_filter_note}
+    </section>
+
     <section class="regime-card">
       <h2>Trade performance by regime <span class="regime-dim regime-small">(v2 short-only)</span></h2>
       <p class="regime-dim regime-small">
         How the active strategy performed in each market condition. Green ≥ 55%, red ≤ 45%.
       </p>
       {perf_table}
+      {macro_filter_note}
       {perf_low_note}
     </section>
 
     <section class="regime-card">
       <h2>Regime timeline</h2>
       <p class="regime-dim regime-small">
-        Each cell is one calendar day, coloured by the dominant regime that day.
-        Hover for details.
+        Macro row (top) shows the day-level classification. Micro row
+        (bottom) shows the dominant intraday regime for that calendar day.
+        Both rows share the same x-axis so they're directly comparable.
       </p>
-      <div class="regime-tl-strip">{''.join(timeline_cells)}</div>
+      <div class="regime-tl-row">
+        <span class="regime-tl-row-label">Macro</span>
+        <div class="regime-tl-strip">{''.join(macro_tl_cells)}</div>
+      </div>
+      <div class="regime-tl-row">
+        <span class="regime-tl-row-label">Micro</span>
+        <div class="regime-tl-strip">{''.join(micro_tl_cells)}</div>
+      </div>
       <div class="regime-tl-weeks">{''.join(week_labels)}</div>
-      <div class="regime-legend">{legend_html}</div>
+      <div class="regime-legend"><strong class="regime-dim regime-small">Macro:</strong> {macro_legend_html}</div>
+      <div class="regime-legend"><strong class="regime-dim regime-small">Micro:</strong> {legend_html}</div>
     </section>
 
     <section class="regime-card">
@@ -1375,6 +2137,11 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         fractals across the whole 24-hour period); regime labels on those days
         may be less reliable.
       </p>
+    </section>
+
+    <section>
+      <h2>Macro Regime Profiles</h2>
+      <div class="regime-summary-grid">{macro_cards_html}</div>
     </section>
 
     <section>
@@ -1404,9 +2171,13 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
 
   <!-- Hover preview overlay — mirrors the dashboard's #chart-preview-overlay
        (styles already in style.css). Image src is set dynamically by JS to
-       the regime_charts/YYYY-MM-DD.png file for the hovered row. -->
+       the regime_charts/YYYY-MM-DD.png file for the hovered row.
+       The #chart-preview-chips slot above the image gets the hovered row's
+       hour-chip strip cloned into it, stretched to the full card width so
+       the chips line up visually with the chart's x-axis. -->
   <div id="chart-preview-overlay" aria-hidden="true">
     <div id="chart-preview-card">
+      <div id="chart-preview-chips"></div>
       <img id="chart-preview-img" alt="Daily chart preview"/>
     </div>
   </div>
@@ -1414,10 +2185,11 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
   <script>
   (function() {{
     // ── Chart hover preview ────────────────────────────────────────────────
-    var overlay = document.getElementById("chart-preview-overlay");
-    var img     = document.getElementById("chart-preview-img");
+    var overlay      = document.getElementById("chart-preview-overlay");
+    var img          = document.getElementById("chart-preview-img");
+    var chipsSlot    = document.getElementById("chart-preview-chips");
 
-    function showChartPreview(src) {{
+    function showChartPreview(src, chipsHtml) {{
       if (!overlay || !img) return;
       if (!src) {{
         img.removeAttribute("src");
@@ -1426,6 +2198,7 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         img.src = src;
         overlay.classList.remove("no-chart");
       }}
+      if (chipsSlot) chipsSlot.innerHTML = chipsHtml || "";
       overlay.classList.add("visible");
       overlay.setAttribute("aria-hidden", "false");
     }}
@@ -1435,11 +2208,17 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       overlay.classList.remove("visible");
       overlay.setAttribute("aria-hidden", "true");
       if (img) img.removeAttribute("src");
+      if (chipsSlot) chipsSlot.innerHTML = "";
     }}
 
     document.querySelectorAll(".v-sub-preview-btn:not(.disabled)").forEach(function (btn) {{
       btn.addEventListener("mouseenter", function () {{
-        showChartPreview(btn.getAttribute("data-chart-src"));
+        // Find this button's row and clone its hour-chip strip into the
+        // preview overlay so the user sees the regime context above the chart.
+        var row = btn.closest("tr");
+        var chipsEl = row ? row.querySelector(".regime-hour-chips") : null;
+        var chipsHtml = chipsEl ? chipsEl.outerHTML : "";
+        showChartPreview(btn.getAttribute("data-chart-src"), chipsHtml);
       }});
       btn.addEventListener("mouseleave", hideChartPreview);
       btn.addEventListener("click", function (e) {{ e.preventDefault(); e.stopPropagation(); }});
@@ -1483,6 +2262,198 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         rows.forEach(function (r) {{ tbody.appendChild(r); }});
       }});
     }});
+
+    // ── Copy Report — DOM → markdown ───────────────────────────────────────
+    // Walks the page in document order and emits markdown for every section
+    // from the header through "Threshold distributions" (inclusive). The
+    // "Regime periods" section that follows is intentionally skipped.
+    var copyBtn = document.getElementById("regime-copy-btn");
+    if (copyBtn) {{
+      copyBtn.addEventListener("click", function () {{
+        var md = buildRegimeMarkdown();
+        if (!navigator.clipboard || !navigator.clipboard.writeText) {{
+          // Fallback for non-secure contexts
+          var ta = document.createElement("textarea");
+          ta.value = md;
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          try {{ document.execCommand("copy"); }} catch (e) {{}}
+          document.body.removeChild(ta);
+          flashCopied();
+          return;
+        }}
+        navigator.clipboard.writeText(md).then(flashCopied).catch(function () {{
+          var lbl = copyBtn.querySelector(".regime-copy-btn-label");
+          if (lbl) lbl.textContent = "Failed";
+          setTimeout(function () {{
+            if (lbl) lbl.textContent = "Copy Report";
+          }}, 2000);
+        }});
+      }});
+    }}
+
+    function flashCopied() {{
+      var lbl = copyBtn.querySelector(".regime-copy-btn-label");
+      copyBtn.classList.add("copied");
+      if (lbl) lbl.textContent = "Copied!";
+      setTimeout(function () {{
+        copyBtn.classList.remove("copied");
+        if (lbl) lbl.textContent = "Copy Report";
+      }}, 2000);
+    }}
+
+    function tidy(s) {{
+      return (s || "").replace(/\\s+/g, " ").trim();
+    }}
+
+    function renderTableMd(table, skipCols, lines) {{
+      skipCols = skipCols || [];
+      var headerRow = table.querySelector("thead tr");
+      if (!headerRow) return;
+      var ths = Array.prototype.slice.call(headerRow.querySelectorAll("th"));
+      var keptIdx = [];
+      var headerCells = [];
+      ths.forEach(function (th, idx) {{
+        if (skipCols.indexOf(idx) !== -1) return;
+        var t = tidy(th.textContent);
+        if (!t) return;
+        keptIdx.push(idx);
+        headerCells.push(t);
+      }});
+      if (headerCells.length === 0) return;
+      lines.push("| " + headerCells.join(" | ") + " |");
+      lines.push("|" + headerCells.map(function () {{ return "---"; }}).join("|") + "|");
+
+      var bodyRows = table.querySelectorAll("tbody tr");
+      bodyRows.forEach(function (tr) {{
+        var tds = tr.querySelectorAll("td");
+        // Empty placeholder rows (single colspan cell) — skip
+        if (tds.length === 1 && tds[0].getAttribute("colspan")) return;
+        var cells = keptIdx.map(function (i) {{
+          if (i >= tds.length) return "";
+          return tidy(tds[i].textContent).replace(/\\|/g, "\\\\|");
+        }});
+        if (cells.every(function (c) {{ return c === ""; }})) return;
+        lines.push("| " + cells.join(" | ") + " |");
+      }});
+    }}
+
+    function renderCardsMd(cards, lines) {{
+      if (!cards || cards.length === 0) return;
+      cards.forEach(function (card) {{
+        var head = card.querySelector(".regime-card-head");
+        var title = head ? tidy(head.textContent) : "";
+        if (title) lines.push("### " + title);
+        var grid = card.querySelectorAll(".regime-card-grid > div");
+        grid.forEach(function (div) {{
+          var kids = div.children;
+          if (kids.length >= 2) {{
+            var lbl = tidy(kids[0].textContent);
+            var val = tidy(kids[1].textContent);
+            lines.push("- **" + lbl + ":** " + val);
+          }}
+        }});
+        lines.push("");
+      }});
+    }}
+
+    function buildRegimeMarkdown() {{
+      var lines = [];
+
+      // ── Title ──────────────────────────────────────────────────────────
+      var h1 = document.querySelector(".regime-header h1");
+      if (h1) {{
+        lines.push("# " + tidy(h1.textContent));
+        lines.push("");
+      }}
+
+      // ── Header meta (Range / Fractals / Periods / Lookback / Low / Generated)
+      var metaSpans = document.querySelectorAll(".regime-header-meta > span");
+      metaSpans.forEach(function (s) {{
+        var t = tidy(s.textContent);
+        if (t) lines.push("- " + t);
+      }});
+      if (metaSpans.length) lines.push("");
+
+      // ── Summary Stats bar ──────────────────────────────────────────────
+      var statsBar = document.querySelector(".regime-stats-bar");
+      if (statsBar) {{
+        lines.push("## Summary Stats");
+        lines.push("");
+        var statCards = statsBar.querySelectorAll(".regime-stat-card");
+        if (statCards.length) {{
+          lines.push("| Metric | Value |");
+          lines.push("|--------|-------|");
+          statCards.forEach(function (card) {{
+            var lbl = card.querySelector(".regime-stat-label");
+            var val = card.querySelector(".regime-stat-value");
+            if (lbl && val) {{
+              lines.push("| " + tidy(lbl.textContent) + " | " + tidy(val.textContent) + " |");
+            }}
+          }});
+          lines.push("");
+        }}
+        var filterLbl = statsBar.querySelector(".regime-stats-filter-label");
+        if (filterLbl) {{
+          lines.push("_" + tidy(filterLbl.textContent) + "_");
+          lines.push("");
+        }}
+      }}
+
+      // ── Walk sections in order, stop after "Threshold distributions" ──
+      var sections = document.querySelectorAll(".regime-container > section");
+      for (var i = 0; i < sections.length; i++) {{
+        var section = sections[i];
+        var h2 = section.querySelector("h2");
+        if (!h2) continue;  // Stats bar (no h2) is handled above
+
+        var title = tidy(h2.textContent);
+        lines.push("## " + title);
+        lines.push("");
+
+        // Intro paragraph (first <p> directly under the section, not a note)
+        var introP = section.querySelector(":scope > p:not(.regime-perf-note):not(.regime-breakdown-note)");
+        if (introP) {{
+          var introText = tidy(introP.textContent);
+          if (introText) {{
+            lines.push(introText);
+            lines.push("");
+          }}
+        }}
+
+        // Tables — skip non-textual columns for the daily-breakdown table
+        var tables = section.querySelectorAll("table.regime-table");
+        tables.forEach(function (table) {{
+          var isDaily = table.classList.contains("regime-daily-table");
+          // Daily table columns: 0=Date 1=Macro 2=Hour chips 3=Trades 4=Wins 5=P&L 6=Chart
+          var skipCols = isDaily ? [2, 6] : [];
+          renderTableMd(table, skipCols, lines);
+          lines.push("");
+        }});
+
+        // Summary cards
+        var grid = section.querySelector(".regime-summary-grid");
+        if (grid) {{
+          renderCardsMd(grid.querySelectorAll(".regime-summary-card"), lines);
+        }}
+
+        // Notes (filter note, low-activity note, breakdown note)
+        var notes = section.querySelectorAll("p.regime-perf-note, p.regime-breakdown-note");
+        notes.forEach(function (p) {{
+          var t = tidy(p.textContent);
+          if (t) {{
+            lines.push("_" + t + "_");
+            lines.push("");
+          }}
+        }});
+
+        if (/Threshold\\s+distributions/i.test(title)) break;
+      }}
+
+      return lines.join("\\n").replace(/\\n{{3,}}/g, "\\n\\n").trim() + "\\n";
+    }}
   }})();
   </script>
 </body>
@@ -1542,13 +2513,14 @@ def main():
         return
 
     fractal_df, periods, thresholds = stage2_classify(fractal_df)
+    macro                           = stage2b_classify_macro(full_df)
     trades_df, perf_df              = stage3_trade_outcomes(fractal_df, full_df)
     stage4_thresholds(thresholds)
 
     available_chart_days = generate_daily_charts(full_df)
 
     report_path = build_report(fractal_df, periods, thresholds, trades_df, perf_df,
-                               full_df, available_chart_days)
+                               full_df, available_chart_days, macro)
     persist_labels(fractal_df, thresholds, periods)
 
     webbrowser.open(f"file://{report_path}")
