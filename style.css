@@ -2264,6 +2264,98 @@ body.regime-report #chart-preview-overlay #chart-preview-img {
     min-height: 0;
 }
 
+/* ── /results directory-listing page (server.py: list_results) ──────────────
+   Standalone utility page served at /results that shows every file under
+   the results/ folder as a sortable-ish table of links. Shares the dark
+   theme palette and spacing scale used by the regime labeler so the two
+   pages feel like the same product. */
+body.results-listing {
+    background: #1a1a2e;
+    color: #d0d0e8;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    margin: 0;
+    padding: 32px 24px;
+    min-height: 100vh;
+}
+
+.results-listing-container {
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.results-listing-container h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 8px;
+    letter-spacing: 0.01em;
+}
+
+.results-listing-container p {
+    margin: 0 0 18px;
+    color: #9090b0;
+    font-size: 13px;
+}
+
+.results-listing-container code {
+    background: #10101c;
+    border: 1px solid #1e1e30;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #d0d0e8;
+}
+
+.results-listing-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #10101c;
+    border: 1px solid #1e1e30;
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 13px;
+}
+
+.results-listing-table thead th {
+    background: #1a1a2e;
+    color: #aaa;
+    text-align: left;
+    padding: 9px 14px;
+    border-bottom: 1px solid #2a2a40;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+}
+
+.results-listing-table tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #1e1e30;
+    color: #d0d0e8;
+    vertical-align: middle;
+}
+
+.results-listing-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.results-listing-table tbody tr:hover td {
+    background: #14142a;
+}
+
+.results-listing-table a {
+    color: #4cc9f0;
+    text-decoration: none;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+}
+
+.results-listing-table a:hover {
+    text-decoration: underline;
+    color: #6bd3f3;
+}
+
 /* ── Header top row — title on the left, Copy Report button on the right ── */
 .regime-header-top {
     display: flex;

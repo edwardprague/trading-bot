@@ -62,6 +62,208 @@ TRADE_DIRECTION   = os.environ.get("TRADE_DIRECTION", "both")   # "both" | "long
 
 MAX_DAILY_LOSSES = int(os.environ.get("MAX_DAILY_LOSSES", 2))  # stop trading after this many losing trades in a single UTC day
 
+# ── Regime gates + EMA position filter (entry-time conditions) ───────────────
+# Three additional entry filters layered on top of the existing fractal logic:
+#
+#   1. Macro regime gate (ALLOWED_MACRO_REGIMES) — accept entries only on
+#      days classified into one of the allowed macro regimes. Display names
+#      ("Staircase Down") and internal keys ("staircase_down") are both
+#      accepted. Empty string disables the gate.
+#   2. Micro regime gate (ALLOWED_MICRO_REGIMES) — accept entries only when
+#      the micro regime label active at the entry timestamp is in the
+#      allowed list. Empty string disables the gate.
+#   3. USE_EMA_FILTER — toggle for the existing EMA-position filter (entry
+#      close must be above EMA Long for longs, below for shorts).
+#
+# Macro/micro labels are loaded once at module import from
+# data/regime_labels.parquet (written by regime_labeler.py). Missing parquet
+# is non-fatal — the gates silently no-op so an un-labeled instrument can
+# still backtest at baseline. Run regime_labeler.py to regenerate the
+# parquet after expanding the date range.
+
+def _parse_allowed_regimes(env_value, default_csv):
+    """Parse a CSV env value into a sorted list of cleaned tokens.
+    Empty string (not unset) disables the filter — distinguished from unset
+    so callers can explicitly turn the gate off without removing the var."""
+    if env_value is None:
+        return [r.strip() for r in default_csv.split(",") if r.strip()]
+    return [r.strip() for r in env_value.split(",") if r.strip()]
+
+_ALLOWED_MACRO_RAW = _parse_allowed_regimes(
+    os.environ.get("ALLOWED_MACRO_REGIMES"),
+    "Staircase Down,Strong Down",
+)
+_ALLOWED_MICRO_RAW = _parse_allowed_regimes(
+    os.environ.get("ALLOWED_MICRO_REGIMES"),
+    "ranging-medium,ranging-wide",
+)
+
+def _macro_key(name):
+    """Normalise a macro regime name to its internal key:
+       'Staircase Down' → 'staircase_down', 'strong_down' → 'strong_down'."""
+    return name.strip().lower().replace(" ", "_").replace("-", "_")
+
+def _micro_key(name):
+    """Normalise a micro regime name to its internal key:
+       'ranging-medium' → 'ranging_medium', 'ranging_medium' → 'ranging_medium'."""
+    return name.strip().lower().replace("-", "_").replace(" ", "_")
+
+ALLOWED_MACRO_KEYS = {_macro_key(n) for n in _ALLOWED_MACRO_RAW}
+ALLOWED_MICRO_KEYS = {_micro_key(n) for n in _ALLOWED_MICRO_RAW}
+
+USE_EMA_FILTER = os.environ.get("USE_EMA_FILTER", "true").strip().lower() in ("true", "1", "yes", "on")
+
+# Lookups populated by _load_regime_labels(); see _check_macro_regime /
+# _check_micro_regime below for the runtime gate logic.
+_REGIME_MACRO_BY_DATE = {}      # {'YYYY-MM-DD': 'staircase_down', ...}
+_REGIME_MICRO_SERIES   = None    # pd.Series of micro_label keyed by UTC ts
+_REGIME_LABELS_LOADED  = False
+
+def _load_regime_labels():
+    """Load macro/micro lookups from data/regime_labels.parquet.
+
+    Resolution order:
+      • Micro labels — read from the per-fractal rows of regime_labels.parquet
+        (column 'regime' indexed by 'timestamp'). Uses pyarrow if available,
+        otherwise fastparquet via pandas.read_parquet.
+      • Macro labels — read from the parquet's 'regime_labeler' KV metadata
+        blob (key 'macro_by_date'); if missing, fall back to a sidecar JSON
+        at data/macro_by_date.json. The sidecar form lets us refresh macro
+        labels without rewriting the whole parquet.
+
+    Safe to call repeatedly — caches loaded state in module globals.
+    Missing files are non-fatal: the gates silently no-op so an un-labeled
+    instrument can still backtest at baseline.
+    """
+    global _REGIME_MACRO_BY_DATE, _REGIME_MICRO_SERIES, _REGIME_LABELS_LOADED
+    if _REGIME_LABELS_LOADED:
+        return
+    _REGIME_LABELS_LOADED = True   # set early so we don't retry on every entry
+    from pathlib import Path as _Path
+    base    = _Path(__file__).resolve().parent
+    parquet = base / "data" / "regime_labels.parquet"
+    sidecar = base / "data" / "macro_by_date.json"
+
+    if not parquet.exists():
+        if ALLOWED_MACRO_KEYS or ALLOWED_MICRO_KEYS:
+            print(f"  [WARN] data/regime_labels.parquet not found — "
+                  f"macro/micro regime gates disabled this run")
+        return
+
+    # ── Read the fractal table (micro labels) ───────────────────────────────
+    rl_df = None
+    pq_meta = {}
+    try:
+        import pyarrow.parquet as _pq   # preferred — also exposes KV metadata
+        _tbl = _pq.read_table(str(parquet))
+        rl_df = _tbl.to_pandas()
+        raw_meta = _tbl.schema.metadata or {}
+        if b"regime_labeler" in raw_meta:
+            try:
+                pq_meta = json.loads(raw_meta[b"regime_labeler"].decode("utf-8"))
+            except Exception:
+                pq_meta = {}
+    except ImportError:
+        try:
+            # fastparquet path — read DataFrame via pandas, KV metadata via API
+            from fastparquet import ParquetFile as _PF
+            _pf = _PF(str(parquet))
+            rl_df = _pf.to_pandas()
+            kv = _pf.key_value_metadata or {}
+            blob = kv.get("regime_labeler")
+            if isinstance(blob, bytes):
+                blob = blob.decode("utf-8", errors="replace")
+            if blob:
+                try:
+                    pq_meta = json.loads(blob)
+                except Exception:
+                    pq_meta = {}
+        except Exception as _e:
+            print(f"  [WARN] Could not read regime_labels.parquet via fastparquet: {_e}")
+            return
+    except Exception as _e:
+        print(f"  [WARN] Could not read regime_labels.parquet: {type(_e).__name__}: {_e}")
+        return
+
+    if rl_df is not None and "timestamp" in rl_df.columns and "regime" in rl_df.columns:
+        _ts = pd.to_datetime(rl_df["timestamp"])
+        if _ts.dt.tz is None:
+            _ts = _ts.dt.tz_localize("UTC")
+        else:
+            _ts = _ts.dt.tz_convert("UTC")
+        _REGIME_MICRO_SERIES = (
+            pd.Series(rl_df["regime"].values, index=_ts)
+            .dropna()
+            .sort_index()
+        )
+
+    # ── Macro labels — parquet KV metadata, else sidecar JSON ───────────────
+    _REGIME_MACRO_BY_DATE = pq_meta.get("macro_by_date", {}) or {}
+    if not _REGIME_MACRO_BY_DATE and sidecar.exists():
+        try:
+            with open(sidecar, "r", encoding="utf-8") as _f:
+                payload = json.load(_f)
+            if isinstance(payload, dict):
+                # accept either {date: label} or {"macro_by_date": {date: label}}
+                _REGIME_MACRO_BY_DATE = payload.get("macro_by_date", payload) or {}
+        except Exception as _e:
+            print(f"  [WARN] Could not read sidecar {sidecar.name}: {_e}")
+
+    n_macro = len(_REGIME_MACRO_BY_DATE)
+    n_micro = 0 if _REGIME_MICRO_SERIES is None else len(_REGIME_MICRO_SERIES)
+    if ALLOWED_MACRO_KEYS or ALLOWED_MICRO_KEYS:
+        print(f"  Regime gates loaded: {n_macro} day labels, {n_micro} fractal labels")
+        if ALLOWED_MACRO_KEYS:
+            print(f"    Macro allow-list: {sorted(ALLOWED_MACRO_KEYS)}")
+        if ALLOWED_MICRO_KEYS:
+            print(f"    Micro allow-list: {sorted(ALLOWED_MICRO_KEYS)}")
+
+def _check_macro_regime(ts):
+    """Condition 1 — accept entry only if the entry day's macro regime is allowed.
+    Returns (passes: bool, reason: str)."""
+    if not ALLOWED_MACRO_KEYS:
+        return True, ""
+    if not _REGIME_MACRO_BY_DATE:
+        # Filter requested but no labels available — block entry rather than
+        # silently letting everything through (caller will see the WARN).
+        return False, "macro_regime_no_labels"
+    _tz = pd.Timestamp(ts)
+    if _tz.tzinfo is None:
+        _tz = _tz.tz_localize("UTC")
+    else:
+        _tz = _tz.tz_convert("UTC")
+    label = _REGIME_MACRO_BY_DATE.get(_tz.strftime("%Y-%m-%d"))
+    if label is None:
+        return False, "macro_regime_unknown_day"
+    if label in ALLOWED_MACRO_KEYS:
+        return True, ""
+    return False, "macro_regime"
+
+def _check_micro_regime(ts):
+    """Condition 2 — accept entry only if the entry-hour micro regime is allowed.
+    Returns (passes: bool, reason: str)."""
+    if not ALLOWED_MICRO_KEYS:
+        return True, ""
+    if _REGIME_MICRO_SERIES is None or _REGIME_MICRO_SERIES.empty:
+        return False, "micro_regime_no_labels"
+    _tz = pd.Timestamp(ts)
+    if _tz.tzinfo is None:
+        _tz = _tz.tz_localize("UTC")
+    else:
+        _tz = _tz.tz_convert("UTC")
+    try:
+        label = _REGIME_MICRO_SERIES.asof(_tz)
+    except (KeyError, TypeError):
+        return False, "micro_regime_lookup_error"
+    if label is None or (isinstance(label, float) and pd.isna(label)):
+        return False, "micro_regime_pre_first_fractal"
+    if label in ALLOWED_MICRO_KEYS:
+        return True, ""
+    return False, "micro_regime"
+
+# Load labels once at module import.
+_load_regime_labels()
+
 # ── Time filter: skip entries during these UTC hours ─────────────────────────
 _blocked_env = os.environ.get("BLOCKED_HOURS_UTC", "").strip()
 if _blocked_env:
@@ -686,25 +888,28 @@ def run_backtest(df):
             short_sig = short_sig_raw and (TRADE_DIRECTION != "long_only")
 
             # ── EMA position filter: long must be above EMA Long, short below ─
-            _ema_long_val = df.ema_long.iloc[i]
-            if long_sig and c <= _ema_long_val:
-                _sl_e = long_fractal_price - FRACTAL_STOP_PIPS
-                _dist_e = c - _sl_e
-                if MIN_STOP <= _dist_e <= MAX_STOP:
-                    blocked_signals.append(_scan_outcome(
-                        df, i, "long", c, _sl_e,
-                        c + _dist_e * RRR,
-                        (cash * RISK_PCT) / _dist_e, ts, "ema_position"))
-                long_sig = False
-            if short_sig and c >= _ema_long_val:
-                _sl_e = short_fractal_price + FRACTAL_STOP_PIPS
-                _dist_e = _sl_e - c
-                if MIN_STOP <= _dist_e <= MAX_STOP:
-                    blocked_signals.append(_scan_outcome(
-                        df, i, "short", c, _sl_e,
-                        c - _dist_e * RRR,
-                        (cash * RISK_PCT) / _dist_e, ts, "ema_position"))
-                short_sig = False
+            # Toggleable via USE_EMA_FILTER env var (default on) so the
+            # baseline/regime-only backtests can disable it.
+            if USE_EMA_FILTER:
+                _ema_long_val = df.ema_long.iloc[i]
+                if long_sig and c <= _ema_long_val:
+                    _sl_e = long_fractal_price - FRACTAL_STOP_PIPS
+                    _dist_e = c - _sl_e
+                    if MIN_STOP <= _dist_e <= MAX_STOP:
+                        blocked_signals.append(_scan_outcome(
+                            df, i, "long", c, _sl_e,
+                            c + _dist_e * RRR,
+                            (cash * RISK_PCT) / _dist_e, ts, "ema_position"))
+                    long_sig = False
+                if short_sig and c >= _ema_long_val:
+                    _sl_e = short_fractal_price + FRACTAL_STOP_PIPS
+                    _dist_e = _sl_e - c
+                    if MIN_STOP <= _dist_e <= MAX_STOP:
+                        blocked_signals.append(_scan_outcome(
+                            df, i, "short", c, _sl_e,
+                            c - _dist_e * RRR,
+                            (cash * RISK_PCT) / _dist_e, ts, "ema_position"))
+                    short_sig = False
 
             # ── Daily loss limit (max losing trades per day) ─────────────────
             _ts_day = pd.to_datetime(ts)
@@ -736,6 +941,36 @@ def run_backtest(df):
                             c - _dist_t * RRR,
                             (cash * RISK_PCT) / _dist_t, ts, "time"))
                 continue
+
+            # ── Macro regime gate (Condition 1) ────────────────────────────────
+            if (long_sig or short_sig) and ALLOWED_MACRO_KEYS:
+                _macro_ok, _macro_reason = _check_macro_regime(ts)
+                if not _macro_ok:
+                    _side = "long" if long_sig else "short"
+                    _fp = long_fractal_price if long_sig else short_fractal_price
+                    _sl_m = (_fp - FRACTAL_STOP_PIPS) if long_sig else (_fp + FRACTAL_STOP_PIPS)
+                    _dist_m = (c - _sl_m) if long_sig else (_sl_m - c)
+                    if MIN_STOP <= _dist_m <= MAX_STOP:
+                        _tp_m = (c + _dist_m * RRR) if long_sig else (c - _dist_m * RRR)
+                        blocked_signals.append(_scan_outcome(
+                            df, i, _side, c, _sl_m, _tp_m,
+                            (cash * RISK_PCT) / _dist_m, ts, _macro_reason))
+                    continue
+
+            # ── Micro regime gate (Condition 2) ────────────────────────────────
+            if (long_sig or short_sig) and ALLOWED_MICRO_KEYS:
+                _micro_ok, _micro_reason = _check_micro_regime(ts)
+                if not _micro_ok:
+                    _side = "long" if long_sig else "short"
+                    _fp = long_fractal_price if long_sig else short_fractal_price
+                    _sl_m = (_fp - FRACTAL_STOP_PIPS) if long_sig else (_fp + FRACTAL_STOP_PIPS)
+                    _dist_m = (c - _sl_m) if long_sig else (_sl_m - c)
+                    if MIN_STOP <= _dist_m <= MAX_STOP:
+                        _tp_m = (c + _dist_m * RRR) if long_sig else (c - _dist_m * RRR)
+                        blocked_signals.append(_scan_outcome(
+                            df, i, _side, c, _sl_m, _tp_m,
+                            (cash * RISK_PCT) / _dist_m, ts, _micro_reason))
+                    continue
 
             if long_sig:
                 sl_price      = long_fractal_price - FRACTAL_STOP_PIPS

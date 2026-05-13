@@ -2468,12 +2468,19 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
 # Persistence — labels parquet with thresholds in schema metadata
 # ─────────────────────────────────────────────────────────────────────────────
 
-def persist_labels(fractal_df, thresholds, periods):
+def persist_labels(fractal_df, thresholds, periods, macro=None):
     """Save per-fractal labels + thresholds to data/regime_labels.parquet.
 
     Tercile thresholds and per-period summaries are tucked into the parquet's
     schema-level custom metadata (JSON-encoded) so the file remains a single
-    self-contained artifact."""
+    self-contained artifact.
+
+    `macro` is the optional dict returned by `stage2b_classify_macro`
+    ({YYYY-MM-DD: {label, details}}). When provided, a flat
+    `macro_by_date` mapping is added to the schema metadata so downstream
+    consumers (e.g. strategy_v2.py's regime gates) can look up each day's
+    macro classification without re-running the labeler.
+    """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     out = fractal_df[[
@@ -2487,6 +2494,11 @@ def persist_labels(fractal_df, thresholds, periods):
 
     table = pa.Table.from_pandas(out, preserve_index=False)
 
+    macro_by_date = {}
+    if macro:
+        for day, info in macro.items():
+            macro_by_date[day] = info.get("label") if isinstance(info, dict) else None
+
     meta_payload = {
         "thresholds": thresholds,
         "lookback_fractals": LOOKBACK_FRACTALS,
@@ -2494,6 +2506,7 @@ def persist_labels(fractal_df, thresholds, periods):
         "end_date":   END_DATE,
         "period_count": len(periods),
         "generated":  datetime.utcnow().isoformat() + "Z",
+        "macro_by_date": macro_by_date,
     }
     existing = table.schema.metadata or {}
     new_meta = {**dict(existing), b"regime_labeler": json.dumps(meta_payload).encode("utf-8")}
@@ -2521,7 +2534,7 @@ def main():
 
     report_path = build_report(fractal_df, periods, thresholds, trades_df, perf_df,
                                full_df, available_chart_days, macro)
-    persist_labels(fractal_df, thresholds, periods)
+    persist_labels(fractal_df, thresholds, periods, macro=macro)
 
     webbrowser.open(f"file://{report_path}")
     print(f"Report saved and opened: {report_path}")

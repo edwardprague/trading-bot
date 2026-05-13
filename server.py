@@ -29,18 +29,21 @@ from cbot_templates import generate_cbot
 
 # ── Auto-install Flask if missing ─────────────────────────────────────────────
 try:
-    from flask import Flask, Response, jsonify, request
+    from flask import Flask, Response, jsonify, request, send_from_directory, abort
 except ImportError:
     print("  Flask not found — installing...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "flask"],
                           stdout=subprocess.DEVNULL)
-    from flask import Flask, Response, jsonify, request
+    from flask import Flask, Response, jsonify, request, send_from_directory, abort
+
+from datetime import datetime
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
 BASE_DIR      = Path(__file__).parent
 REPORT_FILE   = BASE_DIR / "report.html"
 STRATEGY_FILE = BASE_DIR / "strategy.py"
+RESULTS_DIR   = BASE_DIR / "results"
 
 app = Flask(__name__)
 
@@ -639,6 +642,111 @@ def serve_css():
     if not css_path.exists():
         return Response("", mimetype="text/css")
     return Response(css_path.read_text(encoding="utf-8"), mimetype="text/css")
+
+
+# ── /results — file server + directory listing ───────────────────────────────
+# Exposes everything under the project's `results/` folder. Supports nested
+# paths (e.g. /results/regime_charts/2026-01-15.png) so the regime labeler
+# report, generated charts, versioned PNG snapshots, etc. are all reachable
+# from a single base URL.
+
+def _fmt_bytes(n):
+    """Compact human-readable file size."""
+    n = float(n)
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} TB"
+
+
+@app.route("/results/<path:filename>")
+def serve_results_file(filename):
+    """Serve any file beneath results/, including nested subdirectories.
+
+    send_from_directory rejects paths that escape the directory root, so this
+    is safe against path-traversal attacks (e.g. /results/../server.py) even
+    when `filename` comes straight from the URL.
+    """
+    if not RESULTS_DIR.exists():
+        abort(404)
+    try:
+        return send_from_directory(str(RESULTS_DIR), filename, conditional=True)
+    except FileNotFoundError:
+        abort(404)
+
+
+@app.route("/results")
+@app.route("/results/")
+def list_results():
+    """Plain HTML directory listing of every file under results/.
+
+    Walks the directory recursively so files in subfolders
+    (e.g. results/regime_charts/*.png) appear alongside top-level files,
+    each linked to its /results/<rel> URL.
+    """
+    if not RESULTS_DIR.exists():
+        body = (
+            "<div class='results-listing-container'>"
+            "<h1>results/ — directory not found</h1>"
+            "<p>The <code>results/</code> folder does not exist yet. "
+            "Run a backtest or the regime labeler to populate it.</p>"
+            "</div>"
+        )
+        return Response(_results_page(body), mimetype="text/html")
+
+    entries = []
+    for root, _dirs, files in os.walk(RESULTS_DIR):
+        for f in files:
+            full = Path(root) / f
+            try:
+                rel = full.relative_to(RESULTS_DIR).as_posix()
+                st  = full.stat()
+            except (OSError, ValueError):
+                continue
+            entries.append({
+                "rel":   rel,
+                "size":  st.st_size,
+                "mtime": datetime.fromtimestamp(st.st_mtime),
+            })
+    entries.sort(key=lambda e: e["rel"])
+
+    rows = []
+    for e in entries:
+        rows.append(
+            "<tr>"
+            f"<td><a href='/results/{e['rel']}'>{e['rel']}</a></td>"
+            f"<td>{_fmt_bytes(e['size'])}</td>"
+            f"<td>{e['mtime'].strftime('%Y-%m-%d %H:%M')}</td>"
+            "</tr>"
+        )
+    table_body = "".join(rows) or (
+        "<tr><td colspan='3' class='regime-dim'>No files in results/.</td></tr>"
+    )
+    body = f"""
+      <div class='results-listing-container'>
+        <h1>results/ — {len(entries)} file{'s' if len(entries) != 1 else ''}</h1>
+        <p>Files under <code>{RESULTS_DIR}</code>. Click any path to view.</p>
+        <table class='results-listing-table'>
+          <thead><tr><th>Path</th><th>Size</th><th>Modified</th></tr></thead>
+          <tbody>{table_body}</tbody>
+        </table>
+      </div>
+    """
+    return Response(_results_page(body), mimetype="text/html")
+
+
+def _results_page(body_html):
+    """Wrap a body fragment in a minimal page that pulls in style.css."""
+    return f"""<!doctype html>
+<html lang='en'>
+<head>
+  <meta charset='utf-8'>
+  <title>Results — directory listing</title>
+  <link rel='stylesheet' href='/style.css'>
+</head>
+<body class='results-listing'>{body_html}</body>
+</html>"""
 
 
 def _run_backtest_sync(env_overrides=None):
