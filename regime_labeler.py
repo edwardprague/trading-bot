@@ -75,7 +75,7 @@ import strategy_v2 as strat
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 
-START_DATE        = "2026-01-01"
+START_DATE        = "2025-01-01"
 END_DATE          = "2026-03-31"
 LOOKBACK_FRACTALS = 4
 
@@ -334,18 +334,26 @@ def build_stats_bar_html(agg_stats, filter_state_label, filter_state_class):
           <span class="regime-stat-value {pnl_cls}">{_fmt_money(pnl_total)}</span>
         </div>
       </div>
-      <div class="regime-stats-filter-label {filter_state_class}">{filter_state_label}</div>
     """
 
 
-def build_perf_table_html(perf_df, regime_count):
-    """Render the 'Trade performance by regime' (micro) table from a perf_df."""
+def build_perf_table_html(perf_df, regime_count, blocked_micro_keys=None):
+    """Render the 'Trade performance by regime' (micro) table from a perf_df.
+
+    `blocked_micro_keys` is an optional set of internal micro-regime keys that
+    are currently blocked by the toggle panel (i.e. NOT in the allow-list).
+    Rows for blocked regimes get the same visual treatment as the macro perf
+    table: a yellow lock icon before the badge and a row-level dim
+    (via the .regime-day-blocked class).
+    """
+    blocked_micro_keys = blocked_micro_keys or set()
     perf_rows = []
     for _, r in perf_df.iterrows():
         period_count = int(regime_count.get(r["regime"], 0))
         if period_count == 0:
             continue
         n_trades = int(r["trades"])
+        is_blocked = r["regime"] in blocked_micro_keys
         if n_trades > 0:
             cls          = winrate_class(r["win_rate"], n_trades)
             wins_cell    = str(int(r["wins"]))
@@ -359,10 +367,28 @@ def build_perf_table_html(perf_df, regime_count):
             pf_cell      = "<td class='regime-dim'>—</td>"
             avg_cell     = "<td class='regime-dim'>—</td>"
             total_cell   = "<td class='regime-dim'>—</td>"
+
+        # Lock icon (same style + class as the daily-breakdown + macro perf
+        # tables) rendered immediately before the regime badge on blocked
+        # rows. Row gets .regime-day-blocked → opacity 0.55 via the shared
+        # .regime-table tr.regime-day-blocked td rule in style.css.
+        if is_blocked:
+            lock_html = (
+                "<span class='regime-blocked-lock' "
+                "title='Excluded from active strategy entries by the micro regime filter' "
+                "aria-label='Filtered out'>"
+                "<span class='material-symbols-outlined'>lock</span>"
+                "</span>"
+            )
+        else:
+            lock_html = ""
+        row_class = "regime-day-blocked" if is_blocked else ""
+
         perf_rows.append(
-            f"<tr>"
+            f"<tr class='{row_class}'>"
             f"<td><span class='regime-badge {regime_class(r['regime'])}'>"
-            f"{REGIME_DISPLAY[r['regime']]}</span></td>"
+            f"{REGIME_DISPLAY[r['regime']]}</span>"
+            f"{lock_html}</td>"
             f"<td>{period_count}</td>"
             f"<td>{n_trades}</td>"
             f"<td>{wins_cell}</td>"
@@ -443,11 +469,6 @@ def build_timeline_section_html(in_range_periods, macro, trades_per_day,
 
     return f"""
       <h2>Regime timeline</h2>
-      <p class="regime-dim regime-small">
-        Macro row (top) shows the day-level classification. Micro row
-        (bottom) shows the dominant intraday regime for that calendar day.
-        Both rows share the same x-axis so they're directly comparable.
-      </p>
       <div class="regime-tl-row">
         <span class="regime-tl-row-label">Macro</span>
         <div class="regime-tl-strip">{''.join(macro_tl_cells)}</div>
@@ -489,16 +510,7 @@ def compute_filter_label(blocked_macro_keys, total_trades, n_excluded):
             f"Statistics in this table reflect only trades from allowed macro regime days."
             f"</p>"
         )
-        macro_table_filter_note = (
-            f"<p class='regime-dim regime-small regime-perf-note regime-macro-filter-note'>"
-            f"<span class='material-symbols-outlined regime-macro-filter-note-icon'>filter_alt</span>"
-            f"Macro filter active — blocked regimes "
-            f"(<strong>{', '.join(blocked_display_names)}</strong>) are dimmed and "
-            f"marked with a lock icon. Their Total P&amp;L is shown as a "
-            f"counterfactual; those trades are excluded from the active strategy "
-            f"aggregate stats above."
-            f"</p>"
-        )
+        macro_table_filter_note = macro_filter_note
     elif blocked_display_names:
         macro_filter_note = (
             f"<p class='regime-dim regime-small regime-perf-note regime-macro-filter-note'>"
@@ -1678,9 +1690,9 @@ def build_macro_perf_table(macro, trades_df, blocked_macro_keys=None):
 
         rows.append(
             f"<tr class='{row_class}'>"
-            f"<td>{lock_html}"
-            f"<span class='macro-badge {macro_class(label)}'>"
-            f"{MACRO_REGIME_DISPLAY[label]}</span></td>"
+            f"<td><span class='macro-badge {macro_class(label)}'>"
+            f"{MACRO_REGIME_DISPLAY[label]}</span>"
+            f"{lock_html}</td>"
             f"<td>{days}</td>"
             f"<td>{n}</td>"
             f"<td>{wins_cell}</td>"
@@ -2039,7 +2051,11 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     # Show every regime that occurred in the date range (period_count > 0), so
     # the per-regime period counts that used to live in the header chip strip
     # are preserved. Trade-stat cells show '—' when the regime had no trades.
-    perf_table = build_perf_table_html(perf_df, regime_count)
+    # Pass the current blocked-micro-keys set so blocked-regime rows render
+    # with the same lock+dim styling as the macro perf table.
+    _blocked_micro_static = set(BLOCKED_MICRO_REGIMES)
+    perf_table = build_perf_table_html(perf_df, regime_count,
+                                       blocked_micro_keys=_blocked_micro_static)
 
     # ── Note on trades from low-activity days ───────────────────────────────
     # Trade attribution always maps a trade to a *real* fractal's regime label
@@ -2175,7 +2191,6 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       <div class="rb-action-group">
         <button id="regime-copy-btn" class="rb-btn rb-btn-copy" type="button"
                 title="Copy report as markdown to clipboard">
-          <span class="material-symbols-outlined rb-btn-symbol">content_copy</span>
           <span class="regime-copy-btn-label">Copy Report</span>
         </button>
         <button id="devlog-btn" class="rb-devlog-btn" type="button"
@@ -2190,7 +2205,11 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     # Default state derives from BLOCKED_MACRO_REGIMES + BLOCKED_MICRO_REGIMES.
     # data-regime-key holds the internal key the endpoint expects; data-default
     # records the default ON/OFF so the Reset to Defaults button can restore.
-    _blocked_macro_default = {_macro_key(n) for n in BLOCKED_MACRO_REGIMES}
+    def _macro_key_local(name):
+        """Convert a display name ('Staircase Down') or internal key
+        ('staircase_down') to its canonical internal-key form."""
+        return name.strip().lower().replace(" ", "_").replace("-", "_")
+    _blocked_macro_default = {_macro_key_local(n) for n in BLOCKED_MACRO_REGIMES}
     _blocked_micro_default = set(BLOCKED_MICRO_REGIMES)
 
     def _toggle(regime_key, label, color_class, blocked_default):
@@ -2282,21 +2301,13 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
 
     <section class="regime-card" id="regime-macro-perf-section">
       <h2>Trade performance by macro regime <span class="regime-dim regime-small">(daily context)</span></h2>
-      <p class="regime-dim regime-small">
-        Day-level performance by overall daily character — answers whether
-        the strategy should be trading on certain types of days at all.
-      </p>
+
       {macro_perf_table}
-      {macro_table_filter_note}
     </section>
 
     <section class="regime-card" id="regime-perf-section">
       <h2>Trade performance by regime <span class="regime-dim regime-small">(v2 short-only)</span></h2>
-      <p class="regime-dim regime-small">
-        How the active strategy performed in each market condition. Green ≥ 55%, red ≤ 45%.
-      </p>
       {perf_table}
-      {macro_filter_note}
       {perf_low_note}
     </section>
 
@@ -2306,12 +2317,6 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
 
     <section class="regime-card" id="regime-daily-section">
       <h2>Daily breakdown</h2>
-      <p class="regime-dim regime-small">
-        One row per trading day. Each chip is a UTC hour, coloured by the
-        dominant regime among fractals detected in that hour. Hover the chart
-        icon for a price/trade preview of that day. Click <strong>Date</strong>,
-        <strong>Trades</strong>, or <strong>P&amp;L</strong> headers to sort.
-      </p>
       {daily_table}
       <p class="regime-dim regime-small regime-breakdown-note">
         <span class="regime-hour-chip regime-color-inactive regime-hour-chip--inline"></span>
@@ -2719,6 +2724,9 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
           runStatus.textContent = (data.summary || "") + " · "
             + (Math.round(data.elapsed_ms || 0)) + "ms";
         }}
+        // Persist the request so the next page refresh restores the same
+        // date range + toggle state + rendered report.
+        saveRegimeAnalysisState(payload);
       }}).catch(function (err) {{
         if (runStatus) runStatus.textContent = "Failed: " + err.message;
       }}).finally(function () {{
@@ -2727,6 +2735,83 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     }}
 
     if (runBtn) runBtn.addEventListener("click", runAnalysis);
+
+    // ── localStorage persistence ───────────────────────────────────────────
+    // Saved state survives page refreshes. On load we restore the date
+    // pickers + toggle checkboxes and auto-run the analysis so the rendered
+    // report sections match. Reset to Defaults clears the saved state so the
+    // next refresh falls back to the labeler's hardcoded defaults.
+    var REGIME_LS_KEY = "regime_labeler.lastAnalysis.v1";
+
+    function saveRegimeAnalysisState(payload) {{
+      try {{
+        localStorage.setItem(REGIME_LS_KEY, JSON.stringify(payload));
+      }} catch (e) {{ /* quota / privacy mode — silently skip */ }}
+    }}
+
+    function loadRegimeAnalysisState() {{
+      try {{
+        var raw = localStorage.getItem(REGIME_LS_KEY);
+        if (!raw) return null;
+        var payload = JSON.parse(raw);
+        if (!payload || typeof payload !== "object") return null;
+        if (!payload.start_date || !payload.end_date) return null;
+        return payload;
+      }} catch (e) {{ return null; }}
+    }}
+
+    function clearRegimeAnalysisState() {{
+      try {{ localStorage.removeItem(REGIME_LS_KEY); }} catch (e) {{}}
+    }}
+
+    function applySavedStateToControls(saved) {{
+      // Date inputs
+      var startEl = document.getElementById("rb-start");
+      var endEl   = document.getElementById("rb-end");
+      if (startEl && saved.start_date) {{
+        startEl.value = saved.start_date;
+        startEl.dispatchEvent(new Event("change"));
+      }}
+      if (endEl && saved.end_date) {{
+        endEl.value = saved.end_date;
+        endEl.dispatchEvent(new Event("change"));
+      }}
+      // Toggle checkboxes — drive from saved allowed-lists.
+      function applyAllowList(containerId, allowed) {{
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        var allowedSet = {{}};
+        (allowed || []).forEach(function (k) {{ allowedSet[k] = true; }});
+        container.querySelectorAll(".regime-toggle").forEach(function (toggle) {{
+          var key = toggle.getAttribute("data-regime-key");
+          var input = toggle.querySelector(".regime-toggle-input");
+          if (!input) return;
+          input.checked = !!allowedSet[key];
+          applyToggleVisual(toggle);
+        }});
+      }}
+      applyAllowList("regime-macro-toggles", saved.allowed_macro_regimes);
+      applyAllowList("regime-micro-toggles", saved.allowed_micro_regimes);
+    }}
+
+    // Auto-restore on page load: if there's saved state, replay it. The
+    // analysis fetch runs in the background — the UI shows "Running…" on the
+    // Run Analysis button while it does.
+    var _savedState = loadRegimeAnalysisState();
+    if (_savedState) {{
+      applySavedStateToControls(_savedState);
+      // Small defer so the run-bar spinner styling is applied after the
+      // initial paint and any DOMContentLoaded listeners settle.
+      setTimeout(runAnalysis, 50);
+    }}
+
+    // Hook into Reset to Defaults so refreshing actually goes back to the
+    // labeler's hardcoded defaults rather than re-restoring from storage.
+    if (resetBtn) {{
+      resetBtn.addEventListener("click", function () {{
+        clearRegimeAnalysisState();
+      }});
+    }}
 
     // ── Hover-preview + daily-table sort handlers (extracted so they can be
     //    re-attached after a Run Analysis innerHTML swap) ──
@@ -2952,8 +3037,29 @@ def main():
                                full_df, available_chart_days, macro)
     persist_labels(fractal_df, thresholds, periods, macro=macro)
 
-    webbrowser.open(f"file://{report_path}")
-    print(f"Report saved and opened: {report_path}")
+    # Prefer the Flask server URL when reachable — the page's Run Analysis
+    # button calls /run_regime_analysis via relative fetch, which only works
+    # under an http origin. Fall back to file:// if the server isn't running
+    # so the page still opens (Run Analysis will just say "Failed to fetch"
+    # in that case, with the same expectation as before).
+    import socket
+    def _server_alive(host="127.0.0.1", port=8080, timeout=0.4):
+        try:
+            with socket.create_connection((host, port), timeout=timeout):
+                return True
+        except OSError:
+            return False
+
+    if _server_alive():
+        url = f"http://localhost:8080/results/{REPORT_PATH.name}"
+    else:
+        print("  (Flask server not detected on :8080 — opening file:// URL; "
+              "start `python3 server.py` and reload at "
+              f"http://localhost:8080/results/{REPORT_PATH.name} to enable "
+              "the Run Analysis button.)")
+        url = f"file://{report_path}"
+    webbrowser.open(url)
+    print(f"Report saved and opened: {url}")
 
 
 if __name__ == "__main__":

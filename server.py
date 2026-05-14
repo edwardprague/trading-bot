@@ -892,7 +892,9 @@ def run_regime_analysis():
         allowed_macro_keys = strat.ALLOWED_MACRO_KEYS
         allowed_micro_keys = strat.ALLOWED_MICRO_KEYS
         all_macro_keys = set(rl.MACRO_REGIME_ORDER)
+        all_micro_keys = set(rl.REGIME_ORDER)
         blocked_macro_keys = all_macro_keys - allowed_macro_keys
+        blocked_micro_keys = all_micro_keys - allowed_micro_keys
 
         # ── Assign micro-regime labels to each trade for perf-table grouping.
         # strategy_v2._REGIME_MICRO_SERIES is keyed by UTC fractal timestamps;
@@ -934,7 +936,8 @@ def run_regime_analysis():
         macro_perf_table = rl.build_macro_perf_table(
             macro, trades, blocked_macro_keys=blocked_macro_keys)
 
-        perf_table = rl.build_perf_table_html(perf_df, regime_count)
+        perf_table = rl.build_perf_table_html(perf_df, regime_count,
+                                              blocked_micro_keys=blocked_micro_keys)
 
         trades_per_day = rl.compute_trades_per_day(trades)
         timeline_inner = rl.build_timeline_section_html(
@@ -988,12 +991,6 @@ def run_regime_analysis():
         # ── Daily breakdown section wrap (header + table + note) ──
         daily_section_inner = f"""
           <h2>Daily breakdown</h2>
-          <p class="regime-dim regime-small">
-            One row per trading day. Each chip is a UTC hour, coloured by the
-            dominant regime among fractals detected in that hour. Hover the chart
-            icon for a price/trade preview of that day. Click <strong>Date</strong>,
-            <strong>Trades</strong>, or <strong>P&amp;L</strong> headers to sort.
-          </p>
           {daily_table_html}
           <p class="regime-dim regime-small regime-breakdown-note">
             <span class="regime-hour-chip regime-color-inactive regime-hour-chip--inline"></span>
@@ -1013,15 +1010,10 @@ def run_regime_analysis():
             the strategy should be trading on certain types of days at all.
           </p>
           {macro_perf_table}
-          {macro_table_filter_note}
         """
         regime_perf_inner = f"""
           <h2>Trade performance by regime <span class="regime-dim regime-small">(v2 short-only)</span></h2>
-          <p class="regime-dim regime-small">
-            How the active strategy performed in each market condition. Green ≥ 55%, red ≤ 45%.
-          </p>
           {perf_table}
-          {macro_filter_note}
         """
 
         elapsed_ms = (_time.time() - t0) * 1000
