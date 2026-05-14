@@ -113,6 +113,20 @@ ALLOWED_MICRO_KEYS = {_micro_key(n) for n in _ALLOWED_MICRO_RAW}
 
 USE_EMA_FILTER = os.environ.get("USE_EMA_FILTER", "true").strip().lower() in ("true", "1", "yes", "on")
 
+# ── EMA40 buffer (Condition 4) ───────────────────────────────────────────────
+# When USE_EMA_FILTER is on, the existing EMA-position filter requires
+# close < ema_long for shorts (and close > ema_long for longs). The buffer
+# tightens this gate: shorts now require close < (ema_long - EMA40_BUFFER),
+# which filters out entries hovering at or just barely below the EMA during
+# a retracement and only allows entries with meaningful separation between
+# price and EMA40.
+#
+# Buffer is configured in pips and stored internally as a price value.
+# Set EMA40_BUFFER_PIPS=0 to disable the buffer (recovers the strict-below
+# behavior of the original filter).
+EMA40_BUFFER_PIPS = float(os.environ.get("EMA40_BUFFER_PIPS", "5"))
+EMA40_BUFFER      = EMA40_BUFFER_PIPS * 0.0001   # pips → price units
+
 # Lookups populated by _load_regime_labels(); see _check_macro_regime /
 # _check_micro_regime below for the runtime gate logic.
 _REGIME_MACRO_BY_DATE = {}      # {'YYYY-MM-DD': 'staircase_down', ...}
@@ -890,9 +904,17 @@ def run_backtest(df):
             # ── EMA position filter: long must be above EMA Long, short below ─
             # Toggleable via USE_EMA_FILTER env var (default on) so the
             # baseline/regime-only backtests can disable it.
+            #
+            # Condition 4 (EMA40 buffer) widens the gate by EMA40_BUFFER on
+            # both sides: shorts require close < (ema_long - EMA40_BUFFER);
+            # longs require close > (ema_long + EMA40_BUFFER). With
+            # EMA40_BUFFER_PIPS=0 the behavior reduces to the original strict
+            # below/above check.
             if USE_EMA_FILTER:
-                _ema_long_val = df.ema_long.iloc[i]
-                if long_sig and c <= _ema_long_val:
+                _ema_long_val   = df.ema_long.iloc[i]
+                _ema_long_short = _ema_long_val - EMA40_BUFFER   # short threshold
+                _ema_long_long  = _ema_long_val + EMA40_BUFFER   # long threshold
+                if long_sig and c <= _ema_long_long:
                     _sl_e = long_fractal_price - FRACTAL_STOP_PIPS
                     _dist_e = c - _sl_e
                     if MIN_STOP <= _dist_e <= MAX_STOP:
@@ -901,7 +923,7 @@ def run_backtest(df):
                             c + _dist_e * RRR,
                             (cash * RISK_PCT) / _dist_e, ts, "ema_position"))
                     long_sig = False
-                if short_sig and c >= _ema_long_val:
+                if short_sig and c >= _ema_long_short:
                     _sl_e = short_fractal_price + FRACTAL_STOP_PIPS
                     _dist_e = _sl_e - c
                     if MIN_STOP <= _dist_e <= MAX_STOP:

@@ -2264,6 +2264,396 @@ body.regime-report #chart-preview-overlay #chart-preview-img {
     min-height: 0;
 }
 
+/* ─── Run bar — shared with the dashboard ─────────────────────────────────
+   These classes mirror the dashboard's INJECT_HTML inline styles so the
+   regime page's static run bar (rendered by build_report) picks up the
+   identical visual treatment without re-injecting any inline CSS. */
+body.regime-report {
+    padding-top: 52px;
+}
+
+.rb-runbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 52px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px;
+    background: #0c0c18;
+    border-bottom: 1px solid #1e1e32;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.rb-btn {
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 16px;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+}
+
+.rb-btn-icon {
+    font-size: 10px;
+    line-height: 1;
+}
+
+.rb-btn-symbol {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.rb-btn-green { background: green; }
+.rb-btn-green:hover:not(:disabled) { background: #02bc02; }
+.rb-btn-blue  { background: steelblue; }
+.rb-btn-blue:hover:not(:disabled)  { background: #55a0dd; }
+.rb-btn-copy  { background: green; }
+.rb-btn-copy:hover:not(:disabled)  { background: #02bc02; }
+.rb-btn-copy.copied {
+    background: transparent !important;
+    color: #6bcb77;
+    border: 1px solid #6bcb77;
+}
+.rb-btn:disabled {
+    background: #1e1e38 !important;
+    color: #404060;
+    cursor: not-allowed;
+}
+
+.rb-btn-ghost {
+    background: transparent;
+    border: 1px solid #2a2a44;
+    color: #9090c0;
+    font-weight: 500;
+}
+.rb-btn-ghost:hover:not(:disabled) {
+    background: #14142a;
+    color: #fff;
+    border-color: #4cc9f0;
+}
+
+.rb-sep {
+    width: 1px;
+    height: 28px;
+    background: #1e1e32;
+    flex-shrink: 0;
+}
+
+.rb-label {
+    font-size: 11px;
+    color: #505070;
+    flex-shrink: 0;
+    margin-right: 0;
+}
+
+.rb-date-wrap {
+    position: relative;
+    display: inline-block;
+    width: 130px;
+    flex-shrink: 0;
+}
+
+.rb-date {
+    background: #14142a;
+    color: transparent;
+    border: 1px solid #2a2a44;
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    width: 100%;
+    flex-shrink: 0;
+    color-scheme: dark;
+    position: relative;
+    z-index: 1;
+}
+.rb-date:focus {
+    border-color: #4cc9f0;
+    outline: none;
+}
+
+.rb-date-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 22px;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    padding: 5px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    color: #c0c0e0;
+    pointer-events: none;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+.rb-status {
+    font-size: 13px;
+    color: #666690;
+    margin-left: 8px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rb-action-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.rb-devlog-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: #888;
+    border: none;
+    border-radius: 5px;
+    padding: 4px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+}
+.rb-devlog-btn .material-symbols-outlined {
+    font-size: 22px;
+}
+.rb-devlog-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+.rb-devlog-btn.active {
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.1);
+}
+
+@keyframes rb-spin { to { transform: rotate(360deg); } }
+.rb-spin {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    margin-right: 7px;
+    border: 2px solid #303050;
+    border-top-color: #4cc9f0;
+    border-radius: 50%;
+    animation: rb-spin 0.75s linear infinite;
+    vertical-align: middle;
+}
+
+/* ─── Regime control panel (toggle switches) ──────────────────────────────
+   Two columns of regime toggles below the run bar. Each toggle row has a
+   colored swatch (regime-matched), the regime label, and a switch on the
+   right. Toggling off dims the row and marks it visually as blocked. */
+.regime-control-panel {
+    background: #10101c;
+    border: 1px solid #1e1e30;
+    border-radius: 8px;
+    padding: 16px 20px 18px;
+    margin-bottom: 22px;
+}
+
+.regime-control-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.regime-control-header h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: 0.02em;
+}
+
+.regime-control-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 720px) {
+    .regime-control-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.regime-control-col-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #9090b0;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 8px;
+}
+
+.regime-toggle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.regime-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.12s, opacity 0.12s, border-color 0.12s;
+    user-select: none;
+}
+.regime-toggle:hover {
+    background: #14142a;
+    border-color: #1e1e30;
+}
+
+.regime-toggle-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.regime-toggle-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.4);
+    flex-shrink: 0;
+}
+
+.regime-toggle-label {
+    flex: 1;
+    font-size: 12.5px;
+    color: #d0d0e8;
+    line-height: 1.2;
+}
+
+.regime-toggle-switch {
+    position: relative;
+    width: 30px;
+    height: 16px;
+    border-radius: 8px;
+    background: #2a2a44;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+.regime-toggle-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #c0c0e0;
+    transition: transform 0.15s, background 0.15s;
+}
+.regime-toggle .regime-toggle-input:checked ~ .regime-toggle-switch {
+    background: #1b5e20;
+}
+.regime-toggle .regime-toggle-input:checked ~ .regime-toggle-switch::after {
+    transform: translateX(14px);
+    background: #fff;
+}
+
+/* Off state — dim the whole row to indicate the regime is blocked. */
+.regime-toggle.regime-toggle-off {
+    opacity: 0.5;
+}
+.regime-toggle.regime-toggle-off .regime-toggle-label {
+    text-decoration: line-through;
+    color: #707090;
+}
+
+/* ─── Devlog panel (regime page) ─────────────────────────────────────────── */
+.regime-devlog-panel {
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 80px);
+    background: #10101c;
+    border: 1px solid #2a2a44;
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.regime-devlog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid #1e1e30;
+    background: #0c0c14;
+    color: #fff;
+    font-size: 13px;
+}
+
+.regime-devlog-close {
+    background: none;
+    border: none;
+    color: #9090b0;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.regime-devlog-close:hover {
+    background: #1e1e30;
+    color: #fff;
+}
+
+#regime-devlog-textarea {
+    flex: 1;
+    min-height: 200px;
+    width: 100%;
+    box-sizing: border-box;
+    background: #0c0c14;
+    color: #d0d0e8;
+    border: none;
+    padding: 12px 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: none;
+    outline: none;
+}
+
+.regime-devlog-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-top: 1px solid #1e1e30;
+    background: #0c0c14;
+}
+
 /* ── /results directory-listing page (server.py: list_results) ──────────────
    Standalone utility page served at /results that shows every file under
    the results/ folder as a sortable-ish table of links. Shares the dark

@@ -749,6 +749,302 @@ def _results_page(body_html):
 </html>"""
 
 
+# ── /run_regime_analysis — interactive endpoint for the regime labeler page ──
+#
+# Accepts a JSON POST with start_date, end_date, allowed_macro_regimes (display
+# names or internal keys), and allowed_micro_regimes (internal keys). Filters
+# trades from the cached data via strategy_v2's existing entry-time gates,
+# rebuilds the four dynamic sections the regime_labeler.html page swaps in
+# place (stats bar, macro perf, regime perf, timeline, daily breakdown), and
+# returns them as JSON HTML fragments.
+#
+# This endpoint does NOT re-run the full regime labeler — it relies on the
+# already-computed data/regime_labels.parquet for the per-fractal labels and
+# the schema-metadata macro_by_date mapping.
+
+@app.route("/run_regime_analysis", methods=["POST"])
+def run_regime_analysis():
+    import time as _time
+    t0 = _time.time()
+    try:
+        payload = request.get_json(force=True) or {}
+        start_date    = payload.get("start_date")
+        end_date      = payload.get("end_date")
+        allowed_macro = list(payload.get("allowed_macro_regimes", []))
+        allowed_micro = list(payload.get("allowed_micro_regimes", []))
+        if not start_date or not end_date:
+            return jsonify({"error": "start_date and end_date are required"}), 400
+
+        # Lazy-import so server.py can boot without pyarrow/pandas if the
+        # regime feature isn't used. Importing strategy_v2 also triggers its
+        # module-level regime-labels load.
+        # The regime labeler is GBPUSD-only, so pin TICKER here regardless of
+        # what the strategy module imported at startup.
+        os.environ.setdefault("INSTRUMENT", "GBPUSD")
+        import pandas as pd  # noqa: F401  — re-export used below
+        import strategy_v2 as strat
+        import regime_labeler as rl
+        # Force GBPUSD in case strategy_v2 was imported earlier with a
+        # different instrument (e.g. EURUSD default).
+        strat.TICKER          = "GBPUSD"
+        strat._INSTRUMENT     = "GBPUSD"
+        strat.MASSIVE_TICKER  = strat._INSTRUMENT_MAP.get("GBPUSD", strat.MASSIVE_TICKER)
+
+        # ── Override strategy_v2 module globals with this request's filters ──
+        strat.ALLOWED_MACRO_KEYS = {strat._macro_key(n) for n in allowed_macro}
+        strat.ALLOWED_MICRO_KEYS = {strat._micro_key(n) for n in allowed_micro}
+        # EMA filter stays on by default for the interactive view; clients can
+        # toggle it via the existing run-bar style refactor later.
+        strat.USE_EMA_FILTER = bool(payload.get("use_ema_filter", True))
+
+        # ── Run the backtest ──
+        df = strat.fetch_data(strat.TICKER, strat.INTERVAL, strat.DAYS_BACK,
+                              start_date=start_date, end_date=end_date)
+        df = strat.add_indicators(df)
+        trades, equity, _blocked = strat.run_backtest(df)
+
+        # Trim to the requested date range
+        start_ts = pd.Timestamp(start_date, tz="UTC")
+        end_ts   = pd.Timestamp(end_date,   tz="UTC") + pd.Timedelta(days=1)
+        if not trades.empty:
+            _t = pd.to_datetime(trades["entry_ts"])
+            _t = _t.dt.tz_convert("UTC") if _t.dt.tz is not None else _t.dt.tz_localize("UTC")
+            trades = trades[(_t >= start_ts) & (_t < end_ts)].reset_index(drop=True)
+
+        # ── Load fractal labels + macro from parquet ──
+        # Use whichever engine is installed (pyarrow preferred, fastparquet OK).
+        labels_path = BASE_DIR / "data" / "regime_labels.parquet"
+        macro = {}
+        if labels_path.exists():
+            try:
+                import pyarrow.parquet as _pq
+                tbl = _pq.read_table(str(labels_path))
+                meta = tbl.schema.metadata or {}
+                if b"regime_labeler" in meta:
+                    payload_meta = json.loads(meta[b"regime_labeler"].decode("utf-8"))
+                    for d, lbl in (payload_meta.get("macro_by_date") or {}).items():
+                        macro[d] = {"label": lbl, "details": {}}
+                fractal_df = tbl.to_pandas()
+            except ImportError:
+                from fastparquet import ParquetFile as _PF
+                _pf = _PF(str(labels_path))
+                kv = _pf.key_value_metadata or {}
+                blob = kv.get("regime_labeler")
+                if isinstance(blob, bytes): blob = blob.decode("utf-8")
+                if blob:
+                    payload_meta = json.loads(blob)
+                    for d, lbl in (payload_meta.get("macro_by_date") or {}).items():
+                        macro[d] = {"label": lbl, "details": {}}
+                fractal_df = _pf.to_pandas()
+        else:
+            return jsonify({"error": "data/regime_labels.parquet not found — "
+                                    "run regime_labeler.py first"}), 400
+
+        # Normalise fractal timestamps + filter to range
+        _fts = pd.to_datetime(fractal_df["timestamp"])
+        _fts = _fts.dt.tz_convert("UTC") if _fts.dt.tz is not None else _fts.dt.tz_localize("UTC")
+        fractal_df = fractal_df.copy()
+        fractal_df["timestamp"] = _fts
+        in_range = fractal_df[(fractal_df["timestamp"] >= start_ts)
+                              & (fractal_df["timestamp"] < end_ts)].copy()
+
+        # ── Reconstruct periods (consecutive same-regime fractals) for
+        # the timeline + daily breakdown chips. Period info is derivable
+        # from the parquet's per-fractal regime column — we don't need a
+        # full stage-2 rerun. ──
+        periods = []
+        cur = None
+        cl = in_range["regime"].values
+        ts = in_range["timestamp"].tolist()
+        fb = in_range["fractal_bar"].values
+        idx = in_range.index.values
+        for i in range(len(in_range)):
+            label_i = cl[i]
+            if cur is None or label_i != cur["label"]:
+                if cur is not None:
+                    periods.append(cur)
+                cur = {
+                    "label":   label_i,
+                    "regime":  label_i,   # already at fine granularity in the parquet
+                    "start_idx": idx[i],
+                    "end_idx":   idx[i],
+                    "start_ts":  ts[i],
+                    "end_ts":    ts[i],
+                    "start_bar": int(fb[i]),
+                    "end_bar":   int(fb[i]),
+                    "fractal_idxs": [idx[i]],
+                }
+            else:
+                cur["end_idx"]    = idx[i]
+                cur["end_ts"]     = ts[i]
+                cur["end_bar"]    = int(fb[i])
+                cur["fractal_idxs"].append(idx[i])
+        if cur is not None:
+            periods.append(cur)
+
+        # Regime-period counts (used by the perf table)
+        regime_count = {}
+        for p in periods:
+            regime_count[p["regime"]] = regime_count.get(p["regime"], 0) + 1
+
+        # ── Derive blocked macro/micro keys from the request payload ──
+        # The toggle panel sends ALLOWED lists; "blocked" = the complement.
+        allowed_macro_keys = strat.ALLOWED_MACRO_KEYS
+        allowed_micro_keys = strat.ALLOWED_MICRO_KEYS
+        all_macro_keys = set(rl.MACRO_REGIME_ORDER)
+        blocked_macro_keys = all_macro_keys - allowed_macro_keys
+
+        # ── Assign micro-regime labels to each trade for perf-table grouping.
+        # strategy_v2._REGIME_MICRO_SERIES is keyed by UTC fractal timestamps;
+        # .asof(entry_ts) returns the most recent fractal's regime label,
+        # which matches the strategy's gate semantics. ──
+        if not trades.empty:
+            _ets = pd.to_datetime(trades["entry_ts"])
+            _ets = _ets.dt.tz_convert("UTC") if _ets.dt.tz is not None else _ets.dt.tz_localize("UTC")
+            if strat._REGIME_MICRO_SERIES is not None and not strat._REGIME_MICRO_SERIES.empty:
+                trades = trades.copy()
+                trades["regime"] = [strat._REGIME_MICRO_SERIES.asof(t) for t in _ets]
+            else:
+                trades = trades.copy()
+                trades["regime"] = None
+
+        # ── Compute filtered + unfiltered stats ──
+        def _filter_by_macro(td):
+            if td.empty or not blocked_macro_keys:
+                return td.copy(), 0
+            _ts = pd.to_datetime(td["entry_ts"])
+            _ts = _ts.dt.tz_convert("UTC") if _ts.dt.tz is not None else _ts.dt.tz_localize("UTC")
+            day = _ts.dt.strftime("%Y-%m-%d")
+            mlbl = day.map(lambda d: macro.get(d, {}).get("label"))
+            mask = mlbl.isin(blocked_macro_keys)
+            return td[~mask].reset_index(drop=True), int(mask.sum())
+
+        filtered_trades, n_excluded = _filter_by_macro(trades)
+        perf_df = rl._compute_perf_df(filtered_trades)
+        agg_stats = rl._compute_aggregate_stats(filtered_trades)
+        total_in_range_trades = int(len(trades))
+
+        filter_state_label, filter_state_class, macro_filter_note, macro_table_filter_note = \
+            rl.compute_filter_label(blocked_macro_keys, total_in_range_trades, n_excluded)
+
+        # ── Build HTML chunks ──
+        stats_bar_inner = rl.build_stats_bar_html(
+            agg_stats, filter_state_label, filter_state_class)
+
+        macro_perf_table = rl.build_macro_perf_table(
+            macro, trades, blocked_macro_keys=blocked_macro_keys)
+
+        perf_table = rl.build_perf_table_html(perf_df, regime_count)
+
+        trades_per_day = rl.compute_trades_per_day(trades)
+        timeline_inner = rl.build_timeline_section_html(
+            periods, macro, trades_per_day, start_date, end_date, regime_count)
+
+        # Daily breakdown — we need a "full_df"-shaped frame for
+        # _trading_days_in_range. Reuse the indicator-augmented df from the
+        # backtest, restricted to the requested range plus a small buffer.
+        # Available chart days inferred from results/regime_charts/.
+        available_chart_days = set()
+        chart_dir = BASE_DIR / "results" / "regime_charts"
+        if chart_dir.exists():
+            for png in chart_dir.glob("*.png"):
+                available_chart_days.add(png.stem)
+
+        # Build a low-activity-day set the same way build_report does.
+        from regime_labeler import LOW_ACTIVITY_FRACTAL_THRESHOLD
+        fractals_per_day = {}
+        if not in_range.empty:
+            for d in in_range["timestamp"].dt.strftime("%Y-%m-%d"):
+                fractals_per_day[d] = fractals_per_day.get(d, 0) + 1
+        # Use rl._trading_days_in_range — but we need to mimic its arg shape.
+        # Easier: derive from df.
+        df_dts = pd.to_datetime(df["Datetime"])
+        df_dts = df_dts.dt.tz_convert("UTC") if df_dts.dt.tz is not None else df_dts.dt.tz_localize("UTC")
+        df_in_rng = df[(df_dts >= start_ts) & (df_dts < end_ts)]
+        df_in_rng_dts = pd.to_datetime(df_in_rng["Datetime"])
+        df_in_rng_dts = df_in_rng_dts.dt.tz_convert("UTC") if df_in_rng_dts.dt.tz is not None else df_in_rng_dts.dt.tz_localize("UTC")
+        trading_days_all = sorted(set(df_in_rng_dts.dt.strftime("%Y-%m-%d")))
+        low_activity_days = {
+            d for d in trading_days_all
+            if fractals_per_day.get(d, 0) < LOW_ACTIVITY_FRACTAL_THRESHOLD
+        }
+
+        # Temporarily override START_DATE/END_DATE on the rl module so its
+        # _trading_days_in_range helper (called inside build_daily_breakdown)
+        # uses this request's range.
+        _orig_start, _orig_end = rl.START_DATE, rl.END_DATE
+        rl.START_DATE = start_date
+        rl.END_DATE   = end_date
+        try:
+            daily_table_html = rl.build_daily_breakdown(
+                periods, trades, df, available_chart_days,
+                in_range, low_activity_days,
+                macro=macro, blocked_macro_keys=blocked_macro_keys,
+            )
+        finally:
+            rl.START_DATE = _orig_start
+            rl.END_DATE   = _orig_end
+
+        # ── Daily breakdown section wrap (header + table + note) ──
+        daily_section_inner = f"""
+          <h2>Daily breakdown</h2>
+          <p class="regime-dim regime-small">
+            One row per trading day. Each chip is a UTC hour, coloured by the
+            dominant regime among fractals detected in that hour. Hover the chart
+            icon for a price/trade preview of that day. Click <strong>Date</strong>,
+            <strong>Trades</strong>, or <strong>P&amp;L</strong> headers to sort.
+          </p>
+          {daily_table_html}
+          <p class="regime-dim regime-small regime-breakdown-note">
+            <span class="regime-hour-chip regime-color-inactive regime-hour-chip--inline"></span>
+            Dark chips indicate hours where <strong>no fractal was detected</strong>.
+            &nbsp;&nbsp;
+            <span class="regime-low-activity-dot regime-low-activity-dot--inline"></span>
+            Indicates a low-activity day (fewer than {LOW_ACTIVITY_FRACTAL_THRESHOLD}
+            fractals across the whole 24-hour period).
+          </p>
+        """
+
+        # Section wrappers (full inner HTML each section needs)
+        macro_perf_inner = f"""
+          <h2>Trade performance by macro regime <span class="regime-dim regime-small">(daily context)</span></h2>
+          <p class="regime-dim regime-small">
+            Day-level performance by overall daily character — answers whether
+            the strategy should be trading on certain types of days at all.
+          </p>
+          {macro_perf_table}
+          {macro_table_filter_note}
+        """
+        regime_perf_inner = f"""
+          <h2>Trade performance by regime <span class="regime-dim regime-small">(v2 short-only)</span></h2>
+          <p class="regime-dim regime-small">
+            How the active strategy performed in each market condition. Green ≥ 55%, red ≤ 45%.
+          </p>
+          {perf_table}
+          {macro_filter_note}
+        """
+
+        elapsed_ms = (_time.time() - t0) * 1000
+        summary = (
+            f"{agg_stats['total']} trades · WR "
+            f"{(agg_stats['win_rate']):.1f}% · "
+            f"PF " + ("∞" if agg_stats['pf'] == float('inf') else f"{agg_stats['pf']:.2f}")
+        )
+        return jsonify({
+            "stats_bar":   stats_bar_inner,
+            "macro_perf":  macro_perf_inner,
+            "regime_perf": regime_perf_inner,
+            "timeline":    timeline_inner,
+            "daily":       daily_section_inner,
+            "summary":     summary,
+            "elapsed_ms":  elapsed_ms,
+        })
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 500
+
+
 def _run_backtest_sync(env_overrides=None):
     """Run strategy.py synchronously. Returns dict with ok, no_data, error."""
     import time as _time
