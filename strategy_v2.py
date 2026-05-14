@@ -234,13 +234,23 @@ def _load_regime_labels():
 
 def _check_macro_regime(ts):
     """Condition 1 — accept entry only if the entry day's macro regime is allowed.
-    Returns (passes: bool, reason: str)."""
+
+    Graceful-degradation policy: when the parquet either doesn't exist or
+    doesn't cover this day, the filter passes through silently. This way:
+      • a fresh checkout (no regime_labels.parquet yet) doesn't break the
+        dashboard's normal backtest — the filter is simply inactive,
+      • a parquet that only covers Q1 2026 doesn't block every trade in a
+        365-day dashboard run — trades on labeled days are filtered as
+        usual, trades on unlabeled days pass.
+    The user can still get strict gating by running the regime labeler
+    over the full date range of the data they intend to backtest.
+
+    Returns (passes: bool, reason: str). "reason" is empty when accepted.
+    """
     if not ALLOWED_MACRO_KEYS:
         return True, ""
     if not _REGIME_MACRO_BY_DATE:
-        # Filter requested but no labels available — block entry rather than
-        # silently letting everything through (caller will see the WARN).
-        return False, "macro_regime_no_labels"
+        return True, ""   # no labels available — filter inactive, pass through
     _tz = pd.Timestamp(ts)
     if _tz.tzinfo is None:
         _tz = _tz.tz_localize("UTC")
@@ -248,18 +258,22 @@ def _check_macro_regime(ts):
         _tz = _tz.tz_convert("UTC")
     label = _REGIME_MACRO_BY_DATE.get(_tz.strftime("%Y-%m-%d"))
     if label is None:
-        return False, "macro_regime_unknown_day"
+        return True, ""   # day outside parquet coverage — pass through
     if label in ALLOWED_MACRO_KEYS:
         return True, ""
     return False, "macro_regime"
 
 def _check_micro_regime(ts):
     """Condition 2 — accept entry only if the entry-hour micro regime is allowed.
-    Returns (passes: bool, reason: str)."""
+
+    Same graceful-degradation policy as _check_macro_regime: missing labels
+    or pre-first-fractal lookups pass through rather than block. See
+    _check_macro_regime docstring for rationale.
+    """
     if not ALLOWED_MICRO_KEYS:
         return True, ""
     if _REGIME_MICRO_SERIES is None or _REGIME_MICRO_SERIES.empty:
-        return False, "micro_regime_no_labels"
+        return True, ""   # no labels — filter inactive
     _tz = pd.Timestamp(ts)
     if _tz.tzinfo is None:
         _tz = _tz.tz_localize("UTC")
@@ -268,9 +282,9 @@ def _check_micro_regime(ts):
     try:
         label = _REGIME_MICRO_SERIES.asof(_tz)
     except (KeyError, TypeError):
-        return False, "micro_regime_lookup_error"
+        return True, ""
     if label is None or (isinstance(label, float) and pd.isna(label)):
-        return False, "micro_regime_pre_first_fractal"
+        return True, ""   # before first fractal — pass through
     if label in ALLOWED_MICRO_KEYS:
         return True, ""
     return False, "micro_regime"
