@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Regime Labeler — GBPUSD 5m</title>
+  <title>Regime Analysis — GBPUSD 5m</title>
   <link rel="stylesheet" href="../style.css">
   <!-- Material Symbols — same icon font the dashboard sidebar uses for the
        preview eye icon. Variable axes (FILL/wght/GRAD/opsz) enabled so the
@@ -45,7 +45,15 @@
 
     <header class="regime-header">
       <div class="regime-header-top">
-        <h1>Regime Labeler — GBPUSD 5m</h1>
+        <h1>Regime Analysis — GBPUSD 5m</h1>
+        <button class="bs-toggle-btn" id="regime-filters-toggle-btn"
+                title="Show / hide regime filters" type="button">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M5.5 7L8 9.5L10.5 7" stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
       <div class="regime-header-meta">
         <span><strong>Range:</strong> 2025-01-01 → 2026-03-31</span>
@@ -56,11 +64,12 @@
           <span class='regime-low-activity-dot regime-low-activity-dot--inline'></span>
           4 of 389 days (1%)
         </span>
-        <span class="regime-dim">Generated 2026-05-14 15:41</span>
+        <span class="regime-dim">Generated 2026-05-15 02:19</span>
       </div>
     </header>
 
-    
+    <div class="bs-collapsible" id="regime-filters-collapsible">
+      
     <section class="regime-control-panel">
       <div class="regime-control-header">
         <h2>Regime filters</h2>
@@ -85,6 +94,7 @@
       </div>
     </section>
     
+    </div>
 
     <section class="regime-stats-bar" id="regime-stats-section">
       
@@ -118,7 +128,7 @@
     </section>
 
     <section class="regime-card" id="regime-macro-perf-section">
-      <h2>Trade performance by macro regime <span class="regime-dim regime-small">(daily context)</span></h2>
+      <h2>Macro regime performance <span class="regime-dim regime-small">(daily context)</span></h2>
 
       
       <table class='regime-table'>
@@ -126,21 +136,31 @@
           <th>Regime</th><th>Periods</th><th>Trades</th><th>Wins</th><th>Win rate</th>
           <th>Profit factor</th><th>Avg P&amp;L</th><th>Total P&amp;L</th>
         </tr></thead>
-        <tbody><tr class=''><td><span class='macro-badge macro-color-strong-down'>Strong Down</span></td><td>10</td><td>11</td><td>7</td><td class='win-good'>63.6%</td><td>3.11</td><td>$984</td><td><span class='regime-pnl-pos'>$10,822</span></td></tr><tr class=''><td><span class='macro-badge macro-color-staircase-down'>Staircase Down</span></td><td>104</td><td>102</td><td>48</td><td class='win-neutral'>47.1%</td><td>1.68</td><td>$441</td><td><span class='regime-pnl-pos'>$45,031</span></td></tr><tr class='regime-day-blocked'><td><span class='macro-badge macro-color-flat'>Flat</span><span class='regime-blocked-lock' title='Excluded from active strategy statistics by the macro filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>155</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim regime-pnl-counterfactual' title='Counterfactual — these trades were filtered out by the macro regime filter. This shows what would have occurred if the filter was not applied.'>—</td></tr><tr class='regime-day-blocked'><td><span class='macro-badge macro-color-staircase-up'>Staircase Up</span><span class='regime-blocked-lock' title='Excluded from active strategy statistics by the macro filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>105</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim regime-pnl-counterfactual' title='Counterfactual — these trades were filtered out by the macro regime filter. This shows what would have occurred if the filter was not applied.'>—</td></tr><tr class='regime-day-blocked'><td><span class='macro-badge macro-color-strong-up'>Strong Up</span><span class='regime-blocked-lock' title='Excluded from active strategy statistics by the macro filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>15</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim regime-pnl-counterfactual' title='Counterfactual — these trades were filtered out by the macro regime filter. This shows what would have occurred if the filter was not applied.'>—</td></tr></tbody>
+        <tbody><tr class=''><td><span class='macro-badge macro-color-strong-down'>Strong Down</span></td><td>10</td><td>11</td><td>7</td><td class='win-good'>63.6%</td><td>3.11</td><td>$984</td><td><span class='regime-pnl-pos'>$10,822</span></td></tr><tr class=''><td><span class='macro-badge macro-color-staircase-down'>Staircase Down</span></td><td>104</td><td>102</td><td>48</td><td class='win-neutral'>47.1%</td><td>1.68</td><td>$441</td><td><span class='regime-pnl-pos'>$45,031</span></td></tr><tr class='regime-day-blocked'><td><span class='macro-badge macro-color-flat'>Flat</span><span class='regime-blocked-lock' title='Excluded from active strategy statistics by the macro filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>155</td><td>373</td><td>72</td><td class='win-bad'>19.3%</td><td>0.47</td><td>$-495</td><td class='regime-pnl-counterfactual' title='Counterfactual — would-be outcome of signals that were blocked specifically by the macro filter on this regime. Win rate and trade count are accurate; aggregate P&L is approximate due to position-sizing and daily-loss-limit interactions if these had actually fired.'><span class='regime-pnl-neg'>$-184,773</span></td></tr><tr class='regime-day-blocked'><td><span class='macro-badge macro-color-staircase-up'>Staircase Up</span><span class='regime-blocked-lock' title='Excluded from active strategy statistics by the macro filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>105</td><td>236</td><td>34</td><td class='win-bad'>14.4%</td><td>0.33</td><td>$-635</td><td class='regime-pnl-counterfactual' title='Counterfactual — would-be outcome of signals that were blocked specifically by the macro filter on this regime. Win rate and trade count are accurate; aggregate P&L is approximate due to position-sizing and daily-loss-limit interactions if these had actually fired.'><span class='regime-pnl-neg'>$-149,826</span></td></tr><tr class='regime-day-blocked'><td><span class='macro-badge macro-color-strong-up'>Strong Up</span><span class='regime-blocked-lock' title='Excluded from active strategy statistics by the macro filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>15</td><td>19</td><td>0</td><td class='win-bad'>0.0%</td><td>0.00</td><td>$-1,107</td><td class='regime-pnl-counterfactual' title='Counterfactual — would-be outcome of signals that were blocked specifically by the macro filter on this regime. Win rate and trade count are accurate; aggregate P&L is approximate due to position-sizing and daily-loss-limit interactions if these had actually fired.'><span class='regime-pnl-neg'>$-21,025</span></td></tr></tbody>
       </table>
+      <p class="regime-dim regime-small regime-counterfactual-note">
+        Locked-regime rows show counterfactual stats — the would-be outcome
+        of signals that were filtered out. Win rate and trade counts are
+        accurate; aggregate P&amp;L is approximate.
+      </p>
     
     </section>
 
     <section class="regime-card" id="regime-perf-section">
-      <h2>Trade performance by regime <span class="regime-dim regime-small">(v2 short-only)</span></h2>
+      <h2>Micro regime performance <span class="regime-dim regime-small">(v2 short-only)</span></h2>
       
       <table class='regime-table'>
         <thead><tr>
           <th>Regime</th><th>Periods</th><th>Trades</th><th>Wins</th><th>Win rate</th>
           <th>Profit factor</th><th>Avg P&amp;L</th><th>Total P&amp;L</th>
         </tr></thead>
-        <tbody><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-trending-fast-down'>Trending — Fast Down</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>43</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-trending-medium-down'>Trending — Medium Down</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>43</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-trending-slow-down'>Trending — Slow Down</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>42</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-trending-fast-up'>Trending — Fast Up</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>34</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-trending-medium-up'>Trending — Medium Up</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>33</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-trending-slow-up'>Trending — Slow Up</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>35</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-ranging-narrow'>Ranging — Narrow</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>550</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td></tr><tr class=''><td><span class='regime-badge regime-color-ranging-medium'>Ranging — Medium</span></td><td>560</td><td>59</td><td>31</td><td class='win-neutral'>52.5%</td><td>2.08</td><td>$637</td><td>$37,605</td></tr><tr class=''><td><span class='regime-badge regime-color-ranging-wide'>Ranging — Wide</span></td><td>543</td><td>54</td><td>24</td><td class='win-bad'>44.4%</td><td>1.50</td><td>$338</td><td>$18,248</td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-transitioning'>Transitioning</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>1883</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td></tr></tbody>
+        <tbody><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-trending-fast-down'>Trending — Fast Down</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>43</td><td>15</td><td>8</td><td class='win-neutral'>53.3%</td><td>2.05</td><td>$610</td><td class='regime-pnl-counterfactual' title='Counterfactual — would-be outcome of signals that were blocked specifically by the micro regime filter on this regime. Win rate and trade count are accurate; aggregate P&L is approximate due to position-sizing and daily-loss-limit interactions if these had actually fired.'><span class='regime-pnl-pos'>$9,151</span></td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-trending-medium-down'>Trending — Medium Down</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>43</td><td>12</td><td>1</td><td class='win-bad'>8.3%</td><td>0.14</td><td>$-1,056</td><td class='regime-pnl-counterfactual' title='Counterfactual — would-be outcome of signals that were blocked specifically by the micro regime filter on this regime. Win rate and trade count are accurate; aggregate P&L is approximate due to position-sizing and daily-loss-limit interactions if these had actually fired.'><span class='regime-pnl-neg'>$-12,671</span></td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-trending-slow-down'>Trending — Slow Down</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>42</td><td>6</td><td>3</td><td class='win-neutral'>50.0%</td><td>1.98</td><td>$552</td><td class='regime-pnl-counterfactual' title='Counterfactual — would-be outcome of signals that were blocked specifically by the micro regime filter on this regime. Win rate and trade count are accurate; aggregate P&L is approximate due to position-sizing and daily-loss-limit interactions if these had actually fired.'><span class='regime-pnl-pos'>$3,311</span></td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-trending-fast-up'>Trending — Fast Up</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>34</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-pnl-counterfactual' title='Counterfactual — would-be outcome of signals that were blocked specifically by the micro regime filter on this regime. Win rate and trade count are accurate; aggregate P&L is approximate due to position-sizing and daily-loss-limit interactions if these had actually fired.'>—</td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-trending-medium-up'>Trending — Medium Up</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>33</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-pnl-counterfactual' title='Counterfactual — would-be outcome of signals that were blocked specifically by the micro regime filter on this regime. Win rate and trade count are accurate; aggregate P&L is approximate due to position-sizing and daily-loss-limit interactions if these had actually fired.'>—</td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-trending-slow-up'>Trending — Slow Up</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>35</td><td>0</td><td>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-dim'>—</td><td class='regime-pnl-counterfactual' title='Counterfactual — would-be outcome of signals that were blocked specifically by the micro regime filter on this regime. Win rate and trade count are accurate; aggregate P&L is approximate due to position-sizing and daily-loss-limit interactions if these had actually fired.'>—</td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-ranging-narrow'>Ranging — Narrow</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>550</td><td>58</td><td>16</td><td class='win-bad'>27.6%</td><td>0.78</td><td>$-188</td><td class='regime-pnl-counterfactual' title='Counterfactual — would-be outcome of signals that were blocked specifically by the micro regime filter on this regime. Win rate and trade count are accurate; aggregate P&L is approximate due to position-sizing and daily-loss-limit interactions if these had actually fired.'><span class='regime-pnl-neg'>$-10,911</span></td></tr><tr class=''><td><span class='regime-badge regime-color-ranging-medium'>Ranging — Medium</span></td><td>560</td><td>59</td><td>31</td><td class='win-neutral'>52.5%</td><td>2.08</td><td>$637</td><td><span class='regime-pnl-pos'>$37,605</span></td></tr><tr class=''><td><span class='regime-badge regime-color-ranging-wide'>Ranging — Wide</span></td><td>543</td><td>54</td><td>24</td><td class='win-bad'>44.4%</td><td>1.50</td><td>$338</td><td><span class='regime-pnl-pos'>$18,248</span></td></tr><tr class='regime-day-blocked'><td><span class='regime-badge regime-color-transitioning'>Transitioning</span><span class='regime-blocked-lock' title='Excluded from active strategy entries by the micro regime filter' aria-label='Filtered out'><span class='material-symbols-outlined'>lock</span></span></td><td>1883</td><td>199</td><td>104</td><td class='win-neutral'>52.3%</td><td>2.14</td><td>$635</td><td class='regime-pnl-counterfactual' title='Counterfactual — would-be outcome of signals that were blocked specifically by the micro regime filter on this regime. Win rate and trade count are accurate; aggregate P&L is approximate due to position-sizing and daily-loss-limit interactions if these had actually fired.'><span class='regime-pnl-pos'>$126,433</span></td></tr></tbody>
       </table>
+      <p class="regime-dim regime-small regime-counterfactual-note">
+        Locked-regime rows show counterfactual stats — the would-be outcome
+        of signals that were filtered out. Win rate and trade counts are
+        accurate; aggregate P&amp;L is approximate.
+      </p>
     
       
     </section>
@@ -163,7 +183,7 @@
     </section>
 
     <section class="regime-card" id="regime-daily-section">
-      <h2>Daily breakdown</h2>
+      <h2>Daily performance</h2>
       
       <table class='regime-table regime-daily-table' id='regime-daily-table'>
         <thead>
@@ -759,20 +779,26 @@
     var runBtn = document.getElementById("run-analysis-btn");
     var runStatus = document.getElementById("run-status");
 
-    function setRunning(yes) {
+    function setRunning(yes, silent) {
       if (!runBtn) return;
       if (yes) {
         runBtn.disabled = true;
-        runBtn.innerHTML = "<span class='rb-spin'></span> Running…";
-        if (runStatus) runStatus.textContent = "";
+        // Silent auto-load: keep the button label calm — the user didn't
+        // click anything, so a spinning "Running…" label would be misleading.
+        if (!silent) {
+          runBtn.innerHTML = "<span class='rb-spin'></span> Running…";
+        }
+        if (runStatus) runStatus.textContent = silent ? "" : "";
       } else {
         runBtn.disabled = false;
         runBtn.innerHTML = "<span class='rb-btn-icon'>&#9654;</span> Run Analysis";
       }
     }
 
-    function runAnalysis() {
+    function runAnalysis(opts) {
       if (!runBtn) return;
+      opts = opts || {};
+      var isAutoLoad = !!opts.silent;
       var startEl = document.getElementById("rb-start");
       var endEl   = document.getElementById("rb-end");
       var startVal = startEl ? startEl.value : "";
@@ -790,7 +816,14 @@
       };
 
       var scrollY = window.scrollY;
-      setRunning(true);
+      setRunning(true, isAutoLoad);
+      // For auto-loads, hide the dynamic sections while we fetch — otherwise
+      // the user sees the labeler's static stats flash briefly before being
+      // replaced by the saved-state result. Hidden sections preserve layout
+      // (no jumping); the wrapping <body> class is removed when we finish.
+      if (isAutoLoad) {
+        document.body.classList.add("regime-auto-loading");
+      }
       if (runStatus) runStatus.textContent = "";
 
       fetch("/run_regime_analysis", {
@@ -820,10 +853,9 @@
         // and sortable headers (replacing innerHTML drops the prior handlers).
         attachDailyHandlers();
         window.scrollTo(0, scrollY);
-        if (runStatus) {
-          runStatus.textContent = (data.summary || "") + " · "
-            + (Math.round(data.elapsed_ms || 0)) + "ms";
-        }
+        // Clear the run-bar status on success — the stats bar below already
+        // shows the headline numbers, so the duplicate is just noise.
+        if (runStatus) runStatus.textContent = "";
         // Persist the request so the next page refresh restores the same
         // date range + toggle state + rendered report.
         saveRegimeAnalysisState(payload);
@@ -831,17 +863,22 @@
         if (runStatus) runStatus.textContent = "Failed: " + err.message;
       }).finally(function () {
         setRunning(false);
+        document.body.classList.remove("regime-auto-loading");
       });
     }
 
-    if (runBtn) runBtn.addEventListener("click", runAnalysis);
+    if (runBtn) runBtn.addEventListener("click", function () { runAnalysis(); });
 
     // ── localStorage persistence ───────────────────────────────────────────
     // Saved state survives page refreshes. On load we restore the date
     // pickers + toggle checkboxes and auto-run the analysis so the rendered
     // report sections match. Reset to Defaults clears the saved state so the
     // next refresh falls back to the labeler's hardcoded defaults.
-    var REGIME_LS_KEY = "regime_labeler.lastAnalysis.v1";
+    // localStorage key: 'regime_analysis.lastAnalysis.v1' is canonical going
+    // forward; reads also accept the legacy 'regime_labeler.lastAnalysis.v1'
+    // so saved state survives the rename. Writes use the new key only.
+    var REGIME_LS_KEY        = "regime_analysis.lastAnalysis.v1";
+    var REGIME_LS_KEY_LEGACY = "regime_labeler.lastAnalysis.v1";
 
     function saveRegimeAnalysisState(payload) {
       try {
@@ -851,7 +888,8 @@
 
     function loadRegimeAnalysisState() {
       try {
-        var raw = localStorage.getItem(REGIME_LS_KEY);
+        var raw = localStorage.getItem(REGIME_LS_KEY)
+                  || localStorage.getItem(REGIME_LS_KEY_LEGACY);
         if (!raw) return null;
         var payload = JSON.parse(raw);
         if (!payload || typeof payload !== "object") return null;
@@ -861,7 +899,10 @@
     }
 
     function clearRegimeAnalysisState() {
-      try { localStorage.removeItem(REGIME_LS_KEY); } catch (e) {}
+      try {
+        localStorage.removeItem(REGIME_LS_KEY);
+        localStorage.removeItem(REGIME_LS_KEY_LEGACY);
+      } catch (e) {}
     }
 
     function applySavedStateToControls(saved) {
@@ -900,9 +941,11 @@
     var _savedState = loadRegimeAnalysisState();
     if (_savedState) {
       applySavedStateToControls(_savedState);
-      // Small defer so the run-bar spinner styling is applied after the
-      // initial paint and any DOMContentLoaded listeners settle.
-      setTimeout(runAnalysis, 50);
+      // Silent auto-restore: the user didn't click Run Analysis, the page
+      // is just restoring their last-saved view. Don't flash the labeler's
+      // static stats while we fetch; don't show 'Running…' on the button.
+      document.body.classList.add("regime-auto-loading");
+      setTimeout(function () { runAnalysis({ silent: true }); }, 50);
     }
 
     // Hook into Reset to Defaults so refreshing actually goes back to the
@@ -912,6 +955,23 @@
         clearRegimeAnalysisState();
       });
     }
+
+    // ── Regime-filters show/hide toggle ────────────────────────────────────
+    // Mirrors the dashboard's `bs-toggle-btn` + `bs-collapsible` pattern.
+    // Default state: collapsed. Click the chevron in the page-title row to
+    // expand/collapse the regime-filters panel.
+    (function () {
+      var btn = document.getElementById("regime-filters-toggle-btn");
+      var panel = document.getElementById("regime-filters-collapsible");
+      if (!btn || !panel) return;
+      btn.addEventListener("click", function () {
+        var isOpen = panel.classList.toggle("open");
+        btn.classList.toggle("open", isOpen);
+        // Set max-height to the panel's scrollHeight so it animates to the
+        // exact content height without clipping (mirrors the dashboard).
+        panel.style.maxHeight = isOpen ? panel.scrollHeight + "px" : "0";
+      });
+    }());
 
     // ── Hover-preview + daily-table sort handlers (extracted so they can be
     //    re-attached after a Run Analysis innerHTML swap) ──

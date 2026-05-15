@@ -1723,6 +1723,35 @@ body.regime-report {
     font-size: 13px;
 }
 
+/* ── Perf-table column alignment ──────────────────────────────────────────
+   Both the macro and micro perf tables share the same column shape
+   (Regime / Periods / Trades / Wins / Win rate / Profit factor / Avg P&L /
+   Total P&L). The macro badges are short ("Strong Down", "Flat") while the
+   micro badges are longer ("Trending — Medium Down"), so without fixed
+   column widths the numeric columns drift between the two tables. Forcing
+   a fixed layout with explicit per-column widths keeps the headers and
+   values vertically aligned across both tables. */
+.regime-perf-table {
+    table-layout: fixed;
+}
+
+.regime-perf-table th:nth-child(1),
+.regime-perf-table td:nth-child(1) { width: 25%; }   /* Regime — widest because of long micro badges */
+.regime-perf-table th:nth-child(2),
+.regime-perf-table td:nth-child(2) { width: 9%;  }   /* Periods */
+.regime-perf-table th:nth-child(3),
+.regime-perf-table td:nth-child(3) { width: 9%;  }   /* Trades */
+.regime-perf-table th:nth-child(4),
+.regime-perf-table td:nth-child(4) { width: 8%;  }   /* Wins */
+.regime-perf-table th:nth-child(5),
+.regime-perf-table td:nth-child(5) { width: 11%; }   /* Win rate */
+.regime-perf-table th:nth-child(6),
+.regime-perf-table td:nth-child(6) { width: 12%; }   /* Profit factor */
+.regime-perf-table th:nth-child(7),
+.regime-perf-table td:nth-child(7) { width: 13%; }   /* Avg P&L */
+.regime-perf-table th:nth-child(8),
+.regime-perf-table td:nth-child(8) { width: 13%; }   /* Total P&L */
+
 .regime-table thead th {
     background: #1a1a2e;
     color: #aaa;
@@ -1853,7 +1882,7 @@ body.regime-report {
     color: #d0d0e8;
 }
 
-/* ── Regime palette — one class per regime label (regime_labeler.html) ── */
+/* ── Regime palette — one class per regime label (regime_analysis.html) ── */
 /* Color choices follow the user's spec: blues for downtrends, reds for
    uptrends, greens for ranging, grey for transitioning.                  */
 .regime-color-trending-fast-down {
@@ -2113,7 +2142,7 @@ body.regime-report {
     margin-top: 2px;
 }
 
-/* ── Daily breakdown table (regime_labeler.html) ──────────────────────── */
+/* ── Daily performance table (regime_analysis.html) ───────────────────── */
 .regime-daily-table {
     font-size: 12.5px;
 }
@@ -2214,7 +2243,7 @@ body.regime-report #chart-preview-chips .regime-hour-chip-trades {
    .v-sub-preview-btn behavior: hidden by default, revealed when the parent
    row is hovered, blue (and filled icon) when the icon itself is hovered.
    The chart preview overlay then fades in on icon hover via the JS in
-   regime_labeler.html. */
+   regime_analysis.html. */
 .regime-daily-table .v-sub-preview-btn {
     background: none;
     border: none;

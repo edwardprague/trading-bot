@@ -76,9 +76,9 @@ MAX_DAILY_LOSSES = int(os.environ.get("MAX_DAILY_LOSSES", 2))  # stop trading af
 #      close must be above EMA Long for longs, below for shorts).
 #
 # Macro/micro labels are loaded once at module import from
-# data/regime_labels.parquet (written by regime_labeler.py). Missing parquet
+# data/regime_labels.parquet (written by regime_analysis.py). Missing parquet
 # is non-fatal — the gates silently no-op so an un-labeled instrument can
-# still backtest at baseline. Run regime_labeler.py to regenerate the
+# still backtest at baseline. Run regime_analysis.py to regenerate the
 # parquet after expanding the date range.
 
 def _parse_allowed_regimes(env_value, default_csv):
@@ -140,10 +140,11 @@ def _load_regime_labels():
       • Micro labels — read from the per-fractal rows of regime_labels.parquet
         (column 'regime' indexed by 'timestamp'). Uses pyarrow if available,
         otherwise fastparquet via pandas.read_parquet.
-      • Macro labels — read from the parquet's 'regime_labeler' KV metadata
-        blob (key 'macro_by_date'); if missing, fall back to a sidecar JSON
-        at data/macro_by_date.json. The sidecar form lets us refresh macro
-        labels without rewriting the whole parquet.
+      • Macro labels — read from the parquet's 'regime_analysis' KV metadata
+        blob (key 'macro_by_date'); the legacy 'regime_labeler' key is also
+        accepted for back-compat with parquets written before the rename.
+        If neither is present, fall back to a sidecar JSON at
+        data/macro_by_date.json.
 
     Safe to call repeatedly — caches loaded state in module globals.
     Missing files are non-fatal: the gates silently no-op so an un-labeled
@@ -172,9 +173,10 @@ def _load_regime_labels():
         _tbl = _pq.read_table(str(parquet))
         rl_df = _tbl.to_pandas()
         raw_meta = _tbl.schema.metadata or {}
-        if b"regime_labeler" in raw_meta:
+        raw_blob = raw_meta.get(b"regime_analysis") or raw_meta.get(b"regime_labeler")
+        if raw_blob:
             try:
-                pq_meta = json.loads(raw_meta[b"regime_labeler"].decode("utf-8"))
+                pq_meta = json.loads(raw_blob.decode("utf-8"))
             except Exception:
                 pq_meta = {}
     except ImportError:
@@ -184,7 +186,7 @@ def _load_regime_labels():
             _pf = _PF(str(parquet))
             rl_df = _pf.to_pandas()
             kv = _pf.key_value_metadata or {}
-            blob = kv.get("regime_labeler")
+            blob = kv.get("regime_analysis") or kv.get("regime_labeler")
             if isinstance(blob, bytes):
                 blob = blob.decode("utf-8", errors="replace")
             if blob:
