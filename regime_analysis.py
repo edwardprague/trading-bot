@@ -541,11 +541,6 @@ def build_timeline_section_html(in_range_periods, macro, trades_per_day,
             f"title='{mac_title}'>{count_html}</div>"
         )
 
-    week_labels = []
-    for i, entry in enumerate(timeline):
-        if i == 0 or (pd.Timestamp(entry["date"]).weekday() == 0):
-            week_labels.append(f"<span class='regime-tl-week'>{entry['date'][5:]}</span>")
-
     legend_items = []
     for label in REGIME_ORDER:
         if label in regime_count:
@@ -577,7 +572,6 @@ def build_timeline_section_html(in_range_periods, macro, trades_per_day,
         <span class="regime-tl-row-label">Micro</span>
         <div class="regime-tl-strip">{''.join(micro_tl_cells)}</div>
       </div>
-      <div class="regime-tl-weeks">{''.join(week_labels)}</div>
       <div class="regime-legend"><strong class="regime-dim regime-small">Macro:</strong> {macro_legend_html}</div>
       <div class="regime-legend"><strong class="regime-dim regime-small">Micro:</strong> {legend_html}</div>
     """
@@ -2922,7 +2916,7 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     // report sections match. Reset to Defaults clears the saved state so the
     // next refresh falls back to the labeler's hardcoded defaults.
     // localStorage key: 'regime_analysis.lastAnalysis.v2' is canonical going
-    // forward. v2 stores {payload, html} so the page can repaint the
+    // forward. v2 stores {{payload, html}} so the page can repaint the
     // dynamic sections from cache on refresh — no flicker, no blank page.
     // Older format keys are still read as fallback.
     var REGIME_LS_KEY        = "regime_analysis.lastAnalysis.v2";
