@@ -44,8 +44,92 @@ BASE_DIR      = Path(__file__).parent
 REPORT_FILE   = BASE_DIR / "report.html"
 STRATEGY_FILE = BASE_DIR / "strategy.py"
 RESULTS_DIR   = BASE_DIR / "results"
+DATA_DIR      = BASE_DIR / "data"
+
+# Shared regime-filter state — written by /run_regime_analysis whenever the
+# RA page runs an analysis, read by /run, /run_range, /run_batch so the BD
+# inherits whatever allow-lists the user last set on the Regimes page. This
+# lets the user tune regime gates on the RA page and have those gates
+# automatically apply to subsequent BD backtests without re-entering them.
+REGIME_FILTER_STATE_FILE = DATA_DIR / "regime_filter_state.json"
 
 app = Flask(__name__)
+
+
+# ── Regime filter state — shared between RA (writer) and BD (reader) ──────────
+
+def _read_regime_filter_state():
+    """Return {'allowed_macro_regimes': [...], 'allowed_micro_regimes': [...]}
+    from the shared state file, or None if it doesn't exist / is unreadable.
+
+    The file is written by /run_regime_analysis and consumed by the BD
+    /run, /run_range, /run_batch handlers. Internal-key format is used
+    throughout (e.g. 'staircase_down', 'ranging_medium')."""
+    try:
+        if not REGIME_FILTER_STATE_FILE.exists():
+            return None
+        with open(REGIME_FILTER_STATE_FILE, "r", encoding="utf-8") as f:
+            state = json.load(f)
+        if not isinstance(state, dict):
+            return None
+        return {
+            "allowed_macro_regimes": list(state.get("allowed_macro_regimes", []) or []),
+            "allowed_micro_regimes": list(state.get("allowed_micro_regimes", []) or []),
+        }
+    except (OSError, ValueError):
+        return None
+
+
+def _write_regime_filter_state(allowed_macro, allowed_micro):
+    """Persist the RA toggle state so subsequent BD backtests pick it up.
+    Best-effort: a write failure is logged but doesn't break the response.
+    Stores both lists plus an ISO timestamp for diagnostics."""
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "allowed_macro_regimes": list(allowed_macro or []),
+            "allowed_micro_regimes": list(allowed_micro or []),
+            "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        }
+        tmp = REGIME_FILTER_STATE_FILE.with_suffix(".json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, sort_keys=True)
+        tmp.replace(REGIME_FILTER_STATE_FILE)
+    except OSError as e:
+        print(f"  [regime_filter_state] write failed: {e}", file=sys.stderr)
+
+
+def _apply_regime_filter_state_to_env(env_overrides, payload):
+    """Inject ALLOWED_MACRO_REGIMES / ALLOWED_MICRO_REGIMES into env_overrides
+    using the following precedence:
+
+      1. Explicit values in the request payload override everything.
+      2. Otherwise, fall back to data/regime_filter_state.json (written by
+         the RA page).
+      3. Otherwise, omit — strategy_v2's hardcoded defaults take effect.
+
+    The strategy module distinguishes 'unset' from 'empty string': empty
+    means 'gate disabled', unset means 'use default'. Both are valid
+    persisted states, so when the file is present we always set the env
+    var (joining with commas; empty list → empty string)."""
+    payload_macro = payload.get("allowed_macro_regimes") if isinstance(payload, dict) else None
+    payload_micro = payload.get("allowed_micro_regimes") if isinstance(payload, dict) else None
+
+    if payload_macro is not None:
+        env_overrides["ALLOWED_MACRO_REGIMES"] = ",".join(payload_macro)
+    if payload_micro is not None:
+        env_overrides["ALLOWED_MICRO_REGIMES"] = ",".join(payload_micro)
+
+    if "ALLOWED_MACRO_REGIMES" in env_overrides and "ALLOWED_MICRO_REGIMES" in env_overrides:
+        return  # both explicitly set by caller
+
+    state = _read_regime_filter_state()
+    if state is None:
+        return
+    if "ALLOWED_MACRO_REGIMES" not in env_overrides:
+        env_overrides["ALLOWED_MACRO_REGIMES"] = ",".join(state["allowed_macro_regimes"])
+    if "ALLOWED_MICRO_REGIMES" not in env_overrides:
+        env_overrides["ALLOWED_MICRO_REGIMES"] = ",".join(state["allowed_micro_regimes"])
 
 # ── Backtest state (shared between the Flask thread and the worker thread) ─────
 _bt_lock  = threading.Lock()
@@ -54,6 +138,16 @@ _bt_state = {"running": False, "ok": None, "error": None, "no_data": False, "sta
 # ── Run-bar HTML (injected into every page response) ──────────────────────────
 
 INJECT_HTML = """
+<nav class="top-nav" id="top-nav">
+  <span class="top-nav-brand">Fractal Bot</span>
+  <ul class="top-nav-items">
+    <li><a class="top-nav-link top-nav-link-active" href="/">Backtesting</a></li>
+    <li><a class="top-nav-link" href="/results/regime_analysis.html">Regimes</a></li>
+    <li><span class="top-nav-link top-nav-link-disabled" aria-disabled="true">Discovery</span></li>
+    <li><span class="top-nav-link top-nav-link-disabled" aria-disabled="true">Versions</span></li>
+  </ul>
+</nav>
+
 <div id="run-bar" style="
   position: fixed; top: 0; left: 0; right: 0; height: 52px;
   z-index: 9999; display: flex; align-items: center; gap: 12px;
@@ -79,7 +173,7 @@ INJECT_HTML = """
 </div>
 
 <style>
-  body { padding-top: 52px !important; }
+  body { padding-top: 92px !important; }
 
   .rb-btn {
     color: #fff; border: none; border-radius: 6px;
@@ -793,6 +887,14 @@ def run_regime_analysis():
         # ── Override strategy_v2 module globals with this request's filters ──
         strat.ALLOWED_MACRO_KEYS = {strat._macro_key(n) for n in allowed_macro}
         strat.ALLOWED_MICRO_KEYS = {strat._micro_key(n) for n in allowed_micro}
+
+        # Persist the toggle state so subsequent BD backtests pick up the same
+        # allow-lists automatically. Store the normalised internal-key form so
+        # the BD endpoints can pass the value straight through as an env var.
+        _write_regime_filter_state(
+            sorted(strat.ALLOWED_MACRO_KEYS),
+            sorted(strat.ALLOWED_MICRO_KEYS),
+        )
         # EMA filter stays on by default for the interactive view; clients can
         # toggle it via the existing run-bar style refactor later.
         strat.USE_EMA_FILTER = bool(payload.get("use_ema_filter", True))
@@ -1267,6 +1369,10 @@ def run_backtest():
         env_overrides["SPREAD_PIPS"] = spread_pips
     if sl_slippage_pips:
         env_overrides["SL_SLIPPAGE_PIPS"] = sl_slippage_pips
+
+    # Layer in the regime allow-lists from the RA page (or explicit payload).
+    _apply_regime_filter_state_to_env(env_overrides, data)
+
     t = threading.Thread(
         target=_version_with_auto_ranges,
         args=(env_overrides,),
@@ -1348,6 +1454,10 @@ def run_date_range():
         env_overrides["SPREAD_PIPS"] = spread_pips
     if sl_slippage_pips:
         env_overrides["SL_SLIPPAGE_PIPS"] = sl_slippage_pips
+
+    # Layer in the regime allow-lists from the RA page (or explicit payload).
+    _apply_regime_filter_state_to_env(env_overrides, data)
+
     t = threading.Thread(
         target=_backtest_worker,
         args=(env_overrides,),
@@ -1360,6 +1470,10 @@ def run_date_range():
 def _batch_worker(ranges, shared_params):
     """Run multiple date-range backtests sequentially in a single thread."""
     total = len(ranges)
+    # Keys whose empty-string value is semantically meaningful \u2014 strategy_v2
+    # distinguishes 'unset' (use default) from 'empty string' (disable gate)
+    # for these, so they must pass through even when ''.
+    _PASS_EMPTY = {"ALLOWED_MACRO_REGIMES", "ALLOWED_MICRO_REGIMES"}
     for idx, rng in enumerate(ranges):
         with _bt_lock:
             _bt_state["stage"] = "Running date range %d of %d\u2026" % (idx + 1, total)
@@ -1370,7 +1484,7 @@ def _batch_worker(ranges, shared_params):
             "RUN_END_DATE":   rng["end"],
         }
         for key, val in shared_params.items():
-            if val:
+            if val or key in _PASS_EMPTY:
                 env_overrides[key] = val
         result = _run_backtest_sync(env_overrides)
         if not result["ok"]:
@@ -1445,6 +1559,12 @@ def run_batch():
     if apply_slippage:   shared_params["APPLY_SLIPPAGE"]   = apply_slippage
     if spread_pips:      shared_params["SPREAD_PIPS"]      = spread_pips
     if sl_slippage_pips: shared_params["SL_SLIPPAGE_PIPS"] = sl_slippage_pips
+
+    # Layer in the regime allow-lists from the RA page (or explicit payload).
+    # The batch worker propagates shared_params into each range's env, so
+    # injecting here means every range in the batch inherits the same filters.
+    _apply_regime_filter_state_to_env(shared_params, data)
+
     t = threading.Thread(
         target=_batch_worker,
         args=(ranges, shared_params),
