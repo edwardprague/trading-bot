@@ -46,90 +46,324 @@ STRATEGY_FILE = BASE_DIR / "strategy.py"
 RESULTS_DIR   = BASE_DIR / "results"
 DATA_DIR      = BASE_DIR / "data"
 
-# Shared regime-filter state — written by /run_regime_analysis whenever the
-# RA page runs an analysis, read by /run, /run_range, /run_batch so the BD
-# inherits whatever allow-lists the user last set on the Regimes page. This
-# lets the user tune regime gates on the RA page and have those gates
-# automatically apply to subsequent BD backtests without re-entering them.
-REGIME_FILTER_STATE_FILE = DATA_DIR / "regime_filter_state.json"
+# Versions store — server-side source of truth for the user's strategy
+# profiles. Each version bundles:
+#   - id, name (display label)
+#   - strategy_version (which strategy_vN.py module to invoke)
+#   - regime_state (per-version macro/micro allow-lists)
+# The active_version_id field drives global context: /run, /run_range,
+# /run_batch use the active version's params unless the request payload
+# explicitly overrides them. /run_regime_analysis writes its toggle state
+# back into the active version so switching versions never cross-pollutes
+# regime configuration.
+VERSIONS_FILE             = DATA_DIR / "versions.json"
+LEGACY_REGIME_STATE_FILE  = DATA_DIR / "regime_filter_state.json"
+
+# Canonical regime-key lists — mirrors MACRO_REGIME_ORDER + REGIME_ORDER in
+# regime_analysis.py. Used as the "all active" default when a new version is
+# created without a base to copy from: every key listed = every regime allowed,
+# which is functionally equivalent to "no gate" but renders all RA toggles as
+# ON (clearer UX than an empty allow-list).
+_ALL_MACRO_KEYS = ["strong_down", "staircase_down", "flat", "staircase_up", "strong_up"]
+_ALL_MICRO_KEYS = [
+    "trending_fast_down", "trending_medium_down", "trending_slow_down",
+    "trending_fast_up",   "trending_medium_up",   "trending_slow_up",
+    "ranging_narrow", "ranging_medium", "ranging_wide", "transitioning",
+]
+
+_DEFAULT_VERSIONS = {
+    "active_version_id": "v2",
+    "versions": [
+        {
+            "id": "v1",
+            "name": "v1",
+            "strategy_version": "v1",
+            "regime_state": {
+                "allowed_macro_regimes": [],
+                "allowed_micro_regimes": [],
+            },
+        },
+        {
+            "id": "v2",
+            "name": "v2",
+            "strategy_version": "v2",
+            "regime_state": {
+                "allowed_macro_regimes": ["staircase_down", "strong_down"],
+                "allowed_micro_regimes": ["ranging_medium", "ranging_wide"],
+            },
+        },
+    ],
+}
+
+# One-time rename of seeded entries from the earlier descriptive names.
+# Applied on every _read_versions() call until the rename takes effect,
+# then persisted — afterwards the dict lookups simply miss and nothing
+# happens. Cheap correctness for users already on the previous schema.
+_VERSION_NAME_MIGRATIONS = {
+    "v1 — Fractal Only":     "v1",
+    "v2 — EMA + Regime Gates": "v2",
+}
 
 app = Flask(__name__)
 
 
-# ── Regime filter state — shared between RA (writer) and BD (reader) ──────────
+# ── Versions storage — server-side source of truth ────────────────────────────
 
-def _read_regime_filter_state():
-    """Return {'allowed_macro_regimes': [...], 'allowed_micro_regimes': [...]}
-    from the shared state file, or None if it doesn't exist / is unreadable.
-
-    The file is written by /run_regime_analysis and consumed by the BD
-    /run, /run_range, /run_batch handlers. Internal-key format is used
-    throughout (e.g. 'staircase_down', 'ranging_medium')."""
+def _migrate_legacy_regime_state(data):
+    """One-time migration: if the old data/regime_filter_state.json exists,
+    fold its values into v2's regime_state. Caller passes a freshly-seeded
+    `data` dict that will be persisted afterwards."""
     try:
-        if not REGIME_FILTER_STATE_FILE.exists():
-            return None
-        with open(REGIME_FILTER_STATE_FILE, "r", encoding="utf-8") as f:
-            state = json.load(f)
-        if not isinstance(state, dict):
-            return None
-        return {
-            "allowed_macro_regimes": list(state.get("allowed_macro_regimes", []) or []),
-            "allowed_micro_regimes": list(state.get("allowed_micro_regimes", []) or []),
-        }
-    except (OSError, ValueError):
-        return None
+        if not LEGACY_REGIME_STATE_FILE.exists():
+            return
+        with open(LEGACY_REGIME_STATE_FILE, "r", encoding="utf-8") as f:
+            legacy = json.load(f)
+        if not isinstance(legacy, dict):
+            return
+        for v in data.get("versions", []):
+            if v.get("id") != "v2":
+                continue
+            if "allowed_macro_regimes" in legacy:
+                v["regime_state"]["allowed_macro_regimes"] = list(legacy["allowed_macro_regimes"])
+            if "allowed_micro_regimes" in legacy:
+                v["regime_state"]["allowed_micro_regimes"] = list(legacy["allowed_micro_regimes"])
+            break
+    except (OSError, ValueError) as e:
+        print(f"  [versions] legacy migration skipped: {e}", file=sys.stderr)
 
 
-def _write_regime_filter_state(allowed_macro, allowed_micro):
-    """Persist the RA toggle state so subsequent BD backtests pick it up.
-    Best-effort: a write failure is logged but doesn't break the response.
-    Stores both lists plus an ISO timestamp for diagnostics."""
+def _read_versions():
+    """Load data/versions.json. If absent or malformed, seed with the two
+    default versions (v1, v2), migrate any legacy regime state into v2,
+    persist, and return the fresh dict. Also rewrites any seeded entries
+    that still carry the old descriptive names (e.g. 'v1 — Fractal Only')
+    so they use the current simple 'vN' naming scheme."""
+    if VERSIONS_FILE.exists():
+        try:
+            with open(VERSIONS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict) and isinstance(data.get("versions"), list) and data["versions"]:
+                # Best-effort one-time rename of seeded entries to the simple
+                # naming scheme. Idempotent: subsequent loads no-op.
+                renamed = False
+                for v in data["versions"]:
+                    new_name = _VERSION_NAME_MIGRATIONS.get(v.get("name"))
+                    if new_name and v.get("name") != new_name:
+                        v["name"] = new_name
+                        renamed = True
+                if renamed:
+                    _write_versions(data)
+                return data
+        except (OSError, ValueError) as e:
+            print(f"  [versions] read failed, reseeding: {e}", file=sys.stderr)
+    import copy as _copy
+    data = _copy.deepcopy(_DEFAULT_VERSIONS)
+    _migrate_legacy_regime_state(data)
+    _write_versions(data)
+    return data
+
+
+def _next_version_name(versions):
+    """Return the next sequential 'vN' name based on existing entries.
+    Scans the current versions for names matching 'v<digits>', takes
+    the highest N, and returns 'v<N+1>'. Defaults to 'v1' if none match.
+    Ignores any non-vN names (legacy or user-edited)."""
+    max_n = 0
+    for v in versions or []:
+        m = re.match(r"^v(\d+)$", (v.get("name") or "").strip())
+        if m:
+            n = int(m.group(1))
+            if n > max_n:
+                max_n = n
+    return "v" + str(max_n + 1)
+
+
+def _write_versions(data):
+    """Atomic write of versions.json. Best-effort — failures log to stderr."""
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "allowed_macro_regimes": list(allowed_macro or []),
-            "allowed_micro_regimes": list(allowed_micro or []),
-            "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-        }
-        tmp = REGIME_FILTER_STATE_FILE.with_suffix(".json.tmp")
+        tmp = VERSIONS_FILE.with_suffix(".json.tmp")
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, sort_keys=True)
-        tmp.replace(REGIME_FILTER_STATE_FILE)
+            json.dump(data, f, indent=2)
+        tmp.replace(VERSIONS_FILE)
     except OSError as e:
-        print(f"  [regime_filter_state] write failed: {e}", file=sys.stderr)
+        print(f"  [versions] write failed: {e}", file=sys.stderr)
 
 
-def _apply_regime_filter_state_to_env(env_overrides, payload):
-    """Inject ALLOWED_MACRO_REGIMES / ALLOWED_MICRO_REGIMES into env_overrides
-    using the following precedence:
+def _get_active_version():
+    """Return the active version dict, or the first version if active_id
+    is stale, or None if no versions exist."""
+    data = _read_versions()
+    active_id = data.get("active_version_id")
+    for v in data.get("versions", []):
+        if v.get("id") == active_id:
+            return v
+    versions = data.get("versions", [])
+    return versions[0] if versions else None
 
-      1. Explicit values in the request payload override everything.
-      2. Otherwise, fall back to data/regime_filter_state.json (written by
-         the RA page).
-      3. Otherwise, omit — strategy_v2's hardcoded defaults take effect.
+
+def _set_active_version(version_id):
+    """Switch the global active version. Returns True if version exists."""
+    data = _read_versions()
+    if not any(v.get("id") == version_id for v in data.get("versions", [])):
+        return False
+    data["active_version_id"] = version_id
+    _write_versions(data)
+    return True
+
+
+def _make_version_id(name, existing_ids):
+    """Slugify a display name into a unique id."""
+    slug = re.sub(r"[^a-z0-9]+", "_", name.strip().lower()).strip("_") or "version"
+    candidate = slug
+    n = 1
+    while candidate in existing_ids:
+        n += 1
+        candidate = f"{slug}_{n}"
+    return candidate
+
+
+def _add_version(strategy_version, base_id=None):
+    """Append a new version. Name is auto-generated as 'v<N+1>' based on
+    the highest existing vN. If base_id is given, copy that version's
+    regime_state. Otherwise default to "all active" — every macro + every
+    micro key allowed. This matches the convention that brand-new versions
+    have no backtest params stored (run-bar comes up empty; strategy module
+    defaults kick in on the first run) but DO have explicit regime state so
+    the RA page renders toggles in a clearly "all enabled" state instead of
+    the confusing empty allow-list."""
+    data = _read_versions()
+    versions = data.get("versions", [])
+    existing_ids = {v.get("id") for v in versions}
+    name = _next_version_name(versions)
+    new_id = _make_version_id(name, existing_ids)
+
+    if base_id:
+        regime_state = {
+            "allowed_macro_regimes": list(_ALL_MACRO_KEYS),
+            "allowed_micro_regimes": list(_ALL_MICRO_KEYS),
+        }
+        for v in versions:
+            if v.get("id") == base_id:
+                src = v.get("regime_state") or {}
+                regime_state = {
+                    "allowed_macro_regimes": list(src.get("allowed_macro_regimes", []) or []),
+                    "allowed_micro_regimes": list(src.get("allowed_micro_regimes", []) or []),
+                }
+                break
+    else:
+        regime_state = {
+            "allowed_macro_regimes": list(_ALL_MACRO_KEYS),
+            "allowed_micro_regimes": list(_ALL_MICRO_KEYS),
+        }
+
+    new_version = {
+        "id": new_id,
+        "name": name,
+        "strategy_version": strategy_version,
+        "regime_state": regime_state,
+    }
+    versions.append(new_version)
+    data["versions"] = versions
+    _write_versions(data)
+    return new_version
+
+
+def _delete_version(version_id):
+    """Remove a version. Refuse if it's the last remaining one. If the
+    deleted version was active, fall back to the first remaining."""
+    data = _read_versions()
+    versions = data.get("versions", [])
+    if len(versions) <= 1:
+        return False, "Cannot delete the last remaining version"
+    new_versions = [v for v in versions if v.get("id") != version_id]
+    if len(new_versions) == len(versions):
+        return False, "Version not found"
+    data["versions"] = new_versions
+    if data.get("active_version_id") == version_id:
+        data["active_version_id"] = new_versions[0]["id"]
+    _write_versions(data)
+    return True, None
+
+
+def _write_active_regime_state(allowed_macro, allowed_micro):
+    """Save the regime-toggle state to the currently-active version. Used
+    by /run_regime_analysis on every successful run so the RA page's
+    toggles persist per-version."""
+    data = _read_versions()
+    active_id = data.get("active_version_id")
+    found = False
+    for v in data.get("versions", []):
+        if v.get("id") == active_id:
+            v["regime_state"] = {
+                "allowed_macro_regimes": list(allowed_macro or []),
+                "allowed_micro_regimes": list(allowed_micro or []),
+                "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            }
+            found = True
+            break
+    if found:
+        _write_versions(data)
+
+
+_KNOWN_STRATEGY_MODULES = {"v1", "v2"}
+
+
+def _apply_active_version_to_env(env_overrides, payload):
+    """Layer the active version's strategy_version + regime allow-lists
+    into env_overrides. Precedence:
+
+      1. Explicit values in the request payload win (with one exception
+         below for STRATEGY_VERSION).
+      2. Active version supplies STRATEGY_VERSION + ALLOWED_*_REGIMES.
+      3. Strategy module hardcoded defaults are the final fallback.
+
+    STRATEGY_VERSION quirk: the BD dropdown sends the option value as
+    `strategy_version` in the run payload. For seeded versions that value
+    is 'v1' / 'v2' (a real strategy module). For user-added profiles, the
+    dropdown option value is the version id (e.g. 'v3'), which is NOT a
+    strategy module — strategy_v3.py doesn't exist. We detect this and
+    resolve the id through versions.json to the underlying base strategy.
 
     The strategy module distinguishes 'unset' from 'empty string': empty
-    means 'gate disabled', unset means 'use default'. Both are valid
-    persisted states, so when the file is present we always set the env
-    var (joining with commas; empty list → empty string)."""
+    means 'gate disabled', unset means 'use default'. We always set
+    ALLOWED_*_REGIMES when an active version exists (empty list → empty
+    string), preserving that distinction."""
+    av = _get_active_version()
+    if av is None:
+        return
+
+    # ── STRATEGY_VERSION resolution ─────────────────────────────────────
+    current_sv = (env_overrides.get("STRATEGY_VERSION") or "").strip()
+    if current_sv and current_sv not in _KNOWN_STRATEGY_MODULES:
+        # Treat the payload value as a version id and resolve to the
+        # underlying strategy module via versions.json.
+        env_overrides.pop("STRATEGY_VERSION", None)
+        for v in _read_versions().get("versions", []):
+            if v.get("id") == current_sv:
+                resolved = (v.get("strategy_version") or "").strip()
+                if resolved in _KNOWN_STRATEGY_MODULES:
+                    env_overrides["STRATEGY_VERSION"] = resolved
+                break
+    if "STRATEGY_VERSION" not in env_overrides:
+        av_sv = (av.get("strategy_version") or "").strip()
+        if av_sv in _KNOWN_STRATEGY_MODULES:
+            env_overrides["STRATEGY_VERSION"] = av_sv
+
+    # ── Regime allow-lists ──────────────────────────────────────────────
     payload_macro = payload.get("allowed_macro_regimes") if isinstance(payload, dict) else None
     payload_micro = payload.get("allowed_micro_regimes") if isinstance(payload, dict) else None
+    rs = av.get("regime_state") or {}
 
     if payload_macro is not None:
         env_overrides["ALLOWED_MACRO_REGIMES"] = ",".join(payload_macro)
+    elif "ALLOWED_MACRO_REGIMES" not in env_overrides:
+        env_overrides["ALLOWED_MACRO_REGIMES"] = ",".join(rs.get("allowed_macro_regimes", []) or [])
+
     if payload_micro is not None:
         env_overrides["ALLOWED_MICRO_REGIMES"] = ",".join(payload_micro)
-
-    if "ALLOWED_MACRO_REGIMES" in env_overrides and "ALLOWED_MICRO_REGIMES" in env_overrides:
-        return  # both explicitly set by caller
-
-    state = _read_regime_filter_state()
-    if state is None:
-        return
-    if "ALLOWED_MACRO_REGIMES" not in env_overrides:
-        env_overrides["ALLOWED_MACRO_REGIMES"] = ",".join(state["allowed_macro_regimes"])
-    if "ALLOWED_MICRO_REGIMES" not in env_overrides:
-        env_overrides["ALLOWED_MICRO_REGIMES"] = ",".join(state["allowed_micro_regimes"])
+    elif "ALLOWED_MICRO_REGIMES" not in env_overrides:
+        env_overrides["ALLOWED_MICRO_REGIMES"] = ",".join(rs.get("allowed_micro_regimes", []) or [])
 
 # ── Backtest state (shared between the Flask thread and the worker thread) ─────
 _bt_lock  = threading.Lock()
@@ -144,8 +378,9 @@ INJECT_HTML = """
     <li><a class="top-nav-link top-nav-link-active" href="/">Backtesting</a></li>
     <li><a class="top-nav-link" href="/results/regime_analysis.html">Regimes</a></li>
     <li><span class="top-nav-link top-nav-link-disabled" aria-disabled="true">Discovery</span></li>
-    <li><span class="top-nav-link top-nav-link-disabled" aria-disabled="true">Versions</span></li>
+    <li><a class="top-nav-link" href="/versions">Versions</a></li>
   </ul>
+  <span class="top-nav-active-version" id="top-nav-active-version"></span>
 </nav>
 
 <div id="run-bar" style="
@@ -320,21 +555,85 @@ INJECT_HTML = """
     })
     .catch(function () {});
 
-  /* ── Ensure all strategy versions appear in the selector ───────────────── */
-  (function () {
+  /* ── Versions integration ───────────────────────────────────────────────
+     Source of truth for "versions" is now /api/versions (data/versions.json
+     server-side). We:
+       1. Populate the top-nav active-version indicator.
+       2. Make sure the BD's #version-select contains an option for every
+          version in versions.json (the dropdown is otherwise driven by
+          report.html's embedded versions-data; we additively top it up so
+          newly-created profiles are selectable even before a backtest run).
+       3. Sync the dropdown's selection to the active version on load.
+       4. Intercept the dropdown's change event so picking a version also
+          posts /api/active_version, switching the global context (drives
+          /run, /run_range, /run_batch defaults + the RA toggle scope).
+     ───────────────────────────────────────────────────────────────────── */
+  function _setActiveIndicator(name) {
+    var el = document.getElementById("top-nav-active-version");
+    if (el) el.textContent = name ? "Active: " + name : "";
+  }
+
+  fetch("/api/versions").then(function (r) { return r.json(); }).then(function (store) {
+    var versions = (store && store.versions) || [];
+    var activeId = store && store.active_version_id;
+    var active = null;
+    for (var i = 0; i < versions.length; i++) {
+      if (versions[i].id === activeId) { active = versions[i]; break; }
+    }
+    if (!active && versions.length) active = versions[0];
+
+    _setActiveIndicator(active ? active.name : null);
+
     var sel = document.getElementById("version-select");
     if (!sel) return;
-    var required = ["v1", "v2"];
-    var existing = {};
-    for (var k = 0; k < sel.options.length; k++) existing[sel.options[k].value] = true;
-    required.forEach(function (v) {
-      if (!existing[v]) {
-        var opt = document.createElement("option");
-        opt.value = v; opt.textContent = v;
-        sel.appendChild(opt);
+
+    /* Reconcile versions.json with report.html's existing dropdown options.
+       report.html populates the dropdown from its embedded versions-data
+       (option value = the version's short name, e.g. "v1"). versions.json
+       holds the canonical display name for each version (e.g.
+       "v1 — Fractal Only"). For each existing option whose value matches a
+       versions.json id, rename the textContent in-place rather than
+       appending a duplicate. Any versions.json entries with no matching
+       option get appended at the end (e.g. user-added profiles that
+       haven't been backtested yet). */
+    var byId = {};
+    versions.forEach(function (v) { byId[v.id] = v; });
+    var reconciled = {};
+    for (var j = 0; j < sel.options.length; j++) {
+      var opt = sel.options[j];
+      var match = byId[opt.value];
+      if (match) {
+        opt.textContent = match.name;
+        reconciled[match.id] = true;
       }
+    }
+    versions.forEach(function (v) {
+      if (reconciled[v.id]) return;
+      var newOpt = document.createElement("option");
+      newOpt.value = v.id;
+      newOpt.textContent = v.name;
+      sel.appendChild(newOpt);
     });
-  }());
+
+    if (active) sel.value = active.id;
+
+    /* Sync the active version when the user picks something. We use
+       addEventListener so the page's existing onchange="selectVersion"
+       (defined in report.html) keeps firing too. Lookup is by id, which
+       matches both the seeded options (id == option value == strategy_version)
+       and any user-added profiles (we set option value = id above). */
+    sel.addEventListener("change", function () {
+      var picked = byId[sel.value];
+      if (!picked) return;
+      fetch("/api/active_version", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({id: picked.id})
+      }).then(function (r) { return r.json(); }).then(function (resp) {
+        if (resp && resp.ok && resp.active) _setActiveIndicator(resp.active.name);
+      }).catch(function () {});
+    });
+  }).catch(function () {});
 
   /* ── Update Add Date Range button label on load and on version tab clicks ── */
   setTimeout(function () {
@@ -738,6 +1037,192 @@ def serve_css():
     return Response(css_path.read_text(encoding="utf-8"), mimetype="text/css")
 
 
+# ── /versions — strategy-profile manager ─────────────────────────────────────
+# Renders a standalone page listing all versions with add / delete / make-active
+# controls. Data is loaded client-side from /api/versions so the page stays in
+# sync with the BD selector and the RA toggle persistence.
+
+_VERSIONS_PAGE_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Versions — Fractal Bot</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="versions-page">
+  <nav class="top-nav" id="top-nav">
+    <span class="top-nav-brand">Fractal Bot</span>
+    <ul class="top-nav-items">
+      <li><a class="top-nav-link" href="/">Backtesting</a></li>
+      <li><a class="top-nav-link" href="/results/regime_analysis.html">Regimes</a></li>
+      <li><span class="top-nav-link top-nav-link-disabled" aria-disabled="true">Discovery</span></li>
+      <li><a class="top-nav-link top-nav-link-active" href="/versions">Versions</a></li>
+    </ul>
+    <span class="top-nav-active-version" id="top-nav-active-version"></span>
+  </nav>
+
+  <main class="versions-container">
+    <header class="versions-header">
+      <h1>Versions</h1>
+      <p class="versions-subtitle">
+        Strategy profiles — each version bundles a base strategy module
+        and its own regime allow-list state. The active version drives
+        every new backtest and the toggle state on the Regimes page.
+      </p>
+    </header>
+
+    <section class="versions-add-section">
+      <h2>Add a version</h2>
+      <form id="versions-add-form" class="versions-add-form">
+        <label class="versions-form-label" for="versions-add-strategy">Base strategy</label>
+        <select id="versions-add-strategy" class="versions-form-select">
+          <option value="v2">v2 (EMA + regime gates)</option>
+          <option value="v1">v1 (fractal only)</option>
+        </select>
+        <label class="versions-form-label" for="versions-add-base">Copy regime state from</label>
+        <select id="versions-add-base" class="versions-form-select">
+          <option value="">— all regimes active —</option>
+        </select>
+        <button type="submit" class="rb-btn rb-btn-green">Add Version</button>
+      </form>
+      <p class="versions-form-hint">
+        Name will be auto-assigned as the next available <code>v&lt;N&gt;</code>.
+      </p>
+      <span id="versions-form-error" class="versions-form-error"></span>
+    </section>
+
+    <section class="versions-list-section">
+      <h2>Existing versions</h2>
+      <ul id="versions-list" class="versions-list"></ul>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var listEl   = document.getElementById("versions-list");
+      var formEl   = document.getElementById("versions-add-form");
+      var stratEl  = document.getElementById("versions-add-strategy");
+      var baseEl   = document.getElementById("versions-add-base");
+      var errEl    = document.getElementById("versions-form-error");
+      var navAvEl  = document.getElementById("top-nav-active-version");
+
+      function showError(msg) { errEl.textContent = msg || ""; }
+
+      function refreshBaseOptions(versions) {
+        // Preserve the user's current selection if still valid
+        var prev = baseEl.value;
+        baseEl.innerHTML = "";
+        var blank = document.createElement("option");
+        blank.value = "";
+        blank.textContent = "— blank (no regime gates) —";
+        baseEl.appendChild(blank);
+        versions.forEach(function (v) {
+          var opt = document.createElement("option");
+          opt.value = v.id;
+          opt.textContent = v.name;
+          baseEl.appendChild(opt);
+        });
+        if (prev) baseEl.value = prev;
+      }
+
+      function renderList(store) {
+        var active = store.active_version_id;
+        var versions = store.versions || [];
+        refreshBaseOptions(versions);
+        listEl.innerHTML = "";
+        versions.forEach(function (v) {
+          var isActive = (v.id === active);
+          var li = document.createElement("li");
+          li.className = "versions-row" + (isActive ? " versions-row-active" : "");
+
+          var nameSpan = document.createElement("span");
+          nameSpan.className = "versions-row-name";
+          nameSpan.textContent = v.name;
+          if (isActive) {
+            var badge = document.createElement("span");
+            badge.className = "versions-row-active-badge";
+            badge.textContent = "ACTIVE";
+            nameSpan.appendChild(badge);
+          }
+
+          var rs = v.regime_state || {};
+          var macroCount = (rs.allowed_macro_regimes || []).length;
+          var microCount = (rs.allowed_micro_regimes || []).length;
+          var metaSpan = document.createElement("span");
+          metaSpan.className = "versions-row-meta";
+          metaSpan.textContent =
+            "Strategy: " + (v.strategy_version || "—") + "   ·   " +
+            "Macro allow-list: " + macroCount + "   ·   " +
+            "Micro allow-list: " + microCount;
+
+          var actionsSpan = document.createElement("span");
+          actionsSpan.className = "versions-row-actions";
+          var delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.className = "rb-btn rb-btn-delete";
+          delBtn.textContent = "Delete";
+          if (versions.length <= 1) delBtn.disabled = true;
+          delBtn.addEventListener("click", function () { deleteVersion(v); });
+          actionsSpan.appendChild(delBtn);
+
+          li.appendChild(nameSpan);
+          li.appendChild(actionsSpan);
+          li.appendChild(metaSpan);
+          listEl.appendChild(li);
+        });
+        var activeVersion = versions.find(function (v) { return v.id === active; }) || versions[0];
+        if (activeVersion && navAvEl) {
+          navAvEl.textContent = "Active: " + activeVersion.name;
+        }
+      }
+
+      function refresh() {
+        return fetch("/api/versions")
+          .then(function (r) { return r.json(); })
+          .then(renderList)
+          .catch(function (e) { showError("Failed to load versions: " + e.message); });
+      }
+
+      function deleteVersion(v) {
+        if (!window.confirm("Delete version \\u201C" + v.name + "\\u201D?")) return;
+        fetch("/api/versions/" + encodeURIComponent(v.id), {method: "DELETE"})
+          .then(function (r) { return r.json(); })
+          .then(function (resp) {
+            if (!resp.ok) { showError(resp.error || "Delete failed"); return; }
+            showError("");
+            renderList(resp.store);
+          });
+      }
+
+      formEl.addEventListener("submit", function (e) {
+        e.preventDefault();
+        showError("");
+        fetch("/api/versions", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            strategy_version: stratEl.value,
+            base_id: baseEl.value || null
+          })
+        }).then(function (r) { return r.json(); }).then(function (resp) {
+          if (!resp.ok) { showError(resp.error || "Add failed"); return; }
+          refresh();
+        });
+      });
+
+      refresh();
+    })();
+  </script>
+</body>
+</html>
+"""
+
+@app.route("/versions")
+def versions_page():
+    """Render the Versions management page."""
+    return Response(_VERSIONS_PAGE_HTML, mimetype="text/html")
+
+
 # ── /results — file server + directory listing ───────────────────────────────
 # Exposes everything under the project's `results/` folder. Supports nested
 # paths (e.g. /results/regime_charts/2026-01-15.png) so the regime labeler
@@ -888,10 +1373,10 @@ def run_regime_analysis():
         strat.ALLOWED_MACRO_KEYS = {strat._macro_key(n) for n in allowed_macro}
         strat.ALLOWED_MICRO_KEYS = {strat._micro_key(n) for n in allowed_micro}
 
-        # Persist the toggle state so subsequent BD backtests pick up the same
-        # allow-lists automatically. Store the normalised internal-key form so
-        # the BD endpoints can pass the value straight through as an env var.
-        _write_regime_filter_state(
+        # Persist the toggle state into the ACTIVE version's regime_state so
+        # subsequent BD backtests on this version pick up the same allow-lists,
+        # and switching versions never overwrites another version's settings.
+        _write_active_regime_state(
             sorted(strat.ALLOWED_MACRO_KEYS),
             sorted(strat.ALLOWED_MICRO_KEYS),
         )
@@ -1370,8 +1855,9 @@ def run_backtest():
     if sl_slippage_pips:
         env_overrides["SL_SLIPPAGE_PIPS"] = sl_slippage_pips
 
-    # Layer in the regime allow-lists from the RA page (or explicit payload).
-    _apply_regime_filter_state_to_env(env_overrides, data)
+    # Layer in the active version's strategy + regime allow-lists. Payload
+    # overrides win; otherwise the active version supplies defaults.
+    _apply_active_version_to_env(env_overrides, data)
 
     t = threading.Thread(
         target=_version_with_auto_ranges,
@@ -1455,8 +1941,9 @@ def run_date_range():
     if sl_slippage_pips:
         env_overrides["SL_SLIPPAGE_PIPS"] = sl_slippage_pips
 
-    # Layer in the regime allow-lists from the RA page (or explicit payload).
-    _apply_regime_filter_state_to_env(env_overrides, data)
+    # Layer in the active version's strategy + regime allow-lists. Payload
+    # overrides win; otherwise the active version supplies defaults.
+    _apply_active_version_to_env(env_overrides, data)
 
     t = threading.Thread(
         target=_backtest_worker,
@@ -1563,7 +2050,7 @@ def run_batch():
     # Layer in the regime allow-lists from the RA page (or explicit payload).
     # The batch worker propagates shared_params into each range's env, so
     # injecting here means every range in the batch inherits the same filters.
-    _apply_regime_filter_state_to_env(shared_params, data)
+    _apply_active_version_to_env(shared_params, data)
 
     t = threading.Thread(
         target=_batch_worker,
@@ -1579,6 +2066,59 @@ def backtest_status():
     """Return the current backtest state for the browser to poll."""
     with _bt_lock:
         return jsonify(dict(_bt_state))
+
+
+# ── Versions API — strategy profiles for /versions page + BD selector ─────────
+
+@app.route("/api/versions", methods=["GET"])
+def api_versions_list():
+    """Return the full versions store including active_version_id."""
+    return jsonify(_read_versions())
+
+
+@app.route("/api/versions", methods=["POST"])
+def api_versions_add():
+    """Create a new version. Body: {strategy_version, base_id?}.
+    Name is auto-generated as 'v<N+1>' from the current highest vN.
+    base_id (optional) copies the regime_state from an existing version."""
+    body = request.get_json(force=True, silent=True) or {}
+    strategy_version = (body.get("strategy_version") or "").strip()
+    base_id = (body.get("base_id") or "").strip() or None
+    if strategy_version not in ("v1", "v2"):
+        return jsonify({"ok": False, "error": "strategy_version must be 'v1' or 'v2'"}), 400
+    new_version = _add_version(strategy_version, base_id=base_id)
+    return jsonify({"ok": True, "version": new_version})
+
+
+@app.route("/api/versions/<version_id>", methods=["DELETE"])
+def api_versions_delete(version_id):
+    """Delete a version. Refuses if it's the last one; auto-switches active
+    if the deleted one was active."""
+    ok, err = _delete_version(version_id)
+    if not ok:
+        return jsonify({"ok": False, "error": err}), 400
+    return jsonify({"ok": True, "store": _read_versions()})
+
+
+@app.route("/api/active_version", methods=["GET"])
+def api_active_version_get():
+    """Return the active version dict (id, name, strategy_version, regime_state)."""
+    av = _get_active_version()
+    if av is None:
+        return jsonify({"ok": False, "error": "no versions configured"}), 500
+    return jsonify({"ok": True, "active": av})
+
+
+@app.route("/api/active_version", methods=["POST"])
+def api_active_version_set():
+    """Switch the active version. Body: {id}."""
+    body = request.get_json(force=True, silent=True) or {}
+    version_id = (body.get("id") or "").strip()
+    if not version_id:
+        return jsonify({"ok": False, "error": "id is required"}), 400
+    if not _set_active_version(version_id):
+        return jsonify({"ok": False, "error": "unknown version id"}), 404
+    return jsonify({"ok": True, "active": _get_active_version()})
 
 
 @app.route("/delete_version", methods=["POST"])

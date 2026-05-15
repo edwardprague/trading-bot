@@ -2495,6 +2495,195 @@ body.regime-report #chart-preview-overlay #chart-preview-img {
    has top:40px below — same id, same override applies. */
 #run-bar { top: 40px !important; }
 
+/* Active-version indicator on the right side of every top-nav. Populated
+   on page load by a small JS snippet (BD INJECT_HTML, RA build_report, and
+   the Versions page each fetch /api/active_version to fill it). */
+.top-nav-active-version {
+    margin-left: auto;
+    font-size: 11px;
+    color: #9090b0;
+    letter-spacing: 0.04em;
+    padding-left: 16px;
+    border-left: 1px solid #1e1e32;
+    white-space: nowrap;
+}
+
+/* ─── Versions page (/versions) ────────────────────────────────────────── */
+body.versions-page {
+    display: block;
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+    padding: 92px 0 60px;
+    background: #0c0c14;
+    color: #d0d0e8;
+}
+
+.versions-container {
+    max-width: 920px;
+    margin: 28px auto 0;
+    padding: 0 24px;
+}
+
+.versions-header {
+    margin-bottom: 28px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #1e1e30;
+}
+
+.versions-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.01em;
+}
+
+.versions-subtitle {
+    font-size: 13px;
+    color: #9090b0;
+    margin-top: 8px;
+    max-width: 640px;
+    line-height: 1.5;
+}
+
+.versions-add-section,
+.versions-list-section {
+    margin-bottom: 32px;
+}
+
+.versions-add-section h2,
+.versions-list-section h2 {
+    font-size: 11px;
+    font-weight: 700;
+    color: teal;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 14px;
+}
+
+.versions-add-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.versions-form-label {
+    font-size: 11px;
+    color: #9090b0;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.versions-form-input,
+.versions-form-select {
+    background: #14142a;
+    color: #d0d0e8;
+    border: 1px solid #2a2a44;
+    border-radius: 5px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    color-scheme: dark;
+}
+
+.versions-form-input {
+    min-width: 240px;
+}
+
+.versions-form-input:focus,
+.versions-form-select:focus {
+    border-color: #4cc9f0;
+}
+
+.versions-form-error {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 12px;
+    color: crimson;
+}
+
+.versions-form-hint {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #6a6a8a;
+}
+
+.versions-form-hint code {
+    color: #9090b0;
+    background: #14142a;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.versions-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid #1e1e30;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.versions-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: 16px;
+    row-gap: 4px;
+    padding: 14px 18px;
+    background: #10101c;
+    border-top: 1px solid #1e1e30;
+}
+
+.versions-row:first-child {
+    border-top: none;
+}
+
+.versions-row-active {
+    background: #14142a;
+    box-shadow: inset 4px 0 0 #4cc9f0;
+}
+
+.versions-row-name {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.versions-row-active-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #4cc9f0;
+    background: rgba(76, 201, 240, 0.15);
+    padding: 2px 7px;
+    border-radius: 3px;
+}
+
+.versions-row-meta {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 12px;
+    color: #9090b0;
+}
+
+.versions-row-actions {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 /* ─── Run bar — shared with the dashboard ─────────────────────────────────
    These classes mirror the dashboard's INJECT_HTML inline styles so the
    regime page's static run bar (rendered by build_report) picks up the

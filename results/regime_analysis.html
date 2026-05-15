@@ -17,8 +17,9 @@
       <li><a class="top-nav-link" href="/">Backtesting</a></li>
       <li><a class="top-nav-link top-nav-link-active" href="/results/regime_analysis.html">Regimes</a></li>
       <li><span class="top-nav-link top-nav-link-disabled" aria-disabled="true">Discovery</span></li>
-      <li><span class="top-nav-link top-nav-link-disabled" aria-disabled="true">Versions</span></li>
+      <li><a class="top-nav-link" href="/versions">Versions</a></li>
     </ul>
+    <span class="top-nav-active-version" id="top-nav-active-version"></span>
   </nav>
 
   
@@ -74,7 +75,7 @@
           <span class='regime-low-activity-dot regime-low-activity-dot--inline'></span>
           4 of 389 days (1%)
         </span>
-        <span class="regime-dim">Generated 2026-05-15 16:21</span>
+        <span class="regime-dim">Generated 2026-05-15 17:24</span>
       </div>
     </header>
 
@@ -977,6 +978,40 @@
       }
       setTimeout(function () { runAnalysis({ silent: true }); }, 50);
     }
+
+    // ── Active-version sync ────────────────────────────────────────────────
+    // versions.json (server-side) is the source of truth for toggle state.
+    // On load: fetch the active version, override the toggle checkboxes to
+    // match its regime_state, populate the top-nav active-version indicator,
+    // and fire a silent analysis run so stats reflect the override. This
+    // ensures that switching versions in another tab/page is reflected here
+    // on reload, regardless of what localStorage thinks.
+    fetch("/api/active_version").then(function (r) { return r.json(); })
+      .then(function (resp) {
+        var indEl = document.getElementById("top-nav-active-version");
+        if (indEl && resp && resp.ok && resp.active) {
+          indEl.textContent = "Active: " + resp.active.name;
+        }
+        if (!resp || !resp.ok || !resp.active || !resp.active.regime_state) return;
+        var rs = resp.active.regime_state;
+        function setAllow(containerId, allowed) {
+          var container = document.getElementById(containerId);
+          if (!container) return;
+          var allowedSet = {};
+          (allowed || []).forEach(function (k) { allowedSet[k] = true; });
+          container.querySelectorAll(".regime-toggle").forEach(function (toggle) {
+            var key = toggle.getAttribute("data-regime-key");
+            var input = toggle.querySelector(".regime-toggle-input");
+            if (!input) return;
+            input.checked = !!allowedSet[key];
+            applyToggleVisual(toggle);
+          });
+        }
+        setAllow("regime-macro-toggles", rs.allowed_macro_regimes);
+        setAllow("regime-micro-toggles", rs.allowed_micro_regimes);
+        setTimeout(function () { runAnalysis({ silent: true }); }, 80);
+      })
+      .catch(function () {});
 
     // Hook into Reset to Defaults so refreshing actually goes back to the
     // labeler's hardcoded defaults rather than re-restoring from storage.

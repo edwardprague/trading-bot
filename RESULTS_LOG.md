@@ -17,7 +17,6 @@
 | v2 | 2026-04-11 10:29 | Trend Following | EURUSD=X | 5m | v1 + EMA position filter — long above / short below EMA Long | 55 | 40.0% | 0.65 | -$10661.88 | -14.12% | -1.49 |
 | v2 | 2026-04-11 10:31 | Trend Following | EURUSD=X | 5m | v1 + EMA position filter — long above / short below EMA Long | 46 | 54.3% | 1.18 | +$3841.32 | -6.82% | 0.58 |
 | v1 | 2026-04-11 10:31 | Trend Following | EURUSD=X | 5m | Fractal geometry entries — no EMA alignment | 76 | 47.4% | 0.89 | -$4284.75 | -8.87% | -0.45 |
-| v3 | 2026-04-11 10:40 | Trend Following | GBPUSD=X | 5m | v1 + EMA position filter — long above / short below EMA Long | 633 | 54.8% | 1.21 | +$78312.73 | -12.47% | 0.69 |
 | v2 | 2026-04-11 10:44 | Trend Following | GBPUSD=X | 5m | v1 + EMA position filter — long above / short below EMA Long | 600 | 52.8% | 1.10 | +$35620.61 | -13.10% | 0.40 |
 | v2 | 2026-04-11 10:46 | Trend Following | GBPUSD=X | 5m | v1 + EMA position filter — long above / short below EMA Long | 617 | 49.6% | 0.97 | -$7844.76 | -23.21% | -0.06 |
 | v2 | 2026-04-11 11:00 | Trend Following | GBPUSD=X | 5m | v1 + EMA position filter — long above / short below EMA Long | 54 | 42.6% | 0.73 | -$8016.10 | -11.57% | -1.09 |
@@ -122,7 +121,6 @@
 | v1 | 2026-04-29 15:13 | Trend Following | GBPUSD | 5m | Fractal geometry entries — no EMA alignment | 132 | 61.4% | 0.59 | -$21016.51 | -21.02% | -2.66 |
 | v1 | 2026-04-29 15:14 | Trend Following | GBPUSD | 5m | Fractal geometry entries — no EMA alignment | 42 | 21.4% | 0.91 | -$3161.83 | -9.91% | -0.18 |
 | v1 | 2026-04-29 15:25 | Trend Following | GBPUSD | 1m | Fractal geometry entries — no EMA alignment | 26 | 30.8% | 0.34 | -$13592.70 | -13.82% | -2.13 |
-| v5 | 2026-04-29 16:30 | Trend Following | GBPUSD | 5m | Fractal geometry entries — no EMA alignment | 735 | 53.1% | 0.98 | -$6979.85 | -20.92% | -0.04 |
 | v1 | 2026-05-09 17:29 | Trend Following | GBPUSD | 5m | Fractal geometry entries — no EMA alignment | 70 | 44.3% | 0.63 | -$15791.20 | -19.88% | -1.86 |
 | v1 | 2026-05-09 17:29 | Trend Following | GBPUSD | 5m | Fractal geometry entries — no EMA alignment | 4 | 100.0% | ∞ | +$3799.27 | 0.00% | 9.22 |
 | v1 | 2026-05-09 17:36 | Trend Following | GBPUSD | 5m | Fractal geometry entries — no EMA alignment | 2 | 0.0% | 0.00 | -$2435.19 | -2.44% | -6.96 |
@@ -134,7 +132,6 @@
 | v2 | 2026-05-09 18:40 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 1 | 100.0% | ∞ | +$926.96 | 0.00% | 4.91 |
 | v2 | 2026-05-09 18:41 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 3 | 33.3% | 0.41 | -$1330.71 | -2.27% | -2.36 |
 | v2 | 2026-05-09 18:43 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 49 | 44.9% | 0.67 | -$10074.80 | -14.19% | -1.38 |
-| v6 | 2026-05-09 18:48 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 692 | 55.8% | 1.01 | +$2775.37 | -24.35% | 0.07 |
 | v2 | 2026-05-11 08:25 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 1 | 100.0% | ∞ | +$926.96 | 0.00% | 4.91 |
 | v2 | 2026-05-11 08:39 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 1 | 100.0% | ∞ | +$926.96 | 0.00% | 4.91 |
 | v2 | 2026-05-11 09:48 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 49 | 44.9% | 0.67 | -$10074.80 | -14.19% | -1.38 |
@@ -150,3 +147,4 @@
 | v1 | 2026-05-15 16:30 | Trend Following | GBPUSD | 15m | Fractal geometry entries — no EMA alignment | 30 | 66.7% | 1.61 | +$7350.43 | -3.49% | 2.21 |
 | v2 | 2026-05-15 16:31 | Trend Following | GBPUSD | 15m | v1 + EMA position filter — long above / short below EMA Long | 6 | 66.7% | 1.66 | +$1510.03 | -1.16% | 1.04 |
 | v2 | 2026-05-15 16:33 | Trend Following | GBPUSD | 15m | v1 + EMA position filter — long above / short below EMA Long | 5 | 80.0% | 3.44 | +$2704.07 | -1.10% | 2.08 |
+| v2 | 2026-05-15 18:03 | Trend Following | GBPUSD | 15m | v1 + EMA position filter — long above / short below EMA Long | 9 | 88.9% | 6.70 | +$6602.61 | -1.11% | 2.73 |
