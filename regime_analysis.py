@@ -45,6 +45,42 @@ os.environ.setdefault("INSTRUMENT", "GBPUSD")
 os.environ.setdefault("INTERVAL", "5m")
 os.environ.setdefault("TRADE_DIRECTION", "short_only")
 
+
+# Seed ALLOWED_MACRO_REGIMES / ALLOWED_MICRO_REGIMES from the active version
+# in data/versions.json BEFORE importing strategy_v2. Without this the static
+# HTML this script generates uses strategy_v2's hardcoded defaults, while the
+# page's Run Analysis button uses the active version's regime_state — which
+# can differ once the user has toggled anything. The result is a visible
+# stats discrepancy on page load (cached static HTML) vs. after clicking Run.
+# Honouring the active version here keeps both paths in sync.
+def _seed_regime_env_from_active_version():
+    import json as _json
+    from pathlib import Path as _Path
+    versions_file = _Path(__file__).parent / "data" / "versions.json"
+    try:
+        with open(versions_file, "r", encoding="utf-8") as _f:
+            data = _json.load(_f)
+    except (OSError, ValueError):
+        return
+    if not isinstance(data, dict):
+        return
+    active_id = data.get("active_version_id")
+    for v in data.get("versions", []):
+        if v.get("id") != active_id:
+            continue
+        rs = v.get("regime_state") or {}
+        macro = rs.get("allowed_macro_regimes")
+        micro = rs.get("allowed_micro_regimes")
+        # setdefault — explicit env-var overrides at the shell level still win,
+        # which matches how STRATEGY_VERSION / INSTRUMENT / etc. behave above.
+        if macro is not None:
+            os.environ.setdefault("ALLOWED_MACRO_REGIMES", ",".join(macro))
+        if micro is not None:
+            os.environ.setdefault("ALLOWED_MICRO_REGIMES", ",".join(micro))
+        break
+
+_seed_regime_env_from_active_version()
+
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -2933,10 +2969,19 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     var REGIME_LS_KEY        = "regime_analysis.lastAnalysis.v2";
     var REGIME_LS_KEY_LEGACY = "regime_labeler.lastAnalysis.v1";
     var REGIME_LS_KEY_V1     = "regime_analysis.lastAnalysis.v1";
+    // Captured from /api/active_version on page load. Stamped into every
+    // save so we can detect when a cached html chunk was produced under a
+    // different active version than the one currently in effect — and
+    // discard it before painting (see active-version-sync block below).
+    var _currentActiveVersionId = null;
 
     function saveRegimeAnalysisState(payload, htmlChunks) {{
       try {{
-        var state = {{payload: payload, html: htmlChunks || null}};
+        var state = {{
+          payload: payload,
+          html: htmlChunks || null,
+          active_version_id: _currentActiveVersionId,
+        }};
         localStorage.setItem(REGIME_LS_KEY, JSON.stringify(state));
       }} catch (e) {{ /* quota / privacy mode — silently skip */ }}
     }}
@@ -2971,6 +3016,24 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       }} catch (e) {{}}
     }}
 
+    // Drop the cached html chunks from the saved state while preserving
+    // the payload (date range + toggles). Called when /api/active_version
+    // reports a version different from the one the cache was saved under,
+    // so we never paint one version's stats under another version's
+    // context. We also re-stamp the cleared state with the current active
+    // version id so the next save lines up cleanly.
+    function clearCachedHtml() {{
+      try {{
+        var raw = localStorage.getItem(REGIME_LS_KEY);
+        if (!raw) return;
+        var s = JSON.parse(raw);
+        if (!s || !s.payload) return;
+        s.html = null;
+        s.active_version_id = _currentActiveVersionId;
+        localStorage.setItem(REGIME_LS_KEY, JSON.stringify(s));
+      }} catch (e) {{}}
+    }}
+
     // Swap each known section's innerHTML from a cached/fresh response object.
     function applyResponseHtml(html) {{
       var sectionMap = {{
@@ -2990,18 +3053,22 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     }}
 
     function applySavedStateToControls(saved) {{
-      // Date inputs
+      // Date pickers — restored from the last manually-set range so
+      // navigating away and returning resumes the same window the user
+      // last ran. Paired with painting the cached html chunks further
+      // down (deferred until /api/active_version confirms the cache
+      // belongs to the currently-active version), the displayed stats
+      // stay consistent with the restored date range — no silent
+      // disagreement between pickers and the numbers on screen.
       var startEl = document.getElementById("rb-start");
       var endEl   = document.getElementById("rb-end");
-      if (startEl && saved.start_date) {{
-        startEl.value = saved.start_date;
-        startEl.dispatchEvent(new Event("change"));
-      }}
-      if (endEl && saved.end_date) {{
-        endEl.value = saved.end_date;
-        endEl.dispatchEvent(new Event("change"));
-      }}
-      // Toggle checkboxes — drive from saved allowed-lists.
+      if (startEl && saved && saved.start_date) startEl.value = saved.start_date;
+      if (endEl   && saved && saved.end_date)   endEl.value   = saved.end_date;
+      //
+      // Toggle checkboxes — drive from saved allowed-lists. (These then
+      // get authoritatively overridden by the active-version-sync block
+      // shortly after, so they're effectively a no-op visually — but we
+      // keep this for backwards-compat with the saved-state schema.)
       function applyAllowList(containerId, allowed) {{
         var container = document.getElementById(containerId);
         if (!container) return;
@@ -3019,36 +3086,60 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       applyAllowList("regime-micro-toggles", saved.allowed_micro_regimes);
     }}
 
-    // Auto-restore on page load: if there's saved state, replay it. The
-    // analysis fetch runs in the background — the UI shows "Running…" on the
-    // Run Analysis button while it does.
+    // Restore date pickers + toggle checkboxes from localStorage if we
+    // have saved state. Cached html chunks (stats bar, perf tables, …)
+    // are painted further down, *after* /api/active_version confirms the
+    // cache was produced under the currently-active version — if the
+    // active version has changed since the cache was saved, those html
+    // chunks are discarded so one version's stats never appear under
+    // another version's context.
+    //
+    // We still deliberately do NOT auto-fire a runAnalysis on page load:
+    // it would disable the Run button for the duration of a heavy backend
+    // call, which feels like the page is broken when the user just
+    // wanted to view or tweak toggles. The user clicks Run Analysis when
+    // they want fresh stats.
     var _savedState = loadRegimeAnalysisState();
     if (_savedState) {{
       applySavedStateToControls(_savedState.payload);
-      // If we cached the rendered HTML from the last run, paint it now —
-      // the page shows the user's saved view instantly, no flicker. Then
-      // fire a silent background rerun so the data refreshes if anything
-      // upstream (parquet labels, etc.) has changed since the cache was
-      // written. Most refreshes produce identical HTML so the user sees
-      // no visible change.
-      if (_savedState.html) {{
-        applyResponseHtml(_savedState.html);
-      }}
-      setTimeout(function () {{ runAnalysis({{ silent: true }}); }}, 50);
     }}
 
     // ── Active-version sync ────────────────────────────────────────────────
     // versions.json (server-side) is the source of truth for toggle state.
-    // On load: fetch the active version, override the toggle checkboxes to
-    // match its regime_state, populate the top-nav active-version indicator,
-    // and fire a silent analysis run so stats reflect the override. This
-    // ensures that switching versions in another tab/page is reflected here
-    // on reload, regardless of what localStorage thinks.
+    // On load we fetch the active version, populate the top-nav indicator,
+    // override the toggle checkboxes to match its regime_state, and decide
+    // whether to paint the cached html chunks from the saved state — only
+    // if the cache was produced under this same active version. Otherwise
+    // (version switched since save, or legacy save with no version id) we
+    // drop the cached html so one version's stats never appear under
+    // another version's context.
+    //
+    // Deliberately NOT firing a silent analysis run here: doing so would
+    // disable the Run button for the duration of a heavy backend call,
+    // which feels broken when the user just wanted to view or tweak
+    // toggles. Clicking Run Analysis pulls fresh stats.
     fetch("/api/active_version").then(function (r) {{ return r.json(); }})
       .then(function (resp) {{
         var indEl = document.getElementById("top-nav-active-version");
         if (indEl && resp && resp.ok && resp.active) {{
           indEl.textContent = "Active: " + resp.active.name;
+        }}
+        if (resp && resp.ok && resp.active && resp.active.id) {{
+          _currentActiveVersionId = resp.active.id;
+        }}
+        // Paint or discard cached html based on whether it was saved
+        // under the currently-active version. Done before the toggle
+        // override below so we never visibly paint stale stats first.
+        if (_savedState && _savedState.html) {{
+          var savedId = _savedState.active_version_id;
+          if (savedId && _currentActiveVersionId && savedId === _currentActiveVersionId) {{
+            applyResponseHtml(_savedState.html);
+          }} else {{
+            // Version switched (or legacy save with no version id) — drop
+            // the stale html so we don't render last version's stats
+            // under this version's context. Date range + toggles persist.
+            clearCachedHtml();
+          }}
         }}
         if (!resp || !resp.ok || !resp.active || !resp.active.regime_state) return;
         var rs = resp.active.regime_state;
@@ -3067,7 +3158,6 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         }}
         setAllow("regime-macro-toggles", rs.allowed_macro_regimes);
         setAllow("regime-micro-toggles", rs.allowed_micro_regimes);
-        setTimeout(function () {{ runAnalysis({{ silent: true }}); }}, 80);
       }})
       .catch(function () {{}});
 
