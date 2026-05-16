@@ -1369,6 +1369,16 @@ def run_regime_analysis():
         strat._INSTRUMENT     = "GBPUSD"
         strat.MASSIVE_TICKER  = strat._INSTRUMENT_MAP.get("GBPUSD", strat.MASSIVE_TICKER)
 
+        # Force a re-read of data/regime_labels.parquet. strategy_v2 normally
+        # loads labels once at import time and caches them; if the parquet
+        # didn't exist (or pyarrow/fastparquet wasn't importable) at server
+        # boot, the in-backtest macro/micro gates would silently pass-through
+        # forever and toggle state on the RA page would have no effect on the
+        # rerun. Resetting the cache flag here lets a freshly-generated
+        # parquet take effect on the very next RA request.
+        strat._REGIME_LABELS_LOADED = False
+        strat._load_regime_labels()
+
         # ── Override strategy_v2 module globals with this request's filters ──
         strat.ALLOWED_MACRO_KEYS = {strat._macro_key(n) for n in allowed_macro}
         strat.ALLOWED_MICRO_KEYS = {strat._micro_key(n) for n in allowed_micro}
@@ -1531,18 +1541,46 @@ def run_regime_analysis():
             blocked_df = pd.DataFrame(columns=["entry_ts", "win", "pnl", "reason", "direction"])
         blocked_df = _attribute(blocked_df)
 
-        # ── Compute filtered + unfiltered stats ──
-        def _filter_by_macro(td):
-            if td.empty or not blocked_macro_keys:
-                return td.copy(), 0
-            _ts = pd.to_datetime(td["entry_ts"])
-            _ts = _ts.dt.tz_convert("UTC") if _ts.dt.tz is not None else _ts.dt.tz_localize("UTC")
-            day = _ts.dt.strftime("%Y-%m-%d")
-            mlbl = day.map(lambda d: macro.get(d, {}).get("label"))
-            mask = mlbl.isin(blocked_macro_keys)
-            return td[~mask].reset_index(drop=True), int(mask.sum())
+        # ── Server-side authoritative filter ──────────────────────────────
+        # Apply the toggle state as a post-filter on the trades coming out of
+        # run_backtest. The in-backtest macro/micro gates *should* already
+        # have rejected these signals (so they'd be in raw_blocked instead of
+        # trades), but we don't rely on that for two reasons:
+        #
+        #   1. If strategy_v2 was imported before data/regime_labels.parquet
+        #      existed, its label dicts are empty and the in-backtest gates
+        #      silently pass-through. We reload labels above, but a single
+        #      defensive post-filter ensures the displayed numbers honor the
+        #      toggle state even if anything upstream silently no-ops.
+        #   2. It localises the source-of-truth: every section of the report
+        #      below sees the same filtered trade set, so the stats bar,
+        #      per-regime tables, and daily timeline can never disagree about
+        #      which trades count as "active".
+        #
+        # We filter on the attributed `macro_label` / `regime` columns set by
+        # `_attribute` above (re-keyed off this request's freshly-loaded
+        # parquet), so attribution and filtering are guaranteed consistent.
+        def _filter_trades(td):
+            """Return (filtered, n_macro_excluded, n_micro_excluded)."""
+            if td.empty:
+                return td.copy(), 0, 0
+            keep = pd.Series([True] * len(td), index=td.index)
+            n_macro = 0
+            n_micro = 0
+            if blocked_macro_keys and "macro_label" in td.columns:
+                macro_mask = td["macro_label"].isin(blocked_macro_keys)
+                keep &= ~macro_mask
+                n_macro = int(macro_mask.sum())
+            if blocked_micro_keys and "regime" in td.columns:
+                micro_mask = td["regime"].isin(blocked_micro_keys)
+                keep &= ~micro_mask
+                n_micro = int(micro_mask.sum())
+            return td[keep].reset_index(drop=True), n_macro, n_micro
 
-        filtered_trades, n_excluded = _filter_by_macro(trades)
+        filtered_trades, n_macro_excluded, n_micro_excluded = _filter_trades(trades)
+        # n_excluded is macro-only for the macro-filter note (compute_filter_label
+        # is built around the macro filter); the micro count is for diagnostics.
+        n_excluded = n_macro_excluded
         perf_df = rl._compute_perf_df(filtered_trades)
         agg_stats = rl._compute_aggregate_stats(filtered_trades)
         total_in_range_trades = int(len(trades))
@@ -1551,22 +1589,27 @@ def run_regime_analysis():
             rl.compute_filter_label(blocked_macro_keys, total_in_range_trades, n_excluded)
 
         # ── Build HTML chunks ──
+        # Every section below is fed `filtered_trades` so the stats bar,
+        # per-regime perf tables, daily timeline, and breakdown are all
+        # derived from the same authoritative trade set. The per-regime
+        # tables still get `blocked_df` separately for their locked-row
+        # counterfactual stats — that path is unchanged.
         stats_bar_inner = rl.build_stats_bar_html(
             agg_stats, filter_state_label, filter_state_class)
 
         macro_perf_table = rl.build_macro_perf_table(
-            macro, trades, blocked_macro_keys=blocked_macro_keys,
+            macro, filtered_trades, blocked_macro_keys=blocked_macro_keys,
             blocked_signals_df=blocked_df)
 
         perf_table = rl.build_perf_table_html(
             perf_df, regime_count,
             blocked_micro_keys=blocked_micro_keys,
-            trades_df=trades,
+            trades_df=filtered_trades,
             blocked_signals_df=blocked_df,
             allowed_macro_keys=allowed_macro_keys,
         )
 
-        trades_per_day = rl.compute_trades_per_day(trades)
+        trades_per_day = rl.compute_trades_per_day(filtered_trades)
         timeline_inner = rl.build_timeline_section_html(
             periods, macro, trades_per_day, start_date, end_date, regime_count)
 
@@ -1607,7 +1650,7 @@ def run_regime_analysis():
         rl.END_DATE   = end_date
         try:
             daily_table_html = rl.build_daily_breakdown(
-                periods, trades, df, available_chart_days,
+                periods, filtered_trades, df, available_chart_days,
                 in_range, low_activity_days,
                 macro=macro, blocked_macro_keys=blocked_macro_keys,
             )
