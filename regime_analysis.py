@@ -3060,10 +3060,21 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       // belongs to the currently-active version), the displayed stats
       // stay consistent with the restored date range — no silent
       // disagreement between pickers and the numbers on screen.
-      var startEl = document.getElementById("rb-start");
-      var endEl   = document.getElementById("rb-end");
-      if (startEl && saved && saved.start_date) startEl.value = saved.start_date;
-      if (endEl   && saved && saved.end_date)   endEl.value   = saved.end_date;
+      //
+      // The native <input type="date"> is visually hidden behind an
+      // overlay <span> (see syncDateOverlay above), and the overlay's
+      // text is only refreshed by the input's 'input' / 'change' events.
+      // Programmatic assignments to `.value` don't fire those events, so
+      // we dispatch an 'input' event ourselves to push the new date into
+      // the visible overlay. Without this the underlying input has the
+      // restored value but the overlay still shows the full-range default.
+      function setDateInput(el, val) {{
+        if (!el || !val) return;
+        el.value = val;
+        el.dispatchEvent(new Event("input", {{bubbles: true}}));
+      }}
+      setDateInput(document.getElementById("rb-start"), saved && saved.start_date);
+      setDateInput(document.getElementById("rb-end"),   saved && saved.end_date);
       //
       // Toggle checkboxes — drive from saved allowed-lists. (These then
       // get authoritatively overridden by the active-version-sync block
