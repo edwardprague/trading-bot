@@ -2919,8 +2919,15 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     var runBtn = document.getElementById("run-analysis-btn");
     var runStatus = document.getElementById("run-status");
 
+    // Safety watchdog — if setRunning(true) is called and nothing ever
+    // calls setRunning(false) (e.g. the promise chain hangs on a giant
+    // response or the browser stalls during innerHTML rendering), this
+    // timer forcibly resets the button after a hard cap so the user can
+    // always retry. Cleared on every clean transition.
+    var _runWatchdog = null;
     function setRunning(yes, silent) {{
       if (!runBtn) return;
+      if (_runWatchdog) {{ clearTimeout(_runWatchdog); _runWatchdog = null; }}
       if (yes) {{
         runBtn.disabled = true;
         // Silent auto-load: keep the button label calm — the user didn't
@@ -2929,6 +2936,12 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
           runBtn.innerHTML = "<span class='rb-spin'></span> Running…";
         }}
         if (runStatus) runStatus.textContent = silent ? "" : "";
+        _runWatchdog = setTimeout(function () {{
+          runBtn.disabled = false;
+          runBtn.innerHTML = "<span class='rb-btn-icon'>&#9654;</span> Run Analysis";
+          if (runStatus) runStatus.textContent = "Timed out — click to retry";
+          _runWatchdog = null;
+        }}, 5 * 60 * 1000);
       }} else {{
         runBtn.disabled = false;
         runBtn.innerHTML = "<span class='rb-btn-icon'>&#9654;</span> Run Analysis";
@@ -2966,16 +2979,28 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       setRunning(true, isAutoLoad);
       if (runStatus) runStatus.textContent = "";
 
-      fetch("/run_regime_analysis", {{
+      // AbortController + 5-minute timeout — if the network layer hangs
+      // we abort instead of letting the button stay stuck forever. The
+      // setRunning watchdog is a separate, redundant safety net for the
+      // case where the browser itself stalls (e.g. on a giant innerHTML).
+      var controller = (typeof AbortController === "function") ? new AbortController() : null;
+      var fetchTimeout = setTimeout(function () {{
+        if (controller) try {{ controller.abort(); }} catch (e) {{}}
+      }}, 5 * 60 * 1000);
+
+      var fetchOpts = {{
         method: "POST",
         headers: {{ "Content-Type": "application/json" }},
         body: JSON.stringify(payload),
-      }}).then(function (r) {{
+      }};
+      if (controller) fetchOpts.signal = controller.signal;
+
+      fetch("/run_regime_analysis", fetchOpts).then(function (r) {{
         if (!r.ok) throw new Error("HTTP " + r.status);
         return r.json();
       }}).then(function (data) {{
+        clearTimeout(fetchTimeout);
         if (data.error) throw new Error(data.error);
-        // Replace section bodies in place from the response.
         var htmlChunks = {{
           stats_bar:   data.stats_bar,
           macro_perf:  data.macro_perf,
@@ -2983,18 +3008,35 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
           timeline:    data.timeline,
           daily:       data.daily,
         }};
-        applyResponseHtml(htmlChunks);
-        window.scrollTo(0, scrollY);
-        // Clear the run-bar status on success — the stats bar below already
-        // shows the headline numbers, so the duplicate is just noise.
-        if (runStatus) runStatus.textContent = "";
-        // Persist payload + rendered HTML so the next page refresh repaints
-        // the saved view instantly without any flicker or blank state.
-        saveRegimeAnalysisState(payload, htmlChunks);
-      }}).catch(function (err) {{
-        if (runStatus) runStatus.textContent = "Failed: " + err.message;
-      }}).finally(function () {{
+        // Re-enable the button BEFORE the heavy DOM swap so the UI
+        // reflects "done" immediately — even on a slow render the user
+        // sees the button come back and never thinks the page is hung.
         setRunning(false);
+        if (runStatus) runStatus.textContent = "";
+        // Chunked render: one section per turn, yielding between each.
+        // Persist + scroll only after all sections land so saved html
+        // matches the rendered state and the scroll restore lines up
+        // with the new content height.
+        applyResponseHtml(htmlChunks, function () {{
+          try {{
+            window.scrollTo(0, scrollY);
+            saveRegimeAnalysisState(payload, htmlChunks);
+          }} catch (e) {{
+            if (runStatus) runStatus.textContent = "Saved-state write failed: " + e.message;
+          }}
+        }});
+      }}).catch(function (err) {{
+        clearTimeout(fetchTimeout);
+        var msg = (err && err.name === "AbortError")
+          ? "Aborted after 5 min — request still running on the server?"
+          : (err && err.message) || String(err);
+        if (runStatus) runStatus.textContent = "Failed: " + msg;
+        setRunning(false);
+      }}).finally(function () {{
+        // Defensive: in the (rare) case .then/.catch both ran but didn't
+        // call setRunning(false) for some reason, this guarantees reset.
+        clearTimeout(fetchTimeout);
+        if (runBtn && runBtn.disabled) setRunning(false);
       }});
     }}
 
@@ -3076,22 +3118,59 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       }} catch (e) {{}}
     }}
 
-    // Swap each known section's innerHTML from a cached/fresh response object.
-    function applyResponseHtml(html) {{
-      var sectionMap = {{
-        "stats_bar":   "regime-stats-section",
-        "macro_perf":  "regime-macro-perf-section",
-        "regime_perf": "regime-perf-section",
-        "timeline":    "regime-timeline-section",
-        "daily":       "regime-daily-section",
-      }};
-      Object.keys(sectionMap).forEach(function (key) {{
-        if (typeof html[key] === "string") {{
-          var el = document.getElementById(sectionMap[key]);
-          if (el) el.innerHTML = html[key];
+    // Swap each known section's innerHTML from a cached/fresh response
+    // object. When `cb` is provided, work is chunked across setTimeouts
+    // so the main thread yields between sections — critical for wide
+    // date ranges where the daily-breakdown HTML can be many MB and a
+    // single synchronous innerHTML assignment would freeze the page
+    // long enough for the user to think it crashed. When `cb` is
+    // omitted, falls back to a single synchronous pass (used by the
+    // cached-paint path on page load, where the saved html is already
+    // sized below the localStorage quota and synchronous is fine).
+    var _SECTION_PAIRS = [
+      ["stats_bar",   "regime-stats-section"],
+      ["macro_perf",  "regime-macro-perf-section"],
+      ["regime_perf", "regime-perf-section"],
+      ["timeline",    "regime-timeline-section"],
+      ["daily",       "regime-daily-section"],
+    ];
+    function applyResponseHtml(html, cb) {{
+      if (!cb) {{
+        for (var s = 0; s < _SECTION_PAIRS.length; s++) {{
+          var k = _SECTION_PAIRS[s][0], id = _SECTION_PAIRS[s][1];
+          if (typeof html[k] === "string") {{
+            var el = document.getElementById(id);
+            if (el) el.innerHTML = html[k];
+          }}
         }}
-      }});
-      attachDailyHandlers();
+        attachDailyHandlers();
+        return;
+      }}
+      // Chunked path: one section per turn, yielding to the event loop
+      // between each so the browser stays responsive and the watchdog
+      // (or user retry) can still fire if anything goes pathologically slow.
+      var i = 0;
+      function nextSection() {{
+        if (i >= _SECTION_PAIRS.length) {{
+          try {{ attachDailyHandlers(); }} catch (e) {{}}
+          cb();
+          return;
+        }}
+        var pair = _SECTION_PAIRS[i++];
+        try {{
+          if (typeof html[pair[0]] === "string") {{
+            var ele = document.getElementById(pair[1]);
+            if (ele) ele.innerHTML = html[pair[0]];
+          }}
+        }} catch (e) {{
+          // A bad section shouldn't trap the whole chain — log and move on.
+          if (window.console && console.warn) {{
+            console.warn("RA section render failed:", pair[0], e);
+          }}
+        }}
+        setTimeout(nextSection, 0);
+      }}
+      setTimeout(nextSection, 0);
     }}
 
     function applySavedStateToControls(saved) {{

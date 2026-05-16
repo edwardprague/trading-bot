@@ -2357,13 +2357,9 @@ def _build_html(versions_json):
 <body>
 
 <div id="sidebar">
-  <div id="sidebar-header">
-    <select id="version-select"></select>
-    <select id="instrument-select" style="margin-top:8px;">
-      <option value="EURUSD">EURUSD</option>
-      <option value="GBPUSD">GBPUSD</option>
-    </select>
-  </div>
+  <!-- Version + instrument selects moved to the run-bar (see server.py
+       INJECT_HTML) so they appear on both the BD and the RA. The sidebar
+       now only holds the run-history list grouped by date range. -->
   <div id="version-list"></div>
 </div>
 
