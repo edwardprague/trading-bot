@@ -390,6 +390,21 @@ INJECT_HTML = """
   background: #0c0c18; border-bottom: 1px solid #1e1e32;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 ">
+  <!-- Version + instrument selects live in the run bar (not the BD sidebar)
+       so they're available on every page that injects the run bar — the BD
+       and the RA both surface them and stay in sync via /api/active_version
+       and localStorage rb_instrument. The IDs match the originals so the
+       existing handlers in report.html (onVersionChange / onInstrumentChange)
+       and in this file (line ~625, /api/active_version dropdown sync) keep
+       working without modification. -->
+  <select id="version-select" class="rb-select" title="Active version"></select>
+  <select id="instrument-select" class="rb-select" title="Instrument">
+    <option value="EURUSD">EURUSD</option>
+    <option value="GBPUSD">GBPUSD</option>
+  </select>
+
+  <span class="rb-sep"></span>
+
   <button id="run-new-btn" class="rb-btn rb-btn-green" onclick="runNewVersion()">&#9654;&nbsp; Add Year</button>
 
   <span class="rb-sep"></span>
@@ -500,7 +515,16 @@ INJECT_HTML = """
 </style>
 
 <script>
-(function () {
+/* INJECT_HTML is now inserted at the START of <body> (see the / route in
+   this file) so its DOM elements — version-select, instrument-select, the
+   run-bar inputs — are parsed before report.html's inline scripts run.
+   But this IIFE accesses elements that live LATER in the body (copy-btn,
+   cbot-btn, devlog-btn, hidden in report.html and moved into the run-bar
+   here), so we defer it until DOMContentLoaded — by which point the
+   entire page is parsed and every element is available. Top-level
+   functions below (runNewVersion, runDateRange, setRunning, etc.) stay
+   at script-global scope so onclick="…" handlers can still call them. */
+document.addEventListener("DOMContentLoaded", function () {
   /* ── Move action buttons into the run bar (preserve visibility set by strategy.py) ── */
   var _actGroup  = document.getElementById("rb-action-group");
   var _devlogBtn = document.getElementById("devlog-btn");
@@ -630,7 +654,15 @@ INJECT_HTML = """
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({id: picked.id})
       }).then(function (r) { return r.json(); }).then(function (resp) {
-        if (resp && resp.ok && resp.active) _setActiveIndicator(resp.active.name);
+        if (!resp || !resp.ok || !resp.active) return;
+        _setActiveIndicator(resp.active.name);
+        /* Mirror the sidebar pattern (renderSidebar in report.html, ~146481):
+           keep the global version-name + display-name in sync so the run-bar
+           "Add Date Range (vN)" label reflects this dropdown change without
+           waiting for a separate sidebar click. */
+        window._currentVersionName        = resp.active.name || "";
+        window._currentVersionDisplayName = resp.active.strategy_version || resp.active.name || "";
+        if (typeof updateRangeButtonLabel === "function") updateRangeButtonLabel();
       }).catch(function () {});
     });
   }).catch(function () {});
@@ -646,7 +678,7 @@ INJECT_HTML = """
       }
     });
   }, 100);
-})();
+});
 
 function setRunning() {
   var btns = [document.getElementById("run-new-btn"), document.getElementById("run-range-btn"),
@@ -1023,8 +1055,14 @@ def index():
         return Response(EMPTY_PAGE, mimetype="text/html")
 
     html = REPORT_FILE.read_text(encoding="utf-8")
-    # Inject the run-bar just before </body> so it sits on top of everything
-    html = html.replace("</body>", INJECT_HTML + "\n</body>", 1)
+    # Inject the run-bar at the START of <body> so its elements — most
+    # importantly #version-select and #instrument-select, which used to
+    # live in report.html's sidebar but now live here — exist in the DOM
+    # before report.html's inline scripts run during parsing. (The IIFE
+    # inside INJECT_HTML that needs report.html's hidden action buttons
+    # is wrapped in DOMContentLoaded for the same reason.) The run-bar is
+    # fixed-positioned, so DOM order doesn't affect visual placement.
+    html = html.replace("<body>", "<body>\n" + INJECT_HTML, 1)
     return Response(html, mimetype="text/html")
 
 
@@ -1351,23 +1389,29 @@ def run_regime_analysis():
         end_date      = payload.get("end_date")
         allowed_macro = list(payload.get("allowed_macro_regimes", []))
         allowed_micro = list(payload.get("allowed_micro_regimes", []))
+        # Instrument is sent by the RA page from its run-bar selection
+        # (sourced from localStorage `rb_instrument`). Default to GBPUSD,
+        # which is the historical labeler default and what the parquet on
+        # disk most likely contains.
+        instrument = str(payload.get("instrument") or "GBPUSD").strip().upper() or "GBPUSD"
         if not start_date or not end_date:
             return jsonify({"error": "start_date and end_date are required"}), 400
 
         # Lazy-import so server.py can boot without pyarrow/pandas if the
         # regime feature isn't used. Importing strategy_v2 also triggers its
-        # module-level regime-labels load.
-        # The regime labeler is GBPUSD-only, so pin TICKER here regardless of
-        # what the strategy module imported at startup.
-        os.environ.setdefault("INSTRUMENT", "GBPUSD")
+        # module-level regime-labels load. Set INSTRUMENT in the env BEFORE
+        # importing strategy_v2 so any module-init paths that read it (e.g.
+        # MASSIVE_TICKER resolution) see the right value.
+        os.environ["INSTRUMENT"] = instrument
         import pandas as pd  # noqa: F401  — re-export used below
         import strategy_v2 as strat
         import regime_analysis as rl
-        # Force GBPUSD in case strategy_v2 was imported earlier with a
-        # different instrument (e.g. EURUSD default).
-        strat.TICKER          = "GBPUSD"
-        strat._INSTRUMENT     = "GBPUSD"
-        strat.MASSIVE_TICKER  = strat._INSTRUMENT_MAP.get("GBPUSD", strat.MASSIVE_TICKER)
+        # Re-pin the strategy module's instrument globals so a backtest
+        # called from a previous request with a different INSTRUMENT
+        # doesn't bleed through (strategy_v2 caches these at import time).
+        strat.TICKER          = instrument
+        strat._INSTRUMENT     = instrument
+        strat.MASSIVE_TICKER  = strat._INSTRUMENT_MAP.get(instrument, strat.MASSIVE_TICKER)
 
         # Force a re-read of data/regime_labels.parquet. strategy_v2 normally
         # loads labels once at import time and caches them; if the parquet
@@ -1560,6 +1604,14 @@ def run_regime_analysis():
         # We filter on the attributed `macro_label` / `regime` columns set by
         # `_attribute` above (re-keyed off this request's freshly-loaded
         # parquet), so attribution and filtering are guaranteed consistent.
+        #
+        # Empty allow-list = filter inactive (pass everything through). This
+        # mirrors strategy_v2's in-backtest gates — `_check_macro_regime` /
+        # `_check_micro_regime` both `return True, ""` when their allowed-set
+        # is empty — and is critical for v1, which has no regime gates at
+        # all (both allow-lists empty by default). Treating empty as
+        # "block everything" instead would make v1 always return zero
+        # trades from the RA, which is what just happened.
         def _filter_trades(td):
             """Return (filtered, n_macro_excluded, n_micro_excluded)."""
             if td.empty:
@@ -1567,11 +1619,11 @@ def run_regime_analysis():
             keep = pd.Series([True] * len(td), index=td.index)
             n_macro = 0
             n_micro = 0
-            if blocked_macro_keys and "macro_label" in td.columns:
+            if allowed_macro_keys and blocked_macro_keys and "macro_label" in td.columns:
                 macro_mask = td["macro_label"].isin(blocked_macro_keys)
                 keep &= ~macro_mask
                 n_macro = int(macro_mask.sum())
-            if blocked_micro_keys and "regime" in td.columns:
+            if allowed_micro_keys and blocked_micro_keys and "regime" in td.columns:
                 micro_mask = td["regime"].isin(blocked_micro_keys)
                 keep &= ~micro_mask
                 n_micro = int(micro_mask.sum())
@@ -1681,8 +1733,19 @@ def run_regime_analysis():
           </p>
           {macro_perf_table}
         """
+        # Header suffix — reflects the active version so a v1 page doesn't
+        # advertise "v2 short-only". For v2 (which is short-only with regime
+        # gates), keep the direction qualifier; for v1 (no regime gates,
+        # no narrow direction default) just show the version name.
+        _av = _get_active_version() or {}
+        _av_name = _av.get("name") or "v2"
+        _av_strat = (_av.get("strategy_version") or "v2").strip()
+        if _av_strat == "v2":
+            _perf_suffix = f"({_av_name} short-only)"
+        else:
+            _perf_suffix = f"({_av_name})"
         regime_perf_inner = f"""
-          <h2>Micro regime performance <span class="regime-dim regime-small">(v2 short-only)</span></h2>
+          <h2>Micro regime performance <span class="regime-dim regime-small">{_perf_suffix}</span></h2>
           {perf_table}
         """
 

@@ -55,6 +55,15 @@ body {
     /* color: #444 !important; */
 }
 
+/* Width clamp for the run-bar version + instrument dropdowns. Targeted by
+   id so it only hits the two selects the user moved into the run bar —
+   the .rb-select base rule above stays generic in case other selects
+   adopt the class later. */
+#run-bar #version-select,
+#run-bar #instrument-select {
+    width: 150px;
+}
+
 .rb-label {
     color: #999 !important;
 }

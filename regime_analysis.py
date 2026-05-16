@@ -2376,6 +2376,17 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     # etc.) live in style.css under "Run bar — shared with dashboard".
     run_bar_html = f"""
     <div id="run-bar" class="rb-runbar">
+      <!-- Version + instrument selects mirror the BD run bar (see server.py
+           INJECT_HTML) so the user can switch either without leaving the
+           RA. The version-select is populated by JS from /api/versions on
+           page load; the instrument-select reads/writes localStorage
+           rb_instrument so it stays in sync with the BD's selection. -->
+      <select id="version-select" class="rb-select" title="Active version"></select>
+      <select id="instrument-select" class="rb-select" title="Instrument">
+        <option value="EURUSD">EURUSD</option>
+        <option value="GBPUSD">GBPUSD</option>
+      </select>
+      <span class="rb-sep"></span>
       <button id="run-analysis-btn" class="rb-btn rb-btn-green" type="button">
         <span class="rb-btn-icon">&#9654;</span> Run Analysis
       </button>
@@ -2492,7 +2503,7 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
 
     <header class="regime-header">
       <div class="regime-header-top">
-        <h1>Regime Analysis — GBPUSD 5m</h1>
+        <h1 id="regime-page-title">Regime Analysis — GBPUSD 5m</h1>
         <button class="bs-toggle-btn" id="regime-filters-toggle-btn"
                 title="Show / hide regime filters" type="button">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -2836,6 +2847,31 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     syncDateOverlay("rb-start", "rb-start-overlay");
     syncDateOverlay("rb-end",   "rb-end-overlay");
 
+    // ── Title sync: reflect the BD's active instrument ─────────────────────
+    // The BD persists the instrument selector to localStorage under
+    // `rb_instrument` (see report.html line ~148101). The RA page hardcodes
+    // "GBPUSD 5m" in its server-rendered <title> and <h1> because the
+    // regime labeler currently only ships GBPUSD parquet data, but the
+    // user-visible title should still reflect whatever instrument the BD
+    // last had selected so the two pages don't visibly disagree.
+    //
+    // We listen for the `storage` event too so an instrument change made
+    // in the BD tab updates the RA tab's title without a manual reload.
+    function syncRegimePageTitle() {{
+      var inst = (localStorage.getItem("rb_instrument") || "GBPUSD").trim() || "GBPUSD";
+      var interval = (localStorage.getItem("bs_interval") || "5m").trim() || "5m";
+      var headline = "Regime Analysis — " + inst + " " + interval;
+      document.title = headline;
+      var h1 = document.getElementById("regime-page-title");
+      if (h1) h1.textContent = headline;
+    }}
+    syncRegimePageTitle();
+    window.addEventListener("storage", function (e) {{
+      if (e && (e.key === "rb_instrument" || e.key === "bs_interval")) {{
+        syncRegimePageTitle();
+      }}
+    }});
+
     // ── Toggle panel: collect allow-lists + Reset to Defaults ──────────────
     function collectAllowed(containerId) {{
       var container = document.getElementById(containerId);
@@ -2912,7 +2948,14 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         return;
       }}
 
+      // Instrument follows the BD's selection. The BD persists it to
+      // localStorage `rb_instrument`; we read the same key here so a
+      // backtest re-run from the RA page targets the same instrument data.
+      // Default to GBPUSD if nothing's been set (matches the labeler's
+      // historical default and the parquet most likely to exist on disk).
+      var instVal = (localStorage.getItem("rb_instrument") || "GBPUSD").trim() || "GBPUSD";
       var payload = {{
+        instrument: instVal,
         start_date: startVal,
         end_date:   endVal,
         allowed_macro_regimes: collectAllowed("regime-macro-toggles"),
@@ -2957,80 +3000,79 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
 
     if (runBtn) runBtn.addEventListener("click", function () {{ runAnalysis(); }});
 
-    // ── localStorage persistence ───────────────────────────────────────────
-    // Saved state survives page refreshes. On load we restore the date
-    // pickers + toggle checkboxes and auto-run the analysis so the rendered
-    // report sections match. Reset to Defaults clears the saved state so the
-    // next refresh falls back to the labeler's hardcoded defaults.
-    // localStorage key: 'regime_analysis.lastAnalysis.v2' is canonical going
-    // forward. v2 stores {{payload, html}} so the page can repaint the
-    // dynamic sections from cache on refresh — no flicker, no blank page.
-    // Older format keys are still read as fallback.
-    var REGIME_LS_KEY        = "regime_analysis.lastAnalysis.v2";
-    var REGIME_LS_KEY_LEGACY = "regime_labeler.lastAnalysis.v1";
-    var REGIME_LS_KEY_V1     = "regime_analysis.lastAnalysis.v1";
-    // Captured from /api/active_version on page load. Stamped into every
-    // save so we can detect when a cached html chunk was produced under a
-    // different active version than the one currently in effect — and
-    // discard it before painting (see active-version-sync block below).
+    // ── localStorage persistence (per active version) ─────────────────────
+    // Each active version gets its OWN cache slot under a versioned key:
+    //
+    //   regime_analysis.lastAnalysis.v3.<active_version_id>
+    //     → {{payload, html}}
+    //
+    // This way, switching the active version in the BD and returning here
+    // restores that version's last-run state (date range + toggles + cached
+    // html) without bleed-through from another version. The legacy
+    // single-key schema (regime_analysis.lastAnalysis.v2) is still read as
+    // a one-time migration fallback and re-saved under the new per-version
+    // key the first time we find it.
+    //
+    // Older `regime_analysis.lastAnalysis.v1` / `regime_labeler.lastAnalysis.v1`
+    // keys are no longer migrated — they predate per-version semantics and
+    // weren't stamped with an active version id, so we have no way to
+    // assign them to a slot.
+    var REGIME_LS_PREFIX = "regime_analysis.lastAnalysis.v3.";
+    var REGIME_LS_KEY_V2 = "regime_analysis.lastAnalysis.v2";   // legacy schema-v2
+
+    // Set once /api/active_version resolves below. All save/load/clear
+    // helpers key off this id so each active version has its own slot.
     var _currentActiveVersionId = null;
 
+    function regimeLSKey(versionId) {{
+      return REGIME_LS_PREFIX + (versionId || "");
+    }}
+
     function saveRegimeAnalysisState(payload, htmlChunks) {{
+      if (!_currentActiveVersionId) return;
       try {{
-        var state = {{
-          payload: payload,
-          html: htmlChunks || null,
-          active_version_id: _currentActiveVersionId,
-        }};
-        localStorage.setItem(REGIME_LS_KEY, JSON.stringify(state));
+        var state = {{payload: payload, html: htmlChunks || null}};
+        localStorage.setItem(regimeLSKey(_currentActiveVersionId), JSON.stringify(state));
       }} catch (e) {{ /* quota / privacy mode — silently skip */ }}
     }}
 
-    function loadRegimeAnalysisState() {{
+    function loadRegimeAnalysisState(versionId) {{
+      if (!versionId) return null;
       try {{
-        var raw = localStorage.getItem(REGIME_LS_KEY);
+        // Canonical per-version slot.
+        var raw = localStorage.getItem(regimeLSKey(versionId));
         if (raw) {{
           var s = JSON.parse(raw);
           if (s && s.payload && s.payload.start_date && s.payload.end_date) {{
             return s;
           }}
         }}
-        // v1 fallback — payload-only, no html cache.
-        var v1 = localStorage.getItem(REGIME_LS_KEY_V1)
-                 || localStorage.getItem(REGIME_LS_KEY_LEGACY);
-        if (v1) {{
-          var p = JSON.parse(v1);
-          if (p && typeof p === "object" && p.start_date && p.end_date) {{
-            return {{payload: p, html: null}};
+        // Legacy schema-v2 fallback: a single key with active_version_id
+        // stored INSIDE the value. Restore only if the stamp matches the
+        // requested version, then migrate onto the per-version key so we
+        // don't fall through to legacy on every load.
+        var legacy = localStorage.getItem(REGIME_LS_KEY_V2);
+        if (legacy) {{
+          var ls = JSON.parse(legacy);
+          if (ls && ls.payload && ls.payload.start_date && ls.payload.end_date
+              && ls.active_version_id === versionId) {{
+            var migrated = {{payload: ls.payload, html: ls.html || null}};
+            try {{
+              localStorage.setItem(regimeLSKey(versionId), JSON.stringify(migrated));
+            }} catch (e) {{}}
+            return migrated;
           }}
         }}
       }} catch (e) {{}}
       return null;
     }}
 
+    // Reset to Defaults: clear only the current active version's slot.
+    // Other versions' cached state is preserved.
     function clearRegimeAnalysisState() {{
+      if (!_currentActiveVersionId) return;
       try {{
-        localStorage.removeItem(REGIME_LS_KEY);
-        localStorage.removeItem(REGIME_LS_KEY_V1);
-        localStorage.removeItem(REGIME_LS_KEY_LEGACY);
-      }} catch (e) {{}}
-    }}
-
-    // Drop the cached html chunks from the saved state while preserving
-    // the payload (date range + toggles). Called when /api/active_version
-    // reports a version different from the one the cache was saved under,
-    // so we never paint one version's stats under another version's
-    // context. We also re-stamp the cleared state with the current active
-    // version id so the next save lines up cleanly.
-    function clearCachedHtml() {{
-      try {{
-        var raw = localStorage.getItem(REGIME_LS_KEY);
-        if (!raw) return;
-        var s = JSON.parse(raw);
-        if (!s || !s.payload) return;
-        s.html = null;
-        s.active_version_id = _currentActiveVersionId;
-        localStorage.setItem(REGIME_LS_KEY, JSON.stringify(s));
+        localStorage.removeItem(regimeLSKey(_currentActiveVersionId));
       }} catch (e) {{}}
     }}
 
@@ -3076,6 +3118,17 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       setDateInput(document.getElementById("rb-start"), saved && saved.start_date);
       setDateInput(document.getElementById("rb-end"),   saved && saved.end_date);
       //
+      // Instrument — restored to localStorage `rb_instrument` so any
+      // subsequent runs (and the page title) reflect what this version
+      // was last run against. If the BD's run-bar has an instrument
+      // dropdown rendered, sync its visible value too.
+      if (saved && saved.instrument) {{
+        try {{ localStorage.setItem("rb_instrument", saved.instrument); }} catch (e) {{}}
+        var instSel = document.getElementById("instrument-select");
+        if (instSel) instSel.value = saved.instrument;
+        if (typeof syncRegimePageTitle === "function") syncRegimePageTitle();
+      }}
+      //
       // Toggle checkboxes — drive from saved allowed-lists. (These then
       // get authoritatively overridden by the active-version-sync block
       // shortly after, so they're effectively a no-op visually — but we
@@ -3097,33 +3150,29 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       applyAllowList("regime-micro-toggles", saved.allowed_micro_regimes);
     }}
 
-    // Restore date pickers + toggle checkboxes from localStorage if we
-    // have saved state. Cached html chunks (stats bar, perf tables, …)
-    // are painted further down, *after* /api/active_version confirms the
-    // cache was produced under the currently-active version — if the
-    // active version has changed since the cache was saved, those html
-    // chunks are discarded so one version's stats never appear under
-    // another version's context.
+    // Saved state is loaded INSIDE the active-version handler below — not
+    // here — because we need to know the active version id first to pick
+    // the right per-version localStorage slot. Brief consequence: the date
+    // pickers show the server-rendered full-range defaults until the
+    // /api/active_version round-trip resolves (<100ms on localhost), then
+    // they snap to the last-saved range for the now-known active version.
     //
     // We still deliberately do NOT auto-fire a runAnalysis on page load:
     // it would disable the Run button for the duration of a heavy backend
     // call, which feels like the page is broken when the user just
     // wanted to view or tweak toggles. The user clicks Run Analysis when
     // they want fresh stats.
-    var _savedState = loadRegimeAnalysisState();
-    if (_savedState) {{
-      applySavedStateToControls(_savedState.payload);
-    }}
+    var _savedState = null;
 
     // ── Active-version sync ────────────────────────────────────────────────
     // versions.json (server-side) is the source of truth for toggle state.
     // On load we fetch the active version, populate the top-nav indicator,
-    // override the toggle checkboxes to match its regime_state, and decide
-    // whether to paint the cached html chunks from the saved state — only
-    // if the cache was produced under this same active version. Otherwise
-    // (version switched since save, or legacy save with no version id) we
-    // drop the cached html so one version's stats never appear under
-    // another version's context.
+    // restore THIS version's cached state (date range + toggles + html)
+    // from its own per-version localStorage slot, then override the
+    // toggle checkboxes from versions.json's regime_state (authoritative).
+    // Each active version has its own cache slot, so switching versions
+    // in the BD and returning here restores the matching version's state
+    // — no bleed-through, no stale-html clear pass needed.
     //
     // Deliberately NOT firing a silent analysis run here: doing so would
     // disable the Run button for the duration of a heavy backend call,
@@ -3138,18 +3187,14 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         if (resp && resp.ok && resp.active && resp.active.id) {{
           _currentActiveVersionId = resp.active.id;
         }}
-        // Paint or discard cached html based on whether it was saved
-        // under the currently-active version. Done before the toggle
-        // override below so we never visibly paint stale stats first.
-        if (_savedState && _savedState.html) {{
-          var savedId = _savedState.active_version_id;
-          if (savedId && _currentActiveVersionId && savedId === _currentActiveVersionId) {{
+        // Load this version's cached state and restore everything (dates,
+        // toggles, html). Done before the regime_state toggle override
+        // below so the override has the final word on toggle UI.
+        _savedState = loadRegimeAnalysisState(_currentActiveVersionId);
+        if (_savedState) {{
+          applySavedStateToControls(_savedState.payload);
+          if (_savedState.html) {{
             applyResponseHtml(_savedState.html);
-          }} else {{
-            // Version switched (or legacy save with no version id) — drop
-            // the stale html so we don't render last version's stats
-            // under this version's context. Date range + toggles persist.
-            clearCachedHtml();
           }}
         }}
         if (!resp || !resp.ok || !resp.active || !resp.active.regime_state) return;
@@ -3171,6 +3216,56 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         setAllow("regime-micro-toggles", rs.allowed_micro_regimes);
       }})
       .catch(function () {{}});
+
+    // ── Run-bar selects: version + instrument ──────────────────────────────
+    // Mirror the BD's run-bar selects so version and instrument can be
+    // switched without leaving the RA. Version is populated from
+    // /api/versions and on change posts to /api/active_version + reloads
+    // the page so the new active version's per-version cache slot is
+    // picked up cleanly through the existing /api/active_version handler
+    // above. Instrument reads/writes localStorage `rb_instrument` (shared
+    // with the BD) and refreshes the page title via syncRegimePageTitle.
+    (function () {{
+      var versionSel = document.getElementById("version-select");
+      if (versionSel) {{
+        fetch("/api/versions").then(function (r) {{ return r.json(); }})
+          .then(function (store) {{
+            var versions = (store && store.versions) || [];
+            var activeId = store && store.active_version_id;
+            versionSel.innerHTML = "";
+            versions.forEach(function (v) {{
+              var opt = document.createElement("option");
+              opt.value = v.id;
+              opt.textContent = v.name;
+              versionSel.appendChild(opt);
+            }});
+            if (activeId) versionSel.value = activeId;
+          }})
+          .catch(function () {{}});
+
+        versionSel.addEventListener("change", function () {{
+          fetch("/api/active_version", {{
+            method: "POST",
+            headers: {{"Content-Type": "application/json"}},
+            body: JSON.stringify({{id: versionSel.value}})
+          }}).then(function () {{
+            // Reload to pick up the new active version's per-version
+            // cache slot via the existing load path on next boot.
+            location.reload();
+          }}).catch(function () {{}});
+        }});
+      }}
+
+      var instSel = document.getElementById("instrument-select");
+      if (instSel) {{
+        var stored = (localStorage.getItem("rb_instrument") || "").trim();
+        if (stored) instSel.value = stored;
+        instSel.addEventListener("change", function () {{
+          try {{ localStorage.setItem("rb_instrument", instSel.value); }} catch (e) {{}}
+          if (typeof syncRegimePageTitle === "function") syncRegimePageTitle();
+        }});
+      }}
+    }}());
 
     // Hook into Reset to Defaults so refreshing actually goes back to the
     // labeler's hardcoded defaults rather than re-restoring from storage.
