@@ -2727,8 +2727,12 @@ __VERSIONS_JSON__
   function getStrategyVersions() {
     var result = [];
     for (var i = 0; i < VERSIONS.length; i++) {
-      var sv = VERSIONS[i].strategy_version || "v1";
-      if (sv === currentVersion) {
+      // Filter by version NAME (which equals the active-version id) so a
+      // user-added profile like v3 with strategy_version="v2" doesn't
+      // group its sidebar entries with v2's runs. Falls back to
+      // strategy_version for legacy entries that have no .name set.
+      var nm = VERSIONS[i].name || VERSIONS[i].strategy_version || "v1";
+      if (nm === currentVersion) {
         result.push({ v: VERSIONS[i], idx: i });
       }
     }
@@ -3777,7 +3781,10 @@ __VERSIONS_JSON__
     var hdrDateStr = hdrRange.start && hdrRange.end
       ? fmtSbDate(hdrRange.start) + " \u2192 " + fmtSbDate(hdrRange.end) : "";
     var hdrDur = calcDuration(hdrRange.start, hdrRange.end);
-    var hdrParts = [esc(v.strategy_version || v.name)];
+    /* Header label uses v.name first so a user-added profile like v3
+       (strategy_version="v2") renders as "v3 · …" — not "v2 · …".
+       Falls back to strategy_version for legacy entries without .name. */
+    var hdrParts = [esc(v.name || v.strategy_version || "v1")];
     var hdrInstr = (run.instrument || (v.params && v.params.ticker) || "").replace(/=X$/i, "");
     if (hdrInstr) hdrParts.push(esc(hdrInstr));
     if (hdrDateStr) hdrParts.push(hdrDateStr);

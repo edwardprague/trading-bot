@@ -2950,6 +2950,14 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
 
     function runAnalysis(opts) {{
       if (!runBtn) return;
+      // If a Run is already in progress (button disabled), ignore further
+      // clicks. The simplest way to prevent the race conditions we kept
+      // hitting — no AbortController, no token comparison, no superseded
+      // response logic. The user just waits for the current run to finish.
+      if (runBtn.disabled) {{
+        if (window.console) console.log("[RA] ignoring click — run already in progress");
+        return;
+      }}
       opts = opts || {{}};
       var isAutoLoad = !!opts.silent;
       var startEl = document.getElementById("rb-start");
@@ -2964,8 +2972,6 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       // Instrument follows the BD's selection. The BD persists it to
       // localStorage `rb_instrument`; we read the same key here so a
       // backtest re-run from the RA page targets the same instrument data.
-      // Default to GBPUSD if nothing's been set (matches the labeler's
-      // historical default and the parquet most likely to exist on disk).
       var instVal = (localStorage.getItem("rb_instrument") || "GBPUSD").trim() || "GBPUSD";
       var payload = {{
         instrument: instVal,
@@ -2977,30 +2983,61 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
 
       var scrollY = window.scrollY;
       setRunning(true, isAutoLoad);
-      if (runStatus) runStatus.textContent = "";
 
-      // AbortController + 5-minute timeout — if the network layer hangs
-      // we abort instead of letting the button stay stuck forever. The
-      // setRunning watchdog is a separate, redundant safety net for the
-      // case where the browser itself stalls (e.g. on a giant innerHTML).
-      var controller = (typeof AbortController === "function") ? new AbortController() : null;
-      var fetchTimeout = setTimeout(function () {{
-        if (controller) try {{ controller.abort(); }} catch (e) {{}}
+      // Diagnostic prefix — filter dev-tools console by "[RA]" to see
+      // exactly which step the request reached if it ever appears stuck.
+      var _log = (window.console && console.log)
+        ? function (msg, extra) {{ console.log("[RA] " + msg, extra === undefined ? "" : extra); }}
+        : function () {{}};
+
+      // ── Single-shot finish guard ─────────────────────────────────────
+      // `done` ensures the button is re-enabled exactly once regardless
+      // of which promise branch settles first (or if both somehow fire,
+      // or if the watchdog fires before the response). No AbortController,
+      // no token bookkeeping — just a flag. The orphaned fetch (if any)
+      // will eventually complete server-side but its handlers will see
+      // done=true and bail.
+      var done = false;
+      function finish(statusText) {{
+        if (done) return;
+        done = true;
+        clearTimeout(safetyTimer);
+        setRunning(false);
+        if (statusText !== undefined && runStatus) runStatus.textContent = statusText;
+        _log("finished  statusText=" + JSON.stringify(statusText));
+      }}
+
+      // 5-minute safety timer — last-resort guarantee that the button
+      // re-enables even if every other code path fails. /run_regime_analysis
+      // typically completes in 30-60s, so 5 min is well above the worst
+      // case — but covers genuine server hangs.
+      var safetyTimer = setTimeout(function () {{
+        finish("Timed out — server didn't respond within 5 minutes");
       }}, 5 * 60 * 1000);
+
+      _log("fetch start  payload=", payload);
+      if (runStatus) runStatus.textContent = "Sending…";
 
       var fetchOpts = {{
         method: "POST",
         headers: {{ "Content-Type": "application/json" }},
         body: JSON.stringify(payload),
       }};
-      if (controller) fetchOpts.signal = controller.signal;
+      // No AbortController. Some browsers have quirky AbortController
+      // behavior around POST with JSON bodies; relying on the safety
+      // timer + button-disabled guard is simpler and more reliable.
 
       fetch("/run_regime_analysis", fetchOpts).then(function (r) {{
+        _log("response  status=" + r.status + "  ok=" + r.ok);
+        if (done) return null;  // safety timer already fired
+        if (runStatus) runStatus.textContent = "Parsing…";
         if (!r.ok) throw new Error("HTTP " + r.status);
         return r.json();
       }}).then(function (data) {{
-        clearTimeout(fetchTimeout);
-        if (data.error) throw new Error(data.error);
+        if (done || data === null) return;  // either superseded by timeout or skipped above
+        _log("json parsed  keys=", data ? Object.keys(data) : data);
+        if (data && data.error) throw new Error(data.error);
+        if (!data || typeof data !== "object") throw new Error("Empty response");
         var htmlChunks = {{
           stats_bar:   data.stats_bar,
           macro_perf:  data.macro_perf,
@@ -3008,36 +3045,38 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
           timeline:    data.timeline,
           daily:       data.daily,
         }};
-        // Re-enable the button BEFORE the heavy DOM swap so the UI
-        // reflects "done" immediately — even on a slow render the user
-        // sees the button come back and never thinks the page is hung.
-        setRunning(false);
-        if (runStatus) runStatus.textContent = "";
-        // Chunked render: one section per turn, yielding between each.
-        // Persist + scroll only after all sections land so saved html
-        // matches the rendered state and the scroll restore lines up
-        // with the new content height.
-        applyResponseHtml(htmlChunks, function () {{
+        // Save first (cheap, just JSON.stringify + localStorage write).
+        if (runStatus) runStatus.textContent = "Saving…";
+        try {{ saveRegimeAnalysisState(payload, htmlChunks); _log("save ok"); }}
+        catch (e) {{ console.warn("[RA] save failed:", e); }}
+
+        // Render in a deferred microtask so the browser repaints the
+        // "Rendering…" status text before the (potentially slow)
+        // synchronous innerHTML assignment locks the main thread. The
+        // button stays disabled during render — we call finish() from
+        // INSIDE the deferred callback so the button only re-enables
+        // after the user can actually see the new stats.
+        if (runStatus) runStatus.textContent = "Rendering…";
+        setTimeout(function () {{
+          if (done) return;
           try {{
+            applyResponseHtml(htmlChunks);
             window.scrollTo(0, scrollY);
-            saveRegimeAnalysisState(payload, htmlChunks);
+            _log("render ok");
+            finish("");
           }} catch (e) {{
-            if (runStatus) runStatus.textContent = "Saved-state write failed: " + e.message;
+            console.error("[RA] render failed:", e);
+            finish("Render failed: " + (e.message || e));
           }}
-        }});
+        }}, 0);
       }}).catch(function (err) {{
-        clearTimeout(fetchTimeout);
-        var msg = (err && err.name === "AbortError")
-          ? "Aborted after 5 min — request still running on the server?"
-          : (err && err.message) || String(err);
-        if (runStatus) runStatus.textContent = "Failed: " + msg;
-        setRunning(false);
-      }}).finally(function () {{
-        // Defensive: in the (rare) case .then/.catch both ran but didn't
-        // call setRunning(false) for some reason, this guarantees reset.
-        clearTimeout(fetchTimeout);
-        if (runBtn && runBtn.disabled) setRunning(false);
+        console.warn("[RA] fetch failed:", err);
+        finish("Failed: " + ((err && err.message) || String(err)));
       }});
+      // No .finally — `finish()` is the single, idempotent point of
+      // truth. .finally + .catch + .then all calling setRunning(false)
+      // in various conditional branches was the source of the "stuck
+      // button" bug because one branch could quietly skip the reset.
     }}
 
     if (runBtn) runBtn.addEventListener("click", function () {{ runAnalysis(); }});
@@ -3071,11 +3110,24 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     }}
 
     function saveRegimeAnalysisState(payload, htmlChunks) {{
-      if (!_currentActiveVersionId) return;
+      if (!_currentActiveVersionId) {{
+        // Active version hasn't been resolved yet — usually means the
+        // user clicked Run before /api/active_version returned. Warn so
+        // the failure isn't silent and the user knows the run worked
+        // but the per-version cache slot wasn't written.
+        if (window.console && console.warn) {{
+          console.warn("RA save skipped: active version id not yet known");
+        }}
+        return;
+      }}
       try {{
         var state = {{payload: payload, html: htmlChunks || null}};
         localStorage.setItem(regimeLSKey(_currentActiveVersionId), JSON.stringify(state));
-      }} catch (e) {{ /* quota / privacy mode — silently skip */ }}
+      }} catch (e) {{
+        if (window.console && console.warn) {{
+          console.warn("RA save failed (quota / privacy?):", e);
+        }}
+      }}
     }}
 
     function loadRegimeAnalysisState(versionId) {{
@@ -3118,15 +3170,14 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       }} catch (e) {{}}
     }}
 
-    // Swap each known section's innerHTML from a cached/fresh response
-    // object. When `cb` is provided, work is chunked across setTimeouts
-    // so the main thread yields between sections — critical for wide
-    // date ranges where the daily-breakdown HTML can be many MB and a
-    // single synchronous innerHTML assignment would freeze the page
-    // long enough for the user to think it crashed. When `cb` is
-    // omitted, falls back to a single synchronous pass (used by the
-    // cached-paint path on page load, where the saved html is already
-    // sized below the localStorage quota and synchronous is fine).
+    // Swap each known section's innerHTML from a response object.
+    // Synchronous and simple — the previous chunked-callback variant
+    // had too many silent-failure paths and didn't actually reduce the
+    // browser hang (each section's innerHTML is still synchronous; only
+    // the gap between sections yielded, which is negligible for the
+    // typical response size). If a single section's html is genuinely
+    // pathological, the try/catch isolates the failure so the others
+    // still render.
     var _SECTION_PAIRS = [
       ["stats_bar",   "regime-stats-section"],
       ["macro_perf",  "regime-macro-perf-section"],
@@ -3134,43 +3185,23 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       ["timeline",    "regime-timeline-section"],
       ["daily",       "regime-daily-section"],
     ];
-    function applyResponseHtml(html, cb) {{
-      if (!cb) {{
-        for (var s = 0; s < _SECTION_PAIRS.length; s++) {{
-          var k = _SECTION_PAIRS[s][0], id = _SECTION_PAIRS[s][1];
+    function applyResponseHtml(html) {{
+      for (var s = 0; s < _SECTION_PAIRS.length; s++) {{
+        var k = _SECTION_PAIRS[s][0], id = _SECTION_PAIRS[s][1];
+        try {{
           if (typeof html[k] === "string") {{
             var el = document.getElementById(id);
             if (el) el.innerHTML = html[k];
           }}
-        }}
-        attachDailyHandlers();
-        return;
-      }}
-      // Chunked path: one section per turn, yielding to the event loop
-      // between each so the browser stays responsive and the watchdog
-      // (or user retry) can still fire if anything goes pathologically slow.
-      var i = 0;
-      function nextSection() {{
-        if (i >= _SECTION_PAIRS.length) {{
-          try {{ attachDailyHandlers(); }} catch (e) {{}}
-          cb();
-          return;
-        }}
-        var pair = _SECTION_PAIRS[i++];
-        try {{
-          if (typeof html[pair[0]] === "string") {{
-            var ele = document.getElementById(pair[1]);
-            if (ele) ele.innerHTML = html[pair[0]];
-          }}
         }} catch (e) {{
-          // A bad section shouldn't trap the whole chain — log and move on.
           if (window.console && console.warn) {{
-            console.warn("RA section render failed:", pair[0], e);
+            console.warn("RA section render failed:", k, e);
           }}
         }}
-        setTimeout(nextSection, 0);
       }}
-      setTimeout(nextSection, 0);
+      try {{ attachDailyHandlers(); }} catch (e) {{
+        if (window.console && console.warn) console.warn("attachDailyHandlers failed:", e);
+      }}
     }}
 
     function applySavedStateToControls(saved) {{
@@ -3266,13 +3297,30 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         if (resp && resp.ok && resp.active && resp.active.id) {{
           _currentActiveVersionId = resp.active.id;
         }}
-        // Load this version's cached state and restore everything (dates,
-        // toggles, html). Done before the regime_state toggle override
-        // below so the override has the final word on toggle UI.
+        // Load this version's cached state and restore date pickers +
+        // toggles. The cached html is painted ONLY if its saved
+        // allow-lists still match versions.json's current regime_state —
+        // otherwise (e.g. the user manually edited versions.json or
+        // another tab wrote different toggles) the cached lock icons and
+        // stats would reflect a stale toggle state, visually disagreeing
+        // with the freshly-set toggle UI we're about to render below.
+        // That mismatch was Bug 4's "lock icons inverted from toggles"
+        // and contributed to Bug 1's "same filter set, different stats".
         _savedState = loadRegimeAnalysisState(_currentActiveVersionId);
         if (_savedState) {{
           applySavedStateToControls(_savedState.payload);
-          if (_savedState.html) {{
+          if (_savedState.html && resp && resp.active && resp.active.regime_state) {{
+            var _curMacro = ((resp.active.regime_state.allowed_macro_regimes || []).slice().sort()).join(",");
+            var _curMicro = ((resp.active.regime_state.allowed_micro_regimes || []).slice().sort()).join(",");
+            var _savMacro = ((_savedState.payload.allowed_macro_regimes || []).slice().sort()).join(",");
+            var _savMicro = ((_savedState.payload.allowed_micro_regimes || []).slice().sort()).join(",");
+            if (_savMacro === _curMacro && _savMicro === _curMicro) {{
+              applyResponseHtml(_savedState.html);
+            }}
+            // else: leave the server-rendered static sections in place;
+            // user must click Run Analysis to refresh against current toggles.
+          }} else if (_savedState.html) {{
+            // No regime_state to compare against — paint optimistically.
             applyResponseHtml(_savedState.html);
           }}
         }}

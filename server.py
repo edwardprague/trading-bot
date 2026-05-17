@@ -639,7 +639,21 @@ document.addEventListener("DOMContentLoaded", function () {
       sel.appendChild(newOpt);
     });
 
-    if (active) sel.value = active.id;
+    if (active) {
+      sel.value = active.id;
+      /* Sync report.html's `currentVersion` to the active version's id so
+         the sidebar filter (getStrategyVersions, which now matches by
+         .name) groups runs by the active version — not by the underlying
+         strategy module. report.html's initial selectVersion() builds its
+         options from unique strategy_versions only, so on first paint
+         currentVersion is "v1" or "v2"; without this hand-off, picking
+         a v2-based profile like v3 would still show v2's runs in the
+         sidebar. Calling onVersionChange() reads sel.value (= active.id)
+         into currentVersion, persists it, and re-renders the sidebar. */
+      if (typeof onVersionChange === "function") {
+        try { onVersionChange(); } catch (e) {}
+      }
+    }
 
     /* Sync the active version when the user picks something. We use
        addEventListener so the page's existing onchange="selectVersion"
@@ -1284,11 +1298,23 @@ def serve_results_file(filename):
     send_from_directory rejects paths that escape the directory root, so this
     is safe against path-traversal attacks (e.g. /results/../server.py) even
     when `filename` comes straight from the URL.
+
+    For HTML files (e.g. regime_analysis.html, regime_discovery.html) we
+    explicitly disable browser caching. Those files embed inline JS that we
+    edit frequently during development; without no-store the browser will
+    happily serve a stale cached copy and the user sees "the bug is back"
+    even after we've fixed it. PNG/CSV/etc. assets keep their normal cache
+    behavior since they don't carry behaviour-changing code.
     """
     if not RESULTS_DIR.exists():
         abort(404)
     try:
-        return send_from_directory(str(RESULTS_DIR), filename, conditional=True)
+        resp = send_from_directory(str(RESULTS_DIR), filename, conditional=True)
+        if filename.endswith(".html"):
+            resp.headers["Cache-Control"] = "no-store, must-revalidate"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+        return resp
     except FileNotFoundError:
         abort(404)
 
