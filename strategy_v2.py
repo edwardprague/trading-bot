@@ -5244,6 +5244,19 @@ __VERSIONS_JSON__
     if (!m) return;
     var num = parseInt(m[1], 10);
     if (num < 1 || num > 9) return;
+
+    /* Key 1 always scrolls the #main container to the top — handled BEFORE
+       any tab/row lookup so it works regardless of active tab / row
+       visibility / focus location. Keys 2-9 retain section-row scrolling. */
+    var mainEl = document.getElementById("main");
+    if (num === 1) {
+      if (mainEl) {
+        e.preventDefault();
+        mainEl.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
+
     var activeTab = document.querySelector(".tab-content.active");
     if (!activeTab) return;
     /* Collect visible direct-child section rows (divs with content) */
@@ -5255,14 +5268,9 @@ __VERSIONS_JSON__
     var idx = num - 1;
     if (idx >= rows.length) return;
     e.preventDefault();
-    var mainEl = document.getElementById("main");
     if (!mainEl) return;
-    if (idx === 0) {
-      mainEl.scrollTo({ top: 0, behavior: "smooth" });
-    } else {
-      var top = rows[idx].offsetTop - mainEl.offsetTop - 16;
-      mainEl.scrollTo({ top: top, behavior: "smooth" });
-    }
+    var top = rows[idx].offsetTop - mainEl.offsetTop - 16;
+    mainEl.scrollTo({ top: top, behavior: "smooth" });
   });
 
   /* ── Helper: check if focus is in a form field ──────────── */

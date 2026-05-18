@@ -2516,7 +2516,7 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     """
 
     html = f"""<!doctype html>
-<html lang="en">
+<html lang="en" id="main">
 <head>
   <meta charset="utf-8">
   <title>Regime Analysis — GBPUSD 5m</title>
@@ -2607,17 +2607,17 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       </p>
     </section>
 
-    <section>
+    <section id="regime-macro-profiles-section">
       <h2>Macro Regime Profiles</h2>
       <div class="regime-summary-grid">{macro_cards_html}</div>
     </section>
 
-    <section>
+    <section id="regime-summary-cards-section">
       <h2>Regime summary cards</h2>
       <div class="regime-summary-grid">{''.join(cards) or '<p class=regime-dim>No regimes observed.</p>'}</div>
     </section>
 
-    <section class="regime-card">
+    <section id="regime-thresholds-section" class="regime-card">
       <h2>Threshold distributions</h2>
       <p class="regime-dim regime-small">
         Tercile cuts (dashed lines) are taken from the actual observed distributions
@@ -2630,7 +2630,7 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       </div>
     </section>
 
-    <section class="regime-card">
+    <section id="regime-periods-section" class="regime-card">
       <h2>Regime periods</h2>
       {period_table}
     </section>
@@ -3438,6 +3438,64 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         clearRegimeAnalysisState();
       }});
     }}
+
+    // ── Keyboard shortcuts: 1, 2-9, 0 jump to RA sections ─────────────────
+    // Mirrors the BD's pattern. `#main` is `<html>` (it carries id="main"
+    // — the RA page uses the document as its scroller). Suppressed when
+    // focus is in a form field.
+    //
+    //   1 → top of page
+    //   2 → Stats cards (regime-stats-section) — also surfaces the regime
+    //       filters panel just below
+    //   3 → Macro regime performance table
+    //   4 → Micro regime performance table
+    //   5 → Regime timeline
+    //   6 → Daily performance
+    //   7 → Macro Regime Profiles
+    //   8 → Regime summary cards
+    //   9 → Threshold distributions
+    //   0 → Regime periods (bottom of page)
+    document.addEventListener("keydown", function (e) {{
+      if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+      var tag = (e.target.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
+      var m = (e.code || "").match(/^Digit(\d)$/);
+      if (!m) return;
+      var num = parseInt(m[1], 10);
+
+      var mainEl = document.getElementById("main");
+      if (!mainEl) return;
+      if (num === 1) {{
+        e.preventDefault();
+        mainEl.scrollTo({{ top: 0, behavior: "smooth" }});
+        return;
+      }}
+      var sectionIds = {{
+        2: "regime-stats-section",
+        3: "regime-macro-perf-section",
+        4: "regime-perf-section",
+        5: "regime-timeline-section",
+        6: "regime-daily-section",
+        7: "regime-macro-profiles-section",
+        8: "regime-summary-cards-section",
+        9: "regime-thresholds-section",
+        0: "regime-periods-section",
+      }};
+      if (!(num in sectionIds)) return;
+      var sec = document.getElementById(sectionIds[num]);
+      if (!sec) return;
+      e.preventDefault();
+      // Anchor on the section's <h2> heading when present so the title
+      // lines up just below the fixed chrome. Falls back to the section
+      // element for the stats-cards section (which has no h2).
+      var anchor = sec.querySelector("h2") || sec;
+      var topNav = document.getElementById("top-nav");
+      var runBar = document.getElementById("run-bar");
+      var chromeH = (topNav ? topNav.offsetHeight : 0) + (runBar ? runBar.offsetHeight : 0);
+      if (chromeH === 0) chromeH = parseInt(getComputedStyle(document.body).paddingTop, 10) || 92;
+      var top = anchor.offsetTop - mainEl.offsetTop - chromeH - 12;
+      mainEl.scrollTo({{ top: Math.max(0, top), behavior: "smooth" }});
+    }});
 
     // ── Regime-filters show/hide toggle ────────────────────────────────────
     // Mirrors the dashboard's `bs-toggle-btn` + `bs-collapsible` pattern.

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" id="main">
 <head>
   <meta charset="utf-8">
   <title>Regime Analysis — GBPUSD 5m</title>
@@ -228,7 +228,7 @@
       </p>
     </section>
 
-    <section>
+    <section id="regime-macro-profiles-section">
       <h2>Macro Regime Profiles</h2>
       <div class="regime-summary-grid">
           <div class='regime-card regime-summary-card'>
@@ -313,7 +313,7 @@
         </div>
     </section>
 
-    <section>
+    <section id="regime-summary-cards-section">
       <h2>Regime summary cards</h2>
       <div class="regime-summary-grid">
           <div class='regime-card regime-summary-card'>
@@ -468,7 +468,7 @@
         </div>
     </section>
 
-    <section class="regime-card">
+    <section class="regime-card" id="regime-thresholds-section">
       <h2>Threshold distributions</h2>
       <p class="regime-dim regime-small">
         Tercile cuts (dashed lines) are taken from the actual observed distributions
@@ -481,7 +481,7 @@
       </div>
     </section>
 
-    <section class="regime-card">
+    <section class="regime-card" id="regime-periods-section">
       <h2>Regime periods</h2>
       
       <table class='regime-table'>
@@ -1297,6 +1297,45 @@
         clearRegimeAnalysisState();
       });
     }
+
+        // ── Keyboard shortcuts: 0–9 jump to named RA sections ─────────────────
+    // #main is the <html> element on the RA page (the document is the scroller).
+    // Mirrors the BD's pattern where 0 scrolls to the bottom.
+    document.addEventListener("keydown", function (e) {
+      if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+      var tag = (e.target.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
+      var m = (e.code || "").match(/^Digit(\d)$/);
+      if (!m) return;
+      var num = parseInt(m[1], 10);
+      var mainEl = document.getElementById("main");
+      if (!mainEl) return;
+      e.preventDefault();
+      if (num === 1) {
+        mainEl.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      var sectionIds = {
+        2: "regime-stats-section",
+        3: "regime-macro-perf-section",
+        4: "regime-perf-section",
+        5: "regime-timeline-section",
+        6: "regime-daily-section",
+        7: "regime-macro-profiles-section",
+        8: "regime-summary-cards-section",
+        9: "regime-thresholds-section",
+        0: "regime-periods-section",
+      };
+      var sec = document.getElementById(sectionIds[num]);
+      if (!sec) return;
+      var anchor = sec.querySelector("h2") || sec;
+      var topNav = document.getElementById("top-nav");
+      var runBar = document.getElementById("run-bar");
+      var chromeH = (topNav ? topNav.offsetHeight : 0) + (runBar ? runBar.offsetHeight : 0);
+      if (chromeH === 0) chromeH = parseInt(getComputedStyle(document.body).paddingTop, 10) || 92;
+      var top = anchor.offsetTop - mainEl.offsetTop - chromeH - 12;
+      mainEl.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    });
 
     // ── Regime-filters show/hide toggle ────────────────────────────────────
     // Mirrors the dashboard's `bs-toggle-btn` + `bs-collapsible` pattern.
