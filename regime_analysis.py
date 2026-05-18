@@ -2529,7 +2529,6 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
 </head>
 <body class="regime-report">
   <nav class="top-nav" id="top-nav">
-    <span class="top-nav-brand">Fractal Bot</span>
     <ul class="top-nav-items">
       <li><a class="top-nav-link" href="/">Backtesting</a></li>
       <li><a class="top-nav-link top-nav-link-active" href="/results/regime_analysis.html">Regimes</a></li>

@@ -373,7 +373,6 @@ _bt_state = {"running": False, "ok": None, "error": None, "no_data": False, "sta
 
 INJECT_HTML = """
 <nav class="top-nav" id="top-nav">
-  <span class="top-nav-brand">Fractal Bot</span>
   <ul class="top-nav-items">
     <li><a class="top-nav-link top-nav-link-active" href="/">Backtesting</a></li>
     <li><a class="top-nav-link" href="/results/regime_analysis.html">Regimes</a></li>
@@ -1090,8 +1089,7 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
 </head>
 <body class="versions-page">
   <nav class="top-nav" id="top-nav">
-    <span class="top-nav-brand">Fractal Bot</span>
-    <ul class="top-nav-items">
+      <ul class="top-nav-items">
       <li><a class="top-nav-link" href="/">Backtesting</a></li>
       <li><a class="top-nav-link" href="/results/regime_analysis.html">Regimes</a></li>
       <li><span class="top-nav-link top-nav-link-disabled" aria-disabled="true">Discovery</span></li>

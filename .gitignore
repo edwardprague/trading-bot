@@ -2,3 +2,4 @@ venv/
 .env
 data/
 results/regime_charts/
+!data/versions.json
