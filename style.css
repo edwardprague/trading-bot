@@ -2693,6 +2693,45 @@ body.versions-page {
     gap: 8px;
 }
 
+/* Task 4: per-version free-form notes (replaces RESULTS_LOG.md + devlog.json).
+   Spans both grid columns and sits below the meta row. */
+.versions-row-notes {
+    grid-column: 1 / span 2;
+    grid-row: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+}
+.versions-row-notes-label {
+    font-size: 11px;
+    color: #707090;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.versions-row-notes-textarea {
+    background: #14142a;
+    color: #c0c0e0;
+    border: 1px solid #2a2a44;
+    border-radius: 5px;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    width: 100%;
+    min-height: 60px;
+    resize: vertical;
+    line-height: 1.5;
+}
+.versions-row-notes-textarea:focus {
+    border-color: #4cc9f0;
+    outline: none;
+}
+.versions-row-notes-status {
+    font-size: 11px;
+    color: #707090;
+    min-height: 14px;
+}
+
 /* ─── Run bar — shared with the dashboard ─────────────────────────────────
    These classes mirror the dashboard's INJECT_HTML inline styles so the
    regime page's static run bar (rendered by build_report) picks up the
@@ -3392,6 +3431,27 @@ body.results-listing {
     margin-left: 6px;
     color: #ffd93d;
     cursor: help;
+}
+
+/* Task 5: when the user toggles a regime checkbox but hasn't yet clicked
+   Run Analysis, the lock icons + per-row stats reflect the LAST run's
+   filter state — not the current toggle state. Dim the result sections
+   and surface a clear "click Run" affordance so the user isn't misled. */
+body.regime-stale #regime-stats-section,
+body.regime-stale #regime-macro-perf-section,
+body.regime-stale #regime-perf-section,
+body.regime-stale #regime-timeline-section,
+body.regime-stale #regime-daily-section {
+    opacity: 0.45;
+    transition: opacity 0.15s ease-out;
+}
+body.regime-stale #run-analysis-btn {
+    box-shadow: 0 0 0 2px #ffd93d;
+}
+body.regime-stale #run-analysis-btn::after {
+    content: " ← toggles changed";
+    font-size: 11px;
+    opacity: 0.8;
 }
 
 .regime-blocked-lock .material-symbols-outlined {

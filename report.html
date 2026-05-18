@@ -12164,7 +12164,8 @@
     /* Expose the currently active version name globally for the run-bar */
     var curV = VERSIONS[activeVersionIdx];
     window._currentVersionName = curV ? curV.name : "";
-    window._currentVersionDisplayName = curV ? (curV.strategy_version || curV.name) : "";
+    /* Task 6b: prefer name so v3 shows as "Add Date Range (v3)" not "(v2)" */
+    window._currentVersionDisplayName = curV ? (curV.name || curV.strategy_version) : "";
     if (typeof updateRangeButtonLabel === "function") updateRangeButtonLabel();
   }
 
@@ -13072,8 +13073,10 @@
           }())) +
           row("Instrument",     "<span class='val-highlight'>" + esc((run.instrument || p.ticker || "EURUSD").replace(/=X$/i, "")) + "</span>") +
           row("Interval",       "<span class='val-highlight'>" + esc(savedInterval) + "</span>") +
-          row("EMA Short",      "<span class='val-highlight'>" + esc(savedEmaShort) + "</span>") +
-          row("EMA Mid",        "<span class='val-highlight'>" + esc(savedEmaMid) + "</span>") +
+          /* Task 6a: hide EMA Short / EMA Mid when set to 0 — v2 doesn't
+             use them, so a row that says "EMA Short: 0" is noise. */
+          (Number(savedEmaShort) > 0 ? row("EMA Short", "<span class='val-highlight'>" + esc(savedEmaShort) + "</span>") : "") +
+          (Number(savedEmaMid)   > 0 ? row("EMA Mid",   "<span class='val-highlight'>" + esc(savedEmaMid)   + "</span>") : "") +
           row("EMA Long",       "<span class='val-highlight'>" + esc(savedEmaLong) + "</span>") +
           row("Stop Loss Level", "<span class='val-highlight'>" + esc(savedStopPips) + " pips</span>") +
           row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +

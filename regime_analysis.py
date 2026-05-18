@@ -414,26 +414,32 @@ def build_stats_bar_html(agg_stats, filter_state_label, filter_state_class):
 
 def build_perf_table_html(perf_df, regime_count, blocked_micro_keys=None,
                            trades_df=None, blocked_signals_df=None,
-                           allowed_macro_keys=None):
+                           allowed_macro_keys=None, unfiltered_trades_df=None):
     """Render the 'Micro regime performance' table.
 
     For ALLOWED regimes (not in `blocked_micro_keys`): stats come from
     `perf_df` (built earlier from the fired trades) — these match what the
     active strategy actually did.
 
-    For LOCKED regimes: stats are recomputed from the *combined* fired-trade
-    + blocked-signal frame (`trades_df + blocked_signals_df`) restricted to
-    that regime. If `allowed_macro_keys` is provided, the combined set is
-    additionally filtered to days whose macro regime is allowed, so the
-    counterfactual shows what the locked micro regime would have produced
-    on the active-strategy macro universe.
+    For LOCKED regimes: stats are counterfactual. Sources, in preference
+    order:
+      • `unfiltered_trades_df` — the FULL trade set from a backtest with
+        the regime gate disabled (Task 1's cached pipeline). Most
+        accurate because the other gates were still applied.
+      • `trades_df + blocked_signals_df` (legacy) — combines active
+        strategy trades with `reason='micro_regime'` rejections from a
+        gate-active backtest. `allowed_macro_keys` further restricts the
+        combined set to days whose macro regime is allowed.
 
     `trades_df` / `blocked_signals_df` are optional; if absent, locked rows
-    fall back to the legacy behaviour of showing em-dashes.
+    fall back to em-dashes.
     """
     blocked_micro_keys = blocked_micro_keys or set()
     if trades_df is None: trades_df = pd.DataFrame()
     if blocked_signals_df is None: blocked_signals_df = pd.DataFrame()
+    have_unfiltered = (unfiltered_trades_df is not None
+                       and not unfiltered_trades_df.empty
+                       and "regime" in unfiltered_trades_df.columns)
 
     counterfactual_tip = (
         "Counterfactual — would-be outcome of signals that were blocked "
@@ -472,7 +478,25 @@ def build_perf_table_html(perf_df, regime_count, blocked_micro_keys=None,
             continue
         is_blocked = r["regime"] in blocked_micro_keys
 
-        if is_blocked and not combined.empty and "regime" in combined.columns:
+        # Locked rows: prefer the unfiltered-trades source (Task 1's
+        # cached pipeline runs the backtest with the micro gate disabled
+        # so every signal that passed other gates lands here). Falls back
+        # to the legacy combined frame if no unfiltered source provided.
+        if is_blocked and have_unfiltered:
+            sub = unfiltered_trades_df[unfiltered_trades_df["regime"] == r["regime"]]
+            if allowed_macro_keys is not None and "macro_label" in sub.columns:
+                sub = sub[sub["macro_label"].isin(allowed_macro_keys)]
+            stats = _row_stats(sub)
+            n_trades   = stats["n"]
+            wins_cell  = stats["wins_str"]
+            wr_cell    = stats["wr_cell"]
+            pf_cell    = stats["pf_cell"]
+            avg_cell   = stats["avg_cell"]
+            total_cell = (
+                f"<td class='regime-pnl-counterfactual' "
+                f"title='{counterfactual_tip}'>{stats['tot_inner']}</td>"
+            )
+        elif is_blocked and not combined.empty and "regime" in combined.columns:
             sub = combined[combined["regime"] == r["regime"]]
             stats = _row_stats(sub)
             n_trades   = stats["n"]
@@ -1780,24 +1804,30 @@ def _macro_trades_by_label(macro, trades_df):
 
 
 def build_macro_perf_table(macro, trades_df, blocked_macro_keys=None,
-                            blocked_signals_df=None):
+                            blocked_signals_df=None, unfiltered_trades_df=None):
     """Render the 'Macro regime performance' table.
 
     Columns: Regime / Periods / Trades / Wins / Win rate / Profit factor /
     Avg P&L / Total P&L. 'Periods' is the count of days classified into
     each macro regime.
 
-    Allowed rows (macro not in blocked_macro_keys): stats come from the
-    fired-trade frame only (`trades_df`), i.e. what the active strategy
-    actually traded.
+    Allowed rows (macro not in blocked_macro_keys): stats come from
+    `trades_df` (the active strategy's filtered trades).
 
-    Locked rows: stats come from the *combined* set of fired trades +
-    blocked-signal scan_outcomes (`trades_df + blocked_signals_df`) on
-    that macro day. Since the macro gate keeps the strategy from firing
-    on locked days, the combined set is effectively pure counterfactual —
-    what would have happened if the gate were off. Locked rows also get
-    the dim+lock visual treatment and a counterfactual tooltip on the
-    Total P&L cell.
+    Locked rows: stats are counterfactual ("what would have happened if
+    this regime were allowed"). Two sources are supported:
+      • `unfiltered_trades_df` — the FULL trade set from a backtest with
+        the regime gate disabled. When the RA endpoint runs in cached
+        mode (Task 1), the backtest is executed with empty allow-lists so
+        every signal that passed the non-regime gates fires; the locked
+        row pulls trades on its regime directly from this set. Preferred
+        because it accounts for all the other gates (EMA / time /
+        daily-loss-limit) being applied to a no-regime-filter run.
+      • `blocked_signals_df` — legacy fallback. Holds the `reason='macro_regime'`
+        rejections from a backtest where the gate WAS active. Less
+        accurate (position sizing + daily-loss-limit aren't re-simulated
+        as if those signals had fired), but kept for back-compat with
+        callers that haven't migrated to the cached pipeline.
     """
     days_per_label = {}
     for d in macro.values():
@@ -1819,6 +1849,13 @@ def build_macro_perf_table(macro, trades_df, blocked_macro_keys=None,
     else:
         macro_only_blocked = blocked_signals_df.iloc[0:0]
 
+    # Counterfactual source for locked rows. Prefer the unfiltered trades
+    # (from a no-regime-gate backtest) when provided; otherwise fall back
+    # to the legacy fired-trades + macro_only_blocked combination.
+    have_unfiltered = (unfiltered_trades_df is not None
+                       and not unfiltered_trades_df.empty
+                       and "macro_label" in unfiltered_trades_df.columns)
+
     counterfactual_tip = (
         "Counterfactual — would-be outcome of signals that were blocked "
         "specifically by the macro filter on this regime. Win rate and "
@@ -1834,8 +1871,13 @@ def build_macro_perf_table(macro, trades_df, blocked_macro_keys=None,
             continue
         is_blocked = label in blocked_macro_keys
 
-        # Pick the source frame: macro-blocked-only for locked rows, fired-only otherwise.
-        if is_blocked and not macro_only_blocked.empty:
+        # Pick the source frame:
+        #   • Locked row + have_unfiltered → unfiltered trades (best counterfactual).
+        #   • Locked row + legacy path → fired trades + macro_only_blocked.
+        #   • Allowed row → fired trades only.
+        if is_blocked and have_unfiltered:
+            source = unfiltered_trades_df
+        elif is_blocked and not macro_only_blocked.empty:
             source = pd.concat([trades_df, macro_only_blocked], ignore_index=True)
         else:
             source = trades_df
@@ -1955,7 +1997,8 @@ def build_macro_summary_cards(macro, trades_df):
 
 def build_daily_breakdown(periods, trades_df, full_df, available_chart_days,
                           in_range_fractals, low_activity_days,
-                          macro=None, blocked_macro_keys=None):
+                          macro=None, blocked_macro_keys=None,
+                          trading_days=None):
     """Build the sortable daily-breakdown table. Returns the full <table>…</table>
     HTML string.
 
@@ -1969,8 +2012,12 @@ def build_daily_breakdown(periods, trades_df, full_df, available_chart_days,
     low_activity_days : set of YYYY-MM-DD strings flagged as low-activity
         (fewer than LOW_ACTIVITY_FRACTAL_THRESHOLD fractals); a small amber
         warning dot is appended next to those dates.
+    trading_days : optional pre-computed sorted list of YYYY-MM-DD trading
+        days. When passed, skips the per-call `_trading_days_in_range` work
+        which is O(N_bars) and dominates the post-cache RA endpoint time on
+        wide date ranges. Falls back to deriving from `full_df` when None.
     """
-    days = _trading_days_in_range(full_df)
+    days = trading_days if trading_days is not None else _trading_days_in_range(full_df)
     if not days:
         return "<p class='regime-dim'>No trading days in range.</p>"
 
@@ -2391,16 +2438,11 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         <span class="rb-btn-icon">&#9654;</span> Run Analysis
       </button>
       <span class="rb-sep"></span>
+      <!-- Task 3: native date inputs (no Mon-DD-YY overlay). -->
       <label class="rb-label" for="rb-start">From</label>
-      <span class="rb-date-wrap">
-        <input type="date" id="rb-start" class="rb-date" value="{START_DATE}">
-        <span class="rb-date-overlay" id="rb-start-overlay">{START_DATE}</span>
-      </span>
+      <input type="date" id="rb-start" class="rb-date" value="{START_DATE}">
       <label class="rb-label" for="rb-end">To</label>
-      <span class="rb-date-wrap">
-        <input type="date" id="rb-end" class="rb-date" value="{END_DATE}">
-        <span class="rb-date-overlay" id="rb-end-overlay">{END_DATE}</span>
-      </span>
+      <input type="date" id="rb-end" class="rb-date" value="{END_DATE}">
       <span id="run-status" class="rb-status"></span>
       <div class="rb-action-group">
         <button id="regime-copy-btn" class="rb-btn rb-btn-copy" type="button"
@@ -2832,21 +2874,6 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       return lines.join("\\n").replace(/\\n{{3,}}/g, "\\n\\n").trim() + "\\n";
     }}
 
-    // ── Run bar: date-picker overlay sync ──────────────────────────────────
-    // The native <input type="date"> field's value is hidden by an overlay
-    // span (matching the dashboard's run bar styling). Keep them in sync.
-    function syncDateOverlay(inputId, overlayId) {{
-      var input = document.getElementById(inputId);
-      var overlay = document.getElementById(overlayId);
-      if (!input || !overlay) return;
-      function update() {{ overlay.textContent = input.value || ""; }}
-      input.addEventListener("change", update);
-      input.addEventListener("input", update);
-      update();
-    }}
-    syncDateOverlay("rb-start", "rb-start-overlay");
-    syncDateOverlay("rb-end",   "rb-end-overlay");
-
     // ── Title sync: reflect the BD's active instrument ─────────────────────
     // The BD persists the instrument selector to localStorage under
     // `rb_instrument` (see report.html line ~148101). The RA page hardcodes
@@ -2895,11 +2922,27 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       }}
     }}
 
+    // Task 5: track when the toggle UI diverges from the last-rendered
+    // state so the lock icons in the tables don't appear to lie. A user
+    // can toggle a checkbox without clicking Run Analysis; the visible
+    // lock icons still reflect the LAST run's blocked_macro_keys until
+    // the next Run lands. We add `.regime-stale` to the body to dim the
+    // sections + show a "click Run to refresh" hint, cleared on the next
+    // successful run.
+    function markStale() {{
+      document.body.classList.add("regime-stale");
+    }}
+    function clearStale() {{
+      document.body.classList.remove("regime-stale");
+    }}
     document.querySelectorAll(".regime-toggle").forEach(function (toggle) {{
       applyToggleVisual(toggle);
       var input = toggle.querySelector(".regime-toggle-input");
       if (input) {{
-        input.addEventListener("change", function () {{ applyToggleVisual(toggle); }});
+        input.addEventListener("change", function () {{
+          applyToggleVisual(toggle);
+          markStale();
+        }});
       }}
     }});
 
@@ -3062,6 +3105,8 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
           try {{
             applyResponseHtml(htmlChunks);
             window.scrollTo(0, scrollY);
+            // Task 5: tables now reflect current toggle state — clear stale flag.
+            if (typeof clearStale === "function") clearStale();
             _log("render ok");
             finish("");
           }} catch (e) {{
@@ -3213,20 +3258,12 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       // stay consistent with the restored date range — no silent
       // disagreement between pickers and the numbers on screen.
       //
-      // The native <input type="date"> is visually hidden behind an
-      // overlay <span> (see syncDateOverlay above), and the overlay's
-      // text is only refreshed by the input's 'input' / 'change' events.
-      // Programmatic assignments to `.value` don't fire those events, so
-      // we dispatch an 'input' event ourselves to push the new date into
-      // the visible overlay. Without this the underlying input has the
-      // restored value but the overlay still shows the full-range default.
-      function setDateInput(el, val) {{
-        if (!el || !val) return;
-        el.value = val;
-        el.dispatchEvent(new Event("input", {{bubbles: true}}));
-      }}
-      setDateInput(document.getElementById("rb-start"), saved && saved.start_date);
-      setDateInput(document.getElementById("rb-end"),   saved && saved.end_date);
+      // Task 3: native date inputs — straight `.value` assignment now
+      // works because there's no overlay to keep in sync.
+      var _s = document.getElementById("rb-start");
+      var _e = document.getElementById("rb-end");
+      if (_s && saved && saved.start_date) _s.value = saved.start_date;
+      if (_e && saved && saved.end_date)   _e.value = saved.end_date;
       //
       // Instrument — restored to localStorage `rb_instrument` so any
       // subsequent runs (and the page title) reflect what this version

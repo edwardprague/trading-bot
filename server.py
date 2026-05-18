@@ -410,10 +410,15 @@ INJECT_HTML = """
   <span class="rb-sep"></span>
 
   <div id="rb-range-group" style="display: flex; align-items: center; gap: 12px;">
+    <!-- Task 3: native date input. The previous design hid the input's
+         text with `color: transparent` and overlaid a custom "Mon-DD-YY"
+         span — that broke whenever the value was set programmatically
+         (no input/change event → overlay stayed stale). The native
+         input is reliable and accessible. -->
     <label class="rb-label" for="rb-start">From</label>
-    <span class="rb-date-wrap"><input type="date" id="rb-start" class="rb-date"><span class="rb-date-overlay" id="rb-start-overlay"></span></span>
+    <input type="date" id="rb-start" class="rb-date">
     <label class="rb-label" for="rb-end">To</label>
-    <span class="rb-date-wrap"><input type="date" id="rb-end" class="rb-date"><span class="rb-date-overlay" id="rb-end-overlay"></span></span>
+    <input type="date" id="rb-end" class="rb-date">
     <button id="run-range-btn" class="rb-btn rb-btn-blue" onclick="runDateRange()">&#9654;&nbsp; Add Date Range</button>
   </div>
 
@@ -445,23 +450,13 @@ INJECT_HTML = """
     font-size: 11px; color: #505070; flex-shrink: 0;
   }
 
-  .rb-date-wrap {
-    position: relative; display: inline-block; width: 130px; flex-shrink: 0;
-  }
   .rb-date {
-    background: #14142a; color: transparent; border: 1px solid #2a2a44;
+    background: #14142a; color: #c0c0e0; border: 1px solid #2a2a44;
     border-radius: 5px; padding: 5px 8px; font-size: 12px;
-    font-family: inherit; width: 100%; flex-shrink: 0;
-    color-scheme: dark; position: relative; z-index: 1;
+    font-family: inherit; width: 130px; flex-shrink: 0;
+    color-scheme: dark;
   }
   .rb-date:focus { border-color: #4cc9f0; outline: none; }
-  .rb-date-overlay {
-    position: absolute; top: 0; left: 0; right: 22px; bottom: 0;
-    display: flex; align-items: center;
-    padding: 5px 8px; font-size: 12px; font-family: inherit;
-    color: #c0c0e0; pointer-events: none; z-index: 2;
-    white-space: nowrap;
-  }
 
   .rb-select {
     background: #14142a; color: #c0c0e0; border: 1px solid #2a2a44;
@@ -538,37 +533,21 @@ document.addEventListener("DOMContentLoaded", function () {
     if (_devlogBtn) { _devlogBtn.className = "rb-devlog-btn"; _devlogBtn.style.display = ""; _actGroup.appendChild(_devlogBtn); }
   }
 
-  /* ── Date overlay helper: show Mon-DD-YY on top of native date input ── */
-  var _ovMn = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  function updateOverlay(inputEl, overlayEl) {
-    var v = inputEl.value;  /* native value is always YYYY-MM-DD */
-    if (!v) { overlayEl.textContent = ""; return; }
-    var p = v.split("-");
-    if (p.length === 3) overlayEl.textContent = _ovMn[parseInt(p[1], 10) - 1] + "-" + p[2] + "-" + p[0].slice(2);
-    else overlayEl.textContent = "";
-  }
-
   /* ── Persist date pickers via localStorage ─────────────────────── */
-  var startEl      = document.getElementById("rb-start");
-  var endEl        = document.getElementById("rb-end");
-  var startOverlay = document.getElementById("rb-start-overlay");
-  var endOverlay   = document.getElementById("rb-end-overlay");
+  /* Native date inputs now (Task 3) — no overlay sync needed. */
+  var startEl = document.getElementById("rb-start");
+  var endEl   = document.getElementById("rb-end");
 
   var savedStart = localStorage.getItem("rb_start_date");
   var savedEnd   = localStorage.getItem("rb_end_date");
   if (savedStart) startEl.value = savedStart;
   if (savedEnd)   endEl.value   = savedEnd;
 
-  updateOverlay(startEl, startOverlay);
-  updateOverlay(endEl, endOverlay);
-
   startEl.addEventListener("change", function () {
     localStorage.setItem("rb_start_date", startEl.value);
-    updateOverlay(startEl, startOverlay);
   });
   endEl.addEventListener("change", function () {
     localStorage.setItem("rb_end_date", endEl.value);
-    updateOverlay(endEl, endOverlay);
   });
 
   /* ── On load: resume polling if a backtest is already running ───── */
@@ -673,9 +652,11 @@ document.addEventListener("DOMContentLoaded", function () {
         /* Mirror the sidebar pattern (renderSidebar in report.html, ~146481):
            keep the global version-name + display-name in sync so the run-bar
            "Add Date Range (vN)" label reflects this dropdown change without
-           waiting for a separate sidebar click. */
+           waiting for a separate sidebar click.
+           Task 6b: use NAME first so v3 (strategy_version="v2") renders as
+           "Add Date Range (v3)" — not "(v2)". */
         window._currentVersionName        = resp.active.name || "";
-        window._currentVersionDisplayName = resp.active.strategy_version || resp.active.name || "";
+        window._currentVersionDisplayName = resp.active.name || resp.active.strategy_version || "";
         if (typeof updateRangeButtonLabel === "function") updateRangeButtonLabel();
       }).catch(function () {});
     });
@@ -1217,9 +1198,49 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
           delBtn.addEventListener("click", function () { deleteVersion(v); });
           actionsSpan.appendChild(delBtn);
 
+          // Task 4: per-version free-form notes (replaces RESULTS_LOG.md
+          // + devlog.json). Auto-saves on blur to /api/versions/<id>/notes.
+          var notesWrap = document.createElement("div");
+          notesWrap.className = "versions-row-notes";
+          var notesLabel = document.createElement("label");
+          notesLabel.className = "versions-row-notes-label";
+          notesLabel.textContent = "Notes";
+          var notesArea = document.createElement("textarea");
+          notesArea.className = "versions-row-notes-textarea";
+          notesArea.rows = 3;
+          notesArea.placeholder = "Free-form notes for this version — strategy intent, notable runs, observations…";
+          notesArea.value = v.notes || "";
+          var notesStatus = document.createElement("span");
+          notesStatus.className = "versions-row-notes-status";
+          notesArea.addEventListener("blur", function () {
+            var newVal = notesArea.value;
+            if (newVal === (v.notes || "")) return;  // unchanged
+            notesStatus.textContent = "Saving…";
+            fetch("/api/versions/" + encodeURIComponent(v.id) + "/notes", {
+              method: "POST",
+              headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({notes: newVal}),
+            })
+              .then(function (r) { return r.json(); })
+              .then(function (resp) {
+                if (resp.ok) {
+                  v.notes = newVal;
+                  notesStatus.textContent = "Saved";
+                  setTimeout(function () { notesStatus.textContent = ""; }, 2000);
+                } else {
+                  notesStatus.textContent = "Save failed: " + (resp.error || "?");
+                }
+              })
+              .catch(function (e) { notesStatus.textContent = "Save failed: " + e.message; });
+          });
+          notesWrap.appendChild(notesLabel);
+          notesWrap.appendChild(notesArea);
+          notesWrap.appendChild(notesStatus);
+
           li.appendChild(nameSpan);
           li.appendChild(actionsSpan);
           li.appendChild(metaSpan);
+          li.appendChild(notesWrap);
           listEl.appendChild(li);
         });
         var activeVersion = versions.find(function (v) { return v.id === active; }) || versions[0];
@@ -1405,6 +1426,25 @@ def _results_page(body_html):
 # already-computed data/regime_labels.parquet for the per-fractal labels and
 # the schema-metadata macro_by_date mapping.
 
+# ── FUTURE WORK — RA backtest caching ─────────────────────────────────────
+# The /run_regime_analysis endpoint runs the full backtest (~100s for a
+# 15-month range) on every call. An earlier iteration cached the
+# unfiltered backtest result (run with empty regime allow-lists) and
+# re-filtered per request, which made toggle changes near-instant. BUT
+# the daily-loss-limit (2 losses/day) interacts with regime gating in a
+# way that produces materially different trade counts when the gate is
+# inactive vs active: signals on locked-regime days consume the daily
+# budget before would-be allowed signals can fire. Result: post-filtered
+# counts were 4× smaller than the gate-active equivalent.
+#
+# To re-enable caching correctly, run_backtest needs to expose its raw
+# signal stream BEFORE the daily-loss-limit is applied. The RA endpoint
+# can then re-simulate the DLL per requested toggle state on the cached
+# signals (fast). That refactor is non-trivial and out of scope for now;
+# tracked as a future engineering task. Until then, every Run Analysis
+# click triggers the full backtest with the user's toggle state as
+# active gates — exact numbers, ~100s per click.
+
 @app.route("/run_regime_analysis", methods=["POST"])
 def run_regime_analysis():
     import time as _time
@@ -1420,6 +1460,7 @@ def run_regime_analysis():
         # which is the historical labeler default and what the parquet on
         # disk most likely contains.
         instrument = str(payload.get("instrument") or "GBPUSD").strip().upper() or "GBPUSD"
+        use_ema_filter = bool(payload.get("use_ema_filter", True))
         if not start_date or not end_date:
             return jsonify({"error": "start_date and end_date are required"}), 400
 
@@ -1439,6 +1480,11 @@ def run_regime_analysis():
         strat._INSTRUMENT     = instrument
         strat.MASSIVE_TICKER  = strat._INSTRUMENT_MAP.get(instrument, strat.MASSIVE_TICKER)
 
+        # (regime_labels.parquet reload moved into the cache-miss branch —
+        # only needed when we're about to call run_backtest, since the in-
+        # backtest macro/micro gates read those strategy module globals.
+        # On cache hit we don't run a backtest at all.)
+
         # Force a re-read of data/regime_labels.parquet. strategy_v2 normally
         # loads labels once at import time and caches them; if the parquet
         # didn't exist (or pyarrow/fastparquet wasn't importable) at server
@@ -1450,6 +1496,13 @@ def run_regime_analysis():
         strat._load_regime_labels()
 
         # ── Override strategy_v2 module globals with this request's filters ──
+        # Active gates ON: signals on locked-regime days are rejected at
+        # decision time. This makes trade counts + daily-loss-limit
+        # consumption faithful to the toggle state at the cost of re-running
+        # the full backtest on every click. See the "FUTURE WORK" block at
+        # the top of this section for the caching path that would make
+        # toggle changes near-instant once run_backtest exposes pre-DLL
+        # signals.
         strat.ALLOWED_MACRO_KEYS = {strat._macro_key(n) for n in allowed_macro}
         strat.ALLOWED_MICRO_KEYS = {strat._micro_key(n) for n in allowed_micro}
 
@@ -1460,9 +1513,7 @@ def run_regime_analysis():
             sorted(strat.ALLOWED_MACRO_KEYS),
             sorted(strat.ALLOWED_MICRO_KEYS),
         )
-        # EMA filter stays on by default for the interactive view; clients can
-        # toggle it via the existing run-bar style refactor later.
-        strat.USE_EMA_FILTER = bool(payload.get("use_ema_filter", True))
+        strat.USE_EMA_FILTER = use_ema_filter
 
         # ── Run the backtest ──
         df = strat.fetch_data(strat.TICKER, strat.INTERVAL, strat.DAYS_BACK,
@@ -1470,7 +1521,7 @@ def run_regime_analysis():
         df = strat.add_indicators(df)
         trades, equity, raw_blocked = strat.run_backtest(df)
 
-        # Trim to the requested date range
+        # Trim trades to the requested date range
         start_ts = pd.Timestamp(start_date, tz="UTC")
         end_ts   = pd.Timestamp(end_date,   tz="UTC") + pd.Timedelta(days=1)
         if not trades.empty:
@@ -1479,13 +1530,9 @@ def run_regime_analysis():
             trades = trades[(_t >= start_ts) & (_t < end_ts)].reset_index(drop=True)
 
         # ── Load fractal labels + macro from parquet ──
-        # Use whichever engine is installed (pyarrow preferred, fastparquet OK).
         labels_path = BASE_DIR / "data" / "regime_labels.parquet"
         macro = {}
         if labels_path.exists():
-            # Accept either metadata key for back-compat with parquets written
-            # before the rename: 'regime_analysis' is canonical going forward;
-            # 'regime_labeler' is the legacy key.
             try:
                 import pyarrow.parquet as _pq
                 tbl = _pq.read_table(str(labels_path))
@@ -1519,10 +1566,7 @@ def run_regime_analysis():
         in_range = fractal_df[(fractal_df["timestamp"] >= start_ts)
                               & (fractal_df["timestamp"] < end_ts)].copy()
 
-        # ── Reconstruct periods (consecutive same-regime fractals) for
-        # the timeline + daily breakdown chips. Period info is derivable
-        # from the parquet's per-fractal regime column — we don't need a
-        # full stage-2 rerun. ──
+        # ── Reconstruct periods (consecutive same-regime fractals) ──
         periods = []
         cur = None
         cl = in_range["regime"].values
@@ -1536,7 +1580,7 @@ def run_regime_analysis():
                     periods.append(cur)
                 cur = {
                     "label":   label_i,
-                    "regime":  label_i,   # already at fine granularity in the parquet
+                    "regime":  label_i,
                     "start_idx": idx[i],
                     "end_idx":   idx[i],
                     "start_ts":  ts[i],
@@ -1558,8 +1602,7 @@ def run_regime_analysis():
         for p in periods:
             regime_count[p["regime"]] = regime_count.get(p["regime"], 0) + 1
 
-        # ── Derive blocked macro/micro keys from the request payload ──
-        # The toggle panel sends ALLOWED lists; "blocked" = the complement.
+        # Derive blocked keys (complement of allowed in the universe)
         allowed_macro_keys = strat.ALLOWED_MACRO_KEYS
         allowed_micro_keys = strat.ALLOWED_MICRO_KEYS
         all_macro_keys = set(rl.MACRO_REGIME_ORDER)
@@ -1567,9 +1610,7 @@ def run_regime_analysis():
         blocked_macro_keys = all_macro_keys - allowed_macro_keys
         blocked_micro_keys = all_micro_keys - allowed_micro_keys
 
-        # ── Build a per-fractal micro asof series from the FRESHLY-loaded
-        # parquet (so attribution is consistent with the in-range fractals
-        # we already reconstructed periods from). ──
+        # Per-fractal micro asof series for attribution
         if not in_range.empty:
             _frac_ts = pd.to_datetime(in_range["timestamp"])
             _frac_ts = _frac_ts.dt.tz_convert("UTC") if _frac_ts.dt.tz is not None else _frac_ts.dt.tz_localize("UTC")
@@ -1597,10 +1638,8 @@ def run_regime_analysis():
             ).values
             return df_
 
-        # ── Attribute regime + macro_label to fired trades ──
+        # Attribute trades + blocked signals
         trades = _attribute(trades)
-
-        # ── Blocked signals → DataFrame (with same attribution) ──
         if raw_blocked:
             blocked_df = pd.DataFrame(raw_blocked).rename(columns={"timestamp": "entry_ts"})
             if "entry_ts" in blocked_df.columns:
@@ -1610,6 +1649,22 @@ def run_regime_analysis():
         else:
             blocked_df = pd.DataFrame(columns=["entry_ts", "win", "pnl", "reason", "direction"])
         blocked_df = _attribute(blocked_df)
+
+        # Daily-breakdown helpers
+        fractals_per_day = {}
+        if not in_range.empty:
+            for d in in_range["timestamp"].dt.strftime("%Y-%m-%d"):
+                fractals_per_day[d] = fractals_per_day.get(d, 0) + 1
+        df_dts = pd.to_datetime(df["Datetime"])
+        df_dts = df_dts.dt.tz_convert("UTC") if df_dts.dt.tz is not None else df_dts.dt.tz_localize("UTC")
+        df_in_rng = df[(df_dts >= start_ts) & (df_dts < end_ts)]
+        df_in_rng_dts = pd.to_datetime(df_in_rng["Datetime"])
+        df_in_rng_dts = df_in_rng_dts.dt.tz_convert("UTC") if df_in_rng_dts.dt.tz is not None else df_in_rng_dts.dt.tz_localize("UTC")
+        trading_days_all = sorted(set(df_in_rng_dts.dt.strftime("%Y-%m-%d")))
+        low_activity_days = {
+            d for d in trading_days_all
+            if fractals_per_day.get(d, 0) < rl.LOW_ACTIVITY_FRACTAL_THRESHOLD
+        }
 
         # ── Server-side authoritative filter ──────────────────────────────
         # Apply the toggle state as a post-filter on the trades coming out of
@@ -1691,34 +1746,17 @@ def run_regime_analysis():
         timeline_inner = rl.build_timeline_section_html(
             periods, macro, trades_per_day, start_date, end_date, regime_count)
 
-        # Daily performance — we need a "full_df"-shaped frame for
-        # _trading_days_in_range. Reuse the indicator-augmented df from the
-        # backtest, restricted to the requested range plus a small buffer.
-        # Available chart days inferred from results/regime_charts/.
+        # Daily performance — needs `df_in_rng` and the precomputed
+        # `trading_days_all` / `low_activity_days` / `fractals_per_day`
+        # from the cache (or just-computed at miss time above).
+        # `available_chart_days` is cheap (glob a directory) so we always
+        # compute it per-request — keeps the cache from being invalidated
+        # when the user generates new per-day charts between requests.
         available_chart_days = set()
         chart_dir = BASE_DIR / "results" / "regime_charts"
         if chart_dir.exists():
             for png in chart_dir.glob("*.png"):
                 available_chart_days.add(png.stem)
-
-        # Build a low-activity-day set the same way build_report does.
-        from regime_analysis import LOW_ACTIVITY_FRACTAL_THRESHOLD
-        fractals_per_day = {}
-        if not in_range.empty:
-            for d in in_range["timestamp"].dt.strftime("%Y-%m-%d"):
-                fractals_per_day[d] = fractals_per_day.get(d, 0) + 1
-        # Use rl._trading_days_in_range — but we need to mimic its arg shape.
-        # Easier: derive from df.
-        df_dts = pd.to_datetime(df["Datetime"])
-        df_dts = df_dts.dt.tz_convert("UTC") if df_dts.dt.tz is not None else df_dts.dt.tz_localize("UTC")
-        df_in_rng = df[(df_dts >= start_ts) & (df_dts < end_ts)]
-        df_in_rng_dts = pd.to_datetime(df_in_rng["Datetime"])
-        df_in_rng_dts = df_in_rng_dts.dt.tz_convert("UTC") if df_in_rng_dts.dt.tz is not None else df_in_rng_dts.dt.tz_localize("UTC")
-        trading_days_all = sorted(set(df_in_rng_dts.dt.strftime("%Y-%m-%d")))
-        low_activity_days = {
-            d for d in trading_days_all
-            if fractals_per_day.get(d, 0) < LOW_ACTIVITY_FRACTAL_THRESHOLD
-        }
 
         # Temporarily override START_DATE/END_DATE on the rl module so its
         # _trading_days_in_range helper (called inside build_daily_breakdown)
@@ -1731,6 +1769,7 @@ def run_regime_analysis():
                 periods, filtered_trades, df, available_chart_days,
                 in_range, low_activity_days,
                 macro=macro, blocked_macro_keys=blocked_macro_keys,
+                trading_days=trading_days_all,
             )
         finally:
             rl.START_DATE = _orig_start
@@ -1745,7 +1784,7 @@ def run_regime_analysis():
             Dark chips indicate hours where <strong>no fractal was detected</strong>.
             &nbsp;&nbsp;
             <span class="regime-low-activity-dot regime-low-activity-dot--inline"></span>
-            Indicates a low-activity day (fewer than {LOW_ACTIVITY_FRACTAL_THRESHOLD}
+            Indicates a low-activity day (fewer than {rl.LOW_ACTIVITY_FRACTAL_THRESHOLD}
             fractals across the whole 24-hour period).
           </p>
         """
@@ -2230,6 +2269,35 @@ def api_versions_delete(version_id):
     if not ok:
         return jsonify({"ok": False, "error": err}), 400
     return jsonify({"ok": True, "store": _read_versions()})
+
+
+@app.route("/api/versions/<version_id>/notes", methods=["POST"])
+def api_versions_set_notes(version_id):
+    """Task 4: persist a per-version free-form notes field.
+
+    Body: {notes: "..."}. Stored under the version's `notes` key in
+    versions.json so it survives server restarts and is visible to any
+    page that reads the versions store. Together with each version's
+    own run-history bucket this replaces the manually-maintained
+    RESULTS_LOG.md (per-version notable-result notes) and devlog.json
+    (free-form dev log) — those files can now be retired.
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    notes = body.get("notes", "")
+    if not isinstance(notes, str):
+        return jsonify({"ok": False, "error": "notes must be a string"}), 400
+    data = _read_versions()
+    found = False
+    for v in data.get("versions", []):
+        if v.get("id") == version_id:
+            v["notes"] = notes
+            v["notes_updated_at"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+            found = True
+            break
+    if not found:
+        return jsonify({"ok": False, "error": "unknown version id"}), 404
+    _write_versions(data)
+    return jsonify({"ok": True, "store": data})
 
 
 @app.route("/api/active_version", methods=["GET"])

@@ -3117,7 +3117,8 @@ __VERSIONS_JSON__
     /* Expose the currently active version name globally for the run-bar */
     var curV = VERSIONS[activeVersionIdx];
     window._currentVersionName = curV ? curV.name : "";
-    window._currentVersionDisplayName = curV ? (curV.strategy_version || curV.name) : "";
+    /* Task 6b: prefer name so v3 shows as "Add Date Range (v3)" not "(v2)" */
+    window._currentVersionDisplayName = curV ? (curV.name || curV.strategy_version) : "";
     if (typeof updateRangeButtonLabel === "function") updateRangeButtonLabel();
   }
 
@@ -4039,8 +4040,10 @@ __VERSIONS_JSON__
           }())) +
           row("Instrument",     "<span class='val-highlight'>" + esc((run.instrument || p.ticker || "EURUSD").replace(/=X$/i, "")) + "</span>") +
           row("Interval",       "<span class='val-highlight'>" + esc(savedInterval) + "</span>") +
-          row("EMA Short",      "<span class='val-highlight'>" + esc(savedEmaShort) + "</span>") +
-          row("EMA Mid",        "<span class='val-highlight'>" + esc(savedEmaMid) + "</span>") +
+          /* Task 6a: hide EMA Short / EMA Mid when set to 0 — v2 doesn't
+             use them, so a row that says "EMA Short: 0" is noise. */
+          (Number(savedEmaShort) > 0 ? row("EMA Short", "<span class='val-highlight'>" + esc(savedEmaShort) + "</span>") : "") +
+          (Number(savedEmaMid)   > 0 ? row("EMA Mid",   "<span class='val-highlight'>" + esc(savedEmaMid)   + "</span>") : "") +
           row("EMA Long",       "<span class='val-highlight'>" + esc(savedEmaLong) + "</span>") +
           row("Stop Loss Level", "<span class='val-highlight'>" + esc(savedStopPips) + " pips</span>") +
           row("Direction",      "<span class='val-highlight'>" + esc(dirOptions.filter(function(o){return o.value===savedDir;})[0].label) + "</span>") +
@@ -5466,8 +5469,15 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
     }
 
     if run_mode == "date_range" and existing_versions:
-        # Append run to the specified target version (or most recent as fallback)
-        # Filter by strategy_version so different strategies don't collide
+        # Append run to the specified target version.
+        # Behaviour:
+        #   • If TARGET_VERSION exists as a same-strategy VERSIONS entry → append.
+        #   • If TARGET_VERSION is set but no VERSIONS entry exists yet (e.g. a
+        #     v3 profile that has no runs yet) → CREATE the entry instead of
+        #     burying the run in the most-recent same-strategy version. This
+        #     was the Bug 2 root cause: v3 runs were landing under v2.
+        #   • If TARGET_VERSION is unset → fall back to most recent of same
+        #     strategy, or the last existing version.
         target_version_name = os.environ.get("TARGET_VERSION", "").strip()
         target = None
         if target_version_name:
@@ -5476,8 +5486,20 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
                         and v.get("strategy_version", "v1") == STRATEGY_VERSION_TAG):
                     target = v
                     break
+        if target is None and target_version_name:
+            # TARGET_VERSION specified but not yet in VERSIONS — create it so
+            # the run is correctly tagged with the active version's name
+            # instead of falling back into the previous version's bucket.
+            target = {
+                "name":             target_version_name,
+                "strategy":         STRATEGY,
+                "strategy_version": STRATEGY_VERSION_TAG,
+                "entry_conditions": ENTRY_CONDITIONS,
+                "params":           params_dict,
+                "runs":             [],
+            }
+            existing_versions.append(target)
         if target is None:
-            # Fallback: most recent version belonging to this strategy
             for v in reversed(existing_versions):
                 if v.get("strategy_version", "v1") == STRATEGY_VERSION_TAG:
                     target = v
