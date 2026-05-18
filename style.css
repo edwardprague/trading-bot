@@ -68,16 +68,15 @@ body {
     color: #999 !important;
 }
 
+/* Task 3 follow-up: the legacy `.rb-date` rule below set color:transparent
+   so the custom overlay could show on top. The overlay is gone now and
+   the native input must show its own text — keep colour readable and
+   the background neutral. !important is used to overpower an older
+   theme rule further down (line ~2856) that hid the text. */
 .rb-date {
     font-size: 13px !important;
-    background: steelblue !important;
-    /* color: #fff !important; */
-}
-
-.rb-date-overlay {
-    color: #fff !important;
-    font-weight: bold;
-    font-size: 12px !important;
+    background: #14142a !important;
+    color: #c0c0e0 !important;
 }
 
 .rb-devlog-btn {
@@ -2846,26 +2845,21 @@ body.regime-report {
     margin-right: 0;
 }
 
-.rb-date-wrap {
-    position: relative;
-    display: inline-block;
-    width: 130px;
-    flex-shrink: 0;
-}
-
+/* Task 3 follow-up: simplified for the native date input (no overlay).
+   The .rb-date-wrap span and the .rb-date-overlay are gone; the date
+   inputs are rendered directly. Constrained width so they don't flex
+   to fill the run bar. */
 .rb-date {
     background: #14142a;
-    color: transparent;
+    color: #c0c0e0;
     border: 1px solid #2a2a44;
     border-radius: 5px;
     padding: 5px 8px;
     font-size: 12px;
     font-family: inherit;
-    width: 100%;
+    width: 130px;
     flex-shrink: 0;
     color-scheme: dark;
-    position: relative;
-    z-index: 1;
 }
 
 .rb-date:focus {
@@ -2873,20 +2867,10 @@ body.regime-report {
     outline: none;
 }
 
-.rb-date-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 22px;
-    bottom: 0;
-    display: flex;
-    align-items: center;
-    padding: 5px 8px;
-    font-size: 12px;
-    font-family: inherit;
-    color: #c0c0e0;
-    pointer-events: none;
-    z-index: 2;
+/* Kept as a no-op stub (overrides nothing now that the element is gone).
+   Safe to delete later if no other CSS targets it. */
+.rb-date-overlay-legacy {
+    display: none;
     white-space: nowrap;
 }
 
