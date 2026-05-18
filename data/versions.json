@@ -1,0 +1,48 @@
+{
+  "active_version_id": "v3",
+  "versions": [
+    {
+      "id": "v1",
+      "name": "v1",
+      "strategy_version": "v1",
+      "regime_state": {
+        "allowed_macro_regimes": [],
+        "allowed_micro_regimes": []
+      }
+    },
+    {
+      "id": "v2",
+      "name": "v2",
+      "strategy_version": "v2",
+      "regime_state": {
+        "allowed_macro_regimes": [
+          "staircase_down",
+          "strong_down"
+        ],
+        "allowed_micro_regimes": [
+          "ranging_medium",
+          "ranging_wide"
+        ]
+      }
+    },
+    {
+      "id": "v3",
+      "name": "v3",
+      "strategy_version": "v2",
+      "regime_state": {
+        "allowed_macro_regimes": [
+          "staircase_down",
+          "strong_down"
+        ],
+        "allowed_micro_regimes": [
+          "ranging_medium",
+          "ranging_wide",
+          "transitioning",
+          "trending_fast_down",
+          "trending_slow_down"
+        ],
+        "updated_at": "2026-05-18T12:01:22Z"
+      }
+    }
+  ]
+}
