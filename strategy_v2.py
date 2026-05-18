@@ -3216,7 +3216,10 @@ __VERSIONS_JSON__
           "<div class='v-item-row'>" +
             "<div class='v-item-content'>" +
               "<div class='v-sub-top-row'>" +
-                "<div class='v-name'>" + esc(item.v.strategy_version || item.v.name) + "</div>" +
+                /* Issue 1 follow-up: prefer the active-version name on each
+                   run row, falling back to the bucket name and then the
+                   strategy_version. */
+                "<div class='v-name'>" + esc(item.run.active_version || item.v.name || item.v.strategy_version) + "</div>" +
                 (runInstrument ? "<div class='v-instrument'>" + esc(runInstrument) + "</div>" : "") +
               "</div>" +
               "<div class='v-sub-metric-row'>" +
@@ -5317,10 +5320,10 @@ __VERSIONS_JSON__
     });
   })();
 
-  /* ── Keyboard shortcut: D or Shift+D — Add Date Range ────── */
+  /* ── Keyboard shortcut: D — Add Date Range (Shift+D ignored) ── */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "d" && e.key !== "D") return;
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
     if (isInputFocused(e)) return;
     var btn = document.getElementById("run-range-btn");
     if (!btn || btn.disabled) return;
@@ -5328,10 +5331,10 @@ __VERSIONS_JSON__
     btn.click();
   });
 
-  /* ── Keyboard shortcut: C or Shift+C — Copy Report ────────── */
+  /* ── Keyboard shortcut: C — Copy Report (Shift+C ignored) ── */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "c" && e.key !== "C") return;
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
     if (isInputFocused(e)) return;
     var btn = document.getElementById("copy-btn");
     if (!btn || btn.disabled || btn.style.display === "none") return;
@@ -5339,7 +5342,7 @@ __VERSIONS_JSON__
     btn.click();
   });
 
-  /* ── Keyboard shortcut: Shift+Delete — Delete ──────────── */
+  /* ── Keyboard shortcut: Shift+Delete — Delete (Shift required) ── */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Delete" && e.key !== "Backspace") return;
     if (!e.shiftKey) return;
@@ -5351,10 +5354,10 @@ __VERSIONS_JSON__
     btn.click();
   });
 
-  /* ── Keyboard shortcut: L or Shift+L — Development Log ───── */
+  /* ── Keyboard shortcut: L — Development Log (Shift+L ignored) ── */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "l" && e.key !== "L") return;
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
     if (isInputFocused(e)) return;
     var btn = document.getElementById("devlog-btn");
     if (!btn) return;
@@ -5362,10 +5365,10 @@ __VERSIONS_JSON__
     btn.click();
   });
 
-  /* ── Keyboard shortcut: B — Toggle Backtest Settings ───────── */
+  /* ── Keyboard shortcut: B — Toggle Backtest Settings ──────── */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "b" && e.key !== "B") return;
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
     if (isInputFocused(e)) return;
     var btn = document.getElementById("bs-toggle-btn");
     if (!btn) return;
@@ -5376,7 +5379,7 @@ __VERSIONS_JSON__
   /* ── Keyboard shortcut: G — General tab ───────────────────── */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "g" && e.key !== "G") return;
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
     if (isInputFocused(e)) return;
     var tab = document.querySelector(".report-tab[data-tab='general']");
     if (!tab) return;
@@ -5387,7 +5390,7 @@ __VERSIONS_JSON__
   /* ── Keyboard shortcut: A — Advanced tab ──────────────────── */
   document.addEventListener("keydown", function (e) {
     if (e.key !== "a" && e.key !== "A") return;
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
     if (isInputFocused(e)) return;
     var tab = document.querySelector(".report-tab[data-tab='advanced']");
     if (!tab) return;
@@ -5697,6 +5700,12 @@ def generate_html_report(trades, equity, chart_path="backtest_chart.png", notes=
         "eq_dd_chart_b64":  eq_dd_chart_b64,
         "metrics":          metrics,
         "last_trades":      last_trades,
+        # Issue 1: record the active version at run time so the run knows
+        # which version it belongs to independently of which VERSIONS
+        # bucket it ends up in. TARGET_VERSION is the version name the BD
+        # passed in (active version's name); falls back to "" when /run
+        # was hit without a target (legacy callers).
+        "active_version":   os.environ.get("TARGET_VERSION", "").strip(),
     }
 
     params_dict = {

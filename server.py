@@ -620,18 +620,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (active) {
       sel.value = active.id;
-      /* Sync report.html's `currentVersion` to the active version's id so
-         the sidebar filter (getStrategyVersions, which now matches by
-         .name) groups runs by the active version — not by the underlying
-         strategy module. report.html's initial selectVersion() builds its
-         options from unique strategy_versions only, so on first paint
-         currentVersion is "v1" or "v2"; without this hand-off, picking
-         a v2-based profile like v3 would still show v2's runs in the
-         sidebar. Calling onVersionChange() reads sel.value (= active.id)
-         into currentVersion, persists it, and re-renders the sidebar. */
-      if (typeof onVersionChange === "function") {
-        try { onVersionChange(); } catch (e) {}
-      }
+      /* Sync report.html's private `currentVersion` to the active version
+         id. report.html attaches its onVersionChange handler inside an
+         IIFE (so the function isn't a global) — but the handler is wired
+         via addEventListener("change"), so dispatching a change event
+         here triggers it. This makes getStrategyVersions re-filter the
+         sidebar by name=active.id and re-render content for the right
+         bucket. Also fires our OWN change listener above (the one that
+         POSTs to /api/active_version), but that's a harmless no-op
+         on initial load since the server is already on that version. */
+      sel.dispatchEvent(new Event("change", {bubbles: true}));
     }
 
     /* Sync the active version when the user picks something. We use
@@ -779,7 +777,15 @@ function getCurrentVersionName() {
 }
 
 function updateRangeButtonLabel() {
-  var displayName = window._currentVersionDisplayName || getCurrentVersionName();
+  /* Issue 2: the dropdown is the source of truth for the active version.
+     Earlier this was reading window._currentVersionDisplayName, which
+     renderSidebar overwrites with the CURRENTLY-DISPLAYED run's bucket
+     name — so switching instruments (which re-runs renderSidebar with
+     a different run focused) could replace the label with "v2" even
+     when v3 was selected in the dropdown. Read the dropdown directly
+     so the label tracks the active-version selection unconditionally. */
+  var sel = document.getElementById("version-select");
+  var displayName = (sel && sel.value) || window._currentVersionDisplayName || getCurrentVersionName();
   var rangeBtn = document.getElementById("run-range-btn");
   if (displayName) {
     rangeBtn.innerHTML = "&#9654;&nbsp; Add Date Range (" + displayName + ")";
