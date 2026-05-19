@@ -285,6 +285,16 @@ def _assign_version_from_trial(version_id, trial_params):
         "fractal_stop_pips": tp.get("stop_loss_pips"),
         "rrr_reward":       tp.get("rrr_reward"),
         "max_daily_losses": tp.get("max_daily_losses"),
+        # Bug fix (May 2026): Phase 1 Discovery holds trade_direction and
+        # blocked_hours fixed, but they're still active inputs in the
+        # backtest. Without recording them here the BD's user-tunable
+        # dropdown / blocked-hours checkboxes would silently override the
+        # Discovery setting on the next run, producing materially different
+        # results (the original Bug 2 symptom). Discovery's sampled params
+        # carry blocked_hours; trade_direction is hardcoded to "short_only"
+        # in build_env, so we record it explicitly here.
+        "trade_direction":  tp.get("trade_direction") or "short_only",
+        "blocked_hours":    tp.get("blocked_hours") or "4,5,6,8,10,11,14,17",
         "assigned_at":      datetime.utcnow().isoformat(timespec="seconds") + "Z",
     }
     target["regime_state"] = {
@@ -472,6 +482,14 @@ def _apply_active_version_to_env(env_overrides, payload):
             "fractal_stop_pips": "FRACTAL_STOP_PIPS",
             "rrr_reward":        "RRR_REWARD",
             "max_daily_losses":  "MAX_DAILY_LOSSES",
+            # Bug fix (May 2026): trade_direction and blocked_hours are
+            # now stored on the version too. Without these in the layering
+            # the BD payload's user-tunable values silently override the
+            # Discovery-recorded settings (this was the residual symptom
+            # after the use_ema_filter fix — direction stayed "both" so
+            # backtest counts diverged from Discovery's short-only profile).
+            "trade_direction":   "TRADE_DIRECTION",
+            "blocked_hours":     "BLOCKED_HOURS_UTC",
         }
         for bp_key, env_key in _BP_TO_ENV.items():
             if env_key not in env_overrides or env_overrides[env_key] == "":
@@ -719,6 +737,21 @@ document.addEventListener("DOMContentLoaded", function () {
       var el = document.getElementById(id);
       if (el && v !== undefined && v !== null) el.checked = !!v;
     }
+    /* Bug fix (May 2026): blocked_hours is a CSV string like
+       "4,5,6,8,10,11,14,17". Parse and apply to the 24 bs-bh-* checkboxes.
+       Hours present in the CSV → checked (blocked); absent → unchecked
+       (allowed). Done with an explicit reset so a switch from a version
+       with many blocked hours to one with few clears the extras. */
+    function setBlockedHours(csv) {
+      var hSet = {};
+      String(csv || "").split(",").forEach(function (s) {
+        var t = s.trim(); if (t !== "") hSet[parseInt(t, 10)] = true;
+      });
+      for (var h = 0; h <= 23; h++) {
+        var cb = document.getElementById("bs-bh-" + h);
+        if (cb) cb.checked = !!hSet[h];
+      }
+    }
     if (p) {
       setVal("bs-ema-long",   p.ema_long);
       setVal("bs-stop-pips",  p.fractal_stop_pips);
@@ -731,6 +764,14 @@ document.addEventListener("DOMContentLoaded", function () {
          read USE_EMA_FILTER from env, and discrepancies between the
          version's setting and the BD's default-on state went unnoticed. */
       setCheckbox("bs-use-ema-filter", p.use_ema_filter);
+      /* Bug fix (May 2026): pre-fill Direction and Blocked Hours from
+         the version's params. Discovery holds these fixed in Phase 1
+         (short_only / 4,5,6,8,10,11,14,17) — without applying them here
+         the BD's user-tunable Direction dropdown and blocked-hours
+         checkboxes silently override the Discovery setting on the next
+         run, producing materially different results. */
+      if (p.trade_direction) setVal("bs-direction-select", p.trade_direction);
+      if (p.blocked_hours !== undefined) setBlockedHours(p.blocked_hours);
     } else {
       /* Unassigned version: restore inputs from localStorage so a
          previous stamp from an assigned version doesn't bleed through. */
@@ -741,6 +782,10 @@ document.addEventListener("DOMContentLoaded", function () {
       setVal("bs-max-dd",     ls.getItem("bs_max_dd"));
       var storedFilter = ls.getItem("bs_use_ema_filter");
       if (storedFilter !== null) setCheckbox("bs-use-ema-filter", storedFilter === "true");
+      var storedDir = ls.getItem("bs_direction");
+      if (storedDir) setVal("bs-direction-select", storedDir);
+      var storedBH = ls.getItem("bs_blocked_hours");
+      if (storedBH !== null) setBlockedHours(storedBH);
     }
   }
 

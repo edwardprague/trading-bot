@@ -11,6 +11,8 @@
         "fractal_stop_pips": 10,
         "rrr_reward": 1,
         "max_daily_losses": 3,
+        "trade_direction": "short_only",
+        "blocked_hours": "4,5,6,8,10,11,14,17",
         "assigned_at": "2026-05-19T10:00:00Z"
       },
       "regime_state": {
@@ -38,6 +40,8 @@
         "fractal_stop_pips": 13,
         "rrr_reward": 4,
         "max_daily_losses": 4,
+        "trade_direction": "short_only",
+        "blocked_hours": "4,5,6,8,10,11,14,17",
         "assigned_at": "2026-05-19T08:49:40Z"
       },
       "regime_state": {
