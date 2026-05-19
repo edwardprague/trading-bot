@@ -362,27 +362,63 @@ def _write_active_regime_state(allowed_macro, allowed_micro):
 _KNOWN_STRATEGY_MODULES = {"v1", "v2"}
 
 
+def _resolve_version_for_run(payload):
+    """Pick which version's params/regime drive this backtest run.
+
+    Bugfix (May 2026): the dropdown selection is now decoupled from the
+    global active version. The BD dropdown is a 'what am I looking at /
+    testing right now' selector; the global active version is a separate
+    concept ('what's promoted as current production'). The two can differ:
+    running a test on v4 while v3 stays globally active.
+
+    Resolution order:
+      1. payload `version_id` (explicit override from the BD run-bar).
+      2. payload `strategy_version` if it's a version id (legacy path —
+         the BD's run payload still sends the dropdown value under this
+         key for backward compat).
+      3. The globally-active version (fallback for direct API callers
+         that don't pass a version_id).
+
+    Returns the resolved version dict, or None if nothing matches."""
+    if not isinstance(payload, dict):
+        return _get_active_version()
+
+    candidate = (payload.get("version_id") or "").strip()
+    if not candidate:
+        sv = (payload.get("strategy_version") or "").strip()
+        if sv and sv not in _KNOWN_STRATEGY_MODULES:
+            candidate = sv
+
+    if candidate:
+        for v in _read_versions().get("versions", []):
+            if v.get("id") == candidate:
+                return v
+    return _get_active_version()
+
+
 def _apply_active_version_to_env(env_overrides, payload):
-    """Layer the active version's strategy_version + regime allow-lists
-    into env_overrides. Precedence:
+    """Layer the SELECTED version's strategy_version + regime allow-lists
+    + params into env_overrides. Selection is whatever
+    _resolve_version_for_run picks (payload.version_id wins; otherwise
+    falls back to global active). Precedence within the resolved version:
 
       1. Explicit values in the request payload win (with one exception
          below for STRATEGY_VERSION).
-      2. Active version supplies STRATEGY_VERSION + ALLOWED_*_REGIMES.
+      2. Resolved version supplies STRATEGY_VERSION + ALLOWED_*_REGIMES
+         + params (ema_long, fractal_stop_pips, etc.).
       3. Strategy module hardcoded defaults are the final fallback.
 
     STRATEGY_VERSION quirk: the BD dropdown sends the option value as
-    `strategy_version` in the run payload. For seeded versions that value
-    is 'v1' / 'v2' (a real strategy module). For user-added profiles, the
-    dropdown option value is the version id (e.g. 'v3'), which is NOT a
-    strategy module — strategy_v3.py doesn't exist. We detect this and
-    resolve the id through versions.json to the underlying base strategy.
+    `strategy_version` in the run payload. For unassigned slots this
+    would be a version id — but unassigned versions don't appear in the
+    dropdown, so this case is filtered upstream. Assigned versions
+    resolve through versions.json to the underlying 'v1' / 'v2' module.
 
     The strategy module distinguishes 'unset' from 'empty string': empty
     means 'gate disabled', unset means 'use default'. We always set
-    ALLOWED_*_REGIMES when an active version exists (empty list → empty
-    string), preserving that distinction."""
-    av = _get_active_version()
+    ALLOWED_*_REGIMES when a version exists (empty list → empty string),
+    preserving that distinction."""
+    av = _resolve_version_for_run(payload)
     if av is None:
         return
 
@@ -679,11 +715,22 @@ document.addEventListener("DOMContentLoaded", function () {
       var el = document.getElementById(id);
       if (el && v !== undefined && v !== null && v !== "") el.value = String(v);
     }
+    function setCheckbox(id, v) {
+      var el = document.getElementById(id);
+      if (el && v !== undefined && v !== null) el.checked = !!v;
+    }
     if (p) {
       setVal("bs-ema-long",   p.ema_long);
       setVal("bs-stop-pips",  p.fractal_stop_pips);
       setVal("bs-rrr-reward", p.rrr_reward);
       setVal("bs-max-dd",     p.max_daily_losses);
+      /* Bug fix (May 2026): pre-fill the EMA filter checkbox from the
+         version's params.use_ema_filter so the user sees the state
+         that will be used for the next backtest. Previously the BD had
+         no visible toggle for this — the strategy subprocess silently
+         read USE_EMA_FILTER from env, and discrepancies between the
+         version's setting and the BD's default-on state went unnoticed. */
+      setCheckbox("bs-use-ema-filter", p.use_ema_filter);
     } else {
       /* Unassigned version: restore inputs from localStorage so a
          previous stamp from an assigned version doesn't bleed through. */
@@ -692,6 +739,8 @@ document.addEventListener("DOMContentLoaded", function () {
       setVal("bs-stop-pips",  ls.getItem("bs_stop_pips"));
       setVal("bs-rrr-reward", ls.getItem("bs_rrr_reward"));
       setVal("bs-max-dd",     ls.getItem("bs_max_dd"));
+      var storedFilter = ls.getItem("bs_use_ema_filter");
+      if (storedFilter !== null) setCheckbox("bs-use-ema-filter", storedFilter === "true");
     }
   }
 
@@ -702,11 +751,28 @@ document.addEventListener("DOMContentLoaded", function () {
        fills them in. */
     var versions = allVersions.filter(function (v) { return v && v.params; });
     var activeId = store && store.active_version_id;
+    /* The "active" version is what the indicator in the top nav reflects —
+       it's a global notion ("which version is promoted as production").
+       It's separate from what the BD dropdown shows, which is now driven
+       by localStorage rb_selected_version_id so the user's selection
+       persists across reloads (notably the auto-reload after a backtest
+       completes — see runDateRange/pollStatus). Falls back to the global
+       active when there's no stored selection or the stored selection
+       no longer points to an assigned version. */
     var active = null;
     for (var i = 0; i < versions.length; i++) {
       if (versions[i].id === activeId) { active = versions[i]; break; }
     }
     if (!active && versions.length) active = versions[0];
+
+    var storedSelId = (localStorage.getItem("rb_selected_version_id") || "").trim();
+    var selected = null;
+    if (storedSelId) {
+      for (var si = 0; si < versions.length; si++) {
+        if (versions[si].id === storedSelId) { selected = versions[si]; break; }
+      }
+    }
+    if (!selected) selected = active;
 
     _setActiveIndicator(active ? active.name : null);
 
@@ -747,20 +813,18 @@ document.addEventListener("DOMContentLoaded", function () {
       sel.appendChild(newOpt);
     });
 
-    if (active) {
-      sel.value = active.id;
-      /* Sync report.html's private `currentVersion` to the active version
-         id. report.html attaches its onVersionChange handler inside an
-         IIFE (so the function isn't a global) — but the handler is wired
-         via addEventListener("change"), so dispatching a change event
-         here triggers it. This makes getStrategyVersions re-filter the
-         sidebar by name=active.id and re-render content for the right
-         bucket. Also fires our OWN change listener below (the one that
-         POSTs to /api/active_version), but that's a harmless no-op
-         on initial load since the server is already on that version. */
+    if (selected) {
+      sel.value = selected.id;
+      /* Sync report.html's private `currentVersion` to the selected
+         version id. report.html attaches its onVersionChange handler
+         inside an IIFE (so the function isn't a global) — but the
+         handler is wired via addEventListener("change"), so dispatching
+         a change event here triggers it. This makes getStrategyVersions
+         re-filter the sidebar by name=selected.id and re-render content
+         for the right bucket. */
       sel.dispatchEvent(new Event("change", {bubbles: true}));
-      /* Apply discovery-assigned backtest_params AFTER the change event,
-         because report.html's onVersionChange synchronously calls
+      /* Apply the version's params AFTER the change event, because
+         report.html's onVersionChange synchronously calls
          renderEmptyState() / renderContent() which DESTROYS and REBUILDS
          the bs-* settings-panel inputs from localStorage/defaults. If we
          applied before, those values would be wiped by the rebuild. By
@@ -768,38 +832,33 @@ document.addEventListener("DOMContentLoaded", function () {
          (For subsequent user-driven dropdown changes, the change listener
          below — registered after onVersionChange via addEventListener —
          fires after the rebuild and re-applies the same way.) */
-      applyBacktestParamsFromVersion(active);
+      applyBacktestParamsFromVersion(selected);
     }
 
-    /* Sync the active version when the user picks something. We use
-       addEventListener so the page's existing onchange="selectVersion"
-       (defined in report.html) keeps firing too. Lookup is by id, which
-       matches both the seeded options (id == option value == strategy_version)
-       and any user-added profiles (we set option value = id above). */
+    /* Bug fix (May 2026): the dropdown selection is now DECOUPLED from
+       the global active version. Selecting v4 here while v3 is globally
+       active is a valid state — it means "I want to test v4 right now,
+       but v3 stays my production version". The run handlers resolve
+       payload.version_id to drive the run's params + regime; the
+       indicator in the top nav still tracks the global active.
+
+       To promote a version to globally active, the user uses an explicit
+       action elsewhere (e.g. a Make Active button on /versions — future
+       work). On dropdown change here we only:
+         1. Persist the selection to localStorage so it survives reloads
+            (notably the auto-reload after a backtest completes).
+         2. Apply that version's params to the BD inputs so the settings
+            panel reflects what the next run will use. */
     sel.addEventListener("change", function () {
       var picked = byId[sel.value];
       if (!picked) return;
-      /* Apply (or restore) BD input values based on the picked version's
-         backtest_params. Synchronous and DOM-only — see the function
-         comment above for the localStorage policy. */
+      try { localStorage.setItem("rb_selected_version_id", picked.id); } catch (e) {}
       applyBacktestParamsFromVersion(picked);
-      fetch("/api/active_version", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({id: picked.id})
-      }).then(function (r) { return r.json(); }).then(function (resp) {
-        if (!resp || !resp.ok || !resp.active) return;
-        _setActiveIndicator(resp.active.name);
-        /* Mirror the sidebar pattern (renderSidebar in report.html, ~146481):
-           keep the global version-name + display-name in sync so the run-bar
-           "Add Date Range (vN)" label reflects this dropdown change without
-           waiting for a separate sidebar click.
-           Task 6b: use NAME first so v3 (strategy_version="v2") renders as
-           "Add Date Range (v3)" — not "(v2)". */
-        window._currentVersionName        = resp.active.name || "";
-        window._currentVersionDisplayName = resp.active.name || resp.active.strategy_version || "";
-        if (typeof updateRangeButtonLabel === "function") updateRangeButtonLabel();
-      }).catch(function () {});
+      /* Keep the Add Date Range button label in sync with the dropdown
+         (it used to update via the /api/active_version response). */
+      window._currentVersionName        = picked.name || "";
+      window._currentVersionDisplayName = picked.name || picked.strategy_version || "";
+      if (typeof updateRangeButtonLabel === "function") updateRangeButtonLabel();
     });
   }).catch(function () {});
 
@@ -1045,6 +1104,21 @@ function getSelectedSlSlippagePips() {
   return stored || "1.0";
 }
 
+/* Bug fix (May 2026): expose the EMA filter checkbox state to the run
+   payload. The checkbox `bs-use-ema-filter` lives in the BD settings
+   panel and is pre-filled from the selected version's params. If the
+   checkbox isn't in the DOM yet (older report.html without the new row,
+   or empty state), we fall back to localStorage, then to true (the
+   default). Returns a boolean. */
+function getSelectedUseEmaFilter() {
+  var el = document.getElementById("bs-use-ema-filter");
+  if (el) return !!el.checked;
+  var stored = localStorage.getItem("bs_use_ema_filter");
+  if (stored === "true")  return true;
+  if (stored === "false") return false;
+  return true;
+}
+
 function runNewVersion() {
   var instrument = getSelectedInstrument();
   var direction  = getSelectedDirection();
@@ -1055,7 +1129,7 @@ function runNewVersion() {
   setRunning();
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, strategy_version: version, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
+    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, strategy_version: version, version_id: version, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), use_ema_filter: getSelectedUseEmaFilter(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -1078,7 +1152,7 @@ function runDateRange() {
     setRunning();
     fetch("/run_batch", { method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ranges: selectedRanges, instrument: instrument, target_version: targetVersion, strategy_version: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
+      body: JSON.stringify({ ranges: selectedRanges, instrument: instrument, target_version: targetVersion, strategy_version: version, version_id: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), use_ema_filter: getSelectedUseEmaFilter(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
@@ -1103,7 +1177,7 @@ function runDateRange() {
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, strategy_version: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, strategy_version: version, version_id: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), use_ema_filter: getSelectedUseEmaFilter(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -2698,6 +2772,7 @@ def run_backtest():
     apply_slippage   = (data.get("apply_slippage") or "").strip()
     spread_pips      = (data.get("spread_pips") or "").strip()
     sl_slippage_pips = (data.get("sl_slippage_pips") or "").strip()
+    use_ema_filter   = data.get("use_ema_filter")
     strategy_version = (data.get("strategy_version") or "").strip()
     env_overrides = {"RUN_MODE": "new_version"}
     if strategy_version:
@@ -2729,9 +2804,20 @@ def run_backtest():
         env_overrides["SPREAD_PIPS"] = spread_pips
     if sl_slippage_pips:
         env_overrides["SL_SLIPPAGE_PIPS"] = sl_slippage_pips
+    # Bug fix (May 2026): explicit use_ema_filter in the BD payload now
+    # wins over the version's params.use_ema_filter. Previously the BD
+    # didn't send this field at all, so the version's value was always
+    # used — which broke when the dropdown was decoupled from the global
+    # active version (the strategy ran with the wrong version's filter
+    # state). Now the BD always sends what its checkbox shows.
+    if isinstance(use_ema_filter, bool):
+        env_overrides["USE_EMA_FILTER"] = "true" if use_ema_filter else "false"
+    elif isinstance(use_ema_filter, str) and use_ema_filter.strip():
+        env_overrides["USE_EMA_FILTER"] = use_ema_filter.strip()
 
-    # Layer in the active version's strategy + regime allow-lists. Payload
-    # overrides win; otherwise the active version supplies defaults.
+    # Layer in the SELECTED version's params + regime allow-lists.
+    # Selection comes from payload.version_id (or payload.strategy_version
+    # when it's a version id) — falls back to global active.
     _apply_active_version_to_env(env_overrides, data)
 
     t = threading.Thread(
@@ -2778,6 +2864,7 @@ def run_date_range():
     apply_slippage   = (data.get("apply_slippage") or "").strip()
     spread_pips      = (data.get("spread_pips") or "").strip()
     sl_slippage_pips = (data.get("sl_slippage_pips") or "").strip()
+    use_ema_filter   = data.get("use_ema_filter")
     strategy_version = (data.get("strategy_version") or "").strip()
     env_overrides = {
         "RUN_MODE":       "date_range",
@@ -2815,9 +2902,17 @@ def run_date_range():
         env_overrides["SPREAD_PIPS"] = spread_pips
     if sl_slippage_pips:
         env_overrides["SL_SLIPPAGE_PIPS"] = sl_slippage_pips
+    # See /run for context. Explicit USE_EMA_FILTER from payload wins over
+    # the version's params.use_ema_filter so the BD checkbox is the user-
+    # visible source of truth.
+    if isinstance(use_ema_filter, bool):
+        env_overrides["USE_EMA_FILTER"] = "true" if use_ema_filter else "false"
+    elif isinstance(use_ema_filter, str) and use_ema_filter.strip():
+        env_overrides["USE_EMA_FILTER"] = use_ema_filter.strip()
 
-    # Layer in the active version's strategy + regime allow-lists. Payload
-    # overrides win; otherwise the active version supplies defaults.
+    # Layer in the SELECTED version's params + regime allow-lists.
+    # Selection comes from payload.version_id (or payload.strategy_version
+    # when it's a version id) — falls back to global active.
     _apply_active_version_to_env(env_overrides, data)
 
     t = threading.Thread(
@@ -2921,8 +3016,15 @@ def run_batch():
     if apply_slippage:   shared_params["APPLY_SLIPPAGE"]   = apply_slippage
     if spread_pips:      shared_params["SPREAD_PIPS"]      = spread_pips
     if sl_slippage_pips: shared_params["SL_SLIPPAGE_PIPS"] = sl_slippage_pips
+    use_ema_filter = data.get("use_ema_filter")
+    if isinstance(use_ema_filter, bool):
+        shared_params["USE_EMA_FILTER"] = "true" if use_ema_filter else "false"
+    elif isinstance(use_ema_filter, str) and use_ema_filter.strip():
+        shared_params["USE_EMA_FILTER"] = use_ema_filter.strip()
 
-    # Layer in the regime allow-lists from the RA page (or explicit payload).
+    # Layer in the SELECTED version's params + regime allow-lists.
+    # Selection comes from payload.version_id (or payload.strategy_version
+    # when it's a version id) — falls back to global active.
     # The batch worker propagates shared_params into each range's env, so
     # injecting here means every range in the batch inherits the same filters.
     _apply_active_version_to_env(shared_params, data)

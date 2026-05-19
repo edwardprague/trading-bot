@@ -4134,6 +4134,15 @@ __VERSIONS_JSON__
     var slippageCheckedAttr = savedSlippage ? " checked" : "";
     var slippageHtml = "<label class='bs-toggle'><input id='bs-apply-slippage' type='checkbox' class='bs-checkbox'" + slippageCheckedAttr + "><span class='bs-toggle-label'>Enabled</span></label>";
 
+    /* EMA Filter toggle. Bug fix (May 2026): the strategy_v2 EMA-position
+       filter (USE_EMA_FILTER) had no visible BD control, so the user
+       couldn't see what state the next backtest would actually run with.
+       Pre-fills from the version's params.use_ema_filter via
+       applyBacktestParamsFromVersion in INJECT_HTML. */
+    var savedEmaFilter = run.use_ema_filter != null ? run.use_ema_filter : (p.use_ema_filter != null ? p.use_ema_filter : true);
+    var emaFilterCheckedAttr = savedEmaFilter ? " checked" : "";
+    var emaFilterHtml = "<label class='bs-toggle'><input id='bs-use-ema-filter' type='checkbox' class='bs-checkbox'" + emaFilterCheckedAttr + "><span class='bs-toggle-label'>Enabled</span></label>";
+
     /* SL Slippage (pips) numeric input */
     var savedSlSlippage = run.sl_slippage_pips != null ? run.sl_slippage_pips : (p.sl_slippage_pips != null ? p.sl_slippage_pips : 1.0);
     var slSlippagePipsHtml = "<input id='bs-sl-slippage-pips' type='number' class='bs-input' value='" + savedSlSlippage + "' min='0' step='0.1'>";
@@ -4163,6 +4172,7 @@ __VERSIONS_JSON__
     var slippageRow    = "<tr><td class='bs-td-cond'>Slippage</td><td class='bs-td-rule'>" + slippageHtml + "</td></tr>";
     var slSlippageRow  = "<tr><td class='bs-td-cond'>SL Slippage (pips)</td><td class='bs-td-rule'>" + slSlippagePipsHtml + "</td></tr>";
     var spreadRow      = "<tr><td class='bs-td-cond'>Spread (pips)</td><td class='bs-td-rule'>" + spreadPipsHtml + "</td></tr>";
+    var emaFilterRow   = "<tr><td class='bs-td-cond'>EMA Filter</td><td class='bs-td-rule'>" + emaFilterHtml + "</td></tr>";
 
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.filter(function(ec) {
@@ -4194,7 +4204,7 @@ __VERSIONS_JSON__
         "<div class='section'>" +
           "<div class='section-title'>Backtest Settings</div>" +
           "<table>" +
-            "<tbody>" + ecRows + slippageRow + slSlippageRow + spreadRow + blockedHoursRow + "</tbody>" +
+            "<tbody>" + ecRows + emaFilterRow + slippageRow + slSlippageRow + spreadRow + blockedHoursRow + "</tbody>" +
           "</table>" +
         "</div>";
     } else {
@@ -4211,6 +4221,7 @@ __VERSIONS_JSON__
             "<tr><td class='bs-td-cond'>Direction</td><td class='bs-td-rule'>" + dirSelectHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>RRR</td><td class='bs-td-rule'>" + rrrSelectHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>Max DD</td><td class='bs-td-rule'>" + maxDdSelectHtml + "</td></tr>" +
+            emaFilterRow +
             slippageRow +
             slSlippageRow +
             spreadRow +
@@ -4457,6 +4468,19 @@ __VERSIONS_JSON__
       if (stored !== null) cb.checked = (stored === "true");
       cb.addEventListener("change", function () {
         localStorage.setItem("bs_apply_slippage", cb.checked ? "true" : "false");
+      });
+    }());
+
+    /* Wire EMA Filter checkbox (bug fix May 2026) — persist to
+       localStorage on change. Initial value comes from the run / version
+       params via the renderer above; INJECT_HTML's
+       applyBacktestParamsFromVersion may further pre-fill on version
+       switch. */
+    (function () {
+      var cb = document.getElementById("bs-use-ema-filter");
+      if (!cb) return;
+      cb.addEventListener("change", function () {
+        localStorage.setItem("bs_use_ema_filter", cb.checked ? "true" : "false");
       });
     }());
 
