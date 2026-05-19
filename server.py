@@ -1644,32 +1644,13 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
     <section class="discovery-results-section">
       <div class="discovery-results-header">
         <h2>Results</h2>
-        <div class="discovery-results-controls">
-          <label class="discovery-toggle">
-            <input type="checkbox" id="d-show-passing" checked>
-            <span>Show passing only</span>
-          </label>
-          <span id="d-result-count" class="discovery-result-count"></span>
-        </div>
+        <span id="d-stack-count" class="discovery-result-count"></span>
       </div>
-      <div class="discovery-table-wrap">
-        <table class="discovery-table" id="d-results-table">
-          <thead>
-            <tr>
-              <th data-sort="trial">#</th>
-              <th data-sort="pass">Pass</th>
-              <th data-sort="profit_factor" class="discovery-th-active">PF &darr;</th>
-              <th data-sort="total_trades">Trades</th>
-              <th data-sort="max_drawdown">Max DD</th>
-              <th data-sort="net_profit">Net P&amp;L</th>
-              <th data-sort="win_rate">Win %</th>
-              <th>Params</th>
-              <th>Assign</th>
-            </tr>
-          </thead>
-          <tbody id="d-results-tbody"></tbody>
-        </table>
-      </div>
+      <!-- Stack of per-run blocks — populated client-side from
+           /api/discovery/results. Each block renders the existing
+           sortable trials table with its own show-passing-only toggle
+           and a Delete button that removes that run from the array. -->
+      <div id="d-runs-stack" class="discovery-runs-stack"></div>
       <div id="d-empty-state" class="discovery-empty-state" hidden>
         No discovery runs yet. Configure above and click <strong>Run Discovery</strong>.
       </div>
@@ -1699,14 +1680,22 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
     (function () {
       /* ── State ────────────────────────────────────────────────────────── */
       var STATE = {
-        trials:          [],
-        sortKey:         "profit_factor",
-        sortDir:         -1,    /* -1 desc, +1 asc */
-        showPassingOnly: true,
-        polling:         false,
-        assignTrialId:   null,
-        runConfig:       null,  /* most recent run config from /api/discovery/status */
+        runs:           [],     /* array of run dicts, newest first */
+        blockState:     {},     /* per-run-id: {sortKey, sortDir, showPassingOnly} */
+        polling:        false,
+        assignTrialId:  null,
       };
+
+      function getBlockState(runId) {
+        if (!STATE.blockState[runId]) {
+          STATE.blockState[runId] = {
+            sortKey: "profit_factor",
+            sortDir: -1,           /* -1 desc, +1 asc */
+            showPassingOnly: true, /* matches the default checked checkbox */
+          };
+        }
+        return STATE.blockState[runId];
+      }
 
       var POLL_MS = 1500;
 
@@ -1719,11 +1708,9 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
       var seedEl     = document.getElementById("d-seed");
       var statusEl   = document.getElementById("d-status-line");
       var fillEl     = document.getElementById("d-progress-fill");
-      var togglePass = document.getElementById("d-show-passing");
-      var tbodyEl    = document.getElementById("d-results-tbody");
+      var stackEl    = document.getElementById("d-runs-stack");
       var emptyEl    = document.getElementById("d-empty-state");
-      var countEl    = document.getElementById("d-result-count");
-      var theadRow   = document.querySelector("#d-results-table thead tr");
+      var countEl    = document.getElementById("d-stack-count");
       var modalEl    = document.getElementById("d-assign-modal");
       var modalCfm   = document.getElementById("d-assign-confirm");
       var modalCnc   = document.getElementById("d-assign-cancel");
@@ -1764,7 +1751,7 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                "] micro[" + (p.allowed_micro_regimes || []).length + "]";
       }
 
-      /* ── Sorting ───────────────────────────────────────────────────────── */
+      /* ── Sorting (per-block) ───────────────────────────────────────────── */
       function sortKeyOf(trial, key) {
         if (key === "pass") return trial.pass ? 1 : 0;
         if (key === "trial") return trial.trial;
@@ -1776,71 +1763,203 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         }
         return v == null ? 0 : v;
       }
-      function compareTrials(a, b) {
-        var av = sortKeyOf(a, STATE.sortKey);
-        var bv = sortKeyOf(b, STATE.sortKey);
-        if (av < bv) return -1 * STATE.sortDir;
-        if (av > bv) return  1 * STATE.sortDir;
-        /* Tiebreak by trial number ascending for stable ordering */
-        return a.trial - b.trial;
+      function makeComparator(bs) {
+        return function (a, b) {
+          var av = sortKeyOf(a, bs.sortKey);
+          var bv = sortKeyOf(b, bs.sortKey);
+          if (av < bv) return -1 * bs.sortDir;
+          if (av > bv) return  1 * bs.sortDir;
+          return a.trial - b.trial;
+        };
       }
 
-      function updateHeaderIndicators() {
-        for (var i = 0; i < theadRow.children.length; i++) {
-          var th = theadRow.children[i];
+      function td(text, cls) {
+        var el = document.createElement("td");
+        if (cls) el.className = cls;
+        el.textContent = text;
+        return el;
+      }
+
+      /* ── Render: stack + per-block ─────────────────────────────────────── */
+      function fmtRunDate(iso) {
+        if (!iso) return "—";
+        /* "2026-05-19T06:33:05Z" → "2026-05-19 06:33" */
+        return iso.replace("T", " ").replace(/:\d{2}Z?$/, "");
+      }
+
+      function renderStack() {
+        var runs = STATE.runs || [];
+        emptyEl.hidden = runs.length > 0;
+        countEl.textContent = runs.length ? (runs.length + " run" + (runs.length === 1 ? "" : "s")) : "";
+        stackEl.innerHTML = "";
+        runs.forEach(function (run) {
+          stackEl.appendChild(renderBlock(run));
+        });
+      }
+
+      function renderBlock(run) {
+        var bs = getBlockState(run.run_id);
+        var trials = run.trials || [];
+        var passCount = trials.filter(function (t) { return t.pass; }).length;
+
+        var block = document.createElement("div");
+        block.className = "discovery-run-block";
+        block.setAttribute("data-run-id", run.run_id || "");
+
+        /* ── Header ────────────────────────────────────────────────────── */
+        var header = document.createElement("div");
+        header.className = "discovery-run-header";
+
+        var meta = document.createElement("div");
+        meta.className = "discovery-run-meta";
+        var cfg = run.config || {};
+        meta.appendChild(spanCls("discovery-run-date", fmtRunDate(run.started_at)));
+        if (cfg.start && cfg.end) {
+          meta.appendChild(spanCls("discovery-run-range", cfg.start + " → " + cfg.end));
+        }
+        meta.appendChild(spanCls("discovery-run-stat", trials.length + " / " + (run.trials_total || trials.length) + " trials"));
+        meta.appendChild(spanCls("discovery-run-stat", passCount + " passing"));
+        var statusClass = "discovery-run-status discovery-run-status-" + (run.status || "idle");
+        meta.appendChild(spanCls(statusClass, (run.status || "—").toUpperCase()));
+        header.appendChild(meta);
+
+        var controls = document.createElement("div");
+        controls.className = "discovery-run-controls";
+        var toggleLbl = document.createElement("label");
+        toggleLbl.className = "discovery-toggle";
+        var toggleCb = document.createElement("input");
+        toggleCb.type = "checkbox";
+        toggleCb.checked = bs.showPassingOnly;
+        toggleCb.className = "d-block-show-passing";
+        toggleCb.addEventListener("change", function () {
+          bs.showPassingOnly = toggleCb.checked;
+          renderBlockBody(block, run);
+        });
+        var toggleTxt = document.createElement("span");
+        toggleTxt.textContent = "Show passing only";
+        toggleLbl.appendChild(toggleCb);
+        toggleLbl.appendChild(toggleTxt);
+        controls.appendChild(toggleLbl);
+
+        var delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "rb-btn rb-btn-delete discovery-run-delete";
+        delBtn.textContent = "Delete";
+        delBtn.addEventListener("click", function () {
+          deleteRun(run);
+        });
+        /* Refuse to delete the in-progress run — server-side check is
+           definitive, but disable the button locally as a UX hint. */
+        if (run.status === "running" && STATE.polling) {
+          delBtn.disabled = true;
+          delBtn.title = "Wait for the run to finish before deleting it.";
+        }
+        controls.appendChild(delBtn);
+
+        header.appendChild(controls);
+        block.appendChild(header);
+
+        /* ── In-progress indicator ────────────────────────────────────── */
+        if (run.status === "running") {
+          var progress = document.createElement("div");
+          progress.className = "discovery-run-progress";
+          var pct = (run.trials_total || 0) > 0 ? (trials.length / run.trials_total) * 100 : 0;
+          var bar = document.createElement("div");
+          bar.className = "discovery-progress-bar";
+          var fill = document.createElement("div");
+          fill.className = "discovery-progress-fill";
+          fill.style.width = Math.min(100, Math.max(0, pct)) + "%";
+          bar.appendChild(fill);
+          progress.appendChild(bar);
+          block.appendChild(progress);
+        }
+
+        /* ── Table ────────────────────────────────────────────────────── */
+        var wrap = document.createElement("div");
+        wrap.className = "discovery-table-wrap";
+        var table = document.createElement("table");
+        table.className = "discovery-table";
+        var thead = document.createElement("thead");
+        var theadTr = document.createElement("tr");
+        var cols = [
+          ["trial",         "#"],
+          ["pass",          "Pass"],
+          ["profit_factor", "PF"],
+          ["total_trades",  "Trades"],
+          ["max_drawdown",  "Max DD"],
+          ["net_profit",    "Net P&L"],
+          ["win_rate",      "Win %"],
+          [null,            "Params"],
+          [null,            "Assign"],
+        ];
+        cols.forEach(function (c) {
+          var th = document.createElement("th");
+          var key = c[0];
+          var label = c[1];
+          if (key) {
+            th.setAttribute("data-sort", key);
+            var indicator = "";
+            if (bs.sortKey === key) {
+              indicator = " " + (bs.sortDir < 0 ? "↓" : "↑");
+              th.classList.add("discovery-th-active");
+            }
+            th.innerHTML = label + indicator;
+            th.addEventListener("click", function () {
+              if (bs.sortKey === key) {
+                bs.sortDir = -bs.sortDir;
+              } else {
+                bs.sortKey = key;
+                bs.sortDir = -1;
+              }
+              renderBlockBody(block, run);
+            });
+          } else {
+            th.innerHTML = label;
+          }
+          theadTr.appendChild(th);
+        });
+        thead.appendChild(theadTr);
+        table.appendChild(thead);
+        var tbody = document.createElement("tbody");
+        tbody.className = "discovery-block-tbody";
+        table.appendChild(tbody);
+        wrap.appendChild(table);
+        block.appendChild(wrap);
+
+        renderBlockBody(block, run);
+        return block;
+      }
+
+      function renderBlockBody(block, run) {
+        var bs = getBlockState(run.run_id);
+        var tbody = block.querySelector(".discovery-block-tbody");
+        var trials = run.trials || [];
+        var visible = trials.slice();
+        if (bs.showPassingOnly) {
+          visible = visible.filter(function (t) { return t.pass === true; });
+        }
+        visible.sort(makeComparator(bs));
+
+        /* Sync the thead indicators for the active sort column without
+           rebuilding the table. */
+        var ths = block.querySelectorAll("thead th[data-sort]");
+        ths.forEach(function (th) {
           var key = th.getAttribute("data-sort");
-          if (!key) continue;
           th.classList.remove("discovery-th-active");
           var base = th.textContent.replace(/ [↑↓]$/, "");
-          if (key === STATE.sortKey) {
+          if (key === bs.sortKey) {
             th.classList.add("discovery-th-active");
-            th.textContent = base + " " + (STATE.sortDir < 0 ? "↓" : "↑");
+            th.textContent = base + " " + (bs.sortDir < 0 ? "↓" : "↑");
           } else {
             th.textContent = base;
           }
-        }
-      }
+        });
 
-      theadRow.addEventListener("click", function (e) {
-        var th = e.target.closest("th[data-sort]");
-        if (!th) return;
-        var key = th.getAttribute("data-sort");
-        if (STATE.sortKey === key) {
-          STATE.sortDir = -STATE.sortDir;
-        } else {
-          STATE.sortKey = key;
-          STATE.sortDir = -1;
-        }
-        renderTable();
-      });
-
-      /* ── Render ────────────────────────────────────────────────────────── */
-      function renderTable() {
-        updateHeaderIndicators();
-        var visible = STATE.trials.slice();
-        if (STATE.showPassingOnly) {
-          visible = visible.filter(function (t) { return t.pass === true; });
-        }
-        visible.sort(compareTrials);
-
-        var totalCount = STATE.trials.length;
-        var passCount  = STATE.trials.filter(function (t) { return t.pass; }).length;
-        if (totalCount === 0) {
-          emptyEl.hidden = false;
-          countEl.textContent = "";
-        } else {
-          emptyEl.hidden = true;
-          countEl.textContent = passCount + " passing / " + totalCount + " total";
-        }
-
-        tbodyEl.innerHTML = "";
+        tbody.innerHTML = "";
         visible.forEach(function (t) {
           var m = t.metrics || {};
           var tr = document.createElement("tr");
           tr.className = "discovery-row" + (t.pass ? " discovery-row-pass" : " discovery-row-fail");
-          /* Whole-row click navigates to the per-trial detail page. The
-             Assign button has e.stopPropagation() so its clicks don't
-             bubble up and trigger navigation. */
           tr.addEventListener("click", function () {
             window.location.href = "/discovery/trial/" + t.trial;
           });
@@ -1877,11 +1996,6 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
             btn.type = "button";
             btn.className = "rb-btn rb-btn-blue discovery-assign-btn";
             btn.textContent = "Assign";
-            /* Defensive: explicitly cancel default + stop propagation so no
-               other listener (e.g. a delegated handler somewhere) can hijack
-               the click and navigate the page. The original report was that
-               clicking Assign navigated to /versions — I couldn't reproduce
-               it after a clean reload, but belt-and-suspenders. */
             btn.addEventListener("click", function (e) {
               e.preventDefault();
               e.stopPropagation();
@@ -1893,21 +2007,32 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           }
           tr.appendChild(actionTd);
 
-          tbodyEl.appendChild(tr);
+          tbody.appendChild(tr);
         });
       }
 
-      function td(text, cls) {
-        var el = document.createElement("td");
-        if (cls) el.className = cls;
-        el.textContent = text;
-        return el;
+      function spanCls(cls, text) {
+        var s = document.createElement("span");
+        s.className = cls;
+        s.textContent = text;
+        return s;
       }
 
-      togglePass.addEventListener("change", function () {
-        STATE.showPassingOnly = togglePass.checked;
-        renderTable();
-      });
+      function deleteRun(run) {
+        if (!confirm("Delete this discovery run? This permanently removes its results from disk.")) return;
+        fetch("/api/discovery/results/" + encodeURIComponent(run.run_id), {method: "DELETE"})
+          .then(function (r) { return r.json().then(function (j) { return {ok: r.ok, body: j}; }); })
+          .then(function (resp) {
+            if (!resp.ok || !resp.body.ok) {
+              alert("Delete failed: " + ((resp.body && resp.body.error) || "unknown error"));
+              return;
+            }
+            /* Drop the block state too so the run id is fully forgotten. */
+            delete STATE.blockState[run.run_id];
+            loadResults();
+          })
+          .catch(function () { alert("Delete request failed."); });
+      }
 
       /* ── Assign modal ──────────────────────────────────────────────────── */
       /* The flow is now: pick an EXISTING unassigned version slot from a
@@ -1998,6 +2123,12 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
 
       function pollStatus() {
         if (!STATE.polling) return;
+        /* Each tick: refresh the global status line/progress bar from the
+           lightweight /status endpoint, then refetch the full /results
+           array so the in-progress block's tbody updates as trials land.
+           For a 200-trial run the file grows to ~200KB at most; the cost
+           is bounded and the simpler "always render canonical state"
+           model avoids per-run-id stub bookkeeping. */
         fetch("/api/discovery/status")
           .then(function (r) { return r.json(); })
           .then(function (s) {
@@ -2005,17 +2136,21 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
             var done  = s.trials_complete || 0;
             var pct = total > 0 ? (done / total) * 100 : 0;
             setProgress(pct);
-            STATE.runConfig = s.config || STATE.runConfig;
 
+            return loadResults().then(function () { return s; });
+          })
+          .then(function (s) {
             if (s.running) {
               var bestPF = s.best && s.best.metrics ? fmtPF(s.best.metrics.profit_factor) : "—";
+              var done = s.trials_complete || 0;
+              var total = s.trials_total || 0;
               setStatus("Running: trial " + done + " / " + total + " — best PF so far: " + bestPF);
               setTimeout(pollStatus, POLL_MS);
             } else {
               STATE.polling = false;
               runBtn.disabled = false;
               if (s.status === "complete") {
-                setStatus("Complete: " + done + " / " + total + " trials.");
+                setStatus("Complete: " + (s.trials_complete || 0) + " / " + (s.trials_total || 0) + " trials.");
                 setProgress(100);
               } else if (s.status === "error") {
                 setStatus("Errored: " + (s.error || "unknown error"));
@@ -2024,6 +2159,9 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
               } else {
                 setStatus("Idle.");
               }
+              /* Final refetch + re-render guarantees the just-completed
+                 block reflects its finalized state (status=complete,
+                 finished_at populated, delete button enabled). */
               loadResults();
             }
           })
@@ -2031,12 +2169,11 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
       }
 
       function loadResults() {
-        fetch("/api/discovery/results")
+        return fetch("/api/discovery/results")
           .then(function (r) { return r.json(); })
           .then(function (data) {
-            STATE.trials = (data && data.trials) || [];
-            if (data && data.config) STATE.runConfig = data.config;
-            renderTable();
+            STATE.runs = (data && data.runs) || [];
+            renderStack();
           })
           .catch(function () {});
       }
@@ -2103,15 +2240,17 @@ def discovery_page():
 
 @app.route("/discovery/trial/<int:trial_id>")
 def discovery_trial_detail(trial_id):
-    """Per-trial detail page. Verifies the trial exists in
-    discovery_results.json before serving discovery_trial.html — that way
-    a typo'd URL gets a real 404 instead of a working page that fails to
+    """Per-trial detail page. Verifies the trial exists in any of the
+    persisted runs before serving discovery_trial.html — that way a
+    typo'd URL gets a real 404 instead of a working page that fails to
     render. The page itself fetches the trial data client-side via
     /api/discovery/trial/<id>."""
-    data = _read_discovery_results()
-    if not data or not data.get("trials"):
-        abort(404)
-    if not any(t.get("trial") == trial_id for t in data["trials"]):
+    found = False
+    for run in _read_discovery_runs():
+        if any(t.get("trial") == trial_id for t in (run.get("trials") or [])):
+            found = True
+            break
+    if not found:
         abort(404)
     template = BASE_DIR / "discovery_trial.html"
     if not template.exists():
@@ -3204,17 +3343,57 @@ def _discovery_is_running():
     return proc.poll() is None
 
 
-def _read_discovery_results():
-    """Load discovery_results.json; return None if missing/unreadable. We
-    swallow errors because the file is written atomically by discovery.py
-    — a transient read error usually means the swap is mid-flight."""
+def _read_discovery_runs():
+    """Load discovery_results.json as an array of runs (newest first).
+    Swallows read errors because the file is written atomically by
+    discovery.py — a transient error usually means the swap is mid-flight.
+
+    Transparently migrates the legacy single-object schema (one run dict
+    at the top level) to a single-element array. Doesn't persist the
+    migration here — discovery.py's next init_results_file will rewrite
+    the file in the new format. Both shapes return correct semantics in
+    the meantime."""
     if not DISCOVERY_RESULTS_FILE.exists():
-        return None
+        return []
     try:
         with open(DISCOVERY_RESULTS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
     except (OSError, ValueError):
-        return None
+        return []
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict) and data.get("run_id"):
+        return [data]
+    return []
+
+
+def _atomic_write_discovery_runs(runs):
+    """Write the runs array atomically. Used by the DELETE endpoint;
+    discovery.py owns its own writes (which also use atomic rename)."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = DISCOVERY_RESULTS_FILE.with_suffix(".json.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(runs, f, indent=2)
+    tmp.replace(DISCOVERY_RESULTS_FILE)
+
+
+def _latest_discovery_run():
+    """Return the most-recent run dict (first in the array), or None."""
+    runs = _read_discovery_runs()
+    return runs[0] if runs else None
+
+
+def _find_trial_across_runs(value, key="id"):
+    """Search every run for a trial matching trial[key] == value. Returns
+    (trial_dict, parent_run_dict) or (None, None). Trial IDs ('t1_<hex>')
+    are uuid-suffixed so they're unique across runs; trial numbers are not
+    — but we never search by trial number across runs (only within a run),
+    so this helper is only used with key='id'."""
+    for run in _read_discovery_runs():
+        for t in (run.get("trials") or []):
+            if t.get(key) == value:
+                return t, run
+    return None, None
 
 
 @app.route("/api/discovery/run", methods=["POST"])
@@ -3277,16 +3456,17 @@ def api_discovery_run():
 
 @app.route("/api/discovery/status", methods=["GET"])
 def api_discovery_status():
-    """Lightweight progress poll. Reads the results file for trial counts +
-    best-so-far, plus the in-memory subprocess state for is-running. Never
-    returns the full trials array — use /api/discovery/results for that."""
+    """Lightweight progress poll. Reads the LATEST run from the array for
+    trial counts + best-so-far, plus the in-memory subprocess state for
+    is-running. Never returns the full trials array — use
+    /api/discovery/results for that."""
     running = _discovery_is_running()
-    data    = _read_discovery_results() or {}
+    latest  = _latest_discovery_run() or {}
 
     # If the file says running but the process is gone, the subprocess died.
     # Don't mutate the file from here — let the next /run overwrite it; just
     # report a corrected status in the response.
-    status = data.get("status", "idle")
+    status = latest.get("status", "idle")
     if status == "running" and not running:
         status = "error"
 
@@ -3294,39 +3474,56 @@ def api_discovery_status():
         "ok":              True,
         "running":         running,
         "status":          status,
-        "run_id":          data.get("run_id"),
-        "started_at":      data.get("started_at"),
-        "finished_at":     data.get("finished_at"),
-        "trials_complete": data.get("trials_complete", 0),
-        "trials_total":    data.get("trials_total", 0),
-        "best":            data.get("best"),
-        "config":          data.get("config"),
-        "error":           data.get("error"),
+        "run_id":          latest.get("run_id"),
+        "started_at":      latest.get("started_at"),
+        "finished_at":     latest.get("finished_at"),
+        "trials_complete": latest.get("trials_complete", 0),
+        "trials_total":    latest.get("trials_total", 0),
+        "best":            latest.get("best"),
+        "config":          latest.get("config"),
+        "error":           latest.get("error"),
     })
 
 
 @app.route("/api/discovery/results", methods=["GET"])
 def api_discovery_results():
-    """Return the full discovery_results.json payload (including all trials).
-    Used by the Discovery page on load and after a run completes."""
-    data = _read_discovery_results()
-    if data is None:
-        return jsonify({"ok": True, "empty": True, "trials": []})
-    return jsonify({"ok": True, "empty": False, **data})
+    """Return the full discovery runs array (newest first). Each element
+    carries its own metadata (run_id, started_at, finished_at, config,
+    status, trials_complete, trials_total, best) plus the full trials array.
+    Used by the Discovery page on load to render the stack of per-run blocks."""
+    runs = _read_discovery_runs()
+    return jsonify({"ok": True, "empty": len(runs) == 0, "runs": runs})
+
+
+@app.route("/api/discovery/results/<run_id>", methods=["DELETE"])
+def api_discovery_delete_run(run_id):
+    """Remove a single run from the array by run_id. Refuses to delete
+    the run that's currently in progress — it would leave the discovery.py
+    subprocess writing into a phantom slot that the next progress poll
+    would silently re-prepend. The user must wait for the run to finish
+    (or kill the subprocess) before deleting it."""
+    runs = _read_discovery_runs()
+    if _discovery_is_running() and runs and runs[0].get("run_id") == run_id:
+        return jsonify({"ok": False, "error": "Cannot delete the run that's currently in progress"}), 409
+    remaining = [r for r in runs if r.get("run_id") != run_id]
+    if len(remaining) == len(runs):
+        return jsonify({"ok": False, "error": f"run_id '{run_id}' not found"}), 404
+    _atomic_write_discovery_runs(remaining)
+    return jsonify({"ok": True, "removed": run_id, "remaining": len(remaining)})
 
 
 @app.route("/api/discovery/trial/<int:trial_id>", methods=["GET"])
 def api_discovery_trial(trial_id):
     """Return a single discovery trial by its trial number, plus the run
-    config. Used by /discovery/trial/<id> client-side to avoid pulling the
-    full results array. 404 if the trial doesn't exist."""
-    data = _read_discovery_results()
-    if not data or not data.get("trials"):
-        return jsonify({"ok": False, "error": "No discovery results on file"}), 404
-    trial = next((t for t in data["trials"] if t.get("trial") == trial_id), None)
-    if trial is None:
-        return jsonify({"ok": False, "error": f"trial {trial_id} not found"}), 404
-    return jsonify({"ok": True, "trial": trial, "config": data.get("config")})
+    config it belongs to. Searches across ALL runs (trial numbers are
+    unique within a run but not globally — earliest run wins on a tie,
+    which matches the order users see in the stack: newest at top). Used
+    by /discovery/trial/<id> client-side. 404 if not found."""
+    for run in _read_discovery_runs():
+        for t in (run.get("trials") or []):
+            if t.get("trial") == trial_id:
+                return jsonify({"ok": True, "trial": t, "config": run.get("config"), "run_id": run.get("run_id")})
+    return jsonify({"ok": False, "error": f"trial {trial_id} not found"}), 404
 
 
 @app.route("/api/discovery/assign", methods=["POST"])
@@ -3359,11 +3556,8 @@ def api_discovery_assign():
     if not version_id:
         return jsonify({"ok": False, "error": "version_id is required"}), 400
 
-    data = _read_discovery_results()
-    if not data or not data.get("trials"):
-        return jsonify({"ok": False, "error": "No discovery results on file"}), 404
-
-    trial = next((t for t in data["trials"] if t.get("id") == result_id), None)
+    # Trial IDs are uuid-suffixed ('t<n>_<hex>') so unique across all runs.
+    trial, _run = _find_trial_across_runs(result_id, key="id")
     if trial is None:
         return jsonify({"ok": False, "error": f"trial id '{result_id}' not found"}), 404
 

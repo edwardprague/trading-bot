@@ -263,8 +263,49 @@ def _best_passing(trials):
     return passing[0]
 
 
+def _load_runs(results_path):
+    """Read the discovery results file as a list of runs. Handles:
+      • missing/empty/invalid file → []
+      • new array-of-runs schema   → returned as-is
+      • legacy single-object schema (one run dict at the top level) →
+        wrapped into [dict] so the caller transparently sees the array
+        format. Doesn't persist the migration here — init_results_file's
+        atomic write below does that on the next run start.
+    """
+    if not results_path.exists():
+        return []
+    try:
+        with open(results_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return []
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict) and data.get("run_id"):
+        return [data]
+    return []
+
+
+def _write_run_into_array(results_path, run_payload):
+    """Read the runs array, replace (or prepend) the entry matching
+    run_payload['run_id'], write back atomically. If a concurrent DELETE
+    removed this run from the file between writes, we re-prepend it so the
+    in-flight run's progress isn't silently dropped."""
+    runs = _load_runs(results_path)
+    rid = run_payload.get("run_id")
+    for i, r in enumerate(runs):
+        if r.get("run_id") == rid:
+            runs[i] = run_payload
+            break
+    else:
+        runs.insert(0, run_payload)
+    _atomic_write(results_path, runs)
+
+
 def init_results_file(results_path, run_id, config):
-    """Wipe/replace the results file at the start of a new run."""
+    """Start a new run: prepend a fresh run entry at the front of the
+    array (newest first) and persist. Returns the in-memory payload dict
+    that append_trial / finalize will keep updating."""
     payload = {
         "run_id":          run_id,
         "started_at":      datetime.utcnow().isoformat(timespec="seconds") + "Z",
@@ -276,16 +317,18 @@ def init_results_file(results_path, run_id, config):
         "best":            None,
         "trials":          [],
     }
-    _atomic_write(results_path, payload)
+    runs = _load_runs(results_path)
+    runs.insert(0, payload)
+    _atomic_write(results_path, runs)
     return payload
 
 
 def append_trial(results_path, payload, trial_record):
-    """Append one trial to the results file and atomically re-write."""
+    """Append one trial to the in-flight run's entry and persist the array."""
     payload["trials"].append(trial_record)
     payload["trials_complete"] = len(payload["trials"])
     payload["best"] = _best_passing(payload["trials"])
-    _atomic_write(results_path, payload)
+    _write_run_into_array(results_path, payload)
 
 
 def finalize(results_path, payload, status="complete", error=None):
@@ -293,7 +336,7 @@ def finalize(results_path, payload, status="complete", error=None):
     payload["finished_at"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
     if error:
         payload["error"] = error
-    _atomic_write(results_path, payload)
+    _write_run_into_array(results_path, payload)
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────

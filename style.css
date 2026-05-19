@@ -61,7 +61,7 @@ body {
    adopt the class later. */
 #run-bar #version-select,
 #run-bar #instrument-select {
-    width: 150px;
+    width: 110px;
 }
 
 .rb-label {
@@ -2546,7 +2546,7 @@ body.versions-page {
     min-height: 100vh;
     overflow: auto;
     padding: 92px 0 60px;
-    background: #0c0c14;
+    background: #222;
     color: #d0d0e8;
 }
 
@@ -2653,7 +2653,7 @@ body.versions-page {
     list-style: none;
     margin: 0;
     padding: 0;
-    border: 1px solid #1e1e30;
+    border: 1px solid #666;
     border-radius: 8px;
     overflow: hidden;
 }
@@ -3507,7 +3507,7 @@ body.discovery-page {
     min-height: 100vh;
     overflow: auto;
     padding: 52px 0 60px;
-    background: #0c0c14;
+    background: #222;
     color: #d0d0e8;
 }
 
@@ -3540,8 +3540,8 @@ body.discovery-page {
 
 /* ── Config panel ─────────────────────────────────────────────────────── */
 .discovery-config {
-    background: #14142a;
-    border: 1px solid #1e1e32;
+    background: #000;
+    border: 1px solid #666;
     border-radius: 8px;
     padding: 18px 20px;
     margin-bottom: 24px;
@@ -3633,8 +3633,8 @@ body.discovery-page {
 
 /* ── Results section ──────────────────────────────────────────────────── */
 .discovery-results-section {
-    background: #14142a;
-    border: 1px solid #1e1e32;
+    background: #000;
+    border: 1px solid #666;
     border-radius: 8px;
     padding: 18px 20px;
 }
@@ -3988,4 +3988,110 @@ body.discovery-trial-page {
 
 .discovery-trial-regime-label-off {
     color: #6a6a82;
+}
+
+/* ── Discovery run-stack (multiple runs persisted, newest at top) ─────── */
+.discovery-runs-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.discovery-run-block {
+    background: #10101e;
+    border: 1px solid #1e1e32;
+    border-radius: 6px;
+    padding: 14px 16px;
+}
+
+.discovery-run-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.discovery-run-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: #9090b8;
+    min-width: 0;
+}
+
+.discovery-run-date {
+    color: #d0d0e8;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.discovery-run-range {
+    color: #707090;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+}
+
+.discovery-run-stat {
+    color: #9090b8;
+    letter-spacing: 0.02em;
+}
+
+.discovery-run-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.discovery-run-status-running {
+    background: rgba(76, 201, 240, 0.18);
+    color: #4cc9f0;
+}
+
+.discovery-run-status-complete {
+    background: rgba(107, 203, 119, 0.18);
+    color: #6bcb77;
+}
+
+.discovery-run-status-error {
+    background: rgba(196, 122, 140, 0.18);
+    color: #c47a8c;
+}
+
+.discovery-run-status-cancelled,
+.discovery-run-status-idle {
+    background: rgba(120, 120, 140, 0.18);
+    color: #9090b8;
+}
+
+.discovery-run-controls {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+}
+
+.discovery-run-delete {
+    padding: 4px 12px;
+    font-size: 11px;
+}
+
+.discovery-run-delete:disabled {
+    background: #1e1e38 !important;
+    color: #404060;
+    cursor: not-allowed;
+}
+
+.discovery-run-progress {
+    margin: 6px 0 12px;
+}
+
+.discovery-run-progress .discovery-progress-bar {
+    width: 100%;
 }
