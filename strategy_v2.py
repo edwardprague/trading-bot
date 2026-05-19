@@ -6034,6 +6034,37 @@ if __name__ == "__main__":
                     _eq_cash += _pnl
             equity.append(_eq_cash)
 
+    # ── DISCOVERY_MODE early exit ────────────────────────────────────────────
+    # Discovery harvests metrics from many subprocess runs. Skip every
+    # downstream side effect (charts, report.html, devlog, git push) — they
+    # would either corrupt the user's dashboard or take far too long to be
+    # called hundreds of times. Dump the FULL compute_metrics dict to the
+    # path in DISCOVERY_METRICS_OUT so the Discovery trial detail page can
+    # render every field the BD's General tab shows (winning/losing trades,
+    # avg win/loss, avg stop/target pips, best/worst, streaks, max daily
+    # DD, sharpe, gross profit/loss, final equity, etc.).
+    #
+    # We pass blocked_signals (cheap, enables filter_impact) but NOT df —
+    # df= triggers compute_sensitivity() which runs a fresh backtest per
+    # RRR / swing tuple, multiplying per-trial time by ~6x. For a 200-trial
+    # discovery run that's the difference between ~30 min and ~3 hours.
+    # The detail page doesn't show sensitivity sweeps, so the omission is
+    # invisible to users.
+    if os.environ.get("DISCOVERY_MODE") == "1":
+        import json as _json
+        _out_path = os.environ.get("DISCOVERY_METRICS_OUT", "")
+        _metrics_full = compute_metrics(trades, equity, blocked_signals=blocked_signals)
+        if _out_path:
+            # default=str is a safety net for any numpy scalar / pd.Timestamp
+            # that compute_metrics may leak through (most fields are already
+            # plain Python via round() / int(), but nested breakdowns can vary).
+            with open(_out_path, "w", encoding="utf-8") as _f:
+                _json.dump(_metrics_full, _f, default=str)
+        else:
+            print("DISCOVERY_METRICS:" + _json.dumps(_metrics_full, default=str), flush=True)
+        print("PROGRESS:100:Discovery trial complete", flush=True)
+        sys.exit(0)
+
     print("PROGRESS:55:Printing results…", flush=True)
     print_results(trades, equity)
 

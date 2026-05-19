@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Discovery Trial — Fractal Bot</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="discovery-trial-page">
+  <nav class="top-nav" id="top-nav">
+    <ul class="top-nav-items">
+      <li><a class="top-nav-link" href="/">Backtesting</a></li>
+      <li><a class="top-nav-link" href="/results/regime_analysis.html">Regimes</a></li>
+      <li><a class="top-nav-link top-nav-link-active" href="/discovery">Discovery</a></li>
+      <li><a class="top-nav-link" href="/versions">Versions</a></li>
+    </ul>
+    <span class="top-nav-active-version" id="top-nav-active-version"></span>
+  </nav>
+
+  <main class="discovery-trial-container">
+    <a class="discovery-trial-back" href="/discovery">&larr; Back to Discovery</a>
+
+    <header class="discovery-trial-header">
+      <h1 class="discovery-trial-title">Trial #<span id="dt-trial-num">&hellip;</span></h1>
+      <span id="dt-pass-badge" class="discovery-badge"></span>
+      <span class="discovery-trial-header-spacer"></span>
+      <button type="button" id="dt-assign-btn" class="rb-btn rb-btn-blue" disabled>Assign to Version</button>
+    </header>
+
+    <div id="dt-error-banner" class="discovery-trial-error" hidden></div>
+
+    <div class="two-col" id="dt-grid" hidden>
+      <div class="section">
+        <div class="section-title">Results</div>
+        <table><tbody id="dt-results-tbody"></tbody></table>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Parameters</div>
+        <table><tbody id="dt-params-tbody"></tbody></table>
+
+        <div class="discovery-trial-regime-heading">Macro regimes</div>
+        <ul class="discovery-trial-regime-list" id="dt-macro-list"></ul>
+
+        <div class="discovery-trial-regime-heading">Micro regimes</div>
+        <ul class="discovery-trial-regime-list" id="dt-micro-list"></ul>
+      </div>
+    </div>
+  </main>
+
+  <!-- Assign modal — same DOM ids as /discovery so the CSS in style.css
+       applies without duplication. -->
+  <div id="d-assign-modal" class="discovery-modal" hidden>
+    <div class="discovery-modal-backdrop"></div>
+    <div class="discovery-modal-content">
+      <h3>Assign as new version</h3>
+      <p class="discovery-modal-trial" id="d-assign-trial-summary"></p>
+      <label class="discovery-form-label" for="d-assign-name">Version name</label>
+      <input type="text" id="d-assign-name" class="discovery-form-input discovery-modal-input"
+             placeholder="auto: next v&lt;N&gt;">
+      <div class="discovery-modal-actions">
+        <button type="button" id="d-assign-cancel" class="rb-btn rb-btn-delete">Cancel</button>
+        <button type="button" id="d-assign-confirm" class="rb-btn rb-btn-green">Create version</button>
+      </div>
+      <span id="d-assign-error" class="discovery-modal-error"></span>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      /* ── Trial id from URL ────────────────────────────────────────────── */
+      var match = window.location.pathname.match(/\/discovery\/trial\/(\d+)\/?$/);
+      var trialId = match ? parseInt(match[1], 10) : null;
+      if (trialId === null) {
+        document.getElementById("dt-error-banner").hidden = false;
+        document.getElementById("dt-error-banner").textContent = "Couldn't parse trial id from URL.";
+        return;
+      }
+      document.getElementById("dt-trial-num").textContent = String(trialId);
+
+      /* ── Refs + state ─────────────────────────────────────────────────── */
+      var STATE = {trial: null};
+      var grid       = document.getElementById("dt-grid");
+      var errBanner  = document.getElementById("dt-error-banner");
+      var resTbody   = document.getElementById("dt-results-tbody");
+      var paramTbody = document.getElementById("dt-params-tbody");
+      var macroList  = document.getElementById("dt-macro-list");
+      var microList  = document.getElementById("dt-micro-list");
+      var badge      = document.getElementById("dt-pass-badge");
+      var assignBtn  = document.getElementById("dt-assign-btn");
+      var navAvEl    = document.getElementById("top-nav-active-version");
+
+      /* Modal refs (same ids as Discovery page) */
+      var modalEl   = document.getElementById("d-assign-modal");
+      var modalCfm  = document.getElementById("d-assign-confirm");
+      var modalCnc  = document.getElementById("d-assign-cancel");
+      var modalSum  = document.getElementById("d-assign-trial-summary");
+      var modalName = document.getElementById("d-assign-name");
+      var modalErr  = document.getElementById("d-assign-error");
+
+      /* ── Active-version indicator (consistency with other pages) ───────── */
+      fetch("/api/active_version")
+        .then(function (r) { return r.json(); })
+        .then(function (resp) {
+          if (resp && resp.ok && resp.active && navAvEl) {
+            navAvEl.textContent = "Active: " + resp.active.name;
+          }
+        })
+        .catch(function () {});
+
+      /* ── Formatters ───────────────────────────────────────────────────── */
+      var DASH = "—";
+      function isMissing(v) { return v === null || v === undefined; }
+      function fmtNum(v, d) {
+        if (isMissing(v)) return DASH;
+        return Number(v).toFixed(d == null ? 2 : d);
+      }
+      function fmtPct(v, d) {
+        if (isMissing(v)) return DASH;
+        return Number(v).toFixed(d == null ? 1 : d) + "%";
+      }
+      function fmtInt(v) {
+        if (isMissing(v)) return DASH;
+        return String(Math.round(Number(v)));
+      }
+      function fmtPF(v) {
+        if (isMissing(v)) return "&infin;";  /* null PF = no losing trades = infinite */
+        return Number(v).toFixed(2);
+      }
+      function commaFmt(v) {
+        if (isMissing(v)) return DASH;
+        return Math.round(Number(v)).toLocaleString();
+      }
+      function fmtMoney(v) {
+        if (isMissing(v)) return DASH;
+        var n = Number(v);
+        return (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+      }
+      function pClass(v) {
+        if (isMissing(v)) return "neu";
+        return Number(v) >= 0 ? "pos" : "neg";
+      }
+      function wrap(cls, html) { return "<span class='" + cls + "'>" + html + "</span>"; }
+      function esc(s) {
+        return String(s).replace(/[&<>"']/g, function (c) {
+          return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c];
+        });
+      }
+      function row(label, value) {
+        var tr = document.createElement("tr");
+        var l  = document.createElement("td");
+        var v  = document.createElement("td");
+        l.className = "lbl";
+        l.textContent = label;
+        v.innerHTML   = (value === null || value === undefined || value === "") ? DASH : value;
+        tr.appendChild(l); tr.appendChild(v);
+        return tr;
+      }
+
+      /* ── Render ───────────────────────────────────────────────────────── */
+      function renderResults(m) {
+        m = m || {};
+        resTbody.innerHTML = "";
+
+        /* Net profit + pct, coloured by sign */
+        var npHtml = (function () {
+          if (isMissing(m.net_profit)) return DASH;
+          var pctPart = isMissing(m.net_profit_pct) ? "" :
+            " (" + (Number(m.net_profit_pct) >= 0 ? "+" : "") + fmtNum(m.net_profit_pct, 1) + "%)";
+          return wrap(pClass(m.net_profit), fmtMoney(m.net_profit) + pctPart);
+        })();
+
+        var winRateCls = isMissing(m.win_rate) ? "neu" : (Number(m.win_rate) >= 50 ? "pos" : "neg");
+        var pfCls = (function () {
+          if (isMissing(m.profit_factor)) return "pos";  /* infinite = great */
+          var v = Number(m.profit_factor);
+          return v >= 1.5 ? "pos" : (v < 1.0 ? "neg" : "neu");
+        })();
+        var sharpeCls = isMissing(m.sharpe) ? "neu" : (Number(m.sharpe) >= 1.0 ? "pos" : (Number(m.sharpe) < 0 ? "neg" : "neu"));
+
+        var streaks = m.streaks || {};
+        var winStreak  = isMissing(streaks.max_win_streak)  ? null : streaks.max_win_streak + " trades";
+        var lossStreak = isMissing(streaks.max_loss_streak) ? null : streaks.max_loss_streak + " trades";
+
+        /* Max daily DD — the BD format is "-$X (Y%)"; mdd is an object with
+           {dollar, pct} when populated. */
+        var mdd = m.max_daily_drawdown || {};
+        var maxDailyHtml = isMissing(mdd.dollar) ? null :
+          wrap("neg", "-$" + commaFmt(mdd.dollar) + " (" + fmtNum(mdd.pct, 2) + "%)");
+
+        /* Max drawdown — strategy_v2 stores max_drawdown as a negative %,
+           and discovery.py abs()-es it on read. We display the magnitude
+           in red. max_drawdown_dollar is also a positive magnitude. */
+        var maxDDHtml = (function () {
+          if (isMissing(m.max_drawdown)) return null;
+          var ddD = m.max_drawdown_dollar;
+          var inner = isMissing(ddD)
+            ? fmtNum(m.max_drawdown, 2) + "%"
+            : "-$" + commaFmt(ddD) + " (" + fmtNum(m.max_drawdown, 2) + "%)";
+          return wrap("neg", inner);
+        })();
+
+        var rows = [
+          ["Net Profit",     npHtml],
+          ["Total Trades",   fmtInt(m.total_trades)],
+          ["Winning Trades", fmtInt(m.winning_trades)],
+          ["Losing Trades",  fmtInt(m.losing_trades)],
+          ["Win Rate",       isMissing(m.win_rate) ? null : wrap(winRateCls, fmtNum(m.win_rate, 1) + "%")],
+          ["Profit Factor",  wrap(pfCls, fmtPF(m.profit_factor))],
+          ["Avg Win",        isMissing(m.avg_win)  ? null : wrap("pos", fmtMoney(m.avg_win))],
+          ["Avg Loss",       isMissing(m.avg_loss) ? null : wrap("neg", fmtMoney(m.avg_loss))],
+          ["Avg Stop (pips)",   fmtNum(m.avg_stop_pips,   1)],
+          ["Avg Target (pips)", fmtNum(m.avg_target_pips, 1)],
+          ["Best Trade",     isMissing(m.best_trade)  ? null : wrap("pos", fmtMoney(m.best_trade))],
+          ["Worst Trade",    isMissing(m.worst_trade) ? null : wrap("neg", fmtMoney(m.worst_trade))],
+          ["Win Streak",     winStreak],
+          ["Loss Streak",    lossStreak],
+          ["Max Daily DD",   maxDailyHtml],
+          ["Max Drawdown",   maxDDHtml],
+          ["Sharpe Ratio",   isMissing(m.sharpe) ? null : wrap(sharpeCls, fmtNum(m.sharpe, 2))],
+          ["Gross Profit",   isMissing(m.gross_profit) ? null : wrap("pos", "+$" + commaFmt(m.gross_profit))],
+          ["Gross Loss",     isMissing(m.gross_loss)   ? null : wrap("neg", "-$" + commaFmt(Math.abs(m.gross_loss)))],
+          ["Final Equity",   isMissing(m.final_equity) ? null : "$" + commaFmt(m.final_equity)],
+        ];
+        rows.forEach(function (r) { resTbody.appendChild(row(r[0], r[1])); });
+      }
+
+      function renderParams(params, config) {
+        params = params || {};
+        config = config || {};
+        paramTbody.innerHTML = "";
+
+        var dateRange = (config.start && config.end) ? (esc(config.start) + " → " + esc(config.end)) : null;
+
+        var rows = [
+          ["Date Range",   dateRange],
+          ["Instrument",   wrap("val-highlight", "GBPUSD")],
+          ["Interval",     wrap("val-highlight", "5m")],
+          ["EMA Short",    wrap("val-highlight", "8")],
+          ["EMA Mid",      wrap("val-highlight", "20")],
+          ["EMA Long",     isMissing(params.ema_long)        ? null : wrap("val-highlight", esc(params.ema_long))],
+          ["EMA Filter",   wrap("val-highlight", params.use_ema_filter ? "On" : "Off")],
+          ["Stop Loss",    isMissing(params.stop_loss_pips)  ? null : wrap("val-highlight", esc(params.stop_loss_pips) + " pips")],
+          ["Direction",    wrap("val-highlight", "Short Only")],
+          ["RRR",          (params.rrr_risk || 1) + " : " + (params.rrr_reward || 1)],
+          ["Max DD",       isMissing(params.max_daily_losses) ? null : wrap("val-highlight", esc(params.max_daily_losses))],
+          ["Slippage",     wrap("val-highlight", "On")],
+          ["SL Slippage",  wrap("val-highlight", "1.0 pips")],
+          ["Spread",       wrap("val-highlight", "1.0 pips")],
+          ["Blocked Hours", esc(params.blocked_hours || "None")],
+        ];
+        rows.forEach(function (r) { paramTbody.appendChild(row(r[0], r[1])); });
+      }
+
+      var ALL_MACRO = ["strong_down", "staircase_down", "flat", "staircase_up", "strong_up"];
+      var ALL_MICRO = [
+        "trending_fast_down", "trending_medium_down", "trending_slow_down",
+        "trending_fast_up",   "trending_medium_up",   "trending_slow_up",
+        "ranging_narrow", "ranging_medium", "ranging_wide", "transitioning",
+      ];
+
+      function renderRegimes(params) {
+        params = params || {};
+        var allowedMacro = {};
+        (params.allowed_macro_regimes || []).forEach(function (k) { allowedMacro[k] = true; });
+        var allowedMicro = {};
+        (params.allowed_micro_regimes || []).forEach(function (k) { allowedMicro[k] = true; });
+
+        function build(list, all, allowed) {
+          list.innerHTML = "";
+          all.forEach(function (key) {
+            var li = document.createElement("li");
+            var icon = document.createElement("span");
+            var label = document.createElement("span");
+            var isOn = !!allowed[key];
+            icon.className  = "discovery-trial-regime-icon " + (isOn ? "discovery-trial-regime-on" : "discovery-trial-regime-off");
+            icon.textContent = isOn ? "✓" : "—";  /* ✓ or — */
+            label.className  = "discovery-trial-regime-label" + (isOn ? "" : " discovery-trial-regime-label-off");
+            label.textContent = key;
+            li.appendChild(icon);
+            li.appendChild(label);
+            list.appendChild(li);
+          });
+        }
+        build(macroList, ALL_MACRO, allowedMacro);
+        build(microList, ALL_MICRO, allowedMicro);
+      }
+
+      function renderBadge(trial) {
+        if (trial.pass) {
+          badge.className = "discovery-badge discovery-badge-pass";
+          badge.textContent = "PASS";
+        } else if (trial.error) {
+          badge.className = "discovery-badge discovery-badge-fail";
+          badge.textContent = "ERR";
+          badge.title = trial.error;
+        } else {
+          badge.className = "discovery-badge discovery-badge-fail";
+          badge.textContent = "FAIL";
+          if (trial.fail_reasons && trial.fail_reasons.length) {
+            badge.title = trial.fail_reasons.join("; ");
+          }
+        }
+      }
+
+      /* ── Assign modal (same flow as /discovery) ───────────────────────── */
+      function computeNextVName(versions) {
+        var maxN = 0;
+        (versions || []).forEach(function (v) {
+          var m = /^v(\d+)$/.exec((v.name || "").trim());
+          if (m) { var n = parseInt(m[1], 10); if (n > maxN) maxN = n; }
+        });
+        return "v" + (maxN + 1);
+      }
+      function openAssignModal() {
+        if (!STATE.trial) return;
+        var t = STATE.trial;
+        var m = t.metrics || {};
+        modalSum.textContent = "Trial #" + t.trial + " — PF " + fmtPF(m.profit_factor) +
+                               ", " + (m.total_trades || 0) + " trades, " +
+                               fmtPct(m.max_drawdown) + " max DD";
+        modalName.value = "";
+        modalErr.textContent = "";
+        modalEl.hidden = false;
+        fetch("/api/versions")
+          .then(function (r) { return r.json(); })
+          .then(function (store) {
+            modalName.value = computeNextVName((store && store.versions) || []);
+            modalName.select();
+          })
+          .catch(function () { modalName.focus(); });
+      }
+      function closeAssignModal() { modalEl.hidden = true; }
+      modalCnc.addEventListener("click", closeAssignModal);
+      modalEl.querySelector(".discovery-modal-backdrop").addEventListener("click", closeAssignModal);
+      modalCfm.addEventListener("click", function () {
+        if (!STATE.trial) return;
+        modalCfm.disabled = true;
+        modalErr.textContent = "";
+        fetch("/api/discovery/assign", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({result_id: STATE.trial.id, name: modalName.value.trim()}),
+        })
+          .then(function (r) { return r.json().then(function (j) { return {ok: r.ok, body: j}; }); })
+          .then(function (resp) {
+            if (!resp.ok || !resp.body.ok) {
+              modalErr.textContent = (resp.body && resp.body.error) || "Failed to create version.";
+              modalCfm.disabled = false;
+              return;
+            }
+            modalErr.textContent = "Created: " + resp.body.version.name + ". See /versions to switch.";
+            setTimeout(function () { closeAssignModal(); modalCfm.disabled = false; }, 1200);
+          })
+          .catch(function () {
+            modalErr.textContent = "Request failed.";
+            modalCfm.disabled = false;
+          });
+      });
+      assignBtn.addEventListener("click", function (e) {
+        e.preventDefault(); e.stopPropagation();
+        openAssignModal();
+      });
+
+      /* ── Boot: fetch the trial ────────────────────────────────────────── */
+      fetch("/api/discovery/trial/" + trialId)
+        .then(function (r) {
+          if (!r.ok) {
+            return r.json().then(function (j) { throw new Error((j && j.error) || ("HTTP " + r.status)); });
+          }
+          return r.json();
+        })
+        .then(function (resp) {
+          if (!resp.ok || !resp.trial) throw new Error(resp.error || "Trial not found");
+          STATE.trial = resp.trial;
+          renderBadge(resp.trial);
+          renderResults(resp.trial.metrics);
+          renderParams(resp.trial.params, resp.config);
+          renderRegimes(resp.trial.params);
+          grid.hidden = false;
+          /* Only allow assignment for passing trials (matches main Discovery page) */
+          if (resp.trial.pass) assignBtn.disabled = false;
+        })
+        .catch(function (err) {
+          errBanner.hidden = false;
+          errBanner.textContent = "Couldn't load trial: " + (err && err.message ? err.message : "unknown error");
+        });
+    })();
+  </script>
+</body>
+</html>

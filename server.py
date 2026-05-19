@@ -269,6 +269,50 @@ def _add_version(strategy_version, base_id=None):
     return new_version
 
 
+def _add_version_with_overrides(strategy_version, regime_state=None, backtest_params=None, name=None):
+    """Create a new version with explicit regime_state and backtest_params,
+    bypassing the "copy from base or default to all-on" logic of _add_version.
+    Used by /api/discovery/assign so a discovered parameter set lands on disk
+    as a complete reproducible profile in a single call.
+
+    backtest_params is a dict like:
+      {ema_long, stop_loss_pips, rrr_risk, rrr_reward, max_daily_losses,
+       use_ema_filter, blocked_hours}
+    Stored as-is on the version object — read by _apply_active_version_to_env
+    and by the BD run-bar's pre-populate JS.
+    """
+    data = _read_versions()
+    versions = data.get("versions", [])
+    existing_ids = {v.get("id") for v in versions}
+    auto_name = _next_version_name(versions)
+    final_name = (name or "").strip() or auto_name
+    new_id = _make_version_id(final_name, existing_ids)
+
+    if regime_state is None:
+        regime_state = {
+            "allowed_macro_regimes": list(_ALL_MACRO_KEYS),
+            "allowed_micro_regimes": list(_ALL_MICRO_KEYS),
+        }
+    else:
+        regime_state = {
+            "allowed_macro_regimes": list(regime_state.get("allowed_macro_regimes", []) or []),
+            "allowed_micro_regimes": list(regime_state.get("allowed_micro_regimes", []) or []),
+        }
+
+    new_version = {
+        "id": new_id,
+        "name": final_name,
+        "strategy_version": strategy_version,
+        "regime_state": regime_state,
+    }
+    if backtest_params:
+        new_version["backtest_params"] = dict(backtest_params)
+    versions.append(new_version)
+    data["versions"] = versions
+    _write_versions(data)
+    return new_version
+
+
 def _delete_version(version_id):
     """Remove a version. Refuse if it's the last remaining one. If the
     deleted version was active, fall back to the first remaining."""
@@ -365,6 +409,31 @@ def _apply_active_version_to_env(env_overrides, payload):
     elif "ALLOWED_MICRO_REGIMES" not in env_overrides:
         env_overrides["ALLOWED_MICRO_REGIMES"] = ",".join(rs.get("allowed_micro_regimes", []) or [])
 
+    # ── backtest_params fallback ────────────────────────────────────────────
+    # When the active version was assigned by Discovery (or any future tool)
+    # it carries a full `backtest_params` snapshot. The BD always sends its
+    # input values in the payload, so for BD-originated runs the payload wins
+    # and this fallback never fires. But direct API callers and tooling that
+    # POST a minimal payload still get the version's parameters applied.
+    bp = av.get("backtest_params") or {}
+    if bp:
+        _BP_TO_ENV = {
+            "ema_long":         "EMA_LONG",
+            "stop_loss_pips":   "FRACTAL_STOP_PIPS",
+            "rrr_risk":         "RRR_RISK",
+            "rrr_reward":       "RRR_REWARD",
+            "max_daily_losses": "MAX_DAILY_LOSSES",
+            "blocked_hours":    "BLOCKED_HOURS_UTC",
+        }
+        for bp_key, env_key in _BP_TO_ENV.items():
+            if env_key not in env_overrides or env_overrides[env_key] == "":
+                if bp_key in bp and bp[bp_key] is not None:
+                    env_overrides[env_key] = str(bp[bp_key])
+        # USE_EMA_FILTER is a bool in backtest_params; the strategy reads
+        # the env as the string 'true' / 'false'.
+        if "USE_EMA_FILTER" not in env_overrides and "use_ema_filter" in bp:
+            env_overrides["USE_EMA_FILTER"] = "true" if bp["use_ema_filter"] else "false"
+
 # ── Backtest state (shared between the Flask thread and the worker thread) ─────
 _bt_lock  = threading.Lock()
 _bt_state = {"running": False, "ok": None, "error": None, "no_data": False, "stage": "", "progress": 0}
@@ -376,7 +445,7 @@ INJECT_HTML = """
   <ul class="top-nav-items">
     <li><a class="top-nav-link top-nav-link-active" href="/">Backtesting</a></li>
     <li><a class="top-nav-link" href="/results/regime_analysis.html">Regimes</a></li>
-    <li><span class="top-nav-link top-nav-link-disabled" aria-disabled="true">Discovery</span></li>
+    <li><a class="top-nav-link" href="/discovery">Discovery</a></li>
     <li><a class="top-nav-link" href="/versions">Versions</a></li>
   </ul>
   <span class="top-nav-active-version" id="top-nav-active-version"></span>
@@ -575,6 +644,54 @@ document.addEventListener("DOMContentLoaded", function () {
     if (el) el.textContent = name ? "Active: " + name : "";
   }
 
+  /* ── BD pre-populate from active version's backtest_params ──────────────
+     Discovery-assigned versions carry a full backtest_params snapshot
+     (ema_long, stop_loss_pips, rrr_risk/reward, max_daily_losses,
+     use_ema_filter, blocked_hours). When the active version has one,
+     stamp those values onto the BD's settings-panel inputs in the DOM
+     so the run-bar reflects what the next backtest will actually use.
+     We deliberately do NOT write to localStorage — switching to a
+     vanilla version (no backtest_params) restores from localStorage,
+     so the user's hand-tuned BD prefs survive a discovery detour.
+     use_ema_filter has no visible BD checkbox today, but the strategy
+     subprocess still picks it up via _apply_active_version_to_env. */
+  function applyBacktestParamsFromVersion(version) {
+    var bp = version && version.backtest_params;
+    function setVal(id, v) {
+      var el = document.getElementById(id);
+      if (el && v !== undefined && v !== null && v !== "") el.value = String(v);
+    }
+    function setBlockedHours(csv) {
+      var hSet = {};
+      (csv || "").split(",").forEach(function (s) {
+        var t = s.trim(); if (t !== "") hSet[t] = true;
+      });
+      for (var h = 0; h <= 23; h++) {
+        var cb = document.getElementById("bs-bh-" + h);
+        if (cb) cb.checked = !!hSet[String(h)];
+      }
+    }
+    if (bp) {
+      setVal("bs-ema-long",   bp.ema_long);
+      setVal("bs-stop-pips",  bp.stop_loss_pips);
+      setVal("bs-rrr-risk",   bp.rrr_risk);
+      setVal("bs-rrr-reward", bp.rrr_reward);
+      setVal("bs-max-dd",     bp.max_daily_losses);
+      if (bp.blocked_hours !== undefined) setBlockedHours(bp.blocked_hours);
+    } else {
+      /* Vanilla version: restore inputs from localStorage so a previous
+         "stamp" from a discovery-assigned version doesn't bleed through. */
+      var ls = window.localStorage;
+      setVal("bs-ema-long",   ls.getItem("bs_ema_long"));
+      setVal("bs-stop-pips",  ls.getItem("bs_stop_pips"));
+      setVal("bs-rrr-risk",   ls.getItem("bs_rrr_risk"));
+      setVal("bs-rrr-reward", ls.getItem("bs_rrr_reward"));
+      setVal("bs-max-dd",     ls.getItem("bs_max_dd"));
+      var bh = ls.getItem("bs_blocked_hours");
+      if (bh !== null) setBlockedHours(bh);
+    }
+  }
+
   fetch("/api/versions").then(function (r) { return r.json(); }).then(function (store) {
     var versions = (store && store.versions) || [];
     var activeId = store && store.active_version_id;
@@ -625,10 +742,20 @@ document.addEventListener("DOMContentLoaded", function () {
          via addEventListener("change"), so dispatching a change event
          here triggers it. This makes getStrategyVersions re-filter the
          sidebar by name=active.id and re-render content for the right
-         bucket. Also fires our OWN change listener above (the one that
+         bucket. Also fires our OWN change listener below (the one that
          POSTs to /api/active_version), but that's a harmless no-op
          on initial load since the server is already on that version. */
       sel.dispatchEvent(new Event("change", {bubbles: true}));
+      /* Apply discovery-assigned backtest_params AFTER the change event,
+         because report.html's onVersionChange synchronously calls
+         renderEmptyState() / renderContent() which DESTROYS and REBUILDS
+         the bs-* settings-panel inputs from localStorage/defaults. If we
+         applied before, those values would be wiped by the rebuild. By
+         applying after, we land on the freshly-mounted inputs and win.
+         (For subsequent user-driven dropdown changes, the change listener
+         below — registered after onVersionChange via addEventListener —
+         fires after the rebuild and re-applies the same way.) */
+      applyBacktestParamsFromVersion(active);
     }
 
     /* Sync the active version when the user picks something. We use
@@ -639,6 +766,10 @@ document.addEventListener("DOMContentLoaded", function () {
     sel.addEventListener("change", function () {
       var picked = byId[sel.value];
       if (!picked) return;
+      /* Apply (or restore) BD input values based on the picked version's
+         backtest_params. Synchronous and DOM-only — see the function
+         comment above for the localStorage policy. */
+      applyBacktestParamsFromVersion(picked);
       fetch("/api/active_version", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -1092,7 +1223,7 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
       <ul class="top-nav-items">
       <li><a class="top-nav-link" href="/">Backtesting</a></li>
       <li><a class="top-nav-link" href="/results/regime_analysis.html">Regimes</a></li>
-      <li><span class="top-nav-link top-nav-link-disabled" aria-disabled="true">Discovery</span></li>
+      <li><a class="top-nav-link" href="/discovery">Discovery</a></li>
       <li><a class="top-nav-link top-nav-link-active" href="/versions">Versions</a></li>
     </ul>
     <span class="top-nav-active-version" id="top-nav-active-version"></span>
@@ -1298,6 +1429,530 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
 def versions_page():
     """Render the Versions management page."""
     return Response(_VERSIONS_PAGE_HTML, mimetype="text/html")
+
+
+# ── /discovery — Phase 1 random parameter search UI ──────────────────────────
+# Standalone page (no INJECT_HTML — Discovery has its own config bar). All
+# styling lives in style.css under .discovery-*. The page polls
+# /api/discovery/status while a run is in flight and hydrates the results
+# table from /api/discovery/results on load so the last run's output is
+# visible without re-running.
+
+_DISCOVERY_PAGE_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Discovery — Fractal Bot</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="discovery-page">
+  <nav class="top-nav" id="top-nav">
+    <ul class="top-nav-items">
+      <li><a class="top-nav-link" href="/">Backtesting</a></li>
+      <li><a class="top-nav-link" href="/results/regime_analysis.html">Regimes</a></li>
+      <li><a class="top-nav-link top-nav-link-active" href="/discovery">Discovery</a></li>
+      <li><a class="top-nav-link" href="/versions">Versions</a></li>
+    </ul>
+    <span class="top-nav-active-version" id="top-nav-active-version"></span>
+  </nav>
+
+  <main class="discovery-container">
+    <header class="discovery-header">
+      <h1>Discovery</h1>
+      <p class="discovery-subtitle">
+        Phase 1: random search across the v2 parameter space.
+        Each trial samples EMA Long, stop loss, RRR reward, max daily losses,
+        EMA filter, and macro/micro regime allow-lists; runs a full backtest
+        over the configured date range; and is scored against the objective
+        (PF&nbsp;&ge;&nbsp;1.5, trades&nbsp;&ge;&nbsp;50, max&nbsp;DD&nbsp;&le;&nbsp;15%).
+        Instrument, interval, direction, blocked hours, and slippage are fixed.
+      </p>
+    </header>
+
+    <section class="discovery-config">
+      <h2>Run configuration</h2>
+      <form id="discovery-config-form" class="discovery-config-form">
+        <div class="discovery-config-field">
+          <label class="discovery-form-label" for="d-start">Start date</label>
+          <input type="date" id="d-start" class="rb-date" value="2025-07-01">
+        </div>
+        <div class="discovery-config-field">
+          <label class="discovery-form-label" for="d-end">End date</label>
+          <input type="date" id="d-end" class="rb-date" value="2025-12-31">
+        </div>
+        <div class="discovery-config-field">
+          <label class="discovery-form-label" for="d-trials">Trials</label>
+          <input type="number" id="d-trials" class="discovery-form-input" value="200" min="1" max="10000">
+        </div>
+        <div class="discovery-config-field">
+          <label class="discovery-form-label" for="d-seed">Seed</label>
+          <input type="number" id="d-seed" class="discovery-form-input" placeholder="random">
+        </div>
+        <button type="submit" id="d-run-btn" class="rb-btn rb-btn-green discovery-run-btn">&#9654; Run Discovery</button>
+      </form>
+      <div class="discovery-progress-row">
+        <span id="d-status-line" class="discovery-status-line">Idle.</span>
+        <div class="discovery-progress-bar">
+          <div id="d-progress-fill" class="discovery-progress-fill"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="discovery-results-section">
+      <div class="discovery-results-header">
+        <h2>Results</h2>
+        <div class="discovery-results-controls">
+          <label class="discovery-toggle">
+            <input type="checkbox" id="d-show-passing" checked>
+            <span>Show passing only</span>
+          </label>
+          <span id="d-result-count" class="discovery-result-count"></span>
+        </div>
+      </div>
+      <div class="discovery-table-wrap">
+        <table class="discovery-table" id="d-results-table">
+          <thead>
+            <tr>
+              <th data-sort="trial">#</th>
+              <th data-sort="pass">Pass</th>
+              <th data-sort="profit_factor" class="discovery-th-active">PF &darr;</th>
+              <th data-sort="total_trades">Trades</th>
+              <th data-sort="max_drawdown">Max DD</th>
+              <th data-sort="net_profit">Net P&amp;L</th>
+              <th data-sort="win_rate">Win %</th>
+              <th>Params</th>
+              <th>Assign</th>
+            </tr>
+          </thead>
+          <tbody id="d-results-tbody"></tbody>
+        </table>
+      </div>
+      <div id="d-empty-state" class="discovery-empty-state" hidden>
+        No discovery runs yet. Configure above and click <strong>Run Discovery</strong>.
+      </div>
+    </section>
+  </main>
+
+  <div id="d-assign-modal" class="discovery-modal" hidden>
+    <div class="discovery-modal-backdrop"></div>
+    <div class="discovery-modal-content">
+      <h3>Assign as new version</h3>
+      <p class="discovery-modal-trial" id="d-assign-trial-summary"></p>
+      <label class="discovery-form-label" for="d-assign-name">Version name</label>
+      <input type="text" id="d-assign-name" class="discovery-form-input discovery-modal-input"
+             placeholder="auto: next v&lt;N&gt;">
+      <div class="discovery-modal-actions">
+        <button type="button" id="d-assign-cancel" class="rb-btn rb-btn-delete">Cancel</button>
+        <button type="button" id="d-assign-confirm" class="rb-btn rb-btn-green">Create version</button>
+      </div>
+      <span id="d-assign-error" class="discovery-modal-error"></span>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      /* ── State ────────────────────────────────────────────────────────── */
+      var STATE = {
+        trials:          [],
+        sortKey:         "profit_factor",
+        sortDir:         -1,    /* -1 desc, +1 asc */
+        showPassingOnly: true,
+        polling:         false,
+        assignTrialId:   null,
+        runConfig:       null,  /* most recent run config from /api/discovery/status */
+      };
+
+      var POLL_MS = 1500;
+
+      /* ── DOM refs ──────────────────────────────────────────────────────── */
+      var formEl     = document.getElementById("discovery-config-form");
+      var runBtn     = document.getElementById("d-run-btn");
+      var startEl    = document.getElementById("d-start");
+      var endEl      = document.getElementById("d-end");
+      var trialsEl   = document.getElementById("d-trials");
+      var seedEl     = document.getElementById("d-seed");
+      var statusEl   = document.getElementById("d-status-line");
+      var fillEl     = document.getElementById("d-progress-fill");
+      var togglePass = document.getElementById("d-show-passing");
+      var tbodyEl    = document.getElementById("d-results-tbody");
+      var emptyEl    = document.getElementById("d-empty-state");
+      var countEl    = document.getElementById("d-result-count");
+      var theadRow   = document.querySelector("#d-results-table thead tr");
+      var modalEl    = document.getElementById("d-assign-modal");
+      var modalCfm   = document.getElementById("d-assign-confirm");
+      var modalCnc   = document.getElementById("d-assign-cancel");
+      var modalSum   = document.getElementById("d-assign-trial-summary");
+      var modalName  = document.getElementById("d-assign-name");
+      var modalErr   = document.getElementById("d-assign-error");
+      var navAvEl    = document.getElementById("top-nav-active-version");
+
+      /* ── Active-version indicator ────────────────────────────────────── */
+      fetch("/api/active_version")
+        .then(function (r) { return r.json(); })
+        .then(function (resp) {
+          if (resp && resp.ok && resp.active && navAvEl) {
+            navAvEl.textContent = "Active: " + resp.active.name;
+          }
+        })
+        .catch(function () {});
+
+      /* ── Formatting helpers ────────────────────────────────────────────── */
+      function fmtPF(v) {
+        if (v === null || v === undefined) return "∞";
+        return Number(v).toFixed(2);
+      }
+      function fmtPct(v) { return (v === null || v === undefined) ? "—" : Number(v).toFixed(1) + "%"; }
+      function fmtUSD(v) {
+        if (v === null || v === undefined) return "—";
+        var n = Number(v);
+        var sign = n < 0 ? "-$" : "$";
+        return sign + Math.abs(n).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+      }
+      function describeParams(p) {
+        if (!p) return "";
+        var emaFilter = p.use_ema_filter ? "on" : "off";
+        return "EMA " + p.ema_long + " (" + emaFilter + ") | SL " + p.stop_loss_pips +
+               "p | RRR 1:" + p.rrr_reward + " | DLL " + p.max_daily_losses +
+               " | macro[" + (p.allowed_macro_regimes || []).length +
+               "] micro[" + (p.allowed_micro_regimes || []).length + "]";
+      }
+
+      /* ── Sorting ───────────────────────────────────────────────────────── */
+      function sortKeyOf(trial, key) {
+        if (key === "pass") return trial.pass ? 1 : 0;
+        if (key === "trial") return trial.trial;
+        var m = trial.metrics || {};
+        var v = m[key];
+        /* Profit factor null = infinity = best */
+        if (key === "profit_factor" && (v === null || v === undefined)) {
+          return Number.POSITIVE_INFINITY;
+        }
+        return v == null ? 0 : v;
+      }
+      function compareTrials(a, b) {
+        var av = sortKeyOf(a, STATE.sortKey);
+        var bv = sortKeyOf(b, STATE.sortKey);
+        if (av < bv) return -1 * STATE.sortDir;
+        if (av > bv) return  1 * STATE.sortDir;
+        /* Tiebreak by trial number ascending for stable ordering */
+        return a.trial - b.trial;
+      }
+
+      function updateHeaderIndicators() {
+        for (var i = 0; i < theadRow.children.length; i++) {
+          var th = theadRow.children[i];
+          var key = th.getAttribute("data-sort");
+          if (!key) continue;
+          th.classList.remove("discovery-th-active");
+          var base = th.textContent.replace(/ [↑↓]$/, "");
+          if (key === STATE.sortKey) {
+            th.classList.add("discovery-th-active");
+            th.textContent = base + " " + (STATE.sortDir < 0 ? "↓" : "↑");
+          } else {
+            th.textContent = base;
+          }
+        }
+      }
+
+      theadRow.addEventListener("click", function (e) {
+        var th = e.target.closest("th[data-sort]");
+        if (!th) return;
+        var key = th.getAttribute("data-sort");
+        if (STATE.sortKey === key) {
+          STATE.sortDir = -STATE.sortDir;
+        } else {
+          STATE.sortKey = key;
+          STATE.sortDir = -1;
+        }
+        renderTable();
+      });
+
+      /* ── Render ────────────────────────────────────────────────────────── */
+      function renderTable() {
+        updateHeaderIndicators();
+        var visible = STATE.trials.slice();
+        if (STATE.showPassingOnly) {
+          visible = visible.filter(function (t) { return t.pass === true; });
+        }
+        visible.sort(compareTrials);
+
+        var totalCount = STATE.trials.length;
+        var passCount  = STATE.trials.filter(function (t) { return t.pass; }).length;
+        if (totalCount === 0) {
+          emptyEl.hidden = false;
+          countEl.textContent = "";
+        } else {
+          emptyEl.hidden = true;
+          countEl.textContent = passCount + " passing / " + totalCount + " total";
+        }
+
+        tbodyEl.innerHTML = "";
+        visible.forEach(function (t) {
+          var m = t.metrics || {};
+          var tr = document.createElement("tr");
+          tr.className = "discovery-row" + (t.pass ? " discovery-row-pass" : " discovery-row-fail");
+          /* Whole-row click navigates to the per-trial detail page. The
+             Assign button has e.stopPropagation() so its clicks don't
+             bubble up and trigger navigation. */
+          tr.addEventListener("click", function () {
+            window.location.href = "/discovery/trial/" + t.trial;
+          });
+
+          tr.appendChild(td(String(t.trial)));
+
+          var passTd = document.createElement("td");
+          var badge = document.createElement("span");
+          badge.className = "discovery-badge " + (t.pass ? "discovery-badge-pass" : "discovery-badge-fail");
+          badge.textContent = t.pass ? "PASS" : (t.error ? "ERR" : "FAIL");
+          if (t.error) {
+            badge.title = t.error;
+          } else if (!t.pass && t.fail_reasons && t.fail_reasons.length) {
+            badge.title = t.fail_reasons.join("; ");
+          }
+          passTd.appendChild(badge);
+          tr.appendChild(passTd);
+
+          tr.appendChild(td(fmtPF(m.profit_factor),  "discovery-cell-num"));
+          tr.appendChild(td(String(m.total_trades || 0), "discovery-cell-num"));
+          tr.appendChild(td(fmtPct(m.max_drawdown), "discovery-cell-num"));
+          tr.appendChild(td(fmtUSD(m.net_profit),   "discovery-cell-num"));
+          tr.appendChild(td(fmtPct(m.win_rate),     "discovery-cell-num"));
+
+          var paramsTd = document.createElement("td");
+          paramsTd.className = "discovery-cell-params";
+          paramsTd.textContent = describeParams(t.params);
+          paramsTd.title = JSON.stringify(t.params, null, 2);
+          tr.appendChild(paramsTd);
+
+          var actionTd = document.createElement("td");
+          if (t.pass) {
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "rb-btn rb-btn-blue discovery-assign-btn";
+            btn.textContent = "Assign";
+            /* Defensive: explicitly cancel default + stop propagation so no
+               other listener (e.g. a delegated handler somewhere) can hijack
+               the click and navigate the page. The original report was that
+               clicking Assign navigated to /versions — I couldn't reproduce
+               it after a clean reload, but belt-and-suspenders. */
+            btn.addEventListener("click", function (e) {
+              e.preventDefault();
+              e.stopPropagation();
+              openAssignModal(t);
+            });
+            actionTd.appendChild(btn);
+          } else {
+            actionTd.textContent = "—";
+          }
+          tr.appendChild(actionTd);
+
+          tbodyEl.appendChild(tr);
+        });
+      }
+
+      function td(text, cls) {
+        var el = document.createElement("td");
+        if (cls) el.className = cls;
+        el.textContent = text;
+        return el;
+      }
+
+      togglePass.addEventListener("change", function () {
+        STATE.showPassingOnly = togglePass.checked;
+        renderTable();
+      });
+
+      /* ── Assign modal ──────────────────────────────────────────────────── */
+      function computeNextVName(versions) {
+        var maxN = 0;
+        (versions || []).forEach(function (v) {
+          var m = /^v(\d+)$/.exec((v.name || "").trim());
+          if (m) {
+            var n = parseInt(m[1], 10);
+            if (n > maxN) maxN = n;
+          }
+        });
+        return "v" + (maxN + 1);
+      }
+      function openAssignModal(trial) {
+        STATE.assignTrialId = trial.id;
+        var m = trial.metrics || {};
+        modalSum.textContent = "Trial #" + trial.trial + " — PF " + fmtPF(m.profit_factor) +
+                               ", " + (m.total_trades || 0) + " trades, " +
+                               fmtPct(m.max_drawdown) + " max DD";
+        modalName.value = "";  /* clear stale value; will be filled by fetch below */
+        modalErr.textContent = "";
+        modalEl.hidden = false;
+        /* Default the input to the next available v<N>, matching the
+           server-side _next_version_name logic. Falls back to a blank
+           field if the fetch fails — the server still auto-names then. */
+        fetch("/api/versions")
+          .then(function (r) { return r.json(); })
+          .then(function (store) {
+            modalName.value = computeNextVName((store && store.versions) || []);
+            modalName.select();
+          })
+          .catch(function () { modalName.focus(); });
+      }
+      function closeAssignModal() {
+        STATE.assignTrialId = null;
+        modalEl.hidden = true;
+      }
+      modalCnc.addEventListener("click", closeAssignModal);
+      modalEl.querySelector(".discovery-modal-backdrop").addEventListener("click", closeAssignModal);
+      modalCfm.addEventListener("click", function () {
+        if (!STATE.assignTrialId) return;
+        modalCfm.disabled = true;
+        modalErr.textContent = "";
+        fetch("/api/discovery/assign", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({result_id: STATE.assignTrialId, name: modalName.value.trim()})
+        })
+          .then(function (r) { return r.json().then(function (j) { return {ok: r.ok, body: j}; }); })
+          .then(function (resp) {
+            if (!resp.ok || !resp.body.ok) {
+              modalErr.textContent = (resp.body && resp.body.error) || "Failed to create version.";
+              modalCfm.disabled = false;
+              return;
+            }
+            modalErr.textContent = "Created: " + resp.body.version.name + ". You can switch to it on /versions.";
+            setTimeout(function () { closeAssignModal(); modalCfm.disabled = false; }, 1200);
+          })
+          .catch(function () {
+            modalErr.textContent = "Request failed.";
+            modalCfm.disabled = false;
+          });
+      });
+
+      /* ── Run + poll ────────────────────────────────────────────────────── */
+      function setStatus(text) { statusEl.textContent = text; }
+      function setProgress(pct) {
+        var p = Math.max(0, Math.min(100, pct));
+        fillEl.style.width = p + "%";
+      }
+
+      function pollStatus() {
+        if (!STATE.polling) return;
+        fetch("/api/discovery/status")
+          .then(function (r) { return r.json(); })
+          .then(function (s) {
+            var total = s.trials_total || 0;
+            var done  = s.trials_complete || 0;
+            var pct = total > 0 ? (done / total) * 100 : 0;
+            setProgress(pct);
+            STATE.runConfig = s.config || STATE.runConfig;
+
+            if (s.running) {
+              var bestPF = s.best && s.best.metrics ? fmtPF(s.best.metrics.profit_factor) : "—";
+              setStatus("Running: trial " + done + " / " + total + " — best PF so far: " + bestPF);
+              setTimeout(pollStatus, POLL_MS);
+            } else {
+              STATE.polling = false;
+              runBtn.disabled = false;
+              if (s.status === "complete") {
+                setStatus("Complete: " + done + " / " + total + " trials.");
+                setProgress(100);
+              } else if (s.status === "error") {
+                setStatus("Errored: " + (s.error || "unknown error"));
+              } else if (s.status === "cancelled") {
+                setStatus("Cancelled.");
+              } else {
+                setStatus("Idle.");
+              }
+              loadResults();
+            }
+          })
+          .catch(function () { setTimeout(pollStatus, POLL_MS * 2); });
+      }
+
+      function loadResults() {
+        fetch("/api/discovery/results")
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            STATE.trials = (data && data.trials) || [];
+            if (data && data.config) STATE.runConfig = data.config;
+            renderTable();
+          })
+          .catch(function () {});
+      }
+
+      formEl.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var trials = parseInt(trialsEl.value || "200", 10);
+        var start  = startEl.value;
+        var end    = endEl.value;
+        var seed   = seedEl.value ? parseInt(seedEl.value, 10) : null;
+        if (!start || !end) {
+          setStatus("Pick both start and end dates.");
+          return;
+        }
+        runBtn.disabled = true;
+        setStatus("Starting discovery run…");
+        setProgress(0);
+        var body = {trials: trials, start: start, end: end};
+        if (seed !== null && !isNaN(seed)) body.seed = seed;
+        fetch("/api/discovery/run", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(body)
+        })
+          .then(function (r) { return r.json().then(function (j) { return {ok: r.ok, body: j}; }); })
+          .then(function (resp) {
+            if (!resp.ok || !resp.body.ok) {
+              setStatus("Failed: " + ((resp.body && resp.body.error) || "unknown error"));
+              runBtn.disabled = false;
+              return;
+            }
+            STATE.polling = true;
+            pollStatus();
+          })
+          .catch(function () {
+            setStatus("Request failed.");
+            runBtn.disabled = false;
+          });
+      });
+
+      /* ── On load: hydrate from existing results + resume polling if running ── */
+      loadResults();
+      fetch("/api/discovery/status")
+        .then(function (r) { return r.json(); })
+        .then(function (s) {
+          if (s.running) {
+            runBtn.disabled = true;
+            STATE.polling = true;
+            pollStatus();
+          }
+        })
+        .catch(function () {});
+    })();
+  </script>
+</body>
+</html>"""
+
+
+@app.route("/discovery")
+def discovery_page():
+    """Render the Discovery page (Phase 1 random search UI)."""
+    return Response(_DISCOVERY_PAGE_HTML, mimetype="text/html")
+
+
+@app.route("/discovery/trial/<int:trial_id>")
+def discovery_trial_detail(trial_id):
+    """Per-trial detail page. Verifies the trial exists in
+    discovery_results.json before serving discovery_trial.html — that way
+    a typo'd URL gets a real 404 instead of a working page that fails to
+    render. The page itself fetches the trial data client-side via
+    /api/discovery/trial/<id>."""
+    data = _read_discovery_results()
+    if not data or not data.get("trials"):
+        abort(404)
+    if not any(t.get("trial") == trial_id for t in data["trials"]):
+        abort(404)
+    template = BASE_DIR / "discovery_trial.html"
+    if not template.exists():
+        abort(500)
+    return Response(template.read_text(encoding="utf-8"), mimetype="text/html")
 
 
 # ── /results — file server + directory listing ───────────────────────────────
@@ -2323,6 +2978,202 @@ def api_active_version_set():
     if not _set_active_version(version_id):
         return jsonify({"ok": False, "error": "unknown version id"}), 404
     return jsonify({"ok": True, "active": _get_active_version()})
+
+
+# ── Discovery — Phase 1 random parameter search ──────────────────────────────
+# Distinct from the BD backtest flow:
+#   - The BD spawns ONE strategy.py subprocess per "Run" click and writes a
+#     full report.html. Discovery spawns N (default 200) subprocesses each
+#     with DISCOVERY_MODE=1 — strategy_v2.py short-circuits its report-writing
+#     side effects and dumps a slim metrics JSON instead.
+#   - discovery.py owns the subprocess loop and writes incrementally to
+#     data/discovery_results.json, so the UI can poll status while the run
+#     is in flight without us having to thread per-trial progress back here.
+#   - Subprocess concurrency: only one discovery run at a time; we keep the
+#     Popen in _disco_state so /api/discovery/run can refuse concurrent
+#     starts and so the page can show "still running" on reload.
+
+DISCOVERY_SCRIPT       = BASE_DIR / "discovery.py"
+DISCOVERY_RESULTS_FILE = DATA_DIR / "discovery_results.json"
+
+_disco_lock  = threading.Lock()
+_disco_state = {"process": None, "run_id": None, "started_at": None}
+
+
+def _discovery_is_running():
+    """True iff the discovery subprocess is still alive."""
+    proc = _disco_state["process"]
+    if proc is None:
+        return False
+    return proc.poll() is None
+
+
+def _read_discovery_results():
+    """Load discovery_results.json; return None if missing/unreadable. We
+    swallow errors because the file is written atomically by discovery.py
+    — a transient read error usually means the swap is mid-flight."""
+    if not DISCOVERY_RESULTS_FILE.exists():
+        return None
+    try:
+        with open(DISCOVERY_RESULTS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+@app.route("/api/discovery/run", methods=["POST"])
+def api_discovery_run():
+    """Launch discovery.py as a subprocess. Body: {trials?, start?, end?, seed?}.
+    Refuses if a discovery run is already in flight."""
+    body = request.get_json(force=True, silent=True) or {}
+    trials = body.get("trials", 200)
+    start  = (body.get("start") or "2025-07-01").strip()
+    end    = (body.get("end")   or "2025-12-31").strip()
+    seed   = body.get("seed")
+
+    try:
+        trials = int(trials)
+        if trials < 1 or trials > 10000:
+            return jsonify({"ok": False, "error": "trials must be between 1 and 10000"}), 400
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "trials must be an integer"}), 400
+
+    # Basic date-string validation
+    for label, val in (("start", start), ("end", end)):
+        try:
+            datetime.strptime(val, "%Y-%m-%d")
+        except ValueError:
+            return jsonify({"ok": False, "error": f"{label} must be YYYY-MM-DD"}), 400
+
+    with _disco_lock:
+        if _discovery_is_running():
+            return jsonify({"ok": False, "error": "A discovery run is already in progress"}), 409
+
+        # Write a fresh config JSON the subprocess will pick up via --config-json
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        config_path = DATA_DIR / ".discovery_config.json"
+        cfg = {"trials": trials, "start": start, "end": end,
+               "results_file": str(DISCOVERY_RESULTS_FILE)}
+        if seed is not None:
+            try:
+                cfg["seed"] = int(seed)
+            except (TypeError, ValueError):
+                pass
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(cfg, f)
+
+        # Launch the subprocess detached enough that the Flask request returns
+        # immediately. discovery.py owns its own progress writes to
+        # discovery_results.json; we just hold the Popen for is-running checks.
+        run_id = "discovery_" + datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
+        proc = subprocess.Popen(
+            [sys.executable, str(DISCOVERY_SCRIPT), "--config-json", str(config_path)],
+            cwd=str(BASE_DIR),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        _disco_state["process"]    = proc
+        _disco_state["run_id"]     = run_id
+        _disco_state["started_at"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+
+    return jsonify({"ok": True, "started": True, "run_id": run_id})
+
+
+@app.route("/api/discovery/status", methods=["GET"])
+def api_discovery_status():
+    """Lightweight progress poll. Reads the results file for trial counts +
+    best-so-far, plus the in-memory subprocess state for is-running. Never
+    returns the full trials array — use /api/discovery/results for that."""
+    running = _discovery_is_running()
+    data    = _read_discovery_results() or {}
+
+    # If the file says running but the process is gone, the subprocess died.
+    # Don't mutate the file from here — let the next /run overwrite it; just
+    # report a corrected status in the response.
+    status = data.get("status", "idle")
+    if status == "running" and not running:
+        status = "error"
+
+    return jsonify({
+        "ok":              True,
+        "running":         running,
+        "status":          status,
+        "run_id":          data.get("run_id"),
+        "started_at":      data.get("started_at"),
+        "finished_at":     data.get("finished_at"),
+        "trials_complete": data.get("trials_complete", 0),
+        "trials_total":    data.get("trials_total", 0),
+        "best":            data.get("best"),
+        "config":          data.get("config"),
+        "error":           data.get("error"),
+    })
+
+
+@app.route("/api/discovery/results", methods=["GET"])
+def api_discovery_results():
+    """Return the full discovery_results.json payload (including all trials).
+    Used by the Discovery page on load and after a run completes."""
+    data = _read_discovery_results()
+    if data is None:
+        return jsonify({"ok": True, "empty": True, "trials": []})
+    return jsonify({"ok": True, "empty": False, **data})
+
+
+@app.route("/api/discovery/trial/<int:trial_id>", methods=["GET"])
+def api_discovery_trial(trial_id):
+    """Return a single discovery trial by its trial number, plus the run
+    config. Used by /discovery/trial/<id> client-side to avoid pulling the
+    full results array. 404 if the trial doesn't exist."""
+    data = _read_discovery_results()
+    if not data or not data.get("trials"):
+        return jsonify({"ok": False, "error": "No discovery results on file"}), 404
+    trial = next((t for t in data["trials"] if t.get("trial") == trial_id), None)
+    if trial is None:
+        return jsonify({"ok": False, "error": f"trial {trial_id} not found"}), 404
+    return jsonify({"ok": True, "trial": trial, "config": data.get("config")})
+
+
+@app.route("/api/discovery/assign", methods=["POST"])
+def api_discovery_assign():
+    """Create a new version profile from a discovery trial.
+    Body: {result_id, name?}. Pulls the trial's params + regime allow-lists
+    out of discovery_results.json and writes a new version via the existing
+    versions store with strategy_version='v2' (Phase 1 fixed)."""
+    body = request.get_json(force=True, silent=True) or {}
+    result_id = (body.get("result_id") or "").strip()
+    name      = (body.get("name") or "").strip() or None
+    if not result_id:
+        return jsonify({"ok": False, "error": "result_id is required"}), 400
+
+    data = _read_discovery_results()
+    if not data or not data.get("trials"):
+        return jsonify({"ok": False, "error": "No discovery results on file"}), 404
+
+    trial = next((t for t in data["trials"] if t.get("id") == result_id), None)
+    if trial is None:
+        return jsonify({"ok": False, "error": f"trial id '{result_id}' not found"}), 404
+
+    params = trial.get("params") or {}
+    regime_state = {
+        "allowed_macro_regimes": list(params.get("allowed_macro_regimes") or []),
+        "allowed_micro_regimes": list(params.get("allowed_micro_regimes") or []),
+    }
+    backtest_params = {
+        "ema_long":         params.get("ema_long"),
+        "stop_loss_pips":   params.get("stop_loss_pips"),
+        "rrr_risk":         params.get("rrr_risk", 1),
+        "rrr_reward":       params.get("rrr_reward"),
+        "max_daily_losses": params.get("max_daily_losses"),
+        "use_ema_filter":   bool(params.get("use_ema_filter", True)),
+        "blocked_hours":    params.get("blocked_hours", ""),
+    }
+    new_version = _add_version_with_overrides(
+        strategy_version="v2",
+        regime_state=regime_state,
+        backtest_params=backtest_params,
+        name=name,
+    )
+    return jsonify({"ok": True, "version": new_version})
 
 
 @app.route("/delete_version", methods=["POST"])

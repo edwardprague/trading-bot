@@ -21,16 +21,29 @@ template so the live trading code matches the backtest line-for-line.
    means the fix lives only until the next "Add Year" / "Add Date Range"
    click overwrites `report.html`.
 5. When a task is done, state what the user needs to do to see the change:
-    - Restart the Flask server (needed for `server.py` changes including `INJECT_HTML`)
-    - Run a backtest from the dashboard to regenerate `report.html` (only if a strategy-template change should be visible immediately)
-    - Run `python3 regime_analysis.py` to regenerate `results/regime_analysis.html` (RA page changes only)
-    - Or any combination of the above.
+   - Restart the Flask server (needed for `server.py` changes including `INJECT_HTML`)
+   - Run a backtest from the dashboard to regenerate `report.html` (only if a strategy-template change should be visible immediately)
+   - Run `python3 regime_analysis.py` to regenerate `results/regime_analysis.html` (RA page changes only)
+   - Or any combination of the above.
 6. **In-browser verification.** Where possible, exercise BD / RA / Versions
    pages live via Claude-in-Chrome — read `[RA]`-prefixed console logs,
    inspect computed styles, fire change events — and report the
    observed end state. Logic-only changes can be sandbox-tested with
    `py_compile` and `node --check` on extracted JS regions, but visual
    bugs and event-flow bugs benefit from a real browser.
+
+7. **Task completion notification.** At the end of every completed task, fire
+   a macOS notification so the user is alerted without needing to check back
+   manually:
+
+```bash
+   osascript -e 'display notification "Task complete" with title "Ada" sound name "Glass"'
+```
+
+Customise the message to reflect the task — e.g. `"Discovery page built"`,
+`"Phase 1 complete"`. No setup required; `osascript` is built into macOS.
+If macOS blocks the notification on first run, the user will need to allow
+it once under **System Settings → Notifications**.
 
 ---
 
@@ -61,24 +74,24 @@ Python 3 via Homebrew, with a project-local `venv/`. Key packages:
 
 ## Project files
 
-| File / Folder        | Role                                                                                                                                                       |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `server.py`          | Flask web server — routes the dashboard, regime analysis, async backtests, and the `/versions` page. Hosts `INJECT_HTML` (top-nav + run bar) injected on `/` |
-| `strategy.py`        | Thin router — reads `STRATEGY_VERSION` env var, delegates to `strategy_vN.py`                                                                              |
-| `strategy_v1.py`     | Fractal-only entries                                                                                                                                       |
-| `strategy_v2.py`     | v1 + EMA position filter + regime gates (current)                                                                                                          |
-| `regime_analysis.py` | Builds `regime_labels.parquet` + `results/regime_analysis.html`                                                                                            |
-| `cbot_templates.py`  | Renders `FractalBot_v{N}.cs` from a template for cTrader                                                                                                   |
-| `download_data.py`   | Fetches OHLC bars from Massive API → `data/<instrument>_<interval>.parquet`                                                                                |
-| `start.command`      | Double-click startup (git pull + Flask)                                                                                                                    |
+| File / Folder        | Role                                                                                                                                                                                                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server.py`          | Flask web server — routes the dashboard, regime analysis, async backtests, and the `/versions` page. Hosts `INJECT_HTML` (top-nav + run bar) injected on `/`                                                                              |
+| `strategy.py`        | Thin router — reads `STRATEGY_VERSION` env var, delegates to `strategy_vN.py`                                                                                                                                                             |
+| `strategy_v1.py`     | Fractal-only entries                                                                                                                                                                                                                      |
+| `strategy_v2.py`     | v1 + EMA position filter + regime gates (current)                                                                                                                                                                                         |
+| `regime_analysis.py` | Builds `regime_labels.parquet` + `results/regime_analysis.html`                                                                                                                                                                           |
+| `cbot_templates.py`  | Renders `FractalBot_v{N}.cs` from a template for cTrader                                                                                                                                                                                  |
+| `download_data.py`   | Fetches OHLC bars from Massive API → `data/<instrument>_<interval>.parquet`                                                                                                                                                               |
+| `start.command`      | Double-click startup (git pull + Flask)                                                                                                                                                                                                   |
 | `report.html`        | Auto-generated dashboard — **never edit directly**; edit `strategy_vN.py`. Sidebar now holds only the run-history list — the version + instrument selects live in the run bar (rendered by `INJECT_HTML`) and are shared with the RA page |
-| `style.css`          | Shared stylesheet for dashboard + regime analysis. Run-bar selects + native date inputs are styled via `.rb-select` / `.rb-date`                          |
-| `.env`               | API keys (gitignored, never commit)                                                                                                                        |
-| `.gitignore`         | Excludes `.env`, `venv/`, `__pycache__/`                                                                                                                   |
-| `devlog.json`        | (Legacy) free-form developer log — superseded by per-version notes on the Versions page                                                                    |
-| `RESULTS_LOG.md`     | (Legacy) manually-curated table of notable backtest results — superseded by per-version notes                                                              |
-| `data/`              | Cached OHLC parquets + regime labels + versions store (see below)                                                                                          |
-| `results/`           | Generated reports + charts (see below)                                                                                                                     |
+| `style.css`          | Shared stylesheet for dashboard + regime analysis. Run-bar selects + native date inputs are styled via `.rb-select` / `.rb-date`                                                                                                          |
+| `.env`               | API keys (gitignored, never commit)                                                                                                                                                                                                       |
+| `.gitignore`         | Excludes `.env`, `venv/`, `__pycache__/`                                                                                                                                                                                                  |
+| `devlog.json`        | (Legacy) free-form developer log — superseded by per-version notes on the Versions page                                                                                                                                                   |
+| `RESULTS_LOG.md`     | (Legacy) manually-curated table of notable backtest results — superseded by per-version notes                                                                                                                                             |
+| `data/`              | Cached OHLC parquets + regime labels + versions store (see below)                                                                                                                                                                         |
+| `results/`           | Generated reports + charts (see below)                                                                                                                                                                                                    |
 
 ## `data/` folder
 
@@ -123,18 +136,18 @@ and the RA toggle scope.
   "active_version_id": "v3",
   "versions": [
     {
-      "id":               "v3",
-      "name":             "v3",
-      "strategy_version": "v2",          // which strategy_vN.py module
+      "id": "v3",
+      "name": "v3",
+      "strategy_version": "v2", // which strategy_vN.py module
       "regime_state": {
         "allowed_macro_regimes": ["staircase_down", "strong_down"],
         "allowed_micro_regimes": ["ranging_medium", "ranging_wide"],
-        "updated_at":            "2026-05-17T11:39:45Z"
+        "updated_at": "2026-05-17T11:39:45Z",
       },
-      "notes":            "free-form notes — see Versions page",
-      "notes_updated_at": "2026-05-17T11:42:10Z"
-    }
-  ]
+      "notes": "free-form notes — see Versions page",
+      "notes_updated_at": "2026-05-17T11:42:10Z",
+    },
+  ],
 }
 ```
 
@@ -172,8 +185,8 @@ generated `.cs` file (which is overwritten on each generation).
    `fi±1` and `fi±2` to all have lower highs (for a fractal high) or higher
    lows (for a fractal low). Confirmation happens 2 bars later.
 2. **Entry signal**
-    - **Long** — new fractal low forms higher than the prior fractal low.
-    - **Short** — new fractal high forms lower than the prior fractal high.
+   - **Long** — new fractal low forms higher than the prior fractal low.
+   - **Short** — new fractal high forms lower than the prior fractal high.
 3. **Direction filter** — `TRADE_DIRECTION` is `both` / `long_only` / `short_only`.
 4. **Daily loss limit** — no new trades once the day's losing-trade count
    reaches `MAX_DAILY_LOSSES` (default **2**). Resets at UTC midnight.
@@ -183,9 +196,9 @@ generated `.cs` file (which is overwritten on each generation).
 6. **Stop validation** — stop-distance must be between `MIN_STOP` (5 pips)
    and `MAX_STOP` (200 pips); signals outside this range are skipped.
 7. **Entry reference**
-    - Python — close of the bar after confirmation.
-    - cBot — `Symbol.Ask` for longs, `Symbol.Bid` for shorts, on the first
-      tick of the bar after confirmation.
+   - Python — close of the bar after confirmation.
+   - cBot — `Symbol.Ask` for longs, `Symbol.Bid` for shorts, on the first
+     tick of the bar after confirmation.
 8. **Stop-loss** — fractal price ± `FRACTAL_STOP_PIPS` offset (default **15**).
 9. **Take-profit** — entry ± (stop distance × RRR), where RRR = `RRR_REWARD / RRR_RISK`.
 10. **Position sizing** — `(equity × RISK_PCT) / stop-distance-in-price`,
@@ -424,30 +437,30 @@ clicks Run Analysis when they want fresh stats.
 
 # Flask Endpoints
 
-| Route                            | Method | Purpose                                                                                                                                                                                                |
-| -------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `/`                              | GET    | Dashboard — serves `report.html` with run-bar injected at start of `<body>` and `Cache-Control: no-store` on the response                                                                              |
-| `/style.css`                     | GET    | Shared stylesheet                                                                                                                                                                                      |
-| `/versions`                      | GET    | Versions-management page (add / delete / set active / edit notes)                                                                                                                                      |
-| `/run`                           | POST   | Kick off a backtest subprocess (new version, full date range)                                                                                                                                          |
-| `/run_range`                     | POST   | Kick off a backtest over a specific date range                                                                                                                                                         |
-| `/run_batch`                     | POST   | Queue multiple backtests                                                                                                                                                                               |
-| `/status`                        | GET    | Poll backtest progress (`{running, stage, progress, ok, no_data, error}`) — BD only; RA's `/run_regime_analysis` is synchronous and doesn't write here                                                 |
-| `/delete_version`                | POST   | Delete a saved version (from `report.html`'s VERSIONS array)                                                                                                                                           |
-| `/delete_run`                    | POST   | Delete a single run within a version                                                                                                                                                                   |
-| `/reorder_runs`                  | POST   | Drag-and-drop reorder of runs                                                                                                                                                                          |
-| `/generate_cbot`                 | POST   | Render `FractalBot_v{N}.cs` from `cbot_templates.py`                                                                                                                                                   |
-| `/devlog`                        | GET    | Return the contents of `devlog.json` (legacy; superseded by per-version notes)                                                                                                                         |
-| `/devlog`                        | POST   | Save a new `devlog.json` array (legacy)                                                                                                                                                                |
-| `/api/versions`                  | GET    | Return the full `versions.json` store                                                                                                                                                                  |
-| `/api/versions`                  | POST   | Add a new profile (body: `{strategy_version, base_id?}`)                                                                                                                                               |
-| `/api/versions/<id>`             | DELETE | Delete a profile. Refuses last one; auto-switches active if needed                                                                                                                                     |
-| `/api/versions/<id>/notes`       | POST   | Update a profile's `notes` field (body: `{notes: "…"}`). Auto-stamps `notes_updated_at`                                                                                                                |
-| `/api/active_version`            | GET    | Return the currently-active profile dict                                                                                                                                                               |
-| `/api/active_version`            | POST   | Switch the active profile (body: `{id}`)                                                                                                                                                               |
-| `/results/<path:filename>`       | GET    | Serve any file in `results/`. `.html` responses get `Cache-Control: no-store` so dev-time edits to inline JS are always picked up on reload                                                            |
-| `/results` / `/results/`         | GET    | Directory listing of `results/`                                                                                                                                                                        |
-| `/run_regime_analysis`           | POST   | Synchronous RA backtest re-run — applies the requested allow-lists as in-backtest gates, returns rendered HTML chunks. Long-running (~30–100s on a 15-month range). Writes `regime_state` back to versions.json |
+| Route                      | Method | Purpose                                                                                                                                                                                                         |
+| -------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                        | GET    | Dashboard — serves `report.html` with run-bar injected at start of `<body>` and `Cache-Control: no-store` on the response                                                                                       |
+| `/style.css`               | GET    | Shared stylesheet                                                                                                                                                                                               |
+| `/versions`                | GET    | Versions-management page (add / delete / set active / edit notes)                                                                                                                                               |
+| `/run`                     | POST   | Kick off a backtest subprocess (new version, full date range)                                                                                                                                                   |
+| `/run_range`               | POST   | Kick off a backtest over a specific date range                                                                                                                                                                  |
+| `/run_batch`               | POST   | Queue multiple backtests                                                                                                                                                                                        |
+| `/status`                  | GET    | Poll backtest progress (`{running, stage, progress, ok, no_data, error}`) — BD only; RA's `/run_regime_analysis` is synchronous and doesn't write here                                                          |
+| `/delete_version`          | POST   | Delete a saved version (from `report.html`'s VERSIONS array)                                                                                                                                                    |
+| `/delete_run`              | POST   | Delete a single run within a version                                                                                                                                                                            |
+| `/reorder_runs`            | POST   | Drag-and-drop reorder of runs                                                                                                                                                                                   |
+| `/generate_cbot`           | POST   | Render `FractalBot_v{N}.cs` from `cbot_templates.py`                                                                                                                                                            |
+| `/devlog`                  | GET    | Return the contents of `devlog.json` (legacy; superseded by per-version notes)                                                                                                                                  |
+| `/devlog`                  | POST   | Save a new `devlog.json` array (legacy)                                                                                                                                                                         |
+| `/api/versions`            | GET    | Return the full `versions.json` store                                                                                                                                                                           |
+| `/api/versions`            | POST   | Add a new profile (body: `{strategy_version, base_id?}`)                                                                                                                                                        |
+| `/api/versions/<id>`       | DELETE | Delete a profile. Refuses last one; auto-switches active if needed                                                                                                                                              |
+| `/api/versions/<id>/notes` | POST   | Update a profile's `notes` field (body: `{notes: "…"}`). Auto-stamps `notes_updated_at`                                                                                                                         |
+| `/api/active_version`      | GET    | Return the currently-active profile dict                                                                                                                                                                        |
+| `/api/active_version`      | POST   | Switch the active profile (body: `{id}`)                                                                                                                                                                        |
+| `/results/<path:filename>` | GET    | Serve any file in `results/`. `.html` responses get `Cache-Control: no-store` so dev-time edits to inline JS are always picked up on reload                                                                     |
+| `/results` / `/results/`   | GET    | Directory listing of `results/`                                                                                                                                                                                 |
+| `/run_regime_analysis`     | POST   | Synchronous RA backtest re-run — applies the requested allow-lists as in-backtest gates, returns rendered HTML chunks. Long-running (~30–100s on a 15-month range). Writes `regime_state` back to versions.json |
 
 ---
 

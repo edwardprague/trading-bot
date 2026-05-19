@@ -2532,7 +2532,7 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     <ul class="top-nav-items">
       <li><a class="top-nav-link" href="/">Backtesting</a></li>
       <li><a class="top-nav-link top-nav-link-active" href="/results/regime_analysis.html">Regimes</a></li>
-      <li><span class="top-nav-link top-nav-link-disabled" aria-disabled="true">Discovery</span></li>
+      <li><a class="top-nav-link" href="/discovery">Discovery</a></li>
       <li><a class="top-nav-link" href="/versions">Versions</a></li>
     </ul>
     <span class="top-nav-active-version" id="top-nav-active-version"></span>
