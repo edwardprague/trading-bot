@@ -223,45 +223,28 @@ def _make_version_id(name, existing_ids):
     return candidate
 
 
-def _add_version(strategy_version, base_id=None):
-    """Append a new version. Name is auto-generated as 'v<N+1>' based on
-    the highest existing vN. If base_id is given, copy that version's
-    regime_state. Otherwise default to "all active" — every macro + every
-    micro key allowed. This matches the convention that brand-new versions
-    have no backtest params stored (run-bar comes up empty; strategy module
-    defaults kick in on the first run) but DO have explicit regime state so
-    the RA page renders toggles in a clearly "all enabled" state instead of
-    the confusing empty allow-list."""
+def _add_version():
+    """Append a new BLANK / UNASSIGNED version. Name auto-generated as
+    'v<N+1>'. The slot starts with no strategy module, no params, and no
+    regime state — Discovery fills all three in a single one-time write
+    via _assign_version_from_trial. Until then the version is intentionally
+    invisible in the BD + RA dropdowns (those filter on params != null),
+    so users can't accidentally run a backtest against an empty profile.
+    The Versions page is the only surface where unassigned versions show
+    up, with the 'Awaiting parameter assignment from Discovery' placeholder.
+    """
     data = _read_versions()
     versions = data.get("versions", [])
     existing_ids = {v.get("id") for v in versions}
     name = _next_version_name(versions)
     new_id = _make_version_id(name, existing_ids)
 
-    if base_id:
-        regime_state = {
-            "allowed_macro_regimes": list(_ALL_MACRO_KEYS),
-            "allowed_micro_regimes": list(_ALL_MICRO_KEYS),
-        }
-        for v in versions:
-            if v.get("id") == base_id:
-                src = v.get("regime_state") or {}
-                regime_state = {
-                    "allowed_macro_regimes": list(src.get("allowed_macro_regimes", []) or []),
-                    "allowed_micro_regimes": list(src.get("allowed_micro_regimes", []) or []),
-                }
-                break
-    else:
-        regime_state = {
-            "allowed_macro_regimes": list(_ALL_MACRO_KEYS),
-            "allowed_micro_regimes": list(_ALL_MICRO_KEYS),
-        }
-
     new_version = {
         "id": new_id,
         "name": name,
-        "strategy_version": strategy_version,
-        "regime_state": regime_state,
+        "strategy_version": None,
+        "params": None,
+        "regime_state": None,
     }
     versions.append(new_version)
     data["versions"] = versions
@@ -269,48 +252,74 @@ def _add_version(strategy_version, base_id=None):
     return new_version
 
 
-def _add_version_with_overrides(strategy_version, regime_state=None, backtest_params=None, name=None):
-    """Create a new version with explicit regime_state and backtest_params,
-    bypassing the "copy from base or default to all-on" logic of _add_version.
-    Used by /api/discovery/assign so a discovered parameter set lands on disk
-    as a complete reproducible profile in a single call.
+def _assign_version_from_trial(version_id, trial_params):
+    """One-time write of a Discovery trial's params into an existing
+    unassigned version slot. Refuses if the target already has params
+    (no update endpoint — re-assignment requires a new version).
 
-    backtest_params is a dict like:
-      {ema_long, stop_loss_pips, rrr_risk, rrr_reward, max_daily_losses,
-       use_ema_filter, blocked_hours}
-    Stored as-is on the version object — read by _apply_active_version_to_env
-    and by the BD run-bar's pre-populate JS.
+    Maps the trial's flat params dict to the new params schema:
+      ema_long, use_ema_filter, fractal_stop_pips (renamed from
+      stop_loss_pips), rrr_reward, max_daily_losses, assigned_at.
+    Also writes regime_state from the trial's allowed_macro/micro lists,
+    and stamps strategy_version='v2' (Discovery's fixed base for now).
+
+    Returns (True, version_dict) on success, (False, error_string) on
+    failure.
     """
     data = _read_versions()
-    versions = data.get("versions", [])
-    existing_ids = {v.get("id") for v in versions}
-    auto_name = _next_version_name(versions)
-    final_name = (name or "").strip() or auto_name
-    new_id = _make_version_id(final_name, existing_ids)
+    target = None
+    for v in data.get("versions", []):
+        if v.get("id") == version_id:
+            target = v
+            break
+    if target is None:
+        return False, f"Version '{version_id}' not found"
+    if target.get("params") is not None:
+        return False, "Version is already assigned"
 
-    if regime_state is None:
-        regime_state = {
-            "allowed_macro_regimes": list(_ALL_MACRO_KEYS),
-            "allowed_micro_regimes": list(_ALL_MICRO_KEYS),
-        }
-    else:
-        regime_state = {
-            "allowed_macro_regimes": list(regime_state.get("allowed_macro_regimes", []) or []),
-            "allowed_micro_regimes": list(regime_state.get("allowed_micro_regimes", []) or []),
-        }
-
-    new_version = {
-        "id": new_id,
-        "name": final_name,
-        "strategy_version": strategy_version,
-        "regime_state": regime_state,
+    tp = trial_params or {}
+    target["strategy_version"] = "v2"
+    target["params"] = {
+        "ema_long":         tp.get("ema_long"),
+        "use_ema_filter":   bool(tp.get("use_ema_filter", True)),
+        "fractal_stop_pips": tp.get("stop_loss_pips"),
+        "rrr_reward":       tp.get("rrr_reward"),
+        "max_daily_losses": tp.get("max_daily_losses"),
+        "assigned_at":      datetime.utcnow().isoformat(timespec="seconds") + "Z",
     }
-    if backtest_params:
-        new_version["backtest_params"] = dict(backtest_params)
-    versions.append(new_version)
-    data["versions"] = versions
+    target["regime_state"] = {
+        "allowed_macro_regimes": list(tp.get("allowed_macro_regimes") or []),
+        "allowed_micro_regimes": list(tp.get("allowed_micro_regimes") or []),
+        "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+    }
     _write_versions(data)
-    return new_version
+    return True, target
+
+
+def _count_runs_per_version_name():
+    """Return {version_name: run_count} by parsing report.html's
+    versions-data <script> block. Used by /api/versions GET to stamp a
+    run_count onto each version so the Versions page can show the
+    'all runs will be deleted' warning before issuing the delete.
+    Failures (no report.html, parse errors) return {} — the page degrades
+    to a plain confirm in that case."""
+    if not REPORT_FILE.exists():
+        return {}
+    try:
+        html = REPORT_FILE.read_text(encoding="utf-8")
+        m = re.search(
+            r'<script[^>]+id=["\']versions-data["\'][^>]*>([\s\S]*?)</script>',
+            html,
+        )
+        if not m:
+            return {}
+        buckets = json.loads(m.group(1).strip())
+        return {
+            (v.get("name") or ""): len(v.get("runs") or [])
+            for v in buckets
+        }
+    except (OSError, ValueError):
+        return {}
 
 
 def _delete_version(version_id):
@@ -409,27 +418,30 @@ def _apply_active_version_to_env(env_overrides, payload):
     elif "ALLOWED_MICRO_REGIMES" not in env_overrides:
         env_overrides["ALLOWED_MICRO_REGIMES"] = ",".join(rs.get("allowed_micro_regimes", []) or [])
 
-    # ── backtest_params fallback ────────────────────────────────────────────
-    # When the active version was assigned by Discovery (or any future tool)
-    # it carries a full `backtest_params` snapshot. The BD always sends its
-    # input values in the payload, so for BD-originated runs the payload wins
-    # and this fallback never fires. But direct API callers and tooling that
-    # POST a minimal payload still get the version's parameters applied.
-    bp = av.get("backtest_params") or {}
+    # ── params fallback ─────────────────────────────────────────────────────
+    # When the active version was assigned by Discovery it carries a slim
+    # `params` snapshot (the new schema; superseded the old `backtest_params`
+    # field name). The BD always sends its input values in the payload, so
+    # for BD-originated runs the payload wins and this fallback never fires.
+    # But direct API callers and tooling that POST a minimal payload still
+    # get the version's parameters applied.
+    #
+    # Schema is intentionally slim: rrr_risk is implicitly 1 (Discovery
+    # holds it fixed), and blocked_hours is NOT stored on the version —
+    # the user's BD-level BLOCKED_HOURS_UTC default carries through.
+    bp = av.get("params") or {}
     if bp:
         _BP_TO_ENV = {
-            "ema_long":         "EMA_LONG",
-            "stop_loss_pips":   "FRACTAL_STOP_PIPS",
-            "rrr_risk":         "RRR_RISK",
-            "rrr_reward":       "RRR_REWARD",
-            "max_daily_losses": "MAX_DAILY_LOSSES",
-            "blocked_hours":    "BLOCKED_HOURS_UTC",
+            "ema_long":          "EMA_LONG",
+            "fractal_stop_pips": "FRACTAL_STOP_PIPS",
+            "rrr_reward":        "RRR_REWARD",
+            "max_daily_losses":  "MAX_DAILY_LOSSES",
         }
         for bp_key, env_key in _BP_TO_ENV.items():
             if env_key not in env_overrides or env_overrides[env_key] == "":
                 if bp_key in bp and bp[bp_key] is not None:
                     env_overrides[env_key] = str(bp[bp_key])
-        # USE_EMA_FILTER is a bool in backtest_params; the strategy reads
+        # USE_EMA_FILTER is a bool in params; the strategy reads
         # the env as the string 'true' / 'false'.
         if "USE_EMA_FILTER" not in env_overrides and "use_ema_filter" in bp:
             env_overrides["USE_EMA_FILTER"] = "true" if bp["use_ema_filter"] else "false"
@@ -644,56 +656,51 @@ document.addEventListener("DOMContentLoaded", function () {
     if (el) el.textContent = name ? "Active: " + name : "";
   }
 
-  /* ── BD pre-populate from active version's backtest_params ──────────────
-     Discovery-assigned versions carry a full backtest_params snapshot
-     (ema_long, stop_loss_pips, rrr_risk/reward, max_daily_losses,
-     use_ema_filter, blocked_hours). When the active version has one,
-     stamp those values onto the BD's settings-panel inputs in the DOM
-     so the run-bar reflects what the next backtest will actually use.
-     We deliberately do NOT write to localStorage — switching to a
-     vanilla version (no backtest_params) restores from localStorage,
-     so the user's hand-tuned BD prefs survive a discovery detour.
+  /* ── BD pre-populate from active version's params ──────────────────────
+     Discovery-assigned versions carry a slim `params` snapshot — the new
+     schema replaces the old `backtest_params` field. Stamp these onto
+     the BD's settings-panel inputs in the DOM so the run-bar reflects
+     what the next backtest will actually use.
+
+     Fields pre-filled (per spec): EMA Long, fractal stop pips, RRR
+     reward, max daily losses. rrr_risk is implicitly 1 (Discovery holds
+     it fixed). blocked_hours is NOT in the version's params block — it
+     stays under the user's own BD control.
+
+     We deliberately do NOT write to localStorage — switching to an
+     unassigned version (no params) restores from localStorage so the
+     user's hand-tuned BD prefs survive a discovery detour.
+
      use_ema_filter has no visible BD checkbox today, but the strategy
      subprocess still picks it up via _apply_active_version_to_env. */
   function applyBacktestParamsFromVersion(version) {
-    var bp = version && version.backtest_params;
+    var p = version && version.params;
     function setVal(id, v) {
       var el = document.getElementById(id);
       if (el && v !== undefined && v !== null && v !== "") el.value = String(v);
     }
-    function setBlockedHours(csv) {
-      var hSet = {};
-      (csv || "").split(",").forEach(function (s) {
-        var t = s.trim(); if (t !== "") hSet[t] = true;
-      });
-      for (var h = 0; h <= 23; h++) {
-        var cb = document.getElementById("bs-bh-" + h);
-        if (cb) cb.checked = !!hSet[String(h)];
-      }
-    }
-    if (bp) {
-      setVal("bs-ema-long",   bp.ema_long);
-      setVal("bs-stop-pips",  bp.stop_loss_pips);
-      setVal("bs-rrr-risk",   bp.rrr_risk);
-      setVal("bs-rrr-reward", bp.rrr_reward);
-      setVal("bs-max-dd",     bp.max_daily_losses);
-      if (bp.blocked_hours !== undefined) setBlockedHours(bp.blocked_hours);
+    if (p) {
+      setVal("bs-ema-long",   p.ema_long);
+      setVal("bs-stop-pips",  p.fractal_stop_pips);
+      setVal("bs-rrr-reward", p.rrr_reward);
+      setVal("bs-max-dd",     p.max_daily_losses);
     } else {
-      /* Vanilla version: restore inputs from localStorage so a previous
-         "stamp" from a discovery-assigned version doesn't bleed through. */
+      /* Unassigned version: restore inputs from localStorage so a
+         previous stamp from an assigned version doesn't bleed through. */
       var ls = window.localStorage;
       setVal("bs-ema-long",   ls.getItem("bs_ema_long"));
       setVal("bs-stop-pips",  ls.getItem("bs_stop_pips"));
-      setVal("bs-rrr-risk",   ls.getItem("bs_rrr_risk"));
       setVal("bs-rrr-reward", ls.getItem("bs_rrr_reward"));
       setVal("bs-max-dd",     ls.getItem("bs_max_dd"));
-      var bh = ls.getItem("bs_blocked_hours");
-      if (bh !== null) setBlockedHours(bh);
     }
   }
 
   fetch("/api/versions").then(function (r) { return r.json(); }).then(function (store) {
-    var versions = (store && store.versions) || [];
+    var allVersions = (store && store.versions) || [];
+    /* Filter: BD dropdown only shows assigned versions (params != null).
+       Unassigned slots live solely on the /versions page until Discovery
+       fills them in. */
+    var versions = allVersions.filter(function (v) { return v && v.params; });
     var activeId = store && store.active_version_id;
     var active = null;
     for (var i = 0; i < versions.length; i++) {
@@ -708,22 +715,28 @@ document.addEventListener("DOMContentLoaded", function () {
 
     /* Reconcile versions.json with report.html's existing dropdown options.
        report.html populates the dropdown from its embedded versions-data
-       (option value = the version's short name, e.g. "v1"). versions.json
-       holds the canonical display name for each version (e.g.
-       "v1 — Fractal Only"). For each existing option whose value matches a
-       versions.json id, rename the textContent in-place rather than
-       appending a duplicate. Any versions.json entries with no matching
-       option get appended at the end (e.g. user-added profiles that
-       haven't been backtested yet). */
+       (option value = the version's short name). versions.json holds the
+       canonical display name. For each existing option whose value matches
+       a versions.json id, rename the textContent in-place rather than
+       appending a duplicate. Any assigned versions.json entries with no
+       matching option get appended at the end (user-added profiles that
+       were Discovery-assigned but never backtested yet).
+
+       Also REMOVE options that don't correspond to a currently-assigned
+       version — those are stale buckets from deleted profiles or
+       unassigned slots that should never appear here. */
     var byId = {};
     versions.forEach(function (v) { byId[v.id] = v; });
     var reconciled = {};
-    for (var j = 0; j < sel.options.length; j++) {
+    /* Iterate backwards so removals don't shift indices. */
+    for (var j = sel.options.length - 1; j >= 0; j--) {
       var opt = sel.options[j];
       var match = byId[opt.value];
       if (match) {
         opt.textContent = match.name;
         reconciled[match.id] = true;
+      } else {
+        sel.remove(j);
       }
     }
     versions.forEach(function (v) {
@@ -1241,20 +1254,10 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
 
     <section class="versions-add-section">
       <h2>Add a version</h2>
-      <form id="versions-add-form" class="versions-add-form">
-        <label class="versions-form-label" for="versions-add-strategy">Base strategy</label>
-        <select id="versions-add-strategy" class="versions-form-select">
-          <option value="v2">v2 (EMA + regime gates)</option>
-          <option value="v1">v1 (fractal only)</option>
-        </select>
-        <label class="versions-form-label" for="versions-add-base">Copy regime state from</label>
-        <select id="versions-add-base" class="versions-form-select">
-          <option value="">— all regimes active —</option>
-        </select>
-        <button type="submit" class="rb-btn rb-btn-green">Add Version</button>
-      </form>
+      <button type="button" id="versions-add-btn" class="rb-btn rb-btn-green">Add Version</button>
       <p class="versions-form-hint">
-        Name will be auto-assigned as the next available <code>v&lt;N&gt;</code>.
+        Creates the next <code>v&lt;N&gt;</code> as an unassigned slot.
+        Parameters are filled in by assigning a Discovery trial to it.
       </p>
       <span id="versions-form-error" class="versions-form-error"></span>
     </section>
@@ -1267,41 +1270,25 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
 
   <script>
     (function () {
-      var listEl   = document.getElementById("versions-list");
-      var formEl   = document.getElementById("versions-add-form");
-      var stratEl  = document.getElementById("versions-add-strategy");
-      var baseEl   = document.getElementById("versions-add-base");
-      var errEl    = document.getElementById("versions-form-error");
-      var navAvEl  = document.getElementById("top-nav-active-version");
+      var listEl    = document.getElementById("versions-list");
+      var addBtnEl  = document.getElementById("versions-add-btn");
+      var errEl     = document.getElementById("versions-form-error");
+      var navAvEl   = document.getElementById("top-nav-active-version");
 
       function showError(msg) { errEl.textContent = msg || ""; }
-
-      function refreshBaseOptions(versions) {
-        // Preserve the user's current selection if still valid
-        var prev = baseEl.value;
-        baseEl.innerHTML = "";
-        var blank = document.createElement("option");
-        blank.value = "";
-        blank.textContent = "— blank (no regime gates) —";
-        baseEl.appendChild(blank);
-        versions.forEach(function (v) {
-          var opt = document.createElement("option");
-          opt.value = v.id;
-          opt.textContent = v.name;
-          baseEl.appendChild(opt);
-        });
-        if (prev) baseEl.value = prev;
-      }
 
       function renderList(store) {
         var active = store.active_version_id;
         var versions = store.versions || [];
-        refreshBaseOptions(versions);
         listEl.innerHTML = "";
         versions.forEach(function (v) {
-          var isActive = (v.id === active);
+          var isActive   = (v.id === active);
+          var isAssigned = !!v.params;
+          var runCount   = (typeof v.run_count === "number") ? v.run_count : 0;
+
           var li = document.createElement("li");
           li.className = "versions-row" + (isActive ? " versions-row-active" : "");
+          if (!isAssigned) li.classList.add("versions-row-unassigned");
 
           var nameSpan = document.createElement("span");
           nameSpan.className = "versions-row-name";
@@ -1313,16 +1300,6 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
             nameSpan.appendChild(badge);
           }
 
-          var rs = v.regime_state || {};
-          var macroCount = (rs.allowed_macro_regimes || []).length;
-          var microCount = (rs.allowed_micro_regimes || []).length;
-          var metaSpan = document.createElement("span");
-          metaSpan.className = "versions-row-meta";
-          metaSpan.textContent =
-            "Strategy: " + (v.strategy_version || "—") + "   ·   " +
-            "Macro allow-list: " + macroCount + "   ·   " +
-            "Micro allow-list: " + microCount;
-
           var actionsSpan = document.createElement("span");
           actionsSpan.className = "versions-row-actions";
           var delBtn = document.createElement("button");
@@ -1330,11 +1307,13 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
           delBtn.className = "rb-btn rb-btn-delete";
           delBtn.textContent = "Delete";
           if (versions.length <= 1) delBtn.disabled = true;
-          delBtn.addEventListener("click", function () { deleteVersion(v); });
+          delBtn.addEventListener("click", function () {
+            deleteVersion(v, isAssigned, runCount);
+          });
           actionsSpan.appendChild(delBtn);
 
-          // Task 4: per-version free-form notes (replaces RESULTS_LOG.md
-          // + devlog.json). Auto-saves on blur to /api/versions/<id>/notes.
+          /* Free-form notes — unchanged from prior behaviour, auto-saves
+             on blur to /api/versions/<id>/notes. */
           var notesWrap = document.createElement("div");
           notesWrap.className = "versions-row-notes";
           var notesLabel = document.createElement("label");
@@ -1349,7 +1328,7 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
           notesStatus.className = "versions-row-notes-status";
           notesArea.addEventListener("blur", function () {
             var newVal = notesArea.value;
-            if (newVal === (v.notes || "")) return;  // unchanged
+            if (newVal === (v.notes || "")) return;
             notesStatus.textContent = "Saving…";
             fetch("/api/versions/" + encodeURIComponent(v.id) + "/notes", {
               method: "POST",
@@ -1374,8 +1353,18 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
 
           li.appendChild(nameSpan);
           li.appendChild(actionsSpan);
-          li.appendChild(metaSpan);
           li.appendChild(notesWrap);
+
+          /* Unassigned slots get a placeholder strip in place of any
+             parameter display — the card itself stays intentionally
+             empty of param info per spec. */
+          if (!isAssigned) {
+            var placeholder = document.createElement("span");
+            placeholder.className = "versions-row-placeholder";
+            placeholder.textContent = "Awaiting parameter assignment from Discovery";
+            li.appendChild(placeholder);
+          }
+
           listEl.appendChild(li);
         });
         var activeVersion = versions.find(function (v) { return v.id === active; }) || versions[0];
@@ -1391,27 +1380,62 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
           .catch(function (e) { showError("Failed to load versions: " + e.message); });
       }
 
-      function deleteVersion(v) {
-        if (!window.confirm("Delete version \\u201C" + v.name + "\\u201D?")) return;
+      /* Delete flow:
+         - Unassigned, no runs: single plain confirm.
+         - Assigned with runs:  warn that all associated BD run history
+                                will also be deleted.
+         - Assigned, no runs:   plain confirm.
+         After versions.json delete succeeds, if the version had runs we
+         also call /delete_version to purge them from report.html so the
+         BD sidebar doesn't carry orphaned buckets. */
+      function deleteVersion(v, isAssigned, runCount) {
+        /* \\u201C / \\u201D = curly double quotes. Escaping these (and the
+           \\n separators below) is required because this script lives inside
+           a Python triple-quoted string — bare \\n in the .py source becomes
+           a real newline, which is a syntax error inside a JS string literal
+           and silently bricks the entire IIFE on the /versions page. */
+        var msg;
+        if (isAssigned && runCount > 0) {
+          msg = "Delete version \\u201C" + v.name + "\\u201D?\\n\\n" +
+                "WARNING: " + runCount + " associated BD run" +
+                (runCount === 1 ? "" : "s") +
+                " will also be deleted. This cannot be undone.";
+        } else {
+          msg = "Delete version \\u201C" + v.name + "\\u201D?";
+        }
+        if (!window.confirm(msg)) return;
+
         fetch("/api/versions/" + encodeURIComponent(v.id), {method: "DELETE"})
           .then(function (r) { return r.json(); })
           .then(function (resp) {
             if (!resp.ok) { showError(resp.error || "Delete failed"); return; }
             showError("");
-            renderList(resp.store);
+            /* Purge run history bucket from report.html if any. We do
+               this AFTER versions.json so a 500 here still leaves a
+               consistent state (the version is gone; orphan runs would
+               just no longer appear in the BD sidebar). Refresh
+               unconditionally afterwards so the rendered list has
+               accurate run_counts (the DELETE response doesn't stamp
+               them — only the GET handler does). */
+            if (runCount > 0) {
+              return fetch("/delete_version", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({name: v.name}),
+              })
+                .then(function () { return refresh(); })
+                .catch(function () { return refresh(); });
+            }
+            return refresh();
           });
       }
 
-      formEl.addEventListener("submit", function (e) {
-        e.preventDefault();
+      addBtnEl.addEventListener("click", function () {
         showError("");
         fetch("/api/versions", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({
-            strategy_version: stratEl.value,
-            base_id: baseEl.value || null
-          })
+          body: "{}"
         }).then(function (r) { return r.json(); }).then(function (resp) {
           if (!resp.ok) { showError(resp.error || "Add failed"); return; }
           refresh();
@@ -1536,14 +1560,17 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
   <div id="d-assign-modal" class="discovery-modal" hidden>
     <div class="discovery-modal-backdrop"></div>
     <div class="discovery-modal-content">
-      <h3>Assign as new version</h3>
+      <h3>Add to version</h3>
       <p class="discovery-modal-trial" id="d-assign-trial-summary"></p>
-      <label class="discovery-form-label" for="d-assign-name">Version name</label>
-      <input type="text" id="d-assign-name" class="discovery-form-input discovery-modal-input"
-             placeholder="auto: next v&lt;N&gt;">
+      <label class="discovery-form-label" for="d-assign-version">Version slot</label>
+      <select id="d-assign-version" class="discovery-form-input discovery-modal-input"></select>
+      <p id="d-assign-empty-hint" class="discovery-modal-empty-hint" hidden>
+        No unassigned versions available — create one on the
+        <a href="/versions">Versions page</a>.
+      </p>
       <div class="discovery-modal-actions">
         <button type="button" id="d-assign-cancel" class="rb-btn rb-btn-delete">Cancel</button>
-        <button type="button" id="d-assign-confirm" class="rb-btn rb-btn-green">Create version</button>
+        <button type="button" id="d-assign-confirm" class="rb-btn rb-btn-green">Add to version</button>
       </div>
       <span id="d-assign-error" class="discovery-modal-error"></span>
     </div>
@@ -1582,7 +1609,8 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
       var modalCfm   = document.getElementById("d-assign-confirm");
       var modalCnc   = document.getElementById("d-assign-cancel");
       var modalSum   = document.getElementById("d-assign-trial-summary");
-      var modalName  = document.getElementById("d-assign-name");
+      var modalSel   = document.getElementById("d-assign-version");
+      var modalEmpty = document.getElementById("d-assign-empty-hint");
       var modalErr   = document.getElementById("d-assign-error");
       var navAvEl    = document.getElementById("top-nav-active-version");
 
@@ -1763,36 +1791,48 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
       });
 
       /* ── Assign modal ──────────────────────────────────────────────────── */
-      function computeNextVName(versions) {
-        var maxN = 0;
-        (versions || []).forEach(function (v) {
-          var m = /^v(\d+)$/.exec((v.name || "").trim());
-          if (m) {
-            var n = parseInt(m[1], 10);
-            if (n > maxN) maxN = n;
-          }
-        });
-        return "v" + (maxN + 1);
-      }
+      /* The flow is now: pick an EXISTING unassigned version slot from a
+         select (populated from /api/versions filtered to params == null)
+         and write the trial's params into it. There is no "create new"
+         path here — users create empty slots on /versions first, then
+         come here to assign. If no unassigned slots exist, the confirm
+         button is disabled and a hint points at /versions. */
       function openAssignModal(trial) {
         STATE.assignTrialId = trial.id;
         var m = trial.metrics || {};
         modalSum.textContent = "Trial #" + trial.trial + " — PF " + fmtPF(m.profit_factor) +
                                ", " + (m.total_trades || 0) + " trades, " +
                                fmtPct(m.max_drawdown) + " max DD";
-        modalName.value = "";  /* clear stale value; will be filled by fetch below */
         modalErr.textContent = "";
+        modalSel.innerHTML = "";
+        modalCfm.disabled = true;
+        modalEmpty.hidden = true;
         modalEl.hidden = false;
-        /* Default the input to the next available v<N>, matching the
-           server-side _next_version_name logic. Falls back to a blank
-           field if the fetch fails — the server still auto-names then. */
+
         fetch("/api/versions")
           .then(function (r) { return r.json(); })
           .then(function (store) {
-            modalName.value = computeNextVName((store && store.versions) || []);
-            modalName.select();
+            var all = (store && store.versions) || [];
+            var unassigned = all.filter(function (v) { return !v.params; });
+            if (unassigned.length === 0) {
+              modalEmpty.hidden = false;
+              modalSel.hidden = true;
+              modalCfm.disabled = true;
+              return;
+            }
+            modalEmpty.hidden = true;
+            modalSel.hidden = false;
+            unassigned.forEach(function (v) {
+              var opt = document.createElement("option");
+              opt.value = v.id;
+              opt.textContent = v.name;
+              modalSel.appendChild(opt);
+            });
+            modalCfm.disabled = false;
           })
-          .catch(function () { modalName.focus(); });
+          .catch(function () {
+            modalErr.textContent = "Failed to load versions.";
+          });
       }
       function closeAssignModal() {
         STATE.assignTrialId = null;
@@ -1802,21 +1842,26 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
       modalEl.querySelector(".discovery-modal-backdrop").addEventListener("click", closeAssignModal);
       modalCfm.addEventListener("click", function () {
         if (!STATE.assignTrialId) return;
+        var versionId = (modalSel.value || "").trim();
+        if (!versionId) {
+          modalErr.textContent = "Pick a version slot first.";
+          return;
+        }
         modalCfm.disabled = true;
         modalErr.textContent = "";
         fetch("/api/discovery/assign", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({result_id: STATE.assignTrialId, name: modalName.value.trim()})
+          body: JSON.stringify({result_id: STATE.assignTrialId, version_id: versionId})
         })
           .then(function (r) { return r.json().then(function (j) { return {ok: r.ok, body: j}; }); })
           .then(function (resp) {
             if (!resp.ok || !resp.body.ok) {
-              modalErr.textContent = (resp.body && resp.body.error) || "Failed to create version.";
+              modalErr.textContent = (resp.body && resp.body.error) || "Failed to assign trial.";
               modalCfm.disabled = false;
               return;
             }
-            modalErr.textContent = "Created: " + resp.body.version.name + ". You can switch to it on /versions.";
+            modalErr.textContent = "Assigned to " + resp.body.version.name + ". Switch to it on /versions or BD.";
             setTimeout(function () { closeAssignModal(); modalCfm.disabled = false; }, 1200);
           })
           .catch(function () {
@@ -2902,21 +2947,25 @@ def backtest_status():
 
 @app.route("/api/versions", methods=["GET"])
 def api_versions_list():
-    """Return the full versions store including active_version_id."""
-    return jsonify(_read_versions())
+    """Return the full versions store including active_version_id.
+    Each version is stamped with a `run_count` field (count of BD runs
+    in report.html for that version's name) so the Versions page can
+    decide whether to surface the run-history-deletion warning before
+    issuing a delete."""
+    store = _read_versions()
+    counts = _count_runs_per_version_name()
+    for v in store.get("versions", []):
+        v["run_count"] = counts.get(v.get("name", ""), 0)
+    return jsonify(store)
 
 
 @app.route("/api/versions", methods=["POST"])
 def api_versions_add():
-    """Create a new version. Body: {strategy_version, base_id?}.
-    Name is auto-generated as 'v<N+1>' from the current highest vN.
-    base_id (optional) copies the regime_state from an existing version."""
-    body = request.get_json(force=True, silent=True) or {}
-    strategy_version = (body.get("strategy_version") or "").strip()
-    base_id = (body.get("base_id") or "").strip() or None
-    if strategy_version not in ("v1", "v2"):
-        return jsonify({"ok": False, "error": "strategy_version must be 'v1' or 'v2'"}), 400
-    new_version = _add_version(strategy_version, base_id=base_id)
+    """Create a blank unassigned version slot. No request body needed.
+    Auto-named v<N+1>. params/regime_state/strategy_version all start as
+    null — Discovery's assign flow fills them in a single one-time write.
+    Until then the slot is invisible in BD + RA dropdowns."""
+    new_version = _add_version()
     return jsonify({"ok": True, "version": new_version})
 
 
@@ -3135,15 +3184,33 @@ def api_discovery_trial(trial_id):
 
 @app.route("/api/discovery/assign", methods=["POST"])
 def api_discovery_assign():
-    """Create a new version profile from a discovery trial.
-    Body: {result_id, name?}. Pulls the trial's params + regime allow-lists
-    out of discovery_results.json and writes a new version via the existing
-    versions store with strategy_version='v2' (Phase 1 fixed)."""
+    """Assign a discovery trial's params into an EXISTING unassigned
+    version slot. Body: {result_id, version_id}.
+
+    This is a one-time write — there is no update endpoint. To re-assign
+    a different trial the user must create a new (unassigned) version on
+    the Versions page first. Refuses if the target version already has
+    params set.
+
+    The trial's params dict is mapped to the new slim params schema:
+      stop_loss_pips      → fractal_stop_pips    (rename)
+      ema_long            → ema_long
+      use_ema_filter      → use_ema_filter
+      rrr_reward          → rrr_reward
+      max_daily_losses    → max_daily_losses
+      (rrr_risk + blocked_hours are NOT stored on the version)
+    plus an assigned_at ISO timestamp.
+
+    regime_state is populated from the trial's allowed_macro_regimes +
+    allowed_micro_regimes. strategy_version is stamped 'v2' (Discovery's
+    fixed base; Phase 1)."""
     body = request.get_json(force=True, silent=True) or {}
-    result_id = (body.get("result_id") or "").strip()
-    name      = (body.get("name") or "").strip() or None
+    result_id  = (body.get("result_id")  or "").strip()
+    version_id = (body.get("version_id") or "").strip()
     if not result_id:
         return jsonify({"ok": False, "error": "result_id is required"}), 400
+    if not version_id:
+        return jsonify({"ok": False, "error": "version_id is required"}), 400
 
     data = _read_discovery_results()
     if not data or not data.get("trials"):
@@ -3153,27 +3220,10 @@ def api_discovery_assign():
     if trial is None:
         return jsonify({"ok": False, "error": f"trial id '{result_id}' not found"}), 404
 
-    params = trial.get("params") or {}
-    regime_state = {
-        "allowed_macro_regimes": list(params.get("allowed_macro_regimes") or []),
-        "allowed_micro_regimes": list(params.get("allowed_micro_regimes") or []),
-    }
-    backtest_params = {
-        "ema_long":         params.get("ema_long"),
-        "stop_loss_pips":   params.get("stop_loss_pips"),
-        "rrr_risk":         params.get("rrr_risk", 1),
-        "rrr_reward":       params.get("rrr_reward"),
-        "max_daily_losses": params.get("max_daily_losses"),
-        "use_ema_filter":   bool(params.get("use_ema_filter", True)),
-        "blocked_hours":    params.get("blocked_hours", ""),
-    }
-    new_version = _add_version_with_overrides(
-        strategy_version="v2",
-        regime_state=regime_state,
-        backtest_params=backtest_params,
-        name=name,
-    )
-    return jsonify({"ok": True, "version": new_version})
+    ok, payload = _assign_version_from_trial(version_id, trial.get("params") or {})
+    if not ok:
+        return jsonify({"ok": False, "error": payload}), 400
+    return jsonify({"ok": True, "version": payload})
 
 
 @app.route("/delete_version", methods=["POST"])

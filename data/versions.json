@@ -2,33 +2,17 @@
   "active_version_id": "v3",
   "versions": [
     {
-      "id": "v1",
-      "name": "v1",
-      "strategy_version": "v1",
-      "regime_state": {
-        "allowed_macro_regimes": [],
-        "allowed_micro_regimes": []
-      }
-    },
-    {
-      "id": "v2",
-      "name": "v2",
-      "strategy_version": "v2",
-      "regime_state": {
-        "allowed_macro_regimes": [
-          "staircase_down",
-          "strong_down"
-        ],
-        "allowed_micro_regimes": [
-          "ranging_medium",
-          "ranging_wide"
-        ]
-      }
-    },
-    {
       "id": "v3",
       "name": "v3",
       "strategy_version": "v2",
+      "params": {
+        "ema_long": 50,
+        "use_ema_filter": true,
+        "fractal_stop_pips": 10,
+        "rrr_reward": 1,
+        "max_daily_losses": 3,
+        "assigned_at": "2026-05-19T10:00:00Z"
+      },
       "regime_state": {
         "allowed_macro_regimes": [
           "staircase_down",
@@ -48,62 +32,27 @@
       "id": "v4",
       "name": "v4",
       "strategy_version": "v2",
+      "params": {
+        "ema_long": 197,
+        "use_ema_filter": false,
+        "fractal_stop_pips": 13,
+        "rrr_reward": 4,
+        "max_daily_losses": 4,
+        "assigned_at": "2026-05-19T08:49:40Z"
+      },
       "regime_state": {
         "allowed_macro_regimes": [
           "strong_down",
           "staircase_down",
-          "staircase_up",
           "strong_up"
         ],
         "allowed_micro_regimes": [
           "trending_fast_down",
-          "trending_fast_up",
-          "trending_medium_up",
-          "ranging_narrow",
+          "trending_medium_down",
           "ranging_medium",
-          "ranging_wide",
           "transitioning"
-        ]
-      },
-      "backtest_params": {
-        "ema_long": 106,
-        "stop_loss_pips": 7,
-        "rrr_risk": 1,
-        "rrr_reward": 3,
-        "max_daily_losses": 3,
-        "use_ema_filter": true,
-        "blocked_hours": "4,5,6,8,10,11,14,17"
-      }
-    },
-    {
-      "id": "v5",
-      "name": "v5",
-      "strategy_version": "v2",
-      "regime_state": {
-        "allowed_macro_regimes": [
-          "strong_down",
-          "staircase_down",
-          "staircase_up",
-          "strong_up"
         ],
-        "allowed_micro_regimes": [
-          "trending_fast_down",
-          "trending_fast_up",
-          "trending_medium_up",
-          "ranging_narrow",
-          "ranging_medium",
-          "ranging_wide",
-          "transitioning"
-        ]
-      },
-      "backtest_params": {
-        "ema_long": 106,
-        "stop_loss_pips": 7,
-        "rrr_risk": 1,
-        "rrr_reward": 3,
-        "max_daily_losses": 3,
-        "use_ema_filter": true,
-        "blocked_hours": "4,5,6,8,10,11,14,17"
+        "updated_at": "2026-05-19T08:49:40Z"
       }
     }
   ]

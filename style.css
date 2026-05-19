@@ -2707,6 +2707,22 @@ body.versions-page {
     color: #9090b0;
 }
 
+/* Unassigned-version placeholder. Lives in the row's grid-row 2 slot
+   (the slot the legacy "Strategy / Macro / Micro" meta line used to
+   occupy). Surfaced only on rows where params is null so the user
+   can see at a glance which slots are awaiting Discovery assignment. */
+.versions-row-placeholder {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 12px;
+    font-style: italic;
+    color: #707090;
+}
+
+.versions-row-unassigned .versions-row-name {
+    color: #c0c0e0;
+}
+
 .versions-row-actions {
     grid-column: 2;
     grid-row: 1 / span 2;
@@ -3805,6 +3821,21 @@ body.discovery-page {
 .discovery-modal-input {
     width: 100%;
     margin-top: 4px;
+}
+
+/* Empty-state hint shown in the Discovery assign modal when no
+   unassigned version slots exist. Surfaces the next step (create one
+   on /versions) and links there directly. */
+.discovery-modal-empty-hint {
+    margin: 10px 0 0;
+    font-size: 12px;
+    color: #b89878;
+    line-height: 1.5;
+}
+
+.discovery-modal-empty-hint a {
+    color: #4cc9f0;
+    text-decoration: underline;
 }
 
 .discovery-modal-actions {

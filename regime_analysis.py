@@ -3393,7 +3393,12 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       if (versionSel) {{
         fetch("/api/versions").then(function (r) {{ return r.json(); }})
           .then(function (store) {{
-            var versions = (store && store.versions) || [];
+            var all = (store && store.versions) || [];
+            /* RA dropdown, like the BD's, only shows assigned versions
+               (params != null). Unassigned slots are invisible until
+               Discovery fills them in — they have no regime_state to
+               toggle against. */
+            var versions = all.filter(function (v) {{ return v && v.params; }});
             var activeId = store && store.active_version_id;
             versionSel.innerHTML = "";
             versions.forEach(function (v) {{
