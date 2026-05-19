@@ -3763,6 +3763,17 @@ body.discovery-page {
     font-size: 11px;
 }
 
+/* Successful-assignment state: green outline + check, disabled. Mirrors
+   the BD's .rb-btn-copy.copied "action completed" pattern so the visual
+   language is consistent across the platform. */
+.discovery-assign-btn-done,
+.discovery-assign-btn-done:disabled {
+    background: transparent !important;
+    color: #6bcb77 !important;
+    border: 1px solid #6bcb77 !important;
+    cursor: default !important;
+}
+
 .discovery-empty-state {
     padding: 28px;
     text-align: center;

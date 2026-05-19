@@ -1761,6 +1761,28 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                "] micro[" + (p.allowed_micro_regimes || []).length + "]";
       }
 
+      /* ── Assignment-state tracking (localStorage) ──────────────────────
+         Bug fix (May 2026 — Issue 1): the row-level Assign button used to
+         stay labelled "Assign" forever, with the only post-click feedback
+         being a small status line inside the modal. Users couldn't tell
+         from the table whether a trial had already been assigned, and
+         could accidentally re-assign the same trial.
+         Fix: persist trial_id → {version, at} in localStorage. The row
+         button reads this map on render and shows "Assigned → vN" disabled
+         if the trial was previously assigned. Survives reloads. */
+      var ASSIGN_LS_KEY = "discovery_trial_assignments";
+      function loadAssignments() {
+        try {
+          var raw = window.localStorage.getItem(ASSIGN_LS_KEY);
+          return raw ? JSON.parse(raw) : {};
+        } catch (e) { return {}; }
+      }
+      function saveAssignment(trialId, versionName) {
+        var m = loadAssignments();
+        m[trialId] = { version: versionName, at: new Date().toISOString() };
+        try { window.localStorage.setItem(ASSIGN_LS_KEY, JSON.stringify(m)); } catch (e) {}
+      }
+
       /* ── Sorting (per-block) ───────────────────────────────────────────── */
       function sortKeyOf(trial, key) {
         if (key === "pass") return trial.pass ? 1 : 0;
@@ -2004,13 +2026,25 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           if (t.pass) {
             var btn = document.createElement("button");
             btn.type = "button";
-            btn.className = "rb-btn rb-btn-blue discovery-assign-btn";
-            btn.textContent = "Assign";
-            btn.addEventListener("click", function (e) {
-              e.preventDefault();
-              e.stopPropagation();
-              openAssignModal(t);
-            });
+            var existing = loadAssignments()[t.id];
+            if (existing && existing.version) {
+              /* Trial was previously assigned — show as a disabled
+                 "Assigned" indicator so the user gets persistent feedback
+                 across reloads. */
+              btn.className = "rb-btn rb-btn-blue discovery-assign-btn discovery-assign-btn-done";
+              btn.textContent = "✓ Assigned → " + existing.version;
+              btn.disabled = true;
+              btn.title = "Assigned at " + (existing.at || "—") +
+                          ". Clear localStorage to re-enable.";
+            } else {
+              btn.className = "rb-btn rb-btn-blue discovery-assign-btn";
+              btn.textContent = "Assign";
+              btn.addEventListener("click", function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                openAssignModal(t);
+              });
+            }
             actionTd.appendChild(btn);
           } else {
             actionTd.textContent = "—";
@@ -2060,6 +2094,8 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         modalErr.textContent = "";
         modalSel.innerHTML = "";
         modalCfm.disabled = true;
+        modalCfm.textContent = "Add to version";  /* reset in case a previous open left it as "✓ Assigned ..." */
+        modalCfm.classList.remove("discovery-assign-btn-done");
         modalEmpty.hidden = true;
         modalEl.hidden = false;
 
@@ -2101,12 +2137,13 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           modalErr.textContent = "Pick a version slot first.";
           return;
         }
+        var trialIdAtClick = STATE.assignTrialId;
         modalCfm.disabled = true;
         modalErr.textContent = "";
         fetch("/api/discovery/assign", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({result_id: STATE.assignTrialId, version_id: versionId})
+          body: JSON.stringify({result_id: trialIdAtClick, version_id: versionId})
         })
           .then(function (r) { return r.json().then(function (j) { return {ok: r.ok, body: j}; }); })
           .then(function (resp) {
@@ -2115,8 +2152,20 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
               modalCfm.disabled = false;
               return;
             }
-            modalErr.textContent = "Assigned to " + resp.body.version.name + ". Switch to it on /versions or BD.";
-            setTimeout(function () { closeAssignModal(); modalCfm.disabled = false; }, 1200);
+            var assignedName = resp.body.version.name;
+            /* Bug fix Issue 1: in-modal button feedback + persistent
+               row-button state via localStorage. */
+            saveAssignment(trialIdAtClick, assignedName);
+            modalCfm.textContent = "✓ Assigned to " + assignedName;
+            modalCfm.classList.add("discovery-assign-btn-done");
+            modalErr.textContent = "Now available in the BD dropdown.";
+            setTimeout(function () {
+              closeAssignModal();
+              modalCfm.disabled = false;
+              /* Re-render the stack so the row's Assign button picks up
+                 its new "Assigned → vN" state from localStorage. */
+              renderStack();
+            }, 1200);
           })
           .catch(function () {
             modalErr.textContent = "Request failed.";

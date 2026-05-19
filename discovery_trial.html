@@ -52,14 +52,17 @@
   <div id="d-assign-modal" class="discovery-modal" hidden>
     <div class="discovery-modal-backdrop"></div>
     <div class="discovery-modal-content">
-      <h3>Assign as new version</h3>
+      <h3>Add to version</h3>
       <p class="discovery-modal-trial" id="d-assign-trial-summary"></p>
-      <label class="discovery-form-label" for="d-assign-name">Version name</label>
-      <input type="text" id="d-assign-name" class="discovery-form-input discovery-modal-input"
-             placeholder="auto: next v&lt;N&gt;">
+      <label class="discovery-form-label" for="d-assign-version">Version slot</label>
+      <select id="d-assign-version" class="discovery-form-input discovery-modal-input"></select>
+      <p id="d-assign-empty-hint" class="discovery-modal-empty-hint" hidden>
+        No unassigned versions available — create one on the
+        <a href="/versions">Versions page</a>.
+      </p>
       <div class="discovery-modal-actions">
         <button type="button" id="d-assign-cancel" class="rb-btn rb-btn-delete">Cancel</button>
-        <button type="button" id="d-assign-confirm" class="rb-btn rb-btn-green">Create version</button>
+        <button type="button" id="d-assign-confirm" class="rb-btn rb-btn-green">Add to version</button>
       </div>
       <span id="d-assign-error" class="discovery-modal-error"></span>
     </div>
@@ -94,7 +97,8 @@
       var modalCfm  = document.getElementById("d-assign-confirm");
       var modalCnc  = document.getElementById("d-assign-cancel");
       var modalSum  = document.getElementById("d-assign-trial-summary");
-      var modalName = document.getElementById("d-assign-name");
+      var modalSel   = document.getElementById("d-assign-version");
+      var modalEmpty = document.getElementById("d-assign-empty-hint");
       var modalErr  = document.getElementById("d-assign-error");
 
       /* ── Active-version indicator (consistency with other pages) ───────── */
@@ -302,15 +306,38 @@
         }
       }
 
-      /* ── Assign modal (same flow as /discovery) ───────────────────────── */
-      function computeNextVName(versions) {
-        var maxN = 0;
-        (versions || []).forEach(function (v) {
-          var m = /^v(\d+)$/.exec((v.name || "").trim());
-          if (m) { var n = parseInt(m[1], 10); if (n > maxN) maxN = n; }
-        });
-        return "v" + (maxN + 1);
+      /* ── Assignment-state tracking (shared with /discovery via the
+         same localStorage key). Lets the header Assign button persistently
+         show "Assigned → vN" if this trial was previously assigned. */
+      var ASSIGN_LS_KEY = "discovery_trial_assignments";
+      function loadAssignments() {
+        try {
+          var raw = window.localStorage.getItem(ASSIGN_LS_KEY);
+          return raw ? JSON.parse(raw) : {};
+        } catch (e) { return {}; }
       }
+      function saveAssignment(trialId, versionName) {
+        var m = loadAssignments();
+        m[trialId] = { version: versionName, at: new Date().toISOString() };
+        try { window.localStorage.setItem(ASSIGN_LS_KEY, JSON.stringify(m)); } catch (e) {}
+      }
+      function refreshAssignBtn() {
+        if (!STATE.trial) return;
+        var prior = loadAssignments()[STATE.trial.id];
+        if (prior && prior.version) {
+          assignBtn.textContent = "✓ Assigned → " + prior.version;
+          assignBtn.disabled = true;
+          assignBtn.classList.add("discovery-assign-btn-done");
+          assignBtn.title = "Assigned at " + (prior.at || "—") + ". Clear localStorage to re-enable.";
+        } else if (STATE.trial.pass) {
+          assignBtn.textContent = "Assign to Version";
+          assignBtn.disabled = false;
+          assignBtn.classList.remove("discovery-assign-btn-done");
+          assignBtn.title = "";
+        }
+      }
+
+      /* ── Assign modal — pick an existing unassigned slot ───────────── */
       function openAssignModal() {
         if (!STATE.trial) return;
         var t = STATE.trial;
@@ -318,38 +345,71 @@
         modalSum.textContent = "Trial #" + t.trial + " — PF " + fmtPF(m.profit_factor) +
                                ", " + (m.total_trades || 0) + " trades, " +
                                fmtPct(m.max_drawdown) + " max DD";
-        modalName.value = "";
         modalErr.textContent = "";
+        modalSel.innerHTML = "";
+        modalCfm.disabled = true;
+        modalCfm.textContent = "Add to version";  /* reset from prior "✓ Assigned" */
+        modalCfm.classList.remove("discovery-assign-btn-done");
+        modalEmpty.hidden = true;
         modalEl.hidden = false;
+
         fetch("/api/versions")
           .then(function (r) { return r.json(); })
           .then(function (store) {
-            modalName.value = computeNextVName((store && store.versions) || []);
-            modalName.select();
+            var all = (store && store.versions) || [];
+            var unassigned = all.filter(function (v) { return !v.params; });
+            if (unassigned.length === 0) {
+              modalEmpty.hidden = false;
+              modalSel.hidden = true;
+              modalCfm.disabled = true;
+              return;
+            }
+            modalEmpty.hidden = true;
+            modalSel.hidden = false;
+            unassigned.forEach(function (v) {
+              var opt = document.createElement("option");
+              opt.value = v.id;
+              opt.textContent = v.name;
+              modalSel.appendChild(opt);
+            });
+            modalCfm.disabled = false;
           })
-          .catch(function () { modalName.focus(); });
+          .catch(function () {
+            modalErr.textContent = "Failed to load versions.";
+          });
       }
       function closeAssignModal() { modalEl.hidden = true; }
       modalCnc.addEventListener("click", closeAssignModal);
       modalEl.querySelector(".discovery-modal-backdrop").addEventListener("click", closeAssignModal);
       modalCfm.addEventListener("click", function () {
         if (!STATE.trial) return;
+        var versionId = (modalSel.value || "").trim();
+        if (!versionId) { modalErr.textContent = "Pick a version slot first."; return; }
+        var trialIdAtClick = STATE.trial.id;
         modalCfm.disabled = true;
         modalErr.textContent = "";
         fetch("/api/discovery/assign", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({result_id: STATE.trial.id, name: modalName.value.trim()}),
+          body: JSON.stringify({result_id: trialIdAtClick, version_id: versionId}),
         })
           .then(function (r) { return r.json().then(function (j) { return {ok: r.ok, body: j}; }); })
           .then(function (resp) {
             if (!resp.ok || !resp.body.ok) {
-              modalErr.textContent = (resp.body && resp.body.error) || "Failed to create version.";
+              modalErr.textContent = (resp.body && resp.body.error) || "Failed to assign trial.";
               modalCfm.disabled = false;
               return;
             }
-            modalErr.textContent = "Created: " + resp.body.version.name + ". See /versions to switch.";
-            setTimeout(function () { closeAssignModal(); modalCfm.disabled = false; }, 1200);
+            var assignedName = resp.body.version.name;
+            saveAssignment(trialIdAtClick, assignedName);
+            modalCfm.textContent = "✓ Assigned to " + assignedName;
+            modalCfm.classList.add("discovery-assign-btn-done");
+            modalErr.textContent = "Now available in the BD dropdown.";
+            setTimeout(function () {
+              closeAssignModal();
+              modalCfm.disabled = false;
+              refreshAssignBtn();  /* flip header Assign button to "Assigned → vN" */
+            }, 1200);
           })
           .catch(function () {
             modalErr.textContent = "Request failed.";
@@ -377,8 +437,11 @@
           renderParams(resp.trial.params, resp.config);
           renderRegimes(resp.trial.params);
           grid.hidden = false;
-          /* Only allow assignment for passing trials (matches main Discovery page) */
+          /* Only allow assignment for passing trials (matches main Discovery page).
+             refreshAssignBtn handles both the "first-time enable" and
+             "already-assigned → disabled with vN label" cases. */
           if (resp.trial.pass) assignBtn.disabled = false;
+          refreshAssignBtn();
         })
         .catch(function (err) {
           errBanner.hidden = false;
