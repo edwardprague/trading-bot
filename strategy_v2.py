@@ -4876,6 +4876,17 @@ __VERSIONS_JSON__
         return "<option value='" + n + "'" + (String(n) === _savedMaxDd ? " selected" : "") + ">" + n + "</option>";
       }).join("") + "</select>";
 
+    /* EMA Filter toggle (empty state). Bug fix (May 2026): the renderContent
+       path was given an EMA Filter row when use_ema_filter became visible to
+       the BD, but the renderEmptyState path was missed — so deleting all of
+       a version's runs (or switching to a freshly-assigned version with no
+       runs yet) made the toggle vanish. localStorage default: on, matching
+       strategy_v2's USE_EMA_FILTER default. */
+    var _savedEmaFilter = localStorage.getItem("bs_use_ema_filter");
+    var _emaFilterChecked = _savedEmaFilter === null ? true : (_savedEmaFilter === "true");
+    var _emaFilterHtml = "<label class='bs-toggle'><input id='bs-use-ema-filter' type='checkbox' class='bs-checkbox'" + (_emaFilterChecked ? " checked" : "") + "><span class='bs-toggle-label'>Enabled</span></label>";
+    var _emaFilterRow = "<tr><td class='bs-td-cond'>EMA Filter</td><td class='bs-td-rule'>" + _emaFilterHtml + "</td></tr>";
+
     /* Blocked Hours checkboxes (empty state) */
     var _eDefaultBlocked = DEFAULT_BLOCKED_HOURS;
     var _eSavedBlocked = localStorage.getItem("bs_blocked_hours");
@@ -4908,6 +4919,7 @@ __VERSIONS_JSON__
           "<tr><td class='bs-td-cond'>Direction</td><td class='bs-td-rule'>" + _dirSelectHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>RRR</td><td class='bs-td-rule'>" + _rrrSelectHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>Max DD</td><td class='bs-td-rule'>" + _maxDdSelectHtml + "</td></tr>" +
+          _emaFilterRow +
           "<tr><td class='bs-td-cond'>Slippage</td><td class='bs-td-rule'>" + _slippageHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>SL Slippage (pips)</td><td class='bs-td-rule'>" + _slSlippagePipsHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>Spread (pips)</td><td class='bs-td-rule'>" + _spreadPipsHtml + "</td></tr>" +
@@ -4929,6 +4941,8 @@ __VERSIONS_JSON__
     if (_maxDdEl) _maxDdEl.addEventListener("change", function () { localStorage.setItem("bs_max_dd", _maxDdEl.value); });
     var _slipEl = document.getElementById("bs-apply-slippage");
     if (_slipEl) _slipEl.addEventListener("change", function () { localStorage.setItem("bs_apply_slippage", _slipEl.checked ? "true" : "false"); });
+    var _emaFiltEl = document.getElementById("bs-use-ema-filter");
+    if (_emaFiltEl) _emaFiltEl.addEventListener("change", function () { localStorage.setItem("bs_use_ema_filter", _emaFiltEl.checked ? "true" : "false"); });
     var _spreadEl = document.getElementById("bs-spread-pips");
     if (_spreadEl) _spreadEl.addEventListener("change", function () { localStorage.setItem("bs_spread_pips", _spreadEl.value); });
     var _slSlipEl = document.getElementById("bs-sl-slippage-pips");

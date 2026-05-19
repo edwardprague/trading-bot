@@ -1010,7 +1010,17 @@ function createCbot() {
 }
 
 function getCurrentVersionName() {
-  /* Use the globally-exposed name set by the dashboard's renderSidebar() */
+  /* Bug fix (May 2026): the dropdown is the canonical "what version did
+     the user pick" source. Previously this preferred window._currentVersionName,
+     which report.html's renderSidebar overwrites with VERSIONS[activeVersionIdx].name
+     — the BUCKET name in the embedded versions-data. For Discovery-assigned
+     versions like v4 that have no bucket yet, renderSidebar falls back to
+     a default bucket (typically "v2", the strategy module name), which then
+     leaked into the run payload's target_version and silently saved the
+     run under the wrong bucket (Issue 3). Read the dropdown first so the
+     user's actual selection drives target_version unconditionally. */
+  var sel = document.getElementById("version-select");
+  if (sel && sel.value) return sel.value;
   if (window._currentVersionName) return window._currentVersionName;
   /* Fallback: parse the versions-data JSON for the last version */
   var script = document.getElementById("versions-data");
