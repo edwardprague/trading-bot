@@ -716,29 +716,13 @@ tbody tr:hover td {
     color: #4cc9f0;
 }
 
-#delete-btn.rb-btn-delete {
-    flex-shrink: 0;
-    background: crimson;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    padding: 7px 16px;
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-#delete-btn.rb-btn-delete:hover:not(:disabled) {
-    background: #f4254e;
-}
-
-#delete-btn.rb-btn-delete:disabled {
-    background: #1e1e38 !important;
-    color: #404060;
-    cursor: not-allowed;
-}
+/* The original #delete-btn.rb-btn-delete block lived here (BD's "Delete
+   Version" button). Its base styling (padding, border-radius, color,
+   transition, flex-shrink) is now provided by .rb-btn, and crimson +
+   hover by the platform-wide .rb-btn-delete rule further down. The only
+   piece that wasn't already covered — the disabled appearance — is
+   lifted to .rb-btn-delete:disabled below so every delete button on the
+   platform shows the same grey when disabled. */
 
 /* ── Empty state icon ────────────────────────────────── */
 .empty-icon {
@@ -2841,6 +2825,26 @@ body.regime-report {
     background: #55a0dd;
 }
 
+/* Platform-wide delete-button styling (May 2026). Previously this lived
+   in two places — INJECT_HTML's inline <style> (BD-only) and a more
+   specific #delete-btn.rb-btn-delete override — leaving Versions /
+   Discovery / RA / trial-detail pages rendering delete buttons with the
+   browser's default white background. Both legacy rules have since been
+   removed in favour of this single source of truth. */
+.rb-btn-delete {
+    background: crimson;
+}
+
+.rb-btn-delete:hover:not(:disabled) {
+    background: #f4254e;
+}
+
+.rb-btn-delete:disabled {
+    background: #1e1e38 !important;
+    color: #404060;
+    cursor: not-allowed;
+}
+
 .rb-btn-copy {
     background: green;
 }
@@ -3719,6 +3723,7 @@ body.discovery-page {
     border-bottom: 1px solid #1a1a2a;
     color: #c0c0e0;
     vertical-align: middle;
+    text-align: left;
 }
 
 .discovery-row-fail td {
@@ -3942,63 +3947,35 @@ body.discovery-trial-page {
     margin-bottom: 18px;
 }
 
-/* Regime checklist (✓ for allowed, — for blocked). One list per regime
-   group, two-column grid on wider screens so 10 micro labels don't run
-   off the panel. */
-.discovery-trial-regime-heading {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #ccc;
-    margin: 18px 0 10px;
-}
-
+/* Per-regime status list inside the Macro / Micro sections on the trial
+   detail page. Each item renders the regime's colored .macro-badge or
+   .regime-badge (palette shared with the Regime Analysis page), and an
+   off-state item gets a .regime-blocked-lock chip + a row-level opacity
+   dim — same visual language as RA's perf tables so the two pages are
+   instantly recognisable as describing the same concept. */
 .discovery-trial-regime-list {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px 18px;
+    gap: 8px 18px;
 }
 
-.discovery-trial-regime-list li {
+.discovery-trial-regime-item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-size: 12px;
+    transition: opacity 0.12s;
 }
 
-.discovery-trial-regime-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 700;
-    flex-shrink: 0;
+.discovery-trial-regime-item-off {
+    opacity: 0.55;
 }
 
-.discovery-trial-regime-on {
-    background: rgba(107, 203, 119, 0.18);
-    color: #6bcb77;
-}
-
-.discovery-trial-regime-off {
-    background: rgba(120, 120, 140, 0.12);
-    color: #6a6a82;
-}
-
-.discovery-trial-regime-label {
-    color: #c0c0e0;
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-
-.discovery-trial-regime-label-off {
-    color: #6a6a82;
+.discovery-trial-regime-item-off:hover {
+    opacity: 0.85;
 }
 
 /* ── Discovery run-stack (multiple runs persisted, newest at top) ─────── */
@@ -4105,4 +4082,79 @@ body.discovery-trial-page {
 
 .discovery-run-progress .discovery-progress-bar {
     width: 100%;
+}
+
+/* ── Discovery Settings panel ──────────────────────────────────────────
+   Read-only transparency panel (above Results). Reuses BD's .bs-toggle-btn
+   + .bs-collapsible pattern for the collapse behaviour; the outer card
+   inherits .discovery-config's background/border so it visually groups
+   with the Run configuration card above it. */
+.discovery-settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+/* The h2 inside .discovery-config already has its own styling (set by
+   the existing .discovery-config h2 rule); no extra rule needed here. */
+
+/* Each labelled sub-section inside the collapsible — a section-title
+   followed by a key/value table. Spaced so the three groups read as
+   distinct without needing the heavy .section card chrome. */
+.discovery-settings-group {
+    margin-top: 18px;
+}
+
+.discovery-settings-group:first-child {
+    margin-top: 14px;
+}
+
+/* Read-only rows shouldn't react to hover the way clickable BD rows do.
+   The general `tbody tr:hover td { background: #222 }` rule is fine for
+   editable BD content but here it suggests interactivity that isn't
+   there. Scope an override to this panel only. */
+.discovery-settings-panel tbody tr:hover td {
+    background: transparent;
+}
+
+/* Fixed label-column width so the three sub-section tables align the
+   value column at the same x-position. Without this, each <table>'s
+   auto-layout sizes the label column to its own widest cell, producing
+   staggered values across sub-sections (Fixed Constants' "Instrument"
+   ended up at a different x than Search Bounds' "Macro Regimes"). */
+.discovery-settings-panel td.lbl {
+    width: 180px;
+    white-space: nowrap;
+}
+
+/* Editable controls inside the Discovery Settings panel — selects sized
+   to fit content, number inputs sized tightly for the criteria fields,
+   operator prefix (≥ / ≤) rendered as a green inline pill so the
+   threshold direction is unmissable. */
+.discovery-settings-panel .ds-select {
+    width: auto;
+    min-width: 110px;
+}
+
+.discovery-settings-panel .ds-num-input {
+    width: 80px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.discovery-settings-panel .ds-op {
+    display: inline-block;
+    min-width: 14px;
+    text-align: center;
+    margin-right: 6px;
+    color: #6bcb77;
+    font-weight: 700;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.discovery-settings-panel .ds-hint {
+    margin-top: 4px;
+    font-size: 11px;
 }

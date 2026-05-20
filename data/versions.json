@@ -31,63 +31,6 @@
       }
     },
     {
-      "id": "v4",
-      "name": "v4",
-      "strategy_version": "v2",
-      "params": {
-        "ema_long": 197,
-        "use_ema_filter": false,
-        "fractal_stop_pips": 13,
-        "rrr_reward": 4,
-        "max_daily_losses": 4,
-        "trade_direction": "short_only",
-        "blocked_hours": "4,5,6,8,10,11,14,17",
-        "assigned_at": "2026-05-19T08:49:40Z"
-      },
-      "regime_state": {
-        "allowed_macro_regimes": [
-          "strong_down",
-          "staircase_down",
-          "strong_up"
-        ],
-        "allowed_micro_regimes": [
-          "trending_fast_down",
-          "trending_medium_down",
-          "ranging_medium",
-          "transitioning"
-        ],
-        "updated_at": "2026-05-19T08:49:40Z"
-      }
-    },
-    {
-      "id": "v5",
-      "name": "v5",
-      "strategy_version": "v2",
-      "params": {
-        "ema_long": 152,
-        "use_ema_filter": true,
-        "fractal_stop_pips": 19,
-        "rrr_reward": 1,
-        "max_daily_losses": 1,
-        "trade_direction": "short_only",
-        "blocked_hours": "4,5,6,8,10,11,14,17",
-        "assigned_at": "2026-05-19T14:46:28Z"
-      },
-      "regime_state": {
-        "allowed_macro_regimes": [
-          "strong_down",
-          "staircase_down"
-        ],
-        "allowed_micro_regimes": [
-          "trending_slow_down",
-          "trending_slow_up",
-          "ranging_narrow",
-          "transitioning"
-        ],
-        "updated_at": "2026-05-19T14:46:28Z"
-      }
-    },
-    {
       "id": "v6",
       "name": "v6",
       "strategy_version": "v2",
@@ -112,7 +55,7 @@
           "trending_slow_down",
           "trending_slow_up"
         ],
-        "updated_at": "2026-05-20T05:35:59Z"
+        "updated_at": "2026-05-20T05:55:27Z"
       }
     },
     {
@@ -120,14 +63,14 @@
       "name": "v7",
       "strategy_version": "v2",
       "params": {
-        "ema_long": 152,
-        "use_ema_filter": true,
-        "fractal_stop_pips": 19,
-        "rrr_reward": 1,
-        "max_daily_losses": 1,
+        "ema_long": 166,
+        "use_ema_filter": false,
+        "fractal_stop_pips": 10,
+        "rrr_reward": 4,
+        "max_daily_losses": 2,
         "trade_direction": "short_only",
         "blocked_hours": "4,5,6,8,10,11,14,17",
-        "assigned_at": "2026-05-19T15:38:05Z"
+        "assigned_at": "2026-05-20T08:22:47Z"
       },
       "regime_state": {
         "allowed_macro_regimes": [
@@ -135,12 +78,15 @@
           "staircase_down"
         ],
         "allowed_micro_regimes": [
+          "trending_fast_down",
+          "trending_medium_down",
           "trending_slow_down",
+          "trending_medium_up",
           "trending_slow_up",
-          "ranging_narrow",
+          "ranging_wide",
           "transitioning"
         ],
-        "updated_at": "2026-05-19T15:38:05Z"
+        "updated_at": "2026-05-20T08:22:47Z"
       }
     }
   ]

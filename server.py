@@ -616,8 +616,10 @@ INJECT_HTML = """
   .rb-btn-cbot { background: teal; }
   .rb-btn-cbot:hover:not(:disabled) { background: #02b5b5; }
   .rb-btn-cbot.downloaded { background: transparent !important; color: #4cc9f0; border: 1px solid #4cc9f0; }
-  .rb-btn-delete { background: crimson; }
-  .rb-btn-delete:hover:not(:disabled) { background: #f4254e; }
+  /* .rb-btn-delete now lives in style.css so /versions, /discovery, RA,
+     and trial-detail pages get the same crimson + hover + disabled
+     styling. The inline duplicates that used to sit here have been
+     removed (May 2026). */
 
   @keyframes rb-spin { to { transform: rotate(360deg); } }
   .rb-spin {
@@ -1621,15 +1623,105 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
   <main class="discovery-container">
     <header class="discovery-header">
       <h1>Discovery</h1>
-      <p class="discovery-subtitle">
-        Phase 1: random search across the v2 parameter space.
-        Each trial samples EMA Long, stop loss, RRR reward, max daily losses,
-        EMA filter, and macro/micro regime allow-lists; runs a full backtest
-        over the configured date range; and is scored against the objective
-        (PF&nbsp;&ge;&nbsp;1.5, trades&nbsp;&ge;&nbsp;50, max&nbsp;DD&nbsp;&le;&nbsp;15%).
-        Instrument, interval, direction, blocked hours, and slippage are fixed.
-      </p>
     </header>
+
+    <!-- ── Discovery Settings (read-only, collapsible) ─────────────────────
+         Sits above Run configuration so the operating parameters are the
+         first thing the user sees on the page. Surfaces what's fixed,
+         what's being searched, and what counts as passing. Read-only —
+         Phase 1 doesn't allow editing these from the UI; they're set in
+         discovery.py + server.py. -->
+    <section class="discovery-config discovery-settings-panel">
+      <div class="discovery-settings-header">
+        <h2>Discovery Settings</h2>
+        <button type="button" class="bs-toggle-btn" id="d-settings-toggle"
+                title="Toggle Discovery Settings" aria-label="Toggle Discovery Settings">
+          <svg id="d-settings-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M5.5 7L8 9.5L10.5 7" stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <!-- Plain [hidden] attribute pattern instead of .bs-collapsible's
+           max-height transition — the latter mysteriously failed to honour
+           an inline max-height on this page (CSS cascade quirk I couldn't
+           pin down) leaving the panel stuck at 0. [hidden] is bulletproof
+           browser behaviour: hidden=true → display:none, hidden=false →
+           default block. Loses the smooth animation but ships reliably. -->
+      <div class="discovery-settings-body" id="d-settings-collapsible" hidden>
+        <div class="discovery-settings-group">
+          <div class="section-title">Fixed Constants</div>
+          <table><tbody>
+            <tr><td class="lbl">Instrument</td>
+                <td><select id="ds-instrument" class="discovery-form-input ds-select">
+                      <option value="GBPUSD">GBPUSD</option>
+                      <option value="EURUSD">EURUSD</option>
+                    </select></td></tr>
+            <tr><td class="lbl">Interval</td>
+                <td><select id="ds-interval" class="discovery-form-input ds-select">
+                      <option value="1m">1m</option>
+                      <option value="5m">5m</option>
+                      <option value="15m">15m</option>
+                      <option value="1h">1h</option>
+                    </select></td></tr>
+            <tr><td class="lbl">Direction</td>
+                <td><select id="ds-direction" class="discovery-form-input ds-select">
+                      <option value="short_only">Short only</option>
+                      <option value="long_only">Long only</option>
+                      <option value="both">Both</option>
+                    </select></td></tr>
+            <tr><td class="lbl">Blocked Hours</td>
+                <td>
+                  <div class="bs-hours-grid" id="ds-blocked-hours-grid">
+                    <!-- 24 pills (0–23) wired in JS below from localStorage / default
+                         set. Reuses BD's .bs-hour-cb + .bs-hour-label styling so the
+                         red-when-blocked treatment matches the rest of the platform. -->
+                  </div>
+                  <div class="text-dim ds-hint">UTC</div>
+                </td></tr>
+            <tr><td class="lbl">Slippage</td>
+                <td><span class="val-highlight">On</span> <span class="text-dim">— 1 pip SL slippage + 1 pip spread (read-only)</span></td></tr>
+          </tbody></table>
+        </div>
+        <div class="discovery-settings-group">
+          <div class="section-title">Search Bounds</div>
+          <table><tbody>
+            <tr><td class="lbl">EMA Long</td>      <td><span class="val-highlight">10 – 200</span></td></tr>
+            <tr><td class="lbl">Stop Loss</td>     <td><span class="val-highlight">5 – 50 pips</span></td></tr>
+            <tr><td class="lbl">RRR Reward</td>    <td><span class="val-highlight">1 – 5</span> <span class="text-dim">(risk fixed at 1)</span></td></tr>
+            <tr><td class="lbl">Max DD</td>        <td><span class="val-highlight">1 – 5</span></td></tr>
+            <tr><td class="lbl">EMA Filter</td>    <td><span class="val-highlight">on / off</span></td></tr>
+            <tr><td class="lbl">Macro Regimes</td> <td><span class="val-highlight">any combination of 5</span></td></tr>
+            <tr><td class="lbl">Micro Regimes</td> <td><span class="val-highlight">any combination of 10</span></td></tr>
+          </tbody></table>
+        </div>
+        <div class="discovery-settings-group">
+          <div class="section-title">Passing Criteria</div>
+          <table><tbody>
+            <tr><td class="lbl">Profit Factor</td>
+                <td>
+                  <span class="ds-op">&ge;</span>
+                  <input type="number" id="ds-min-pf" class="discovery-form-input ds-num-input"
+                         step="0.05" min="0.1" value="1.5">
+                </td></tr>
+            <tr><td class="lbl">Min Trades</td>
+                <td>
+                  <span class="ds-op">&ge;</span>
+                  <input type="number" id="ds-min-trades" class="discovery-form-input ds-num-input"
+                         step="1" min="0" value="50">
+                </td></tr>
+            <tr><td class="lbl">Max Drawdown</td>
+                <td>
+                  <span class="ds-op">&le;</span>
+                  <input type="number" id="ds-max-dd-pct" class="discovery-form-input ds-num-input"
+                         step="0.5" min="0" max="100" value="15">
+                  <span class="text-dim">%</span>
+                </td></tr>
+          </tbody></table>
+        </div>
+      </div>
+    </section>
 
     <section class="discovery-config">
       <h2>Run configuration</h2>
@@ -1769,6 +1861,23 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                " | macro[" + (p.allowed_macro_regimes || []).length +
                "] micro[" + (p.allowed_micro_regimes || []).length + "]";
       }
+      /* Integer formatter for the Trades / Wins / Losses cells. Renders an
+         em-dash for missing values so older trial records (saved before
+         strategy_v2 wrote the full metrics dict) degrade gracefully. */
+      function fmtInt(v) {
+        if (v === null || v === undefined) return "—";
+        return String(Math.round(Number(v)));
+      }
+      /* max_daily_drawdown is stored as {dollar, pct} by strategy_v2's
+         compute_metrics. We display the .pct (matches DD 1's percent
+         format). Returns null if missing → fmtPct renders an em-dash. */
+      function maxDailyDDPct(m) {
+        var mdd = m && m.max_daily_drawdown;
+        if (mdd && typeof mdd === "object" && mdd.pct !== undefined && mdd.pct !== null) {
+          return Math.abs(Number(mdd.pct));
+        }
+        return null;
+      }
 
       /* ── Assignment-state tracking (localStorage) ──────────────────────
          Bug fix (May 2026 — Issue 1): the row-level Assign button used to
@@ -1801,6 +1910,13 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         /* Profit factor null = infinity = best */
         if (key === "profit_factor" && (v === null || v === undefined)) {
           return Number.POSITIVE_INFINITY;
+        }
+        /* max_daily_drawdown is an object {dollar, pct} — sort by abs(pct) */
+        if (key === "max_daily_drawdown") {
+          if (v && typeof v === "object" && v.pct !== undefined && v.pct !== null) {
+            return Math.abs(Number(v.pct));
+          }
+          return 0;
         }
         return v == null ? 0 : v;
       }
@@ -1922,16 +2038,25 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         table.className = "discovery-table";
         var thead = document.createElement("thead");
         var theadTr = document.createElement("tr");
+        /* Columns (updated May 2026): #, Pass, PF, P&L, Trades, Wins,
+           Losses, Win %, DD 1 (max), DD 2 (max daily), Assign. Params
+           column was dropped — full params are visible on the trial
+           detail page (click any row). DD 1 = max_drawdown (run-level).
+           DD 2 = max_daily_drawdown.pct (worst single-day drawdown).
+           Both shown as percent; DD 2 is stored as {dollar, pct} so we
+           pull .pct in renderBlockBody. */
         var cols = [
-          ["trial",         "#"],
-          ["pass",          "Pass"],
-          ["profit_factor", "PF"],
-          ["total_trades",  "Trades"],
-          ["max_drawdown",  "Max DD"],
-          ["net_profit",    "Net P&L"],
-          ["win_rate",      "Win %"],
-          [null,            "Params"],
-          [null,            "Assign"],
+          ["trial",              "#"],
+          ["pass",               "Pass"],
+          ["profit_factor",      "PF"],
+          ["net_profit",         "P&L"],
+          ["total_trades",       "Trades"],
+          ["winning_trades",     "Wins"],
+          ["losing_trades",      "Losses"],
+          ["win_rate",           "Win %"],
+          ["max_drawdown",       "DD 1"],
+          ["max_daily_drawdown", "DD 2"],
+          [null,                 "Assign"],
         ];
         cols.forEach(function (c) {
           var th = document.createElement("th");
@@ -2001,8 +2126,12 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           var m = t.metrics || {};
           var tr = document.createElement("tr");
           tr.className = "discovery-row" + (t.pass ? " discovery-row-pass" : " discovery-row-fail");
+          /* Navigate by trial.id (globally unique) not trial.trial
+             (number — only unique within a single run). Previously two
+             runs each had a "trial 1" and clicking either row routed to
+             the same /discovery/trial/1, returning the wrong report. */
           tr.addEventListener("click", function () {
-            window.location.href = "/discovery/trial/" + t.trial;
+            window.location.href = "/discovery/trial/" + encodeURIComponent(t.id);
           });
 
           tr.appendChild(td(String(t.trial)));
@@ -2019,17 +2148,17 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           passTd.appendChild(badge);
           tr.appendChild(passTd);
 
-          tr.appendChild(td(fmtPF(m.profit_factor),  "discovery-cell-num"));
-          tr.appendChild(td(String(m.total_trades || 0), "discovery-cell-num"));
-          tr.appendChild(td(fmtPct(m.max_drawdown), "discovery-cell-num"));
-          tr.appendChild(td(fmtUSD(m.net_profit),   "discovery-cell-num"));
-          tr.appendChild(td(fmtPct(m.win_rate),     "discovery-cell-num"));
-
-          var paramsTd = document.createElement("td");
-          paramsTd.className = "discovery-cell-params";
-          paramsTd.textContent = describeParams(t.params);
-          paramsTd.title = JSON.stringify(t.params, null, 2);
-          tr.appendChild(paramsTd);
+          /* Data cells — order MUST match the cols[] definition in
+             renderBlock above: PF, P&L, Trades, Wins, Losses, Win %,
+             DD 1 (max_drawdown), DD 2 (max_daily_drawdown.pct). */
+          tr.appendChild(td(fmtPF(m.profit_factor),            "discovery-cell-num"));
+          tr.appendChild(td(fmtUSD(m.net_profit),              "discovery-cell-num"));
+          tr.appendChild(td(fmtInt(m.total_trades),            "discovery-cell-num"));
+          tr.appendChild(td(fmtInt(m.winning_trades),          "discovery-cell-num"));
+          tr.appendChild(td(fmtInt(m.losing_trades),           "discovery-cell-num"));
+          tr.appendChild(td(fmtPct(m.win_rate),                "discovery-cell-num"));
+          tr.appendChild(td(fmtPct(m.max_drawdown),            "discovery-cell-num"));
+          tr.appendChild(td(fmtPct(maxDailyDDPct(m)),          "discovery-cell-num"));
 
           var actionTd = document.createElement("td");
           if (t.pass) {
@@ -2182,6 +2311,27 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           });
       });
 
+      /* ── Discovery Settings toggle (collapsed by default) ─────────────
+         Uses the [hidden] attribute for show/hide and an inline transform
+         on the SVG chevron for the rotation indicator. Avoids the
+         .bs-collapsible / .bs-toggle-btn.open class rules whose inline-
+         override behaviour was unreliable on this page in earlier
+         testing (max-height stuck at 0 even with !important inline). */
+      (function () {
+        var btn     = document.getElementById("d-settings-toggle");
+        var panel   = document.getElementById("d-settings-collapsible");
+        var chevron = document.getElementById("d-settings-chevron");
+        if (!btn || !panel) return;
+        btn.addEventListener("click", function () {
+          var isOpen = panel.hidden;  /* about to become open */
+          panel.hidden = !isOpen;
+          if (chevron) {
+            chevron.style.transform = isOpen ? "rotate(180deg)" : "";
+            chevron.style.transition = "transform 0.2s";
+          }
+        });
+      })();
+
       /* ── Run + poll ────────────────────────────────────────────────────── */
       function setStatus(text) { statusEl.textContent = text; }
       function setProgress(pct) {
@@ -2259,7 +2409,17 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         runBtn.disabled = true;
         setStatus("Starting discovery run…");
         setProgress(0);
-        var body = {trials: trials, start: start, end: end};
+        var settings = getDiscoverySettings();
+        var body = {
+          trials: trials, start: start, end: end,
+          instrument:    settings.instrument,
+          interval:      settings.interval,
+          direction:     settings.direction,
+          blocked_hours: settings.blocked_hours,
+          min_pf:        settings.min_pf,
+          min_trades:    settings.min_trades,
+          max_dd_pct:    settings.max_dd_pct,
+        };
         if (seed !== null && !isNaN(seed)) body.seed = seed;
         fetch("/api/discovery/run", {
           method: "POST",
@@ -2282,7 +2442,102 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           });
       });
 
+      /* ── Discovery Settings: editable fields + localStorage persistence ──
+         The fields' values are persisted to localStorage so they survive
+         reload, and getDiscoverySettings() is called inside the form
+         submit handler above so the values land in every /api/discovery/run
+         payload — each trial then honors them via discovery.py's config. */
+      var DISCO_DEFAULTS = {
+        instrument:    "GBPUSD",
+        interval:      "5m",
+        direction:     "short_only",
+        blocked_hours: "4,5,6,8,10,11,14,17",
+        min_pf:        "1.5",
+        min_trades:    "50",
+        max_dd_pct:    "15",
+      };
+      function loadDS(key) {
+        try {
+          var s = window.localStorage.getItem("disco_" + key);
+          return s !== null ? s : DISCO_DEFAULTS[key];
+        } catch (e) { return DISCO_DEFAULTS[key]; }
+      }
+      function saveDS(key, val) {
+        try { window.localStorage.setItem("disco_" + key, val); } catch (e) {}
+      }
+      function saveBlockedHours() {
+        var blocked = [];
+        for (var h = 0; h <= 23; h++) {
+          var cb = document.getElementById("ds-bh-" + h);
+          if (cb && cb.checked) blocked.push(h);
+        }
+        saveDS("blocked_hours", blocked.join(","));
+      }
+      function initDiscoverySettings() {
+        ["instrument", "interval", "direction"].forEach(function (k) {
+          var el = document.getElementById("ds-" + k);
+          if (!el) return;
+          el.value = loadDS(k);
+          el.addEventListener("change", function () { saveDS(k, el.value); });
+        });
+        [["min-pf", "min_pf"], ["min-trades", "min_trades"], ["max-dd-pct", "max_dd_pct"]].forEach(function (p) {
+          var el = document.getElementById("ds-" + p[0]);
+          if (!el) return;
+          el.value = loadDS(p[1]);
+          el.addEventListener("change", function () { saveDS(p[1], el.value); });
+        });
+        var grid = document.getElementById("ds-blocked-hours-grid");
+        if (grid) {
+          var csv = loadDS("blocked_hours");
+          var blockedSet = {};
+          csv.split(",").forEach(function (h) {
+            var n = parseInt((h || "").trim(), 10);
+            if (!isNaN(n)) blockedSet[n] = true;
+          });
+          grid.innerHTML = "";
+          for (var h = 0; h <= 23; h++) {
+            var cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.className = "bs-hour-cb";
+            cb.id = "ds-bh-" + h;
+            cb.value = String(h);
+            cb.checked = !!blockedSet[h];
+            cb.addEventListener("change", saveBlockedHours);
+            grid.appendChild(cb);
+            var label = document.createElement("label");
+            label.className = "bs-hour-label";
+            label.setAttribute("for", "ds-bh-" + h);
+            label.textContent = String(h);
+            grid.appendChild(label);
+          }
+        }
+      }
+      /* Called from the form submit handler to fold current values into
+         the /api/discovery/run payload. Reads live from the DOM so any
+         in-flight unsaved typing is captured too. */
+      function getDiscoverySettings() {
+        var blocked = [];
+        for (var h = 0; h <= 23; h++) {
+          var cb = document.getElementById("ds-bh-" + h);
+          if (cb && cb.checked) blocked.push(h);
+        }
+        function v(id, dflt) {
+          var el = document.getElementById(id);
+          return (el && el.value !== "") ? el.value : dflt;
+        }
+        return {
+          instrument:    v("ds-instrument", DISCO_DEFAULTS.instrument),
+          interval:      v("ds-interval",   DISCO_DEFAULTS.interval),
+          direction:     v("ds-direction",  DISCO_DEFAULTS.direction),
+          blocked_hours: blocked.join(","),
+          min_pf:        parseFloat(v("ds-min-pf",     DISCO_DEFAULTS.min_pf)),
+          min_trades:    parseInt(v("ds-min-trades",   DISCO_DEFAULTS.min_trades), 10),
+          max_dd_pct:    parseFloat(v("ds-max-dd-pct", DISCO_DEFAULTS.max_dd_pct)),
+        };
+      }
+
       /* ── On load: hydrate from existing results + resume polling if running ── */
+      initDiscoverySettings();
       loadResults();
       fetch("/api/discovery/status")
         .then(function (r) { return r.json(); })
@@ -2306,16 +2561,21 @@ def discovery_page():
     return Response(_DISCOVERY_PAGE_HTML, mimetype="text/html")
 
 
-@app.route("/discovery/trial/<int:trial_id>")
+@app.route("/discovery/trial/<trial_id>")
 def discovery_trial_detail(trial_id):
-    """Per-trial detail page. Verifies the trial exists in any of the
-    persisted runs before serving discovery_trial.html — that way a
-    typo'd URL gets a real 404 instead of a working page that fails to
-    render. The page itself fetches the trial data client-side via
-    /api/discovery/trial/<id>."""
+    """Per-trial detail page. URL uses the trial's globally-unique id
+    (e.g. 't1_bad89744') NOT its trial number — trial numbers are scoped
+    to a single run, so two runs each have a 'trial 1' and routing by
+    number returned the wrong report when multiple runs existed. The id
+    is uuid-suffixed so collisions are vanishingly unlikely.
+
+    Verifies the trial exists in any of the persisted runs before serving
+    discovery_trial.html — that way a typo'd URL gets a real 404 instead
+    of a working page that fails to render. The page itself fetches the
+    trial data client-side via /api/discovery/trial/<id>."""
     found = False
     for run in _read_discovery_runs():
-        if any(t.get("trial") == trial_id for t in (run.get("trials") or [])):
+        if any(t.get("id") == trial_id for t in (run.get("trials") or [])):
             found = True
             break
     if not found:
@@ -2569,6 +2829,17 @@ def run_regime_analysis():
             strat.RRR_RISK = int(av_params.get("rrr_risk") or 1)
             if av_params.get("rrr_reward") is not None:
                 strat.RRR_REWARD = int(av_params["rrr_reward"])
+            # Bug fix (May 2026 — Task 1, part 3): strategy_v2 derives `RRR`
+            # ONCE at module import as `float(RRR_REWARD) / float(RRR_RISK)`
+            # and run_backtest reads `RRR` (not RRR_REWARD/RRR_RISK) when
+            # computing take-profits. Mutating RRR_REWARD/RRR_RISK alone
+            # leaves the cached RRR pointing at the import-time value (e.g.
+            # 2.0 when server.py booted with no env var), so RA's TPs land
+            # at 2× stop distance even when the version says RRR_REWARD=1
+            # — materially different trade outcomes (Discovery 75 trades
+            # vs RA 45 trades for v6's RRR 1:1). Recompute RRR here so it
+            # tracks the freshly-overridden numerator/denominator.
+            strat.RRR = float(strat.RRR_REWARD) / float(strat.RRR_RISK)
             if av_params.get("max_daily_losses") is not None:
                 strat.MAX_DAILY_LOSSES = int(av_params["max_daily_losses"])
             if av_params.get("trade_direction"):
@@ -3534,7 +3805,11 @@ def _find_trial_across_runs(value, key="id"):
 
 @app.route("/api/discovery/run", methods=["POST"])
 def api_discovery_run():
-    """Launch discovery.py as a subprocess. Body: {trials?, start?, end?, seed?}.
+    """Launch discovery.py as a subprocess. Body accepts:
+      trials, start, end, seed (existing)
+      instrument, interval, direction, blocked_hours (editable fixed-constants)
+      min_pf, min_trades, max_dd_pct (editable passing criteria)
+    Anything missing falls back to discovery.py's hardcoded defaults.
     Refuses if a discovery run is already in flight."""
     body = request.get_json(force=True, silent=True) or {}
     trials = body.get("trials", 200)
@@ -3556,6 +3831,53 @@ def api_discovery_run():
         except ValueError:
             return jsonify({"ok": False, "error": f"{label} must be YYYY-MM-DD"}), 400
 
+    # ── Editable Discovery Settings ──────────────────────────────────────
+    # Validation: enumerate allowed values for instrument/interval/direction;
+    # blocked_hours is a CSV of integers 0–23; thresholds are numbers in
+    # sane ranges. Any invalid input → 400 with a clear error message.
+    _ALLOWED_INSTRUMENTS = {"GBPUSD", "EURUSD"}
+    _ALLOWED_INTERVALS   = {"1m", "5m", "15m", "1h"}
+    _ALLOWED_DIRECTIONS  = {"short_only", "long_only", "both"}
+
+    instrument = (body.get("instrument") or "").strip().upper()
+    if instrument and instrument not in _ALLOWED_INSTRUMENTS:
+        return jsonify({"ok": False, "error": f"instrument must be one of {sorted(_ALLOWED_INSTRUMENTS)}"}), 400
+    interval = (body.get("interval") or "").strip()
+    if interval and interval not in _ALLOWED_INTERVALS:
+        return jsonify({"ok": False, "error": f"interval must be one of {sorted(_ALLOWED_INTERVALS)}"}), 400
+    direction = (body.get("direction") or "").strip()
+    if direction and direction not in _ALLOWED_DIRECTIONS:
+        return jsonify({"ok": False, "error": f"direction must be one of {sorted(_ALLOWED_DIRECTIONS)}"}), 400
+
+    blocked_hours = (body.get("blocked_hours") or "").strip()
+    if blocked_hours:
+        try:
+            _hours = [int(h.strip()) for h in blocked_hours.split(",") if h.strip()]
+            if any(h < 0 or h > 23 for h in _hours):
+                raise ValueError("hours must be 0–23")
+            blocked_hours = ",".join(str(h) for h in _hours)
+        except (TypeError, ValueError) as e:
+            return jsonify({"ok": False, "error": f"blocked_hours must be a comma-separated list of integers 0–23 ({e})"}), 400
+
+    def _parse_num(key, lo, hi, kind):
+        raw = body.get(key)
+        if raw is None or raw == "":
+            return None
+        try:
+            v = kind(raw)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": f"{key} must be a number"}), 400
+        if v < lo or v > hi:
+            return jsonify({"ok": False, "error": f"{key} must be between {lo} and {hi}"}), 400
+        return v
+
+    min_pf      = _parse_num("min_pf",     0.0,  10.0,  float)
+    min_trades  = _parse_num("min_trades", 0,    10000, int)
+    max_dd_pct  = _parse_num("max_dd_pct", 0.0,  100.0, float)
+    for v in (min_pf, min_trades, max_dd_pct):
+        if hasattr(v, "status_code"):  # _parse_num returned an error Response
+            return v
+
     with _disco_lock:
         if _discovery_is_running():
             return jsonify({"ok": False, "error": "A discovery run is already in progress"}), 409
@@ -3570,6 +3892,16 @@ def api_discovery_run():
                 cfg["seed"] = int(seed)
             except (TypeError, ValueError):
                 pass
+        # Layer in the editable settings — only set keys that were actually
+        # provided in the body so discovery.py falls back to its defaults
+        # when callers (e.g. CLI --once mode) omit them.
+        if instrument:    cfg["instrument"]    = instrument
+        if interval:      cfg["interval"]      = interval
+        if direction:     cfg["direction"]     = direction
+        if blocked_hours: cfg["blocked_hours"] = blocked_hours
+        if min_pf is not None:     cfg["min_pf"]     = min_pf
+        if min_trades is not None: cfg["min_trades"] = min_trades
+        if max_dd_pct is not None: cfg["max_dd_pct"] = max_dd_pct
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(cfg, f)
 
@@ -3648,18 +3980,20 @@ def api_discovery_delete_run(run_id):
     return jsonify({"ok": True, "removed": run_id, "remaining": len(remaining)})
 
 
-@app.route("/api/discovery/trial/<int:trial_id>", methods=["GET"])
+@app.route("/api/discovery/trial/<trial_id>", methods=["GET"])
 def api_discovery_trial(trial_id):
-    """Return a single discovery trial by its trial number, plus the run
-    config it belongs to. Searches across ALL runs (trial numbers are
-    unique within a run but not globally — earliest run wins on a tie,
-    which matches the order users see in the stack: newest at top). Used
-    by /discovery/trial/<id> client-side. 404 if not found."""
+    """Return a single discovery trial by its globally-unique id (e.g.
+    't1_bad89744'), plus the run config it belongs to. Bug fix (May 2026):
+    previously this routed by the trial number, which is only unique
+    within a single run — so /api/discovery/trial/1 returned whichever
+    run held the FIRST 'trial 1' (newest), even when the user clicked a
+    different run's trial 1 in the stack. Routing by id eliminates the
+    ambiguity. 404 if not found."""
     for run in _read_discovery_runs():
         for t in (run.get("trials") or []):
-            if t.get("trial") == trial_id:
+            if t.get("id") == trial_id:
                 return jsonify({"ok": True, "trial": t, "config": run.get("config"), "run_id": run.get("run_id")})
-    return jsonify({"ok": False, "error": f"trial {trial_id} not found"}), 404
+    return jsonify({"ok": False, "error": f"trial id '{trial_id}' not found"}), 404
 
 
 @app.route("/api/discovery/assign", methods=["POST"])

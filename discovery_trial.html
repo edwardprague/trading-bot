@@ -4,6 +4,10 @@
   <meta charset="utf-8">
   <title>Discovery Trial — Fractal Bot</title>
   <link rel="stylesheet" href="/style.css">
+  <!-- Material Symbols — needed for the lock icon on toggled-off regime
+       labels (matches the Regime Analysis page's styling). -->
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 </head>
 <body class="discovery-trial-page">
   <nav class="top-nav" id="top-nav">
@@ -28,21 +32,33 @@
 
     <div id="dt-error-banner" class="discovery-trial-error" hidden></div>
 
-    <div class="two-col" id="dt-grid" hidden>
-      <div class="section">
-        <div class="section-title">Results</div>
-        <table><tbody id="dt-results-tbody"></tbody></table>
+    <div id="dt-grid" hidden>
+      <!-- Row 1: Results | Parameters -->
+      <div class="two-col">
+        <div class="section">
+          <div class="section-title">Results</div>
+          <table><tbody id="dt-results-tbody"></tbody></table>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Parameters</div>
+          <table><tbody id="dt-params-tbody"></tbody></table>
+        </div>
       </div>
 
-      <div class="section">
-        <div class="section-title">Parameters</div>
-        <table><tbody id="dt-params-tbody"></tbody></table>
+      <!-- Row 2: Macro regimes | Micro regimes (split out of Parameters
+           per user request — each gets its own .section so the regime
+           lists have room to breathe and the page has clearer hierarchy) -->
+      <div class="two-col discovery-trial-regimes-row">
+        <div class="section">
+          <div class="section-title">Macro regimes</div>
+          <ul class="discovery-trial-regime-list" id="dt-macro-list"></ul>
+        </div>
 
-        <div class="discovery-trial-regime-heading">Macro regimes</div>
-        <ul class="discovery-trial-regime-list" id="dt-macro-list"></ul>
-
-        <div class="discovery-trial-regime-heading">Micro regimes</div>
-        <ul class="discovery-trial-regime-list" id="dt-micro-list"></ul>
+        <div class="section">
+          <div class="section-title">Micro regimes</div>
+          <ul class="discovery-trial-regime-list" id="dt-micro-list"></ul>
+        </div>
       </div>
     </div>
   </main>
@@ -71,14 +87,17 @@
   <script>
     (function () {
       /* ── Trial id from URL ────────────────────────────────────────────── */
-      var match = window.location.pathname.match(/\/discovery\/trial\/(\d+)\/?$/);
-      var trialId = match ? parseInt(match[1], 10) : null;
-      if (trialId === null) {
+      /* URLs now use the globally-unique trial.id (e.g. 't1_bad89744')
+         instead of the trial number — trial numbers collided across runs
+         and routed to the wrong report. The trial NUMBER is set into the
+         page title below once the API response loads (uses trial.trial). */
+      var match = window.location.pathname.match(/\/discovery\/trial\/([^\/?#]+)\/?$/);
+      var trialId = match ? decodeURIComponent(match[1]) : null;
+      if (!trialId) {
         document.getElementById("dt-error-banner").hidden = false;
         document.getElementById("dt-error-banner").textContent = "Couldn't parse trial id from URL.";
         return;
       }
-      document.getElementById("dt-trial-num").textContent = String(trialId);
 
       /* ── Refs + state ─────────────────────────────────────────────────── */
       var STATE = {trial: null};
@@ -262,6 +281,34 @@
         "ranging_narrow", "ranging_medium", "ranging_wide", "transitioning",
       ];
 
+      /* Display-name converters mirror the RA page exactly:
+           macro: "strong_down" → "Strong Down"
+           micro: "trending_fast_down" → "Trending — Fast Down"
+                  "ranging_narrow"     → "Ranging — Narrow"
+                  "transitioning"      → "Transitioning"
+         CSS class fragment is just the key with underscores → dashes
+         (matches .macro-color-strong-down / .regime-color-ranging-narrow). */
+      function macroDisplay(key) {
+        return key.split("_").map(function (w) {
+          return w.charAt(0).toUpperCase() + w.slice(1);
+        }).join(" ");
+      }
+      function microDisplay(key) {
+        var parts = key.split("_");
+        if (parts.length >= 2 && (parts[0] === "trending" || parts[0] === "ranging")) {
+          var head = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+          var tail = parts.slice(1).map(function (w) {
+            return w.charAt(0).toUpperCase() + w.slice(1);
+          }).join(" ");
+          return head + " — " + tail;
+        }
+        return macroDisplay(key);
+      }
+      function colorClass(badgeClass, key) {
+        /* "macro-badge" → "macro-color-strong-down" */
+        return badgeClass.replace("badge", "color") + "-" + key.replace(/_/g, "-");
+      }
+
       function renderRegimes(params) {
         params = params || {};
         var allowedMacro = {};
@@ -269,24 +316,41 @@
         var allowedMicro = {};
         (params.allowed_micro_regimes || []).forEach(function (k) { allowedMicro[k] = true; });
 
-        function build(list, all, allowed) {
+        /* Build the colored-badge + (optional) lock-chip <li> for each key,
+           matching the Regime Analysis page's styling exactly: same
+           .macro-badge/.regime-badge palette, same .regime-blocked-lock
+           material-symbols lock for off items, same opacity dim via the
+           .discovery-trial-regime-item-off modifier. */
+        function build(list, allKeys, allowed, badgeClass, displayFn, offTitle) {
           list.innerHTML = "";
-          all.forEach(function (key) {
-            var li = document.createElement("li");
-            var icon = document.createElement("span");
-            var label = document.createElement("span");
+          allKeys.forEach(function (key) {
             var isOn = !!allowed[key];
-            icon.className  = "discovery-trial-regime-icon " + (isOn ? "discovery-trial-regime-on" : "discovery-trial-regime-off");
-            icon.textContent = isOn ? "✓" : "—";  /* ✓ or — */
-            label.className  = "discovery-trial-regime-label" + (isOn ? "" : " discovery-trial-regime-label-off");
-            label.textContent = key;
-            li.appendChild(icon);
-            li.appendChild(label);
+            var li = document.createElement("li");
+            li.className = "discovery-trial-regime-item" + (isOn ? "" : " discovery-trial-regime-item-off");
+
+            var badge = document.createElement("span");
+            badge.className = badgeClass + " " + colorClass(badgeClass, key);
+            badge.textContent = displayFn(key);
+            li.appendChild(badge);
+
+            if (!isOn) {
+              var lock = document.createElement("span");
+              lock.className = "regime-blocked-lock";
+              lock.title = offTitle;
+              lock.setAttribute("aria-label", "Excluded");
+              var glyph = document.createElement("span");
+              glyph.className = "material-symbols-outlined";
+              glyph.textContent = "lock";
+              lock.appendChild(glyph);
+              li.appendChild(lock);
+            }
             list.appendChild(li);
           });
         }
-        build(macroList, ALL_MACRO, allowedMacro);
-        build(microList, ALL_MICRO, allowedMicro);
+        build(macroList, ALL_MACRO, allowedMacro, "macro-badge", macroDisplay,
+              "Excluded by this trial's macro filter");
+        build(microList, ALL_MICRO, allowedMicro, "regime-badge", microDisplay,
+              "Excluded by this trial's micro filter");
       }
 
       function renderBadge(trial) {
@@ -422,7 +486,7 @@
       });
 
       /* ── Boot: fetch the trial ────────────────────────────────────────── */
-      fetch("/api/discovery/trial/" + trialId)
+      fetch("/api/discovery/trial/" + encodeURIComponent(trialId))
         .then(function (r) {
           if (!r.ok) {
             return r.json().then(function (j) { throw new Error((j && j.error) || ("HTTP " + r.status)); });
@@ -432,6 +496,9 @@
         .then(function (resp) {
           if (!resp.ok || !resp.trial) throw new Error(resp.error || "Trial not found");
           STATE.trial = resp.trial;
+          /* Set "Trial #N" from the API response now that the URL uses the
+             id (not the number). */
+          document.getElementById("dt-trial-num").textContent = String(resp.trial.trial);
           renderBadge(resp.trial);
           renderResults(resp.trial.metrics);
           renderParams(resp.trial.params, resp.config);
