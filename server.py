@@ -164,18 +164,25 @@ def _read_versions():
 
 
 def _next_version_name(versions):
-    """Return the next sequential 'vN' name based on existing entries.
-    Scans the current versions for names matching 'v<digits>', takes
-    the highest N, and returns 'v<N+1>'. Defaults to 'v1' if none match.
-    Ignores any non-vN names (legacy or user-edited)."""
-    max_n = 0
+    """Return the next sequential 'vN' name. May 2026: with
+    renumber-on-delete in place, the existing versions are always a
+    contiguous v1..vN sequence — so the next name is just v(len+1).
+
+    Falls back to scanning for the max numeric suffix when the list
+    contains any non-conforming names (legacy / hand-edited entries) so
+    we never produce a duplicate id."""
+    nums = []
+    saw_non_vn = False
     for v in versions or []:
         m = re.match(r"^v(\d+)$", (v.get("name") or "").strip())
         if m:
-            n = int(m.group(1))
-            if n > max_n:
-                max_n = n
-    return "v" + str(max_n + 1)
+            nums.append(int(m.group(1)))
+        else:
+            saw_non_vn = True
+    if saw_non_vn:
+        # Be conservative: fall back to legacy max+1 behaviour.
+        return "v" + str((max(nums) if nums else 0) + 1)
+    return "v" + str(len(versions or []) + 1)
 
 
 def _write_versions(data):
@@ -342,21 +349,236 @@ def _count_runs_per_version_name():
         return {}
 
 
+# ── Version rename / renumber ────────────────────────────────────────────
+# Atomic helpers (May 2026) that rewrite a version's id+name across BOTH
+# versions.json AND report.html's embedded versions-data buckets. These
+# back two flows: a one-off Task-1 rename (v8 → v1) and the recurring
+# auto-renumber-on-delete that produces a contiguous v1..vN sequence after
+# each removal.
+
+def _delete_bucket_from_report(name):
+    """Remove a bucket from report.html's <script id="versions-data"> array
+    and clean up its sidecar files. Factored out of /delete_version POST so
+    _delete_version can call it directly (May 2026)."""
+    if not name or not REPORT_FILE.exists():
+        return
+    try:
+        html = REPORT_FILE.read_text(encoding="utf-8")
+    except OSError:
+        return
+    match = re.search(
+        r'(<script[^>]+id=["\']versions-data["\'][^>]*>)([\s\S]*?)(</script>)',
+        html,
+    )
+    if not match:
+        return
+    try:
+        buckets = json.loads(match.group(2).strip())
+    except (json.JSONDecodeError, ValueError):
+        return
+    new_buckets = [b for b in buckets if b.get("name") != name]
+    if len(new_buckets) == len(buckets):
+        return  # nothing to drop
+    new_json = json.dumps(new_buckets, indent=2, ensure_ascii=False)
+    new_html = html[:match.start(2)] + "\n" + new_json + "\n" + html[match.end(2):]
+    try:
+        REPORT_FILE.write_text(new_html, encoding="utf-8")
+    except OSError:
+        pass
+    # RESULTS_LOG and results/<name>_* sidecars — best-effort
+    results_log = BASE_DIR / "RESULTS_LOG.md"
+    if results_log.exists():
+        try:
+            lines = results_log.read_text(encoding="utf-8").splitlines(keepends=True)
+            new_lines = [l for l in lines if not re.match(r'^\|\s*' + re.escape(name) + r'\s*\|', l)]
+            results_log.write_text("".join(new_lines), encoding="utf-8")
+        except OSError:
+            pass
+    results_dir = BASE_DIR / "results"
+    if results_dir.is_dir():
+        for f in results_dir.iterdir():
+            if f.name.startswith(name + "_") or f.name.startswith(name + "."):
+                try:
+                    f.unlink()
+                except OSError:
+                    pass
+
+
+def _rename_buckets_in_report(rename_map):
+    """Rewrite bucket names inside report.html's versions-data block based
+    on `rename_map` (old_name → new_name). Uses a two-pass temp-id swap so
+    intermediate collisions (e.g. rename {v2:v1, v3:v2}) don't merge two
+    distinct buckets. Buckets whose names aren't in the map are left
+    untouched; orphan buckets stay orphan."""
+    if not rename_map or not REPORT_FILE.exists():
+        return
+    try:
+        html = REPORT_FILE.read_text(encoding="utf-8")
+    except OSError:
+        return
+    match = re.search(
+        r'(<script[^>]+id=["\']versions-data["\'][^>]*>)([\s\S]*?)(</script>)',
+        html,
+    )
+    if not match:
+        return
+    try:
+        buckets = json.loads(match.group(2).strip())
+    except (json.JSONDecodeError, ValueError):
+        return
+    # Pass 1: map every renamable bucket to a temp namespace so we never
+    # have two buckets with the same name at any intermediate step.
+    TMP_PREFIX = "__rename_tmp__"
+    for b in buckets:
+        nm = b.get("name")
+        if nm in rename_map:
+            b["name"] = TMP_PREFIX + rename_map[nm]
+    # Pass 2: strip the temp prefix.
+    for b in buckets:
+        nm = b.get("name") or ""
+        if nm.startswith(TMP_PREFIX):
+            b["name"] = nm[len(TMP_PREFIX):]
+    new_json = json.dumps(buckets, indent=2, ensure_ascii=False)
+    new_html = html[:match.start(2)] + "\n" + new_json + "\n" + html[match.end(2):]
+    try:
+        REPORT_FILE.write_text(new_html, encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _apply_version_rename(rename_map):
+    """Atomically rewrite versions.json AND report.html for `rename_map`
+    (old_id → new_id). Updates id, name, and active_version_id where
+    applicable. No-op for empty maps. Returns the rename map (for caller
+    convenience — used by DELETE response so the client can rewrite
+    localStorage discovery_trial_assignments)."""
+    if not rename_map:
+        return {}
+    data = _read_versions()
+    versions = data.get("versions", [])
+    for v in versions:
+        old = v.get("id")
+        if old in rename_map:
+            new_id = rename_map[old]
+            v["id"] = new_id
+            # name has always tracked id (v1, v7, …); keep them in sync so
+            # the BD sidebar bucket lookup (by name) keeps working.
+            if (v.get("name") or "").strip() == old or not v.get("name"):
+                v["name"] = new_id
+    active = data.get("active_version_id")
+    if active in rename_map:
+        data["active_version_id"] = rename_map[active]
+    _write_versions(data)
+    _rename_buckets_in_report(rename_map)
+    return rename_map
+
+
+def _prune_orphan_buckets():
+    """Drop any report.html versions-data buckets whose name doesn't
+    correspond to an ASSIGNED version in versions.json. An unassigned
+    version can't have backtest runs (no params → no strategy subprocess
+    → nothing to save), so any bucket whose name matches an unassigned
+    slot — or doesn't match any version at all — is orphan data from a
+    previously-deleted version that happened to share the name. Returns
+    a list of (name, run_count) tuples describing what was dropped, for
+    logging.
+
+    Sidecar cleanup (RESULTS_LOG row, results/<name>_* files) is delegated
+    to _delete_bucket_from_report for each dropped name to keep the same
+    "delete a version" semantics as the existing /delete_version flow."""
+    if not REPORT_FILE.exists():
+        return []
+    try:
+        html = REPORT_FILE.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    match = re.search(
+        r'(<script[^>]+id=["\']versions-data["\'][^>]*>)([\s\S]*?)(</script>)',
+        html,
+    )
+    if not match:
+        return []
+    try:
+        buckets = json.loads(match.group(2).strip())
+    except (json.JSONDecodeError, ValueError):
+        return []
+    data = _read_versions()
+    assigned_names = {
+        (v.get("name") or "").strip()
+        for v in data.get("versions", [])
+        if v.get("params")
+    }
+    assigned_names.discard("")
+    dropped = []
+    kept = []
+    for b in buckets:
+        nm = (b.get("name") or "").strip()
+        if nm in assigned_names:
+            kept.append(b)
+        else:
+            dropped.append((nm, len(b.get("runs") or [])))
+    if not dropped:
+        return []
+    # Use _delete_bucket_from_report so sidecars also get swept. It rereads
+    # report.html each call which is wasteful for many drops, but cleaner
+    # than duplicating the regex + write logic here.
+    for nm, _count in dropped:
+        _delete_bucket_from_report(nm)
+    return dropped
+
+
+def _build_renumber_map(versions):
+    """Given a versions list in creation order (the natural order in the
+    versions.json array), return {old_id: new_id} that renumbers every
+    version to v1..vN sequentially. Only entries whose id actually changes
+    appear in the returned map."""
+    rename = {}
+    for i, v in enumerate(versions):
+        new_id = "v" + str(i + 1)
+        old_id = v.get("id")
+        if old_id and old_id != new_id:
+            rename[old_id] = new_id
+    return rename
+
+
 def _delete_version(version_id):
-    """Remove a version. Refuse if it's the last remaining one. If the
-    deleted version was active, fall back to the first remaining."""
+    """Remove a version, drop its report.html bucket, then auto-renumber
+    the remaining versions to a contiguous v1..vN sequence. Refuses if
+    it's the last remaining one. If the deleted version was active, falls
+    back to the first remaining (which becomes v1 after renumber).
+
+    Returns (ok, error_or_rename_map). When ok=True the second slot is
+    the rename map applied during the renumber step — the caller hands
+    this to the client so it can rewrite its localStorage
+    discovery_trial_assignments without a page reload."""
     data = _read_versions()
     versions = data.get("versions", [])
     if len(versions) <= 1:
         return False, "Cannot delete the last remaining version"
-    new_versions = [v for v in versions if v.get("id") != version_id]
-    if len(new_versions) == len(versions):
+    target = next((v for v in versions if v.get("id") == version_id), None)
+    if target is None:
         return False, "Version not found"
+    target_name = target.get("name") or target.get("id") or ""
+    new_versions = [v for v in versions if v.get("id") != version_id]
     data["versions"] = new_versions
     if data.get("active_version_id") == version_id:
         data["active_version_id"] = new_versions[0]["id"]
     _write_versions(data)
-    return True, None
+    # Clean up the deleted version's run bucket BEFORE renumber so the
+    # rename pass doesn't try to renumber a bucket that's about to be
+    # removed anyway.
+    _delete_bucket_from_report(target_name)
+    # Auto-renumber the survivors to v1..vN.
+    rename_map = _build_renumber_map(new_versions)
+    _apply_version_rename(rename_map)
+    # Sweep any orphan buckets that survived the rename — buckets whose
+    # name now matches an unassigned version (or no version at all). These
+    # accumulate across the codebase's history (versions deleted before
+    # auto-cleanup existed, or names that happened to clash with a
+    # renumbered id). Pruning here keeps the report.html data consistent
+    # with versions.json after every delete.
+    _prune_orphan_buckets()
+    return True, rename_map
 
 
 def _write_active_regime_state(allowed_macro, allowed_micro):
@@ -1347,26 +1569,17 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
   <main class="versions-container">
     <header class="versions-header">
       <h1>Versions</h1>
-      <p class="versions-subtitle">
-        Strategy profiles — each version bundles a base strategy module
-        and its own regime allow-list state. The active version drives
-        every new backtest and the toggle state on the Regimes page.
-      </p>
-    </header>
-
-    <section class="versions-add-section">
-      <h2>Add a version</h2>
+      <!-- Add Version moved into the page header (May 2026): the standalone
+           .versions-add-section + subtitle were removed; this button is the
+           single control for creating a new unassigned slot. Errors surface
+           in #versions-form-error below the list. -->
       <button type="button" id="versions-add-btn" class="rb-btn rb-btn-green">Add Version</button>
-      <p class="versions-form-hint">
-        Creates the next <code>v&lt;N&gt;</code> as an unassigned slot.
-        Parameters are filled in by assigning a Discovery trial to it.
-      </p>
-      <span id="versions-form-error" class="versions-form-error"></span>
-    </section>
+    </header>
 
     <section class="versions-list-section">
       <h2>Existing versions</h2>
       <ul id="versions-list" class="versions-list"></ul>
+      <span id="versions-form-error" class="versions-form-error"></span>
     </section>
   </main>
 
@@ -1393,7 +1606,12 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
 
       function renderList(store) {
         var active = store.active_version_id;
-        var versions = store.versions || [];
+        /* Render newest-first (May 2026): versions.json keeps creation
+           order (v1 oldest, vN newest) so the renumber-on-delete logic
+           and _next_version_name stay correct. We just reverse a copy at
+           render time so the top of the visual stack is the most
+           recently added version. */
+        var versions = (store.versions || []).slice().reverse();
         listEl.innerHTML = "";
         versions.forEach(function (v) {
           var isActive   = (v.id === active);
@@ -1586,24 +1804,40 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
           .then(function (resp) {
             if (!resp.ok) { showError(resp.error || "Delete failed"); return; }
             showError("");
-            /* Purge run history bucket from report.html if any. We do
-               this AFTER versions.json so a 500 here still leaves a
-               consistent state (the version is gone; orphan runs would
-               just no longer appear in the BD sidebar). Refresh
-               unconditionally afterwards so the rendered list has
-               accurate run_counts (the DELETE response doesn't stamp
-               them — only the GET handler does). */
-            if (runCount > 0) {
-              return fetch("/delete_version", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({name: v.name}),
-              })
-                .then(function () { return refresh(); })
-                .catch(function () { return refresh(); });
-            }
+            /* May 2026: the server-side DELETE handler now atomically
+               drops the version, removes its bucket from report.html,
+               renumbers the remaining versions to v1..vN, and returns
+               the rename map. We just need to rewrite localStorage's
+               discovery_trial_assignments so any "Assigned → vN"
+               buttons on the Discovery page reflect the new ids on
+               their next render. */
+            applyRenameToLocalAssignments(resp.rename_map || {});
             return refresh();
           });
+      }
+
+      /* Rewrite localStorage discovery_trial_assignments so trial buttons
+         keep showing the correct "Assigned → vN" label after a renumber.
+         No-op for empty maps. Mirrors the saveAssignment writer on the
+         Discovery page (key: discovery_trial_assignments). */
+      function applyRenameToLocalAssignments(renameMap) {
+        if (!renameMap || !Object.keys(renameMap).length) return;
+        try {
+          var raw = window.localStorage.getItem("discovery_trial_assignments");
+          if (!raw) return;
+          var m = JSON.parse(raw);
+          var changed = false;
+          Object.keys(m).forEach(function (trialId) {
+            var rec = m[trialId];
+            if (rec && renameMap[rec.version]) {
+              rec.version = renameMap[rec.version];
+              changed = true;
+            }
+          });
+          if (changed) {
+            window.localStorage.setItem("discovery_trial_assignments", JSON.stringify(m));
+          }
+        } catch (e) { /* localStorage unavailable / parse error — best effort */ }
       }
 
       addBtnEl.addEventListener("click", function () {
@@ -1659,32 +1893,30 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
   <main class="discovery-container">
     <header class="discovery-header">
       <h1>Discovery</h1>
+      <!-- Settings gear moved into the page header (May 2026), parallel to
+           the BD + RA + Versions pattern: title left, control on the
+           right. The standalone .discovery-settings-header div + its h2
+           "Discovery Settings" + the outer .discovery-config card were
+           retired; the collapsible body below drops down inline when the
+           gear is clicked. The button id (#d-settings-toggle) and chevron
+           id (#d-settings-chevron) are preserved so the existing toggle
+           JS still finds them. -->
+      <button type="button" class="bs-toggle-btn" id="d-settings-toggle"
+              title="Toggle Discovery Settings" aria-label="Toggle Discovery Settings">
+        <svg id="d-settings-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M5.5 7L8 9.5L10.5 7" stroke="currentColor" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </header>
 
-    <!-- ── Discovery Settings (read-only, collapsible) ─────────────────────
-         Sits above Run configuration so the operating parameters are the
-         first thing the user sees on the page. Surfaces what's fixed,
-         what's being searched, and what counts as passing. Read-only —
-         Phase 1 doesn't allow editing these from the UI; they're set in
-         discovery.py + server.py. -->
-    <section class="discovery-config discovery-settings-panel">
-      <div class="discovery-settings-header">
-        <h2>Discovery Settings</h2>
-        <button type="button" class="bs-toggle-btn" id="d-settings-toggle"
-                title="Toggle Discovery Settings" aria-label="Toggle Discovery Settings">
-          <svg id="d-settings-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M5.5 7L8 9.5L10.5 7" stroke="currentColor" stroke-width="1.5"
-                  stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-      </div>
-      <!-- Plain [hidden] attribute pattern instead of .bs-collapsible's
-           max-height transition — the latter mysteriously failed to honour
-           an inline max-height on this page (CSS cascade quirk I couldn't
-           pin down) leaving the panel stuck at 0. [hidden] is bulletproof
-           browser behaviour: hidden=true → display:none, hidden=false →
-           default block. Loses the smooth animation but ships reliably. -->
+    <!-- ── Discovery Settings body (collapsible) ──────────────────────────
+         Plain [hidden] attribute pattern instead of .bs-collapsible's
+         max-height transition (cascade quirk on this page; [hidden] is
+         bulletproof). Surfaces what's fixed, what's being searched, and
+         what counts as passing. -->
+    <section class="discovery-settings-panel">
       <div class="discovery-settings-body" id="d-settings-collapsible" hidden>
         <div class="discovery-settings-group">
           <div class="section-title">Fixed Constants</div>
@@ -3729,11 +3961,20 @@ def api_versions_add():
 @app.route("/api/versions/<version_id>", methods=["DELETE"])
 def api_versions_delete(version_id):
     """Delete a version. Refuses if it's the last one; auto-switches active
-    if the deleted one was active."""
-    ok, err = _delete_version(version_id)
+    if the deleted one was active.
+
+    May 2026: also auto-renumbers the remaining versions to v1..vN in
+    creation order (atomically rewrites versions.json + report.html
+    buckets) and returns the rename map in `rename_map` so the client can
+    rewrite localStorage discovery_trial_assignments accordingly."""
+    ok, payload = _delete_version(version_id)
     if not ok:
-        return jsonify({"ok": False, "error": err}), 400
-    return jsonify({"ok": True, "store": _read_versions()})
+        return jsonify({"ok": False, "error": payload}), 400
+    return jsonify({
+        "ok": True,
+        "store": _read_versions(),
+        "rename_map": payload or {},
+    })
 
 
 @app.route("/api/versions/<version_id>/notes", methods=["POST"])

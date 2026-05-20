@@ -2540,7 +2540,15 @@ body.versions-page {
     padding: 0 24px;
 }
 
+/* May 2026: .versions-header is now a flex row — page title on the left,
+   Add Version button on the right. The standalone .versions-add-section
+   was retired (Add Version now lives here); .versions-subtitle was
+   removed entirely. */
 .versions-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     margin-bottom: 28px;
     padding-bottom: 18px;
     border-bottom: 1px solid #1e1e30;
@@ -2553,20 +2561,10 @@ body.versions-page {
     letter-spacing: 0.01em;
 }
 
-.versions-subtitle {
-    font-size: 13px;
-    color: #9090b0;
-    margin-top: 8px;
-    max-width: 640px;
-    line-height: 1.5;
-}
-
-.versions-add-section,
 .versions-list-section {
     margin-bottom: 32px;
 }
 
-.versions-add-section h2,
 .versions-list-section h2 {
     font-size: 11px;
     font-weight: 700;
@@ -2576,70 +2574,27 @@ body.versions-page {
     margin-bottom: 14px;
 }
 
-.versions-add-form {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.versions-form-label {
-    font-size: 11px;
-    color: #9090b0;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-}
-
-.versions-form-input,
-.versions-form-select {
-    background: #14142a;
-    color: #d0d0e8;
-    border: 1px solid #2a2a44;
-    border-radius: 5px;
-    padding: 7px 10px;
-    font-size: 13px;
-    font-family: inherit;
-    outline: none;
-    color-scheme: dark;
-}
-
-.versions-form-input {
-    min-width: 240px;
-}
-
-.versions-form-input:focus,
-.versions-form-select:focus {
-    border-color: #4cc9f0;
-}
-
+/* .versions-add-form, .versions-form-label, .versions-form-input,
+   .versions-form-select, and .versions-form-hint were removed (May 2026)
+   when the standalone Add Version section was retired. .versions-form-error
+   is kept — it still surfaces add failures, now positioned below the list. */
 .versions-form-error {
     display: inline-block;
-    margin-top: 10px;
+    margin-top: 12px;
     font-size: 12px;
     color: crimson;
 }
 
-.versions-form-hint {
-    margin-top: 10px;
-    font-size: 12px;
-    color: #6a6a8a;
-}
-
-.versions-form-hint code {
-    color: #9090b0;
-    background: #14142a;
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-}
-
+/* May 2026: each version is its own self-contained card with breathing
+   room between them — mirrors the .discovery-runs-stack / .discovery-run-block
+   pattern so the page reads consistently with Discovery's per-run blocks. */
 .versions-list {
     list-style: none;
     margin: 0;
     padding: 0;
-    border: 1px solid #666;
-    border-radius: 8px;
-    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
 .versions-row {
@@ -2648,9 +2603,10 @@ body.versions-page {
     grid-template-rows: auto auto;
     column-gap: 16px;
     row-gap: 4px;
-    padding: 14px 18px;
-    background: #10101c;
-    border-top: 1px solid #1e1e30;
+    padding: 16px 20px;
+    background: #10101e;
+    border: 1px solid #1e1e32;
+    border-radius: 6px;
 }
 
 /* Radio button — sole control for promoting a version to globally active.
@@ -2677,13 +2633,15 @@ body.versions-page {
     opacity: 0.35;
 }
 
-.versions-row:first-child {
-    border-top: none;
-}
-
+/* Active card: keep the cyan left-accent stripe (via inset shadow) and
+   lift the background a touch + add a cyan-tinted border so it visually
+   stands out across the gap. overflow:hidden keeps the inset shadow
+   clipped neatly inside the rounded corners. */
 .versions-row-active {
     background: #14142a;
+    border-color: rgba(76, 201, 240, 0.35);
     box-shadow: inset 4px 0 0 #4cc9f0;
+    overflow: hidden;
 }
 
 .versions-row-name {
@@ -3564,7 +3522,15 @@ body.discovery-page {
     padding: 0 24px;
 }
 
+/* May 2026: .discovery-header is now a flex row — page title on the left,
+   Discovery Settings gear toggle on the right (parallel to BD + RA +
+   Versions). The collapsible settings body below drops down inline when
+   the gear is clicked. */
 .discovery-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     margin-bottom: 24px;
     padding-bottom: 18px;
     border-bottom: 1px solid #1e1e30;
@@ -3679,11 +3645,12 @@ body.discovery-page {
 }
 
 /* ── Results section ──────────────────────────────────────────────────── */
+/* May 2026 restyle: the outer card was dropped so each .discovery-run-block
+   below reads as its own self-contained card (mirrors the Versions page
+   restyle). The RESULTS header now floats above the stack as plain
+   typography, anchored only by margin/padding. */
 .discovery-results-section {
-    background: #000;
-    border: 1px solid #666;
-    border-radius: 8px;
-    padding: 18px 20px;
+    padding: 0;
 }
 
 .discovery-results-header {
@@ -4158,29 +4125,31 @@ body.discovery-trial-page {
 }
 
 /* ── Discovery Settings panel ──────────────────────────────────────────
-   Read-only transparency panel (above Results). Reuses BD's .bs-toggle-btn
-   + .bs-collapsible pattern for the collapse behaviour; the outer card
-   inherits .discovery-config's background/border so it visually groups
-   with the Run configuration card above it. */
-.discovery-settings-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
+   May 2026: the gear toggle now lives in the page header (.discovery-header)
+   instead of in a standalone .discovery-settings-header. The collapsible
+   body uses the same `.section` chrome (black bg, grey border, rounded
+   corners) as the BD's Backtest Settings panel and every other settings
+   section in the platform — restored after an earlier pass dropped it. */
+.discovery-settings-panel {
+    margin-bottom: 24px;
 }
 
-/* The h2 inside .discovery-config already has its own styling (set by
-   the existing .discovery-config h2 rule); no extra rule needed here. */
+.discovery-settings-body {
+    background: #000;
+    border: 1px solid #666;
+    padding: 15px;
+    border-radius: 10px;
+}
 
 /* Each labelled sub-section inside the collapsible — a section-title
    followed by a key/value table. Spaced so the three groups read as
-   distinct without needing the heavy .section card chrome. */
+   distinct inside the single outer card. */
 .discovery-settings-group {
     margin-top: 18px;
 }
 
 .discovery-settings-group:first-child {
-    margin-top: 14px;
+    margin-top: 0;
 }
 
 /* Read-only rows shouldn't react to hover the way clickable BD rows do.
