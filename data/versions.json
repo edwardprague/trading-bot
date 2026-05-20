@@ -1,5 +1,5 @@
 {
-  "active_version_id": "v4",
+  "active_version_id": "v6",
   "versions": [
     {
       "id": "v3",
@@ -103,6 +103,34 @@
       },
       "regime_state": {
         "allowed_macro_regimes": [
+          "staircase_down",
+          "strong_down"
+        ],
+        "allowed_micro_regimes": [
+          "ranging_narrow",
+          "transitioning",
+          "trending_slow_down",
+          "trending_slow_up"
+        ],
+        "updated_at": "2026-05-20T05:35:59Z"
+      }
+    },
+    {
+      "id": "v7",
+      "name": "v7",
+      "strategy_version": "v2",
+      "params": {
+        "ema_long": 152,
+        "use_ema_filter": true,
+        "fractal_stop_pips": 19,
+        "rrr_reward": 1,
+        "max_daily_losses": 1,
+        "trade_direction": "short_only",
+        "blocked_hours": "4,5,6,8,10,11,14,17",
+        "assigned_at": "2026-05-19T15:38:05Z"
+      },
+      "regime_state": {
+        "allowed_macro_regimes": [
           "strong_down",
           "staircase_down"
         ],
@@ -112,7 +140,7 @@
           "ranging_narrow",
           "transitioning"
         ],
-        "updated_at": "2026-05-19T15:06:39Z"
+        "updated_at": "2026-05-19T15:38:05Z"
       }
     }
   ]

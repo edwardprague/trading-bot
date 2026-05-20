@@ -895,15 +895,24 @@ document.addEventListener("DOMContentLoaded", function () {
          2. Apply that version's params to the BD inputs so the settings
             panel reflects what the next run will use. */
     sel.addEventListener("change", function () {
+      /* Bug fix (May 2026 — Task 2): always re-render the run-bar label
+         from the dropdown's current value, even when the picked version
+         doesn't resolve (e.g. an unassigned slot that was just selected,
+         or a stale option). report.html's renderSidebar() early-returns
+         when the current version has no bucket, which SKIPS its own
+         updateRangeButtonLabel call — leaving the label showing the
+         previous version's name. Calling it unconditionally here keeps
+         the label in lockstep with sel.value. */
+      if (typeof updateRangeButtonLabel === "function") updateRangeButtonLabel();
       var picked = byId[sel.value];
       if (!picked) return;
       try { localStorage.setItem("rb_selected_version_id", picked.id); } catch (e) {}
       applyBacktestParamsFromVersion(picked);
-      /* Keep the Add Date Range button label in sync with the dropdown
-         (it used to update via the /api/active_version response). */
+      /* Keep the global hints in sync too so subsequent updateRangeButtonLabel
+         fallbacks (when sel.value is briefly empty during reconciliation)
+         use the right name. */
       window._currentVersionName        = picked.name || "";
       window._currentVersionDisplayName = picked.name || picked.strategy_version || "";
-      if (typeof updateRangeButtonLabel === "function") updateRangeButtonLabel();
     });
   }).catch(function () {});
 
@@ -2536,15 +2545,83 @@ def run_regime_analysis():
         )
         strat.USE_EMA_FILTER = use_ema_filter
 
+        # ── Apply the active version's full backtest params ──────────────
+        # Bug fix (May 2026 — Task 1): previously this endpoint only
+        # overrode the regime gates + USE_EMA_FILTER, so the RA backtest
+        # ran with strategy_v2's hardcoded defaults (EMA_LONG=40, SL=15,
+        # RRR 1:2, MAX_DLL=2, BLOCKED_HOURS=4,5,...) — diverging from
+        # BD/Discovery numbers for any Discovery-assigned version with
+        # different params (v3, v4, v5, v6, ...).
+        # Fix: layer the active version's params block onto the strategy
+        # module's globals before run_backtest. Mirrors what
+        # _apply_active_version_to_env does for the BD subprocess path —
+        # except this is in-process so we mutate strat directly.
+        av = _get_active_version()
+        av_params = (av or {}).get("params") or {}
+        if av_params:
+            if av_params.get("ema_long") is not None:
+                strat.EMA_LONG = int(av_params["ema_long"])
+            if av_params.get("fractal_stop_pips") is not None:
+                # strategy_v2 stores FRACTAL_STOP_PIPS as a price (pips/10000).
+                strat.FRACTAL_STOP_PIPS = float(av_params["fractal_stop_pips"]) / 10000
+            # rrr_risk is implicitly 1 for Phase 1 Discovery; set explicitly
+            # so a previous request with a non-1 rrr_risk doesn't bleed.
+            strat.RRR_RISK = int(av_params.get("rrr_risk") or 1)
+            if av_params.get("rrr_reward") is not None:
+                strat.RRR_REWARD = int(av_params["rrr_reward"])
+            if av_params.get("max_daily_losses") is not None:
+                strat.MAX_DAILY_LOSSES = int(av_params["max_daily_losses"])
+            if av_params.get("trade_direction"):
+                strat.TRADE_DIRECTION = str(av_params["trade_direction"])
+            bh_csv = av_params.get("blocked_hours")
+            if bh_csv:
+                try:
+                    strat.BLOCKED_HOURS_UTC = [int(h.strip()) for h in str(bh_csv).split(",") if h.strip()]
+                except (TypeError, ValueError):
+                    pass
+            # use_ema_filter from the version overrides the payload's
+            # default unless the payload explicitly sent one. The RA page
+            # currently doesn't expose this toggle, so the version's
+            # stored value should win.
+            if av_params.get("use_ema_filter") is not None and "use_ema_filter" not in payload:
+                strat.USE_EMA_FILTER = bool(av_params["use_ema_filter"])
+
         # ── Run the backtest ──
         df = strat.fetch_data(strat.TICKER, strat.INTERVAL, strat.DAYS_BACK,
                               start_date=start_date, end_date=end_date)
         df = strat.add_indicators(df)
-        trades, equity, raw_blocked = strat.run_backtest(df)
 
-        # Trim trades to the requested date range
+        # Bug fix (May 2026 — Task 1, part 2): match strategy_v2's __main__
+        # date-range trim BEFORE run_backtest. fetch_data returns a wide
+        # window ([start-30d, end+7d]) so indicators warm up; __main__ then
+        # trims to [start-1d, end+7d] before run_backtest so only ~1 day of
+        # pre-start fractal history feeds the "prior fractal" comparisons.
+        # Without this trim, RA's backtest used 30 extra days of prior
+        # fractals → different higher-low / lower-high reference points →
+        # materially different signals (45 trades vs Discovery's 75 for the
+        # same params). Replicating the trim here makes RA produce the same
+        # trade list as BD + Discovery.
         start_ts = pd.Timestamp(start_date, tz="UTC")
         end_ts   = pd.Timestamp(end_date,   tz="UTC") + pd.Timedelta(days=1)
+        _bt_start = start_ts - pd.Timedelta(days=1)
+        _bt_end   = end_ts   + pd.Timedelta(days=7)
+        try:
+            _dts = pd.to_datetime(df["Datetime"])
+            _dts_utc = (_dts.dt.tz_convert("UTC")
+                        if _dts.dt.tz is not None
+                        else _dts.dt.tz_localize("UTC"))
+            df = df[(_dts_utc >= _bt_start) & (_dts_utc < _bt_end)].reset_index(drop=True)
+        except KeyError:
+            # df has no "Datetime" column — older fetch_data versions used the
+            # index. Fall back to index-based trim.
+            try:
+                df = df[(df.index >= _bt_start) & (df.index < _bt_end)].copy()
+            except Exception:
+                pass  # leave df as-is rather than break the request
+
+        trades, equity, raw_blocked = strat.run_backtest(df)
+
+        # Trim trades to the requested date range (entries only)
         if not trades.empty:
             _t = pd.to_datetime(trades["entry_ts"])
             _t = _t.dt.tz_convert("UTC") if _t.dt.tz is not None else _t.dt.tz_localize("UTC")
