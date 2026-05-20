@@ -85,6 +85,38 @@ DEFAULT_START  = "2025-07-01"
 DEFAULT_END    = "2025-12-31"
 
 
+# ── Config-override helpers ───────────────────────────────────────────────────
+# Bug fix / feature (May 2026): the Discovery Settings panel on /discovery
+# now exposes Instrument / Interval / Direction / Blocked Hours and the
+# passing-criteria thresholds as editable fields. The server.py
+# /api/discovery/run handler writes them into the config JSON we pick up
+# via --config-json; the helpers below resolve config → values with the
+# original Phase 1 constants as defaults so the CLI --once path keeps
+# working with no JSON.
+
+def resolve_settings(config):
+    """Pull the editable fixed-constants out of the run config (with
+    FIXED_* defaults). Returns a dict consumed by sample_params + build_env."""
+    cfg = config or {}
+    return {
+        "instrument":    (cfg.get("instrument")    or FIXED_INSTRUMENT).upper(),
+        "interval":       cfg.get("interval")      or FIXED_INTERVAL,
+        "direction":      cfg.get("direction")     or FIXED_DIRECTION,
+        "blocked_hours":  cfg.get("blocked_hours") or FIXED_BLOCKED_HOURS,
+    }
+
+
+def resolve_thresholds(config):
+    """Pull the editable passing-criteria thresholds out of the run config
+    (with OBJ_* defaults). Returns a dict consumed by evaluate_objective."""
+    cfg = config or {}
+    return {
+        "min_pf":     float(cfg.get("min_pf")     if cfg.get("min_pf")     is not None else OBJ_PROFIT_FACTOR_MIN),
+        "min_trades": int(  cfg.get("min_trades") if cfg.get("min_trades") is not None else OBJ_TRADES_MIN),
+        "max_dd_pct": float(cfg.get("max_dd_pct") if cfg.get("max_dd_pct") is not None else OBJ_MAX_DRAWDOWN_MAX),
+    }
+
+
 # ── Sampling ──────────────────────────────────────────────────────────────────
 
 def _sample_subset(labels, rng):
@@ -97,8 +129,13 @@ def _sample_subset(labels, rng):
             return picked
 
 
-def sample_params(rng):
-    """Draw a single parameter set uniformly from the Phase 1 search space."""
+def sample_params(rng, settings=None):
+    """Draw a single parameter set uniformly from the Phase 1 search space.
+    `settings` (from resolve_settings) supplies blocked_hours — the rest
+    of the per-trial dimensions are sampled. blocked_hours is NOT
+    randomised — Discovery applies the same blocked-hour set to every
+    trial per the user's intent (transparency over search-space breadth)."""
+    s = settings or resolve_settings(None)
     return {
         "ema_long":              rng.randint(*EMA_LONG_RANGE),
         "stop_loss_pips":        rng.randint(*STOP_LOSS_RANGE),
@@ -108,14 +145,17 @@ def sample_params(rng):
         "use_ema_filter":        rng.random() < 0.5,
         "allowed_macro_regimes": _sample_subset(ALL_MACRO_REGIMES, rng),
         "allowed_micro_regimes": _sample_subset(ALL_MICRO_REGIMES, rng),
-        "blocked_hours":         FIXED_BLOCKED_HOURS,
+        "blocked_hours":         s["blocked_hours"],
     }
 
 
 # ── Trial execution ───────────────────────────────────────────────────────────
 
-def build_env(params, start_date, end_date):
-    """Build the env dict for one strategy_v2 subprocess call."""
+def build_env(params, start_date, end_date, settings=None):
+    """Build the env dict for one strategy_v2 subprocess call. `settings`
+    (from resolve_settings) supplies instrument/interval/direction/blocked
+    hours — defaults via resolve_settings(None) for CLI / --once paths."""
+    s = settings or resolve_settings(None)
     env = os.environ.copy()
     env.update({
         "DISCOVERY_MODE":        "1",
@@ -123,9 +163,9 @@ def build_env(params, start_date, end_date):
         "RUN_MODE":              "date_range",
         "RUN_START_DATE":        start_date,
         "RUN_END_DATE":          end_date,
-        "INSTRUMENT":            FIXED_INSTRUMENT,
-        "INTERVAL":              FIXED_INTERVAL,
-        "TRADE_DIRECTION":       FIXED_DIRECTION,
+        "INSTRUMENT":            s["instrument"],
+        "INTERVAL":              s["interval"],
+        "TRADE_DIRECTION":       s["direction"],
         "EMA_SHORT":             str(FIXED_EMA_SHORT),
         "EMA_MID":               str(FIXED_EMA_MID),
         "EMA_LONG":              str(params["ema_long"]),
@@ -144,33 +184,39 @@ def build_env(params, start_date, end_date):
     return env
 
 
-def evaluate_objective(metrics):
+def evaluate_objective(metrics, thresholds=None):
     """Return (pass, reasons[]). PF=None (∞) treated as passing the PF bar.
 
-    Max drawdown is compared as an absolute magnitude: strategy_v2's
-    compute_metrics writes drawdown with a negative-sign convention, but
-    the Phase 1 objective "max DD ≤ 15%" reads naturally as a positive cap
-    — without the abs() here, a catastrophic -50% drawdown would silently
-    pass because -50 < 15."""
+    `thresholds` (from resolve_thresholds) supplies min_pf / min_trades /
+    max_dd_pct — defaults to the Phase 1 OBJ_* constants. Max drawdown
+    is compared as an absolute magnitude: strategy_v2's compute_metrics
+    writes drawdown with a negative-sign convention, but the objective
+    "max DD ≤ X%" reads naturally as a positive cap — without the abs()
+    here, a catastrophic -50% drawdown would silently pass because
+    -50 < X for any reasonable X."""
+    t = thresholds or resolve_thresholds(None)
     reasons = []
     pf       = metrics.get("profit_factor")
     trades   = metrics.get("total_trades", 0) or 0
     max_dd   = abs(metrics.get("max_drawdown", 0.0) or 0.0)
 
-    if pf is not None and pf < OBJ_PROFIT_FACTOR_MIN:
-        reasons.append(f"profit_factor {pf:.2f} < {OBJ_PROFIT_FACTOR_MIN}")
-    if trades < OBJ_TRADES_MIN:
-        reasons.append(f"trades {trades} < {OBJ_TRADES_MIN}")
-    if max_dd > OBJ_MAX_DRAWDOWN_MAX:
-        reasons.append(f"max_drawdown {max_dd:.1f}% > {OBJ_MAX_DRAWDOWN_MAX}%")
+    if pf is not None and pf < t["min_pf"]:
+        reasons.append(f"profit_factor {pf:.2f} < {t['min_pf']}")
+    if trades < t["min_trades"]:
+        reasons.append(f"trades {trades} < {t['min_trades']}")
+    if max_dd > t["max_dd_pct"]:
+        reasons.append(f"max_drawdown {max_dd:.1f}% > {t['max_dd_pct']}%")
     return (len(reasons) == 0, reasons)
 
 
-def run_trial(trial_num, params, start_date, end_date):
-    """Run a single strategy_v2 subprocess; return a trial-result dict."""
+def run_trial(trial_num, params, start_date, end_date, settings=None, thresholds=None):
+    """Run a single strategy_v2 subprocess; return a trial-result dict.
+    `settings` and `thresholds` (from resolve_settings / resolve_thresholds)
+    are threaded through to build_env + evaluate_objective so editable
+    Discovery Settings reach the subprocess + the pass/fail evaluation."""
     DISCOVERY_TMP_DIR.mkdir(parents=True, exist_ok=True)
     out_path = DISCOVERY_TMP_DIR / f"trial_{uuid.uuid4().hex}.json"
-    env = build_env(params, start_date, end_date)
+    env = build_env(params, start_date, end_date, settings=settings)
     env["DISCOVERY_METRICS_OUT"] = str(out_path)
 
     started = time.time()
@@ -225,7 +271,7 @@ def run_trial(trial_num, params, start_date, end_date):
         passed   = False
         reasons  = ["trial errored"]
     else:
-        passed, reasons = evaluate_objective(metrics)
+        passed, reasons = evaluate_objective(metrics, thresholds=thresholds)
 
     return {
         "id":           f"t{trial_num}_{uuid.uuid4().hex[:8]}",
@@ -362,9 +408,11 @@ def parse_args(argv):
 
     args = p.parse_args(argv)
 
+    args.full_config = {}  # picked up by main() for resolve_settings/thresholds
     if args.config_json:
         with open(args.config_json, "r", encoding="utf-8") as f:
             cfg = json.load(f)
+        args.full_config = cfg
         args.trials = int(cfg.get("trials", args.trials))
         args.start  = cfg.get("start",  args.start)
         args.end    = cfg.get("end",    args.end)
@@ -377,6 +425,12 @@ def parse_args(argv):
 
 def main(argv=None):
     args = parse_args(argv if argv is not None else sys.argv[1:])
+
+    # Resolve editable settings + thresholds from --config-json (with the
+    # Phase 1 constants as defaults if anything's missing). Both modes
+    # (--once and normal random search) use these.
+    settings   = resolve_settings(args.full_config)
+    thresholds = resolve_thresholds(args.full_config)
 
     # ── --once: deterministic single-trial mode (sanity-check) ───────────────
     if args.once:
@@ -392,11 +446,13 @@ def main(argv=None):
             "use_ema_filter":        args.ema_filter == "on",
             "allowed_macro_regimes": [s.strip() for s in args.macro.split(",") if s.strip()],
             "allowed_micro_regimes": [s.strip() for s in args.micro.split(",") if s.strip()],
-            "blocked_hours":         FIXED_BLOCKED_HOURS,
+            "blocked_hours":         settings["blocked_hours"],
         }
         print(f"[discovery] --once trial: range {args.start} → {args.end}")
+        print(f"[discovery] settings: {json.dumps(settings)}")
+        print(f"[discovery] thresholds: {json.dumps(thresholds)}")
         print(f"[discovery] params: {json.dumps(params, indent=2)}")
-        rec = run_trial(1, params, args.start, args.end)
+        rec = run_trial(1, params, args.start, args.end, settings=settings, thresholds=thresholds)
         print(f"[discovery] result: pass={rec['pass']} reasons={rec['fail_reasons']} error={rec['error']}")
         print(f"[discovery] metrics: {json.dumps(rec['metrics'], indent=2)}")
         return 0 if rec["pass"] else 1
@@ -405,19 +461,31 @@ def main(argv=None):
     seed = args.seed if args.seed is not None else int(time.time())
     rng  = random.Random(seed)
     run_id = "discovery_" + datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
+    # Persist settings + thresholds into the run's config so the stored
+    # results record reflects what was actually used (and downstream
+    # consumers — trial detail page, etc. — can read them).
     config = {
         "trials": args.trials, "start": args.start, "end": args.end,
         "seed":   seed,
+        "instrument":    settings["instrument"],
+        "interval":      settings["interval"],
+        "direction":     settings["direction"],
+        "blocked_hours": settings["blocked_hours"],
+        "min_pf":     thresholds["min_pf"],
+        "min_trades": thresholds["min_trades"],
+        "max_dd_pct": thresholds["max_dd_pct"],
     }
     results_path = Path(args.results_file)
     payload = init_results_file(results_path, run_id, config)
     print(f"[discovery] run_id={run_id} trials={args.trials} range={args.start}→{args.end} seed={seed}")
+    print(f"[discovery] settings: {json.dumps(settings)}")
+    print(f"[discovery] thresholds: {json.dumps(thresholds)}")
 
     try:
         for i in range(1, args.trials + 1):
-            params = sample_params(rng)
+            params = sample_params(rng, settings=settings)
             print(f"[discovery] trial {i}/{args.trials} …", flush=True)
-            rec = run_trial(i, params, args.start, args.end)
+            rec = run_trial(i, params, args.start, args.end, settings=settings, thresholds=thresholds)
             verdict = "PASS" if rec["pass"] else ("FAIL: " + ", ".join(rec["fail_reasons"]))
             pf = rec["metrics"].get("profit_factor")
             pf_s = "inf" if pf is None else f"{pf:.2f}"

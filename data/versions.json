@@ -1,5 +1,5 @@
 {
-  "active_version_id": "v6",
+  "active_version_id": "v7",
   "versions": [
     {
       "id": "v3",
@@ -74,19 +74,19 @@
       },
       "regime_state": {
         "allowed_macro_regimes": [
-          "strong_down",
-          "staircase_down"
+          "staircase_down",
+          "strong_down"
         ],
         "allowed_micro_regimes": [
+          "ranging_wide",
+          "transitioning",
           "trending_fast_down",
           "trending_medium_down",
-          "trending_slow_down",
           "trending_medium_up",
-          "trending_slow_up",
-          "ranging_wide",
-          "transitioning"
+          "trending_slow_down",
+          "trending_slow_up"
         ],
-        "updated_at": "2026-05-20T08:22:47Z"
+        "updated_at": "2026-05-20T08:25:48Z"
       }
     }
   ]
