@@ -1379,6 +1379,18 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
 
       function showError(msg) { errEl.textContent = msg || ""; }
 
+      /* short_only / long_only / both → "Short Only" / "Long Only" / "Both"
+         (May 2026). Parallel to the helper on the Discovery page so each
+         card's title can render direction in the same human-friendly form. */
+      function humanizeDirection(d) {
+        if (!d) return "";
+        var s = String(d).toLowerCase();
+        if (s === "short_only") return "Short Only";
+        if (s === "long_only")  return "Long Only";
+        if (s === "both")       return "Both";
+        return s.replace(/_/g, " ").replace(/\\b\\w/g, function (c) { return c.toUpperCase(); });
+      }
+
       function renderList(store) {
         var active = store.active_version_id;
         var versions = store.versions || [];
@@ -1425,7 +1437,37 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
 
           var nameSpan = document.createElement("span");
           nameSpan.className = "versions-row-name";
-          nameSpan.textContent = v.name;
+          /* Primary identifier — the version id (v7, v8, …). */
+          var idEl = document.createElement("span");
+          idEl.className = "versions-row-name-id";
+          idEl.textContent = v.name;
+          nameSpan.appendChild(idEl);
+          /* May 2026: surface the version's instrument / interval /
+             direction inline after the version id so the card title
+             reads "v7 GBPUSD 5m Short Only". Skip for unassigned slots
+             — those have no params yet and surface a placeholder strip
+             in the row below. */
+          if (isAssigned) {
+            var p = v.params || {};
+            if (p.instrument) {
+              var instEl = document.createElement("span");
+              instEl.className = "versions-row-name-meta";
+              instEl.textContent = String(p.instrument).toUpperCase();
+              nameSpan.appendChild(instEl);
+            }
+            if (p.interval) {
+              var ivEl = document.createElement("span");
+              ivEl.className = "versions-row-name-meta";
+              ivEl.textContent = String(p.interval);
+              nameSpan.appendChild(ivEl);
+            }
+            if (p.trade_direction) {
+              var dirEl = document.createElement("span");
+              dirEl.className = "versions-row-name-meta";
+              dirEl.textContent = humanizeDirection(p.trade_direction);
+              nameSpan.appendChild(dirEl);
+            }
+          }
           if (isActive) {
             var badge = document.createElement("span");
             badge.className = "versions-row-active-badge";
@@ -1938,6 +1980,18 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         return iso.replace("T", " ").replace(/:\d{2}Z?$/, "");
       }
 
+      /* short_only / long_only / both → "Short Only" / "Long Only" / "Both"
+         (May 2026 redesign — surfaces the run's direction in the header). */
+      function humanizeDirection(d) {
+        if (!d) return "—";
+        var s = String(d).toLowerCase();
+        if (s === "short_only") return "Short Only";
+        if (s === "long_only")  return "Long Only";
+        if (s === "both")       return "Both";
+        /* Generic fallback: snake_case → Title Case */
+        return s.replace(/_/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+      }
+
       function renderStack() {
         var runs = STATE.runs || [];
         emptyEl.hidden = runs.length > 0;
@@ -1964,12 +2018,27 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         var meta = document.createElement("div");
         meta.className = "discovery-run-meta";
         var cfg = run.config || {};
-        meta.appendChild(spanCls("discovery-run-date", fmtRunDate(run.started_at)));
+
+        /* May 2026 redesign: lead the header with the run's instrument,
+           interval, and direction so the user can see at a glance what
+           the run was actually testing — before the date range / counts.
+           Order: instrument · interval · direction · date_range · trials ·
+           passing · started_at · STATUS. */
+        if (cfg.instrument) {
+          meta.appendChild(spanCls("discovery-run-prop", String(cfg.instrument).toUpperCase()));
+        }
+        if (cfg.interval) {
+          meta.appendChild(spanCls("discovery-run-prop", String(cfg.interval)));
+        }
+        if (cfg.direction) {
+          meta.appendChild(spanCls("discovery-run-prop", humanizeDirection(cfg.direction)));
+        }
         if (cfg.start && cfg.end) {
           meta.appendChild(spanCls("discovery-run-range", cfg.start + " → " + cfg.end));
         }
         meta.appendChild(spanCls("discovery-run-stat", trials.length + " / " + (run.trials_total || trials.length) + " trials"));
         meta.appendChild(spanCls("discovery-run-stat", passCount + " passing"));
+        meta.appendChild(spanCls("discovery-run-date", fmtRunDate(run.started_at)));
         var statusClass = "discovery-run-status discovery-run-status-" + (run.status || "idle");
         meta.appendChild(spanCls(statusClass, (run.status || "—").toUpperCase()));
         header.appendChild(meta);

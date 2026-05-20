@@ -2697,6 +2697,24 @@ body.versions-page {
     gap: 10px;
 }
 
+/* Primary identifier — the version id ("v7"). Inherits .versions-row-name
+   styles; declared explicitly so future tweaks (e.g. monospacing the id)
+   don't accidentally drag along the meta spans. */
+.versions-row-name-id {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+}
+
+/* Subordinate inline meta — instrument / interval / direction. Visually
+   secondary to the version id so the eye lands on "v7" first. */
+.versions-row-name-meta {
+    font-size: 13px;
+    font-weight: 500;
+    color: #b0b0d0;
+    letter-spacing: 0.01em;
+}
+
 .versions-row-active-badge {
     display: inline-block;
     font-size: 10px;
@@ -4036,16 +4054,27 @@ body.discovery-trial-page {
     min-width: 0;
 }
 
-.discovery-run-date {
-    color: #d0d0e8;
+/* May 2026: leading instrument / interval / direction props sit at the
+   start of the header row in prominent bold-white text — they describe
+   what the run was actually testing, before the metric counts. */
+.discovery-run-prop {
+    color: #ffffff;
     font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+}
+
+.discovery-run-date {
+    color: #9090b8;
     font-variant-numeric: tabular-nums;
 }
 
+/* Date range — the cyan-ish accent in the header that visually anchors
+   "this run covered DD-MM-YYYY → DD-MM-YYYY". */
 .discovery-run-range {
-    color: #707090;
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 11px;
+    color: #4cc9f0;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
 }
 
 .discovery-run-stat {

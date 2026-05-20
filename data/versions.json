@@ -52,17 +52,17 @@
       },
       "regime_state": {
         "allowed_macro_regimes": [
-          "strong_down",
           "staircase_down",
+          "strong_down",
           "strong_up"
         ],
         "allowed_micro_regimes": [
-          "trending_medium_up",
           "ranging_medium",
           "ranging_wide",
-          "transitioning"
+          "transitioning",
+          "trending_medium_up"
         ],
-        "updated_at": "2026-05-20T12:24:44Z"
+        "updated_at": "2026-05-20T13:18:03Z"
       }
     }
   ]
