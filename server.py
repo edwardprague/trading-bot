@@ -1810,8 +1810,20 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
                the rename map. We just need to rewrite localStorage's
                discovery_trial_assignments so any "Assigned → vN"
                buttons on the Discovery page reflect the new ids on
-               their next render. */
+               their next render.
+
+               Issue 2 follow-up: the rename_map only covers SURVIVING
+               versions. The version that was just deleted (and any
+               other dangling ids — e.g. from a previous crash) leaves
+               an orphan entry in localStorage. After the rename pass,
+               purge anything whose .version isn't in the post-delete
+               survivor list (taken from resp.store) so the Discovery
+               page's Assign column doesn't show "Assigned → v7" for a
+               version that no longer exists. */
             applyRenameToLocalAssignments(resp.rename_map || {});
+            var surviving = ((resp.store && resp.store.versions) || [])
+                              .map(function (v) { return v.name; });
+            purgeStaleLocalAssignments(surviving);
             return refresh();
           });
       }
@@ -1831,6 +1843,34 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
             var rec = m[trialId];
             if (rec && renameMap[rec.version]) {
               rec.version = renameMap[rec.version];
+              changed = true;
+            }
+          });
+          if (changed) {
+            window.localStorage.setItem("discovery_trial_assignments", JSON.stringify(m));
+          }
+        } catch (e) { /* localStorage unavailable / parse error — best effort */ }
+      }
+
+      /* Drop localStorage discovery_trial_assignments entries whose .version
+         isn't in the surviving-version list (Issue 2 — May 2026). Called
+         after each delete so the Discovery page's Assign column doesn't
+         show "Assigned → v7" for a version that no longer exists. The
+         Discovery page also re-runs this purge on load as a safety net for
+         deletes that happened from another tab or before this code shipped. */
+      function purgeStaleLocalAssignments(validNames) {
+        if (!validNames) return;
+        var valid = {};
+        validNames.forEach(function (n) { valid[n] = true; });
+        try {
+          var raw = window.localStorage.getItem("discovery_trial_assignments");
+          if (!raw) return;
+          var m = JSON.parse(raw);
+          var changed = false;
+          Object.keys(m).forEach(function (trialId) {
+            var rec = m[trialId];
+            if (rec && rec.version && !valid[rec.version]) {
+              delete m[trialId];
               changed = true;
             }
           });
@@ -2167,6 +2207,30 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         var m = loadAssignments();
         m[trialId] = { version: versionName, at: new Date().toISOString() };
         try { window.localStorage.setItem(ASSIGN_LS_KEY, JSON.stringify(m)); } catch (e) {}
+      }
+      /* ── Self-heal: drop assignments pointing to versions that no longer
+         exist (May 2026 — Issue 2). The Versions-page rename map only
+         rewrites entries for SURVIVING versions during a renumber; entries
+         pointing to a version that was fully removed (not renumbered) leak
+         through and stick around as ghost "Assigned → v7" labels.
+         Called from the init block once /api/versions has returned, so we
+         have an authoritative set of currently-valid version names. */
+      function purgeStaleAssignments(validNames) {
+        if (!validNames) return;
+        var valid = {};
+        validNames.forEach(function (n) { valid[n] = true; });
+        var m = loadAssignments();
+        var changed = false;
+        Object.keys(m).forEach(function (trialId) {
+          var rec = m[trialId];
+          if (rec && rec.version && !valid[rec.version]) {
+            delete m[trialId];
+            changed = true;
+          }
+        });
+        if (changed) {
+          try { window.localStorage.setItem(ASSIGN_LS_KEY, JSON.stringify(m)); } catch (e) {}
+        }
       }
 
       /* ── Sorting (per-block) ───────────────────────────────────────────── */
@@ -2832,9 +2896,22 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         };
       }
 
-      /* ── On load: hydrate from existing results + resume polling if running ── */
+      /* ── On load: hydrate from existing results + resume polling if running ──
+         Order matters: we fetch /api/versions first so purgeStaleAssignments
+         runs BEFORE loadResults triggers a render. Otherwise the first paint
+         would still show "Assigned → vN" pills for deleted versions. The
+         /api/versions fetch is cheap and runs in parallel with the status
+         poll. If it fails we skip the purge — the page still works, the
+         stale entries just don't get cleaned up this round. */
       initDiscoverySettings();
-      loadResults();
+      fetch("/api/versions")
+        .then(function (r) { return r.json(); })
+        .then(function (store) {
+          var names = ((store && store.versions) || []).map(function (v) { return v.name; });
+          purgeStaleAssignments(names);
+        })
+        .catch(function () { /* leave assignments untouched on failure */ })
+        .then(function () { loadResults(); });
       fetch("/api/discovery/status")
         .then(function (r) { return r.json(); })
         .then(function (s) {
