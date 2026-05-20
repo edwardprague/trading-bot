@@ -23,17 +23,9 @@
 
   
     <div id="run-bar" class="rb-runbar">
-      <!-- Version + instrument selects mirror the BD run bar (see server.py
-           INJECT_HTML) so the user can switch either without leaving the
-           RA. The version-select is populated by JS from /api/versions on
-           page load; the instrument-select reads/writes localStorage
-           rb_instrument so it stays in sync with the BD's selection. -->
-      <select id="version-select" class="rb-select" title="Active version"></select>
-      <select id="instrument-select" class="rb-select" title="Instrument">
-        <option value="EURUSD">EURUSD</option>
-        <option value="GBPUSD">GBPUSD</option>
-      </select>
-      <span class="rb-sep"></span>
+      <!-- May 2026: both version-select and instrument-select dropdowns
+           removed. Active version is set on /versions and surfaced
+           read-only via the top-nav "Active: vN" indicator. -->
       <button id="run-analysis-btn" class="rb-btn rb-btn-green" type="button">
         <span class="rb-btn-icon">&#9654;</span> Run Analysis
       </button>
@@ -743,9 +735,16 @@
     // We listen for the `storage` event too so an instrument change made
     // in the BD tab updates the RA tab's title without a manual reload.
     function syncRegimePageTitle() {
-      var inst = (localStorage.getItem("rb_instrument") || "GBPUSD").trim() || "GBPUSD";
-      var interval = (localStorage.getItem("bs_interval") || "5m").trim() || "5m";
-      var headline = "Regime Analysis — " + inst + " " + interval;
+      var v = window.__activeVersion || null;
+      var vp = (v && v.params) || {};
+      var vName = (v && (v.name || v.id)) || "";
+      var inst = (vp.instrument || localStorage.getItem("rb_instrument") || "GBPUSD").trim() || "GBPUSD";
+      var interval = (vp.interval || localStorage.getItem("bs_interval") || "5m").trim() || "5m";
+      var parts = [];
+      if (vName) parts.push(vName);
+      parts.push(inst);
+      parts.push(interval);
+      var headline = "Regime Analysis — " + parts.join(" · ");
       document.title = headline;
       var h1 = document.getElementById("regime-page-title");
       if (h1) h1.textContent = headline;
@@ -1239,48 +1238,25 @@
       })
       .catch(function () {});
 
-    // ── Run-bar selects: version + instrument ──────────────────────────────
-    // Mirror the BD's run-bar selects so version and instrument can be
-    // switched without leaving the RA. Version is populated from
-    // /api/versions and on change posts to /api/active_version + reloads
-    // the page so the new active version's per-version cache slot is
-    // picked up cleanly through the existing /api/active_version handler
-    // above. Instrument reads/writes localStorage `rb_instrument` (shared
-    // with the BD) and refreshes the page title via syncRegimePageTitle.
+    // ── Active-version sync (May 2026) ─────────────────────────────────────
+    // Both dropdowns removed. RA reads active version from /api/versions and
+    // surfaces it read-only via the top-nav indicator.
     (function () {
-      var versionSel = document.getElementById("version-select");
-      if (versionSel) {
-        fetch("/api/versions").then(function (r) { return r.json(); })
-          .then(function (store) {
-            var all = (store && store.versions) || [];
-            // RA dropdown, like the BD's, only shows assigned versions
-            // (params != null). Unassigned slots are invisible until
-            // Discovery fills them in.
-            var versions = all.filter(function (v) { return v && v.params; });
-            var activeId = store && store.active_version_id;
-            versionSel.innerHTML = "";
-            versions.forEach(function (v) {
-              var opt = document.createElement("option");
-              opt.value = v.id;
-              opt.textContent = v.name;
-              versionSel.appendChild(opt);
-            });
-            if (activeId) versionSel.value = activeId;
-          })
-          .catch(function () {});
-
-        versionSel.addEventListener("change", function () {
-          fetch("/api/active_version", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({id: versionSel.value})
-          }).then(function () {
-            // Reload to pick up the new active version's per-version
-            // cache slot via the existing load path on next boot.
-            location.reload();
-          }).catch(function () {});
-        });
-      }
+      fetch("/api/versions").then(function (r) { return r.json(); })
+        .then(function (store) {
+          var all = (store && store.versions) || [];
+          var versions = all.filter(function (v) { return v && v.params; });
+          var activeId = store && store.active_version_id;
+          var activeV = null;
+          for (var i = 0; i < versions.length; i++) {
+            if (versions[i].id === activeId) { activeV = versions[i]; break; }
+          }
+          if (!activeV && versions.length) activeV = versions[0];
+          window.__activeVersion = activeV;
+          window.__activeVersionId = activeV ? activeV.id : "";
+          if (typeof syncRegimePageTitle === "function") syncRegimePageTitle();
+        })
+        .catch(function () {});
 
       var instSel = document.getElementById("instrument-select");
       if (instSel) {

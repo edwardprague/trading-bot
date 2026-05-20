@@ -1,63 +1,6 @@
 {
-  "active_version_id": "v7",
+  "active_version_id": "v8",
   "versions": [
-    {
-      "id": "v3",
-      "name": "v3",
-      "strategy_version": "v2",
-      "params": {
-        "ema_long": 50,
-        "use_ema_filter": true,
-        "fractal_stop_pips": 10,
-        "rrr_reward": 1,
-        "max_daily_losses": 3,
-        "trade_direction": "short_only",
-        "blocked_hours": "4,5,6,8,10,11,14,17",
-        "assigned_at": "2026-05-19T10:00:00Z"
-      },
-      "regime_state": {
-        "allowed_macro_regimes": [
-          "staircase_down",
-          "strong_down"
-        ],
-        "allowed_micro_regimes": [
-          "ranging_medium",
-          "ranging_wide",
-          "transitioning",
-          "trending_fast_down",
-          "trending_slow_down"
-        ],
-        "updated_at": "2026-05-18T12:01:22Z"
-      }
-    },
-    {
-      "id": "v6",
-      "name": "v6",
-      "strategy_version": "v2",
-      "params": {
-        "ema_long": 152,
-        "use_ema_filter": true,
-        "fractal_stop_pips": 19,
-        "rrr_reward": 1,
-        "max_daily_losses": 1,
-        "trade_direction": "short_only",
-        "blocked_hours": "4,5,6,8,10,11,14,17",
-        "assigned_at": "2026-05-19T15:06:39Z"
-      },
-      "regime_state": {
-        "allowed_macro_regimes": [
-          "staircase_down",
-          "strong_down"
-        ],
-        "allowed_micro_regimes": [
-          "ranging_narrow",
-          "transitioning",
-          "trending_slow_down",
-          "trending_slow_up"
-        ],
-        "updated_at": "2026-05-20T05:55:27Z"
-      }
-    },
     {
       "id": "v7",
       "name": "v7",
@@ -70,6 +13,8 @@
         "max_daily_losses": 2,
         "trade_direction": "short_only",
         "blocked_hours": "4,5,6,8,10,11,14,17",
+        "instrument": "GBPUSD",
+        "interval": "5m",
         "assigned_at": "2026-05-20T08:22:47Z"
       },
       "regime_state": {
@@ -87,6 +32,37 @@
           "trending_slow_up"
         ],
         "updated_at": "2026-05-20T08:25:48Z"
+      }
+    },
+    {
+      "id": "v8",
+      "name": "v8",
+      "strategy_version": "v2",
+      "params": {
+        "ema_long": 181,
+        "use_ema_filter": false,
+        "fractal_stop_pips": 24,
+        "rrr_reward": 1,
+        "max_daily_losses": 4,
+        "trade_direction": "short_only",
+        "blocked_hours": "4,5,6,8,10,11,14,17",
+        "instrument": "GBPUSD",
+        "interval": "5m",
+        "assigned_at": "2026-05-20T12:24:44Z"
+      },
+      "regime_state": {
+        "allowed_macro_regimes": [
+          "strong_down",
+          "staircase_down",
+          "strong_up"
+        ],
+        "allowed_micro_regimes": [
+          "trending_medium_up",
+          "ranging_medium",
+          "ranging_wide",
+          "transitioning"
+        ],
+        "updated_at": "2026-05-20T12:24:44Z"
       }
     }
   ]

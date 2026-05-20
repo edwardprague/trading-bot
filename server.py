@@ -252,14 +252,19 @@ def _add_version():
     return new_version
 
 
-def _assign_version_from_trial(version_id, trial_params):
+def _assign_version_from_trial(version_id, trial_params, run_config=None):
     """One-time write of a Discovery trial's params into an existing
     unassigned version slot. Refuses if the target already has params
     (no update endpoint — re-assignment requires a new version).
 
+    `run_config` is the parent Discovery run's config dict — supplies
+    instrument + interval (which live at the run level, not the trial
+    level). Defaults to GBPUSD / 5m when missing.
+
     Maps the trial's flat params dict to the new params schema:
       ema_long, use_ema_filter, fractal_stop_pips (renamed from
-      stop_loss_pips), rrr_reward, max_daily_losses, assigned_at.
+      stop_loss_pips), rrr_reward, max_daily_losses, trade_direction,
+      blocked_hours, instrument, interval, assigned_at.
     Also writes regime_state from the trial's allowed_macro/micro lists,
     and stamps strategy_version='v2' (Discovery's fixed base for now).
 
@@ -278,6 +283,7 @@ def _assign_version_from_trial(version_id, trial_params):
         return False, "Version is already assigned"
 
     tp = trial_params or {}
+    rc = run_config   or {}
     target["strategy_version"] = "v2"
     target["params"] = {
         "ema_long":         tp.get("ema_long"),
@@ -295,6 +301,10 @@ def _assign_version_from_trial(version_id, trial_params):
         # in build_env, so we record it explicitly here.
         "trade_direction":  tp.get("trade_direction") or "short_only",
         "blocked_hours":    tp.get("blocked_hours") or "4,5,6,8,10,11,14,17",
+        # Structural change (May 2026): instrument + interval are per-version.
+        # Pulled from the parent Discovery run's config (defaults if missing).
+        "instrument":       (rc.get("instrument") or "GBPUSD").upper(),
+        "interval":          rc.get("interval")   or "5m",
         "assigned_at":      datetime.utcnow().isoformat(timespec="seconds") + "Z",
     }
     target["regime_state"] = {
@@ -490,6 +500,13 @@ def _apply_active_version_to_env(env_overrides, payload):
             # backtest counts diverged from Discovery's short-only profile).
             "trade_direction":   "TRADE_DIRECTION",
             "blocked_hours":     "BLOCKED_HOURS_UTC",
+            # Structural change (May 2026): instrument + interval are now
+            # per-version too. The BD toolbar instrument dropdown is gone;
+            # the BD payload omits these so this fallback supplies them
+            # from the active version's params (defaults GBPUSD / 5m
+            # applied below if the params block is silent).
+            "instrument":        "INSTRUMENT",
+            "interval":          "INTERVAL",
         }
         for bp_key, env_key in _BP_TO_ENV.items():
             if env_key not in env_overrides or env_overrides[env_key] == "":
@@ -499,6 +516,15 @@ def _apply_active_version_to_env(env_overrides, payload):
         # the env as the string 'true' / 'false'.
         if "USE_EMA_FILTER" not in env_overrides and "use_ema_filter" in bp:
             env_overrides["USE_EMA_FILTER"] = "true" if bp["use_ema_filter"] else "false"
+
+    # Defaults for the structural per-version fields (May 2026 restructure).
+    # Apply even when av_params is empty so callers get a working backtest
+    # without the version explicitly carrying instrument/interval. Matches
+    # the documented per-spec defaults of GBPUSD / 5m.
+    if not env_overrides.get("INSTRUMENT"):
+        env_overrides["INSTRUMENT"] = "GBPUSD"
+    if not env_overrides.get("INTERVAL"):
+        env_overrides["INTERVAL"] = "5m"
 
 # ── Backtest state (shared between the Flask thread and the worker thread) ─────
 _bt_lock  = threading.Lock()
@@ -524,18 +550,17 @@ INJECT_HTML = """
   background: #0c0c18; border-bottom: 1px solid #1e1e32;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 ">
-  <!-- Version + instrument selects live in the run bar (not the BD sidebar)
-       so they're available on every page that injects the run bar — the BD
-       and the RA both surface them and stay in sync via /api/active_version
-       and localStorage rb_instrument. The IDs match the originals so the
-       existing handlers in report.html (onVersionChange / onInstrumentChange)
-       and in this file (line ~625, /api/active_version dropdown sync) keep
-       working without modification. -->
-  <select id="version-select" class="rb-select" title="Active version"></select>
-  <select id="instrument-select" class="rb-select" title="Instrument">
-    <option value="EURUSD">EURUSD</option>
-    <option value="GBPUSD">GBPUSD</option>
-  </select>
+  <!-- Version + instrument dropdowns both removed (May 2026). The active
+       version is now set exclusively on the /versions page via per-card
+       radio buttons; the BD reflects it read-only via the top-nav
+       "Active: vN" indicator. window.__activeVersionId is injected by the
+       / route handler so the strategy-template JS knows which version's
+       runs to show in the sidebar before /api/versions resolves. -->
+  <!-- Instrument is now driven by the active version's params.instrument
+       so a single version always runs against the same instrument.
+       getSelectedInstrument() in this file falls back to "" when no
+       dropdown is present, and _apply_active_version_to_env layers the
+       instrument in from the version. -->
 
   <span class="rb-sep"></span>
 
@@ -791,131 +816,49 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  /* Active-version sync (May 2026 redesign). The version dropdown is gone;
+     the active version is set exclusively on /versions and the BD reads
+     it from /api/versions on every load. We:
+       1. Update the "Active: vN" indicator in the top nav.
+       2. Stash the active version on window.__activeVersion so other code
+          (sidebar render, title row, RA title sync) can read it.
+       3. Re-drive the sidebar + content if report.html's IIFE has already
+          mounted with the wrong currentVersion (e.g. on first load before
+          window.__activeVersionId was set, or after the /versions page
+          changed it and the user navigated back here). The
+          window._rbSetActiveVersion helper is exposed by the strategy
+          template's IIFE for exactly this purpose.
+       4. Apply the active version's params to the bs-* inputs so the
+          settings panel reflects what the next run will use. */
   fetch("/api/versions").then(function (r) { return r.json(); }).then(function (store) {
     var allVersions = (store && store.versions) || [];
-    /* Filter: BD dropdown only shows assigned versions (params != null).
-       Unassigned slots live solely on the /versions page until Discovery
-       fills them in. */
     var versions = allVersions.filter(function (v) { return v && v.params; });
     var activeId = store && store.active_version_id;
-    /* The "active" version is what the indicator in the top nav reflects —
-       it's a global notion ("which version is promoted as production").
-       It's separate from what the BD dropdown shows, which is now driven
-       by localStorage rb_selected_version_id so the user's selection
-       persists across reloads (notably the auto-reload after a backtest
-       completes — see runDateRange/pollStatus). Falls back to the global
-       active when there's no stored selection or the stored selection
-       no longer points to an assigned version. */
     var active = null;
     for (var i = 0; i < versions.length; i++) {
       if (versions[i].id === activeId) { active = versions[i]; break; }
     }
     if (!active && versions.length) active = versions[0];
 
-    var storedSelId = (localStorage.getItem("rb_selected_version_id") || "").trim();
-    var selected = null;
-    if (storedSelId) {
-      for (var si = 0; si < versions.length; si++) {
-        if (versions[si].id === storedSelId) { selected = versions[si]; break; }
-      }
-    }
-    if (!selected) selected = active;
-
     _setActiveIndicator(active ? active.name : null);
+    window.__activeVersion = active || null;
+    window.__activeVersionId = active ? active.id : "";
 
-    var sel = document.getElementById("version-select");
-    if (!sel) return;
-
-    /* Reconcile versions.json with report.html's existing dropdown options.
-       report.html populates the dropdown from its embedded versions-data
-       (option value = the version's short name). versions.json holds the
-       canonical display name. For each existing option whose value matches
-       a versions.json id, rename the textContent in-place rather than
-       appending a duplicate. Any assigned versions.json entries with no
-       matching option get appended at the end (user-added profiles that
-       were Discovery-assigned but never backtested yet).
-
-       Also REMOVE options that don't correspond to a currently-assigned
-       version — those are stale buckets from deleted profiles or
-       unassigned slots that should never appear here. */
-    var byId = {};
-    versions.forEach(function (v) { byId[v.id] = v; });
-    var reconciled = {};
-    /* Iterate backwards so removals don't shift indices. */
-    for (var j = sel.options.length - 1; j >= 0; j--) {
-      var opt = sel.options[j];
-      var match = byId[opt.value];
-      if (match) {
-        opt.textContent = match.name;
-        reconciled[match.id] = true;
-      } else {
-        sel.remove(j);
+    if (active) {
+      /* Sync the strategy template's private `currentVersion`. If the
+         template already mounted with the right id (window.__activeVersionId
+         was injected server-side before the IIFE ran) this is a no-op.
+         Otherwise it reroutes the sidebar to the right version's runs. */
+      if (typeof window._rbSetActiveVersion === "function") {
+        window._rbSetActiveVersion(active.id);
       }
-    }
-    versions.forEach(function (v) {
-      if (reconciled[v.id]) return;
-      var newOpt = document.createElement("option");
-      newOpt.value = v.id;
-      newOpt.textContent = v.name;
-      sel.appendChild(newOpt);
-    });
-
-    if (selected) {
-      sel.value = selected.id;
-      /* Sync report.html's private `currentVersion` to the selected
-         version id. report.html attaches its onVersionChange handler
-         inside an IIFE (so the function isn't a global) — but the
-         handler is wired via addEventListener("change"), so dispatching
-         a change event here triggers it. This makes getStrategyVersions
-         re-filter the sidebar by name=selected.id and re-render content
-         for the right bucket. */
-      sel.dispatchEvent(new Event("change", {bubbles: true}));
-      /* Apply the version's params AFTER the change event, because
-         report.html's onVersionChange synchronously calls
-         renderEmptyState() / renderContent() which DESTROYS and REBUILDS
-         the bs-* settings-panel inputs from localStorage/defaults. If we
-         applied before, those values would be wiped by the rebuild. By
-         applying after, we land on the freshly-mounted inputs and win.
-         (For subsequent user-driven dropdown changes, the change listener
-         below — registered after onVersionChange via addEventListener —
-         fires after the rebuild and re-applies the same way.) */
-      applyBacktestParamsFromVersion(selected);
-    }
-
-    /* Bug fix (May 2026): the dropdown selection is now DECOUPLED from
-       the global active version. Selecting v4 here while v3 is globally
-       active is a valid state — it means "I want to test v4 right now,
-       but v3 stays my production version". The run handlers resolve
-       payload.version_id to drive the run's params + regime; the
-       indicator in the top nav still tracks the global active.
-
-       To promote a version to globally active, the user uses an explicit
-       action elsewhere (e.g. a Make Active button on /versions — future
-       work). On dropdown change here we only:
-         1. Persist the selection to localStorage so it survives reloads
-            (notably the auto-reload after a backtest completes).
-         2. Apply that version's params to the BD inputs so the settings
-            panel reflects what the next run will use. */
-    sel.addEventListener("change", function () {
-      /* Bug fix (May 2026 — Task 2): always re-render the run-bar label
-         from the dropdown's current value, even when the picked version
-         doesn't resolve (e.g. an unassigned slot that was just selected,
-         or a stale option). report.html's renderSidebar() early-returns
-         when the current version has no bucket, which SKIPS its own
-         updateRangeButtonLabel call — leaving the label showing the
-         previous version's name. Calling it unconditionally here keeps
-         the label in lockstep with sel.value. */
+      window._currentVersionName        = active.name || "";
+      window._currentVersionDisplayName = active.name || active.strategy_version || "";
       if (typeof updateRangeButtonLabel === "function") updateRangeButtonLabel();
-      var picked = byId[sel.value];
-      if (!picked) return;
-      try { localStorage.setItem("rb_selected_version_id", picked.id); } catch (e) {}
-      applyBacktestParamsFromVersion(picked);
-      /* Keep the global hints in sync too so subsequent updateRangeButtonLabel
-         fallbacks (when sel.value is briefly empty during reconciliation)
-         use the right name. */
-      window._currentVersionName        = picked.name || "";
-      window._currentVersionDisplayName = picked.name || picked.strategy_version || "";
-    });
+      /* Apply params AFTER _rbSetActiveVersion because that helper can
+         re-render the settings panel and wipe the bs-* values. */
+      applyBacktestParamsFromVersion(active);
+    }
   }).catch(function () {});
 
   /* ── Update Add Date Range button label on load and on version tab clicks ── */
@@ -1021,18 +964,14 @@ function createCbot() {
 }
 
 function getCurrentVersionName() {
-  /* Bug fix (May 2026): the dropdown is the canonical "what version did
-     the user pick" source. Previously this preferred window._currentVersionName,
-     which report.html's renderSidebar overwrites with VERSIONS[activeVersionIdx].name
-     — the BUCKET name in the embedded versions-data. For Discovery-assigned
-     versions like v4 that have no bucket yet, renderSidebar falls back to
-     a default bucket (typically "v2", the strategy module name), which then
-     leaked into the run payload's target_version and silently saved the
-     run under the wrong bucket (Issue 3). Read the dropdown first so the
-     user's actual selection drives target_version unconditionally. */
+  /* Dropdown removed (May 2026). The active version id is the canonical
+     source of "which version's params should this run use", injected
+     server-side via window.__activeVersionId. Fall back to legacy hints
+     for robustness. */
+  if (window.__activeVersionId) return window.__activeVersionId;
+  if (window._currentVersionName) return window._currentVersionName;
   var sel = document.getElementById("version-select");
   if (sel && sel.value) return sel.value;
-  if (window._currentVersionName) return window._currentVersionName;
   /* Fallback: parse the versions-data JSON for the last version */
   var script = document.getElementById("versions-data");
   if (script) {
@@ -1045,16 +984,17 @@ function getCurrentVersionName() {
 }
 
 function updateRangeButtonLabel() {
-  /* Issue 2: the dropdown is the source of truth for the active version.
-     Earlier this was reading window._currentVersionDisplayName, which
-     renderSidebar overwrites with the CURRENTLY-DISPLAYED run's bucket
-     name — so switching instruments (which re-runs renderSidebar with
-     a different run focused) could replace the label with "v2" even
-     when v3 was selected in the dropdown. Read the dropdown directly
-     so the label tracks the active-version selection unconditionally. */
-  var sel = document.getElementById("version-select");
-  var displayName = (sel && sel.value) || window._currentVersionDisplayName || getCurrentVersionName();
+  /* Dropdown removed (May 2026). Read the active version's display name
+     from window.__activeVersion.name (set by the run-bar IIFE after
+     /api/versions resolves) so the button label always tracks the
+     globally-active version. */
+  var av = window.__activeVersion;
+  var displayName = (av && (av.name || av.strategy_version)) ||
+                    window.__activeVersionId ||
+                    window._currentVersionDisplayName ||
+                    getCurrentVersionName();
   var rangeBtn = document.getElementById("run-range-btn");
+  if (!rangeBtn) return;
   if (displayName) {
     rangeBtn.innerHTML = "&#9654;&nbsp; Add Date Range (" + displayName + ")";
   } else {
@@ -1063,8 +1003,13 @@ function updateRangeButtonLabel() {
 }
 
 function getSelectedVersion() {
+  /* Dropdown removed (May 2026). The active version is set on /versions
+     and surfaced server-side via window.__activeVersionId (injected by the
+     / route handler) — read from there. Fall back to the legacy dropdown
+     for backwards compat if anything still renders it, then to "v1". */
+  if (window.__activeVersionId) return window.__activeVersionId;
   var el = document.getElementById("version-select");
-  if (el) return el.value;
+  if (el && el.value) return el.value;
   return "v1";
 }
 
@@ -1076,10 +1021,15 @@ function getSelectedDirection() {
 }
 
 function getSelectedInstrument() {
+  /* Instrument toolbar dropdown was removed (May 2026); instrument is
+     now per-version. Returning "" tells the run handlers in server.py
+     to skip the INSTRUMENT env override, which lets
+     _apply_active_version_to_env layer the active version's
+     params.instrument in. The legacy localStorage `rb_instrument` value
+     (if present from earlier sessions) is intentionally ignored. */
   var el = document.getElementById("instrument-select");
   if (el) return el.value;
-  var stored = localStorage.getItem("rb_instrument");
-  return stored || "EURUSD";
+  return "";
 }
 
 function getSelectedInterval() {
@@ -1339,14 +1289,26 @@ def index():
         return Response(EMPTY_PAGE, mimetype="text/html")
 
     html = REPORT_FILE.read_text(encoding="utf-8")
-    # Inject the run-bar at the START of <body> so its elements — most
-    # importantly #version-select and #instrument-select, which used to
-    # live in report.html's sidebar but now live here — exist in the DOM
-    # before report.html's inline scripts run during parsing. (The IIFE
-    # inside INJECT_HTML that needs report.html's hidden action buttons
-    # is wrapped in DOMContentLoaded for the same reason.) The run-bar is
-    # fixed-positioned, so DOM order doesn't affect visual placement.
-    html = html.replace("<body>", "<body>\n" + INJECT_HTML, 1)
+    # Inject the run-bar at the START of <body>. Even though the version
+    # and instrument dropdowns are gone (May 2026), the run-bar still owns
+    # the date pickers, run buttons, and active-version indicator, all of
+    # which need to exist before report.html's inline scripts read them.
+    #
+    # We also inject window.__activeVersionId / window.__activeVersion
+    # SYNCHRONOUSLY (as a leading <script>) so the strategy template's
+    # IIFE sees the right id when it calls populateVersionSelector and
+    # picks the right sidebar bucket on first paint — no flash of the
+    # wrong version's runs.
+    av = _get_active_version() or {}
+    av_id   = (av.get("id")   or "").replace("\\", "\\\\").replace('"', '\\"')
+    av_name = (av.get("name") or "").replace("\\", "\\\\").replace('"', '\\"')
+    sync_script = (
+        '<script>'
+        f'window.__activeVersionId = "{av_id}";'
+        f'window.__activeVersionName = "{av_name}";'
+        '</script>'
+    )
+    html = html.replace("<body>", "<body>\n" + sync_script + "\n" + INJECT_HTML, 1)
     return Response(html, mimetype="text/html")
 
 
@@ -1430,6 +1392,37 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
           li.className = "versions-row" + (isActive ? " versions-row-active" : "");
           if (!isAssigned) li.classList.add("versions-row-unassigned");
 
+          /* Radio button (May 2026): the sole control for promoting a
+             version to globally active. Only assigned versions can be
+             made active — unassigned slots have no params/regime_state
+             for the BD/RA to read, so we disable the radio for them. */
+          var radioLabel = document.createElement("label");
+          radioLabel.className = "versions-row-radio";
+          radioLabel.title = isAssigned ? "Set as active version"
+                                        : "Assign params from Discovery first";
+          var radio = document.createElement("input");
+          radio.type = "radio";
+          radio.name = "active-version";
+          radio.value = v.id;
+          radio.checked = isActive;
+          radio.disabled = !isAssigned;
+          radio.addEventListener("change", function () {
+            if (!radio.checked) return;
+            fetch("/api/active_version", {
+              method: "POST",
+              headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({id: v.id}),
+            })
+              .then(function (r) { return r.json(); })
+              .then(function (resp) {
+                if (!resp.ok) { showError(resp.error || "Switch failed"); return; }
+                /* Re-render to update card styling + indicator. */
+                refresh();
+              })
+              .catch(function (e) { showError("Switch failed: " + e.message); });
+          });
+          radioLabel.appendChild(radio);
+
           var nameSpan = document.createElement("span");
           nameSpan.className = "versions-row-name";
           nameSpan.textContent = v.name;
@@ -1491,6 +1484,7 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
           notesWrap.appendChild(notesArea);
           notesWrap.appendChild(notesStatus);
 
+          li.appendChild(radioLabel);
           li.appendChild(nameSpan);
           li.appendChild(actionsSpan);
           li.appendChild(notesWrap);
@@ -1982,21 +1976,9 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
 
         var controls = document.createElement("div");
         controls.className = "discovery-run-controls";
-        var toggleLbl = document.createElement("label");
-        toggleLbl.className = "discovery-toggle";
-        var toggleCb = document.createElement("input");
-        toggleCb.type = "checkbox";
-        toggleCb.checked = bs.showPassingOnly;
-        toggleCb.className = "d-block-show-passing";
-        toggleCb.addEventListener("change", function () {
-          bs.showPassingOnly = toggleCb.checked;
-          renderBlockBody(block, run);
-        });
-        var toggleTxt = document.createElement("span");
-        toggleTxt.textContent = "Show passing only";
-        toggleLbl.appendChild(toggleCb);
-        toggleLbl.appendChild(toggleTxt);
-        controls.appendChild(toggleLbl);
+        /* The per-block "Show passing only" checkbox was removed (May 2026)
+           — passing-only is now the unconditional default. The Delete
+           button remains the sole control in the header. */
 
         var delBtn = document.createElement("button");
         delBtn.type = "button";
@@ -2100,10 +2082,11 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         var bs = getBlockState(run.run_id);
         var tbody = block.querySelector(".discovery-block-tbody");
         var trials = run.trials || [];
-        var visible = trials.slice();
-        if (bs.showPassingOnly) {
-          visible = visible.filter(function (t) { return t.pass === true; });
-        }
+        /* Always filter to passing trials — the per-block "Show passing only"
+           checkbox was removed (May 2026). When the run has zero passing
+           trials we render a single colspanned "No passing results." row
+           below instead of leaving an empty tbody. */
+        var visible = trials.filter(function (t) { return t.pass === true; });
         visible.sort(makeComparator(bs));
 
         /* Sync the thead indicators for the active sort column without
@@ -2122,6 +2105,18 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         });
 
         tbody.innerHTML = "";
+        if (visible.length === 0) {
+          /* No passing trials — render a single colspanned message row
+             instead of an empty tbody. colspan matches the 11-column header. */
+          var emptyTr = document.createElement("tr");
+          emptyTr.className = "discovery-run-empty";
+          var emptyTd = document.createElement("td");
+          emptyTd.setAttribute("colspan", "11");
+          emptyTd.textContent = "No passing results.";
+          emptyTr.appendChild(emptyTd);
+          tbody.appendChild(emptyTr);
+          return;
+        }
         visible.forEach(function (t) {
           var m = t.metrics || {};
           var tr = document.createElement("tr");
@@ -3874,8 +3869,14 @@ def api_discovery_run():
     min_pf      = _parse_num("min_pf",     0.0,  10.0,  float)
     min_trades  = _parse_num("min_trades", 0,    10000, int)
     max_dd_pct  = _parse_num("max_dd_pct", 0.0,  100.0, float)
+    # _parse_num returns a (jsonify(...), 400) tuple on validation failure
+    # (not a Response object). Detect the tuple and propagate it as the
+    # endpoint's error response. Bug fix (May 2026): previously this used
+    # hasattr(v, "status_code") which a tuple doesn't have — out-of-range
+    # values fell through and triggered a 500 when json.dump tried to
+    # serialise the tuple into the config file.
     for v in (min_pf, min_trades, max_dd_pct):
-        if hasattr(v, "status_code"):  # _parse_num returned an error Response
+        if isinstance(v, tuple):
             return v
 
     with _disco_lock:
@@ -4031,7 +4032,11 @@ def api_discovery_assign():
     if trial is None:
         return jsonify({"ok": False, "error": f"trial id '{result_id}' not found"}), 404
 
-    ok, payload = _assign_version_from_trial(version_id, trial.get("params") or {})
+    ok, payload = _assign_version_from_trial(
+        version_id,
+        trial.get("params") or {},
+        run_config=(_run or {}).get("config") or {},
+    )
     if not ok:
         return jsonify({"ok": False, "error": payload}), 400
     return jsonify({"ok": True, "version": payload})

@@ -3125,7 +3125,9 @@ __VERSIONS_JSON__
       return;
     }
 
-    /* Build flat list: every run from every matching version is a top-level item */
+    /* Build flat list: every run from every matching version is a top-level item.
+       Structural change (May 2026): instrument is fixed per version, so we no
+       longer filter runs by a sidebar-level currentInstrument. */
     var flatItems = []; /* { vIdx, runIdx, v, run } */
     for (var ri = 0; ri < svs.length; ri++) {
       var entry = svs[ri];
@@ -3134,14 +3136,12 @@ __VERSIONS_JSON__
       var runs  = getRuns(v);
       for (var si = 0; si < runs.length; si++) {
         var _ri = runs[si];
-        var _rinst = (_ri.instrument || (v.params && v.params.ticker ? v.params.ticker.replace(/=X$/i, "") : "")).toUpperCase();
-        if (currentInstrument && _rinst && _rinst !== currentInstrument) continue;
         flatItems.push({ vIdx: idx, runIdx: si, v: v, run: _ri });
       }
     }
 
     if (flatItems.length === 0) {
-      list.innerHTML = "<div class='sb-no-runs'>No runs for " + currentInstrument + " yet.</div>";
+      list.innerHTML = "<div class='sb-no-runs'>No runs for this version yet.</div>";
       return;
     }
 
@@ -4041,11 +4041,18 @@ __VERSIONS_JSON__
     /* Header label uses v.name first so a user-added profile like v3
        (strategy_version="v2") renders as "v3 · …" — not "v2 · …".
        Falls back to strategy_version for legacy entries without .name. */
+    /* Structural change (May 2026): instrument + interval are now per-version
+       and surfaced in the title. Prefer v.params.instrument / v.params.interval
+       (the new source of truth), then run.instrument/interval (legacy runs
+       predating the schema), then GBPUSD / 5m defaults. The .replace strips
+       any legacy Yahoo-Finance "=X" suffix on old run.instrument values. */
+    var _vp = (v && v.params) || {};
     var hdrParts = [esc(v.name || v.strategy_version || "v1")];
-    var hdrInstr = (run.instrument || (v.params && v.params.ticker) || "").replace(/=X$/i, "");
-    if (hdrInstr) hdrParts.push(esc(hdrInstr));
+    var hdrInstr    = (_vp.instrument || run.instrument || "GBPUSD").replace(/=X$/i, "");
+    var hdrInterval = _vp.interval    || run.interval   || "5m";
+    hdrParts.push(esc(hdrInstr));
+    hdrParts.push(esc(hdrInterval));
     if (hdrDateStr) hdrParts.push(hdrDateStr);
-    if (hdrDur) hdrParts.push(hdrDur);
     var headerTitle = hdrParts.join(" \u00b7 ");
 
 
@@ -4968,69 +4975,98 @@ __VERSIONS_JSON__
   /* The selector shows strategy versions.
      currentVersion holds the selected strategy version tag. */
   function populateVersionSelector() {
+    /* Structural change (May 2026): the version dropdown was removed from
+       the toolbar. The active version is now set on /versions via per-card
+       radio buttons and read by the strategy template from
+       window.__activeVersionId (injected server-side by the / route
+       handler). currentVersion is matched against VERSIONS[i].name in
+       getStrategyVersions, so we set it to the active version id. */
     var sel = document.getElementById("version-select");
-    /* Dynamically detect strategy versions from the data */
-    var seen = {};
-    var stratVersions = [];
-    for (var j = 0; j < VERSIONS.length; j++) {
-      var sv = VERSIONS[j].strategy_version || "v1";
-      if (!seen[sv]) { seen[sv] = true; stratVersions.push(sv); }
-    }
-    if (stratVersions.length === 0) stratVersions.push("v1");
-    sel.innerHTML = "";
-    for (var j = 0; j < stratVersions.length; j++) {
-      var opt = document.createElement("option");
-      opt.value = stratVersions[j];
-      opt.textContent = stratVersions[j];
-      sel.appendChild(opt);
-    }
-    /* Restore last-used strategy version from localStorage, default to v1 */
-    var stored = localStorage.getItem("rb_strategy_version");
-    if (stored && stratVersions.indexOf(stored) >= 0) {
-      currentVersion = stored;
+    if (window.__activeVersionId) {
+      currentVersion = window.__activeVersionId;
     } else {
-      currentVersion = stratVersions[0];
+      /* Fallback for any legacy code path: prefer the most recently
+         added version's name (assigned versions only), then v1. */
+      var assigned = [];
+      for (var j = 0; j < VERSIONS.length; j++) {
+        if (VERSIONS[j] && VERSIONS[j].params) {
+          assigned.push(VERSIONS[j].name || VERSIONS[j].strategy_version || "v1");
+        }
+      }
+      currentVersion = assigned.length ? assigned[assigned.length - 1] : "v1";
     }
-    sel.value = currentVersion;
+    if (sel) sel.value = currentVersion;  /* no-op if dropdown removed */
   }
 
   function onVersionChange() {
-    currentVersion = document.getElementById("version-select").value;
+    var sel = document.getElementById("version-select");
+    if (!sel) return;  /* dropdown removed — handler is dead code now */
+    currentVersion = sel.value;
     localStorage.setItem("rb_strategy_version", currentVersion);
     devLogOpen = false;
     document.getElementById("devlog-btn").classList.remove("active");
     renderSidebar();
 
-    /* Jump to the last run that matches the current instrument */
+    /* Jump to the last run for the new version */
     var svs = getStrategyVersions();
     var found = false;
     for (var si = svs.length - 1; si >= 0; si--) {
       var runs = getRuns(svs[si].v);
-      for (var ri = runs.length - 1; ri >= 0; ri--) {
-        var rinst = (runs[ri].instrument || (svs[si].v.params && svs[si].v.params.ticker ? svs[si].v.params.ticker.replace(/=X$/i, "") : "")).toUpperCase();
-        if (!currentInstrument || rinst === currentInstrument) {
-          activeVersionIdx = svs[si].idx;
-          activeRunIdx = ri;
-          renderSidebar();
-          renderContent(svs[si].idx, ri);
-          found = true;
-          break;
-        }
+      if (runs.length > 0) {
+        activeVersionIdx = svs[si].idx;
+        activeRunIdx = runs.length - 1;
+        renderSidebar();
+        renderContent(svs[si].idx, runs.length - 1);
+        found = true;
+        break;
       }
-      if (found) break;
     }
     if (!found) {
       renderEmptyState();
     }
   }
 
+  /* Exposed for the INJECT_HTML run-bar IIFE. Called by server.py after
+     /api/versions resolves to flip the sidebar to whichever version is
+     globally active. Idempotent — no-op when currentVersion already
+     matches. */
+  window._rbSetActiveVersion = function (id) {
+    if (!id || id === currentVersion) return;
+    currentVersion = id;
+    var svs = getStrategyVersions();
+    var found = false;
+    for (var si = svs.length - 1; si >= 0; si--) {
+      var runs = getRuns(svs[si].v);
+      if (runs.length > 0) {
+        activeVersionIdx = svs[si].idx;
+        activeRunIdx = runs.length - 1;
+        renderSidebar();
+        renderContent(svs[si].idx, runs.length - 1);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      activeVersionIdx = -1;
+      activeRunIdx = 0;
+      renderSidebar();
+      renderEmptyState();
+    }
+  };
+
+  /* Structural change (May 2026): the instrument toolbar dropdown was
+     removed — instrument is now per-version. populateInstrumentSelector
+     and onInstrumentChange are guarded so they no-op when the dropdown
+     element is absent. currentInstrument is kept as a global for any
+     legacy code path that might still reference it, but is left empty
+     so sidebar/runtime filters that gate on it have no effect. */
   function populateInstrumentSelector() {
     var sel = document.getElementById("instrument-select");
+    if (!sel) return;  /* dropdown removed — no-op */
     var stored = localStorage.getItem("rb_instrument");
     if (stored) {
       currentInstrument = stored;
     } else {
-      /* Default to the first instrument that actually has runs */
       var firstWithData = "";
       for (var oi = 0; oi < sel.options.length; oi++) {
         var optVal = sel.options[oi].value;
@@ -5050,14 +5086,14 @@ __VERSIONS_JSON__
   }
 
   function onInstrumentChange() {
-    currentInstrument = document.getElementById("instrument-select").value;
+    var sel = document.getElementById("instrument-select");
+    if (!sel) return;
+    currentInstrument = sel.value;
     localStorage.setItem("rb_instrument", currentInstrument);
     devLogOpen = false;
     document.getElementById("devlog-btn").classList.remove("active");
     renderSidebar();
-
     var svs = getStrategyVersions();
-    /* Find the last run matching the instrument within current strategy versions */
     var found = false;
     for (var si = svs.length - 1; si >= 0; si--) {
       var runs = getRuns(svs[si].v);
@@ -5074,19 +5110,21 @@ __VERSIONS_JSON__
       }
       if (found) break;
     }
-    if (!found) {
-      activeVersionIdx = -1;
-      activeRunIdx = 0;
-      renderSidebar();
-      renderEmptyState();
-    }
+    if (!found) { activeVersionIdx = -1; activeRunIdx = 0; renderSidebar(); renderEmptyState(); }
   }
 
   /* ── Init ──────────────────────────────────────────────────── */
   populateVersionSelector();
   populateInstrumentSelector();
-  document.getElementById("version-select").addEventListener("change", onVersionChange);
-  document.getElementById("instrument-select").addEventListener("change", onInstrumentChange);
+  /* Version + instrument dropdowns both removed (May 2026). Wire the
+     handlers only if the elements still exist (for backwards compat with
+     pre-update report.html snapshots). */
+  (function () {
+    var verSel = document.getElementById("version-select");
+    if (verSel) verSel.addEventListener("change", onVersionChange);
+    var instSel = document.getElementById("instrument-select");
+    if (instSel) instSel.addEventListener("change", onInstrumentChange);
+  })();
 
   document.getElementById("devlog-btn").addEventListener("click", function () {
     devLogOpen = !devLogOpen;
@@ -5197,11 +5235,12 @@ __VERSIONS_JSON__
     if (devLogOpen) return;
 
     /* Build flat list mirroring the exact sidebar render order:
-       filter by instrument, group by section, iterate in _sectionOrder */
+       group by section, iterate in _sectionOrder. Instrument filtering was
+       removed in May 2026 since instrument is now fixed per version. */
     var svs = getStrategyVersions();
     if (svs.length === 0) return;
 
-    /* 1. Collect instrument-filtered items (same as renderSidebar) */
+    /* 1. Collect items (same as renderSidebar) */
     var _kbFlat = [];
     for (var ri = 0; ri < svs.length; ri++) {
       var entry = svs[ri];
@@ -5209,8 +5248,6 @@ __VERSIONS_JSON__
       var runs  = getRuns(entry.v);
       for (var si = 0; si < runs.length; si++) {
         var _kbRun = runs[si];
-        var _kbInst = (_kbRun.instrument || (entry.v.params && entry.v.params.ticker ? entry.v.params.ticker.replace(/=X$/i, "") : "")).toUpperCase();
-        if (currentInstrument && _kbInst && _kbInst !== currentInstrument) continue;
         _kbFlat.push({ vIdx: vIdx, runIdx: si, run: _kbRun, v: entry.v });
       }
     }
