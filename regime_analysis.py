@@ -2442,13 +2442,14 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       </button>
       <span id="run-status" class="rb-status"></span>
       <div class="rb-action-group">
+        <!-- May 2026: Development Log icon removed from the RA run bar — the
+             devlog isn't surfaced anywhere meaningful on this page, and the
+             icon was a dead-end click. The /devlog endpoint + the BD's
+             devlog still work; the toggleDevlogPanel handler that used to
+             live in this page's IIFE was retired alongside the button. -->
         <button id="regime-copy-btn" class="rb-btn rb-btn-copy" type="button"
                 title="Copy report as markdown to clipboard">
           <span class="regime-copy-btn-label">Copy Report</span>
-        </button>
-        <button id="devlog-btn" class="rb-devlog-btn" type="button"
-                title="Development Log">
-          <span class="material-symbols-outlined">list</span>
         </button>
       </div>
     </div>
@@ -3556,75 +3557,10 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     }}
     attachDailyHandlers();
 
-    // ── Devlog panel ───────────────────────────────────────────────────────
-    var devlogBtn = document.getElementById("devlog-btn");
-    if (devlogBtn) {{
-      devlogBtn.addEventListener("click", function () {{
-        toggleDevlogPanel();
-      }});
-    }}
-
-    function toggleDevlogPanel() {{
-      var panel = document.getElementById("regime-devlog-panel");
-      if (panel) {{
-        panel.remove();
-        if (devlogBtn) devlogBtn.classList.remove("active");
-        return;
-      }}
-      if (devlogBtn) devlogBtn.classList.add("active");
-      panel = document.createElement("div");
-      panel.id = "regime-devlog-panel";
-      panel.className = "regime-devlog-panel";
-      panel.innerHTML = (
-        "<div class='regime-devlog-header'>"
-          + "<strong>Development Log</strong>"
-          + "<button type='button' class='regime-devlog-close' aria-label='Close'>&times;</button>"
-        + "</div>"
-        + "<textarea id='regime-devlog-textarea' placeholder='Loading…' rows='14'></textarea>"
-        + "<div class='regime-devlog-footer'>"
-          + "<span id='regime-devlog-status' class='regime-dim regime-small'></span>"
-          + "<button type='button' class='rb-btn rb-btn-blue' id='regime-devlog-save'>Save</button>"
-        + "</div>"
-      );
-      document.body.appendChild(panel);
-      var textarea = panel.querySelector("#regime-devlog-textarea");
-      var statusEl = panel.querySelector("#regime-devlog-status");
-      var saveBtn  = panel.querySelector("#regime-devlog-save");
-      var closeBtn = panel.querySelector(".regime-devlog-close");
-      closeBtn.addEventListener("click", toggleDevlogPanel);
-      fetch("/devlog").then(function (r) {{ return r.json(); }}).then(function (data) {{
-        if (Array.isArray(data)) {{
-          textarea.value = JSON.stringify(data, null, 2);
-        }} else {{
-          textarea.value = JSON.stringify(data || [], null, 2);
-        }}
-        textarea.placeholder = "";
-      }}).catch(function (e) {{
-        textarea.value = "";
-        textarea.placeholder = "Failed to load dev log";
-        statusEl.textContent = e.message;
-      }});
-      saveBtn.addEventListener("click", function () {{
-        var raw = textarea.value;
-        var parsed;
-        try {{
-          parsed = JSON.parse(raw);
-          if (!Array.isArray(parsed)) throw new Error("must be a JSON array");
-        }} catch (e) {{
-          statusEl.textContent = "Invalid JSON: " + e.message;
-          return;
-        }}
-        statusEl.textContent = "Saving…";
-        fetch("/devlog", {{
-          method: "POST",
-          headers: {{ "Content-Type": "application/json" }},
-          body: JSON.stringify(parsed),
-        }}).then(function (r) {{ return r.json(); }}).then(function (resp) {{
-          if (resp.ok) statusEl.textContent = "Saved.";
-          else statusEl.textContent = "Save failed: " + (resp.error || "unknown");
-        }}).catch(function (e) {{ statusEl.textContent = "Save failed: " + e.message; }});
-      }});
-    }}
+    // The Devlog panel (toggleDevlogPanel + #devlog-btn handler + the
+    // dynamically-created #regime-devlog-panel/textarea/save flow) was
+    // removed May 2026 along with the run bar's Development Log icon —
+    // the panel had no practical use on the Regimes page.
   }})();
   </script>
 </body>
