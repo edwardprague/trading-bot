@@ -3630,6 +3630,21 @@ def _run_backtest_sync(env_overrides=None):
         env = os.environ.copy()
         if env_overrides:
             env.update(env_overrides)
+        # TEMP DIAGNOSTIC (regime-gate bug investigation): write the env vars
+        # we're about to hand the subprocess to a file so we can verify the
+        # ALLOWED_*_REGIMES propagation independently. Remove once fixed.
+        try:
+            import json as _json
+            debug_keys = ["ALLOWED_MACRO_REGIMES", "ALLOWED_MICRO_REGIMES",
+                          "STRATEGY_VERSION", "EMA_LONG", "USE_EMA_FILTER",
+                          "TRADE_DIRECTION", "BLOCKED_HOURS_UTC", "INSTRUMENT",
+                          "INTERVAL", "RUN_MODE", "RUN_START_DATE", "RUN_END_DATE"]
+            snap = {k: env.get(k, "<UNSET>") for k in debug_keys}
+            snap["__overrides_keys"] = sorted((env_overrides or {}).keys())
+            with open("/tmp/bd_last_env.json", "w") as _f:
+                _json.dump(snap, _f, indent=2)
+        except Exception:
+            pass
         proc = subprocess.Popen(
             [sys.executable, "-u", str(STRATEGY_FILE)],
             stdout=subprocess.PIPE,
