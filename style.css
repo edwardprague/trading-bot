@@ -3542,9 +3542,36 @@ body.discovery-page {
     height: auto;
     min-height: 100vh;
     overflow: auto;
-    padding: 52px 0 60px;
+    /* 92px = top-nav (40px) + run-bar (52px). Brought into line with BD + RA
+       (May 2026) when Discovery's standalone "Run configuration" card was
+       retired in favour of a fixed run bar matching the other pages. */
+    padding: 92px 0 60px;
     background: #222;
     color: #d0d0e8;
+}
+
+/* Narrow numeric input used in the Discovery run bar for Trials / Seed.
+   Sits alongside .rb-date and inherits its visual treatment (bg, border,
+   focus color) but with a tighter width so the run bar reads as a tidy
+   single row instead of stretching across the page. */
+.rb-num {
+    background: #14142a;
+    color: #c0c0e0;
+    border: 1px solid #2a2a44;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    width: 80px;
+    transition: border-color 0.15s;
+}
+
+.rb-num::placeholder {
+    color: #505070;
+}
+
+.rb-num:focus {
+    border-color: #4cc9f0;
+    outline: none;
 }
 
 .discovery-container {

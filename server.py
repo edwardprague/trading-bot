@@ -790,12 +790,10 @@ INJECT_HTML = """
        dropdown is present, and _apply_active_version_to_env layers the
        instrument in from the version. -->
 
-  <span class="rb-sep"></span>
-
-  <button id="run-new-btn" class="rb-btn rb-btn-green" onclick="runNewVersion()">&#9654;&nbsp; Add Year</button>
-
-  <span class="rb-sep"></span>
-
+  <!-- May 2026: "Add Year" button + its /run code path retired. The BD now
+       runs only via Add Date Range; the year-mode entry point was redundant
+       with the explicit date pickers and added two button states + an
+       orphan endpoint to maintain. -->
   <div id="rb-range-group" style="display: flex; align-items: center; gap: 12px;">
     <!-- Task 3: native date input. The previous design hid the input's
          text with `color: transparent` and overlaid a custom "Mon-DD-YY"
@@ -906,8 +904,8 @@ INJECT_HTML = """
    cbot-btn, devlog-btn, hidden in report.html and moved into the run-bar
    here), so we defer it until DOMContentLoaded — by which point the
    entire page is parsed and every element is available. Top-level
-   functions below (runNewVersion, runDateRange, setRunning, etc.) stay
-   at script-global scope so onclick="…" handlers can still call them. */
+   functions below (runDateRange, setRunning, etc.) stay at script-global
+   scope so onclick="…" handlers can still call them. */
 document.addEventListener("DOMContentLoaded", function () {
   /* ── Move action buttons into the run bar (preserve visibility set by strategy.py) ── */
   var _actGroup  = document.getElementById("rb-action-group");
@@ -1147,7 +1145,7 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 function setRunning() {
-  var btns = [document.getElementById("run-new-btn"), document.getElementById("run-range-btn"),
+  var btns = [document.getElementById("run-range-btn"),
               document.getElementById("copy-btn"), document.getElementById("cbot-btn")];
   btns.forEach(function (b) { if (b) b.disabled = true; });
   document.getElementById("run-status").innerHTML =
@@ -1156,11 +1154,8 @@ function setRunning() {
 }
 
 function resetButtons() {
-  var newBtn   = document.getElementById("run-new-btn");
   var rangeBtn = document.getElementById("run-range-btn");
-  newBtn.disabled   = false;
-  newBtn.innerHTML   = "&#9654;&nbsp; Add Year";
-  rangeBtn.disabled = false;
+  if (rangeBtn) rangeBtn.disabled = false;
   /* Uncheck all monthly checkboxes and re-enable date inputs */
   document.querySelectorAll(".mo-check:checked").forEach(function (cb) { cb.checked = false; });
   var startEl = document.getElementById("rb-start");
@@ -1407,26 +1402,10 @@ function getSelectedUseEmaFilter() {
   return true;
 }
 
-function runNewVersion() {
-  var instrument = getSelectedInstrument();
-  var direction  = getSelectedDirection();
-  var version    = getSelectedVersion();
-  localStorage.setItem("rb_pending_run_type", "new_version_auto");
-  localStorage.setItem("rb_strategy_version", version);
-  setRunning();
-  /* interval is intentionally omitted — server falls back to the active
-     version's params.interval via _apply_active_version_to_env. */
-  fetch("/run", { method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, strategy_version: version, version_id: version, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), use_ema_filter: getSelectedUseEmaFilter(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
-  })
-  .then(function (r) { return r.json(); })
-  .then(function (data) {
-    if (data.started) { pollStatus(); }
-    else { localStorage.removeItem("rb_pending_run_type"); resetButtons(); showError(data.error); }
-  })
-  .catch(function () { localStorage.removeItem("rb_pending_run_type"); resetButtons(); showError("Request failed"); });
-}
+/* runNewVersion() + the /run endpoint were retired May 2026 along with
+   the BD's "Add Year" button. The platform now drives all backtests
+   through runDateRange() / /run_range / /run_batch, which take explicit
+   start/end dates from the run bar. */
 
 function runDateRange() {
   /* ── Check for multi-select mode (monthly checkboxes) ──── */
@@ -1981,6 +1960,27 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
     <span class="top-nav-active-version" id="top-nav-active-version"></span>
   </nav>
 
+  <!-- Fixed run bar (May 2026) — replaces the standalone "Run configuration"
+       card so Discovery's run UX matches BD + RA. From/To pickers lead,
+       Trials + Seed sit inline, the green Run Discovery button is pushed to
+       the far right by the flex-1 #run-status spacer (which doubles as the
+       live "Trial N of M" status text during a run). -->
+  <div id="run-bar" class="rb-runbar">
+    <label class="rb-label" for="d-start">From</label>
+    <input type="date" id="d-start" class="rb-date" value="2025-07-01">
+    <label class="rb-label" for="d-end">To</label>
+    <input type="date" id="d-end" class="rb-date" value="2025-12-31">
+    <span class="rb-sep"></span>
+    <label class="rb-label" for="d-trials">Trials</label>
+    <input type="number" id="d-trials" class="rb-num" value="200" min="1" max="10000">
+    <label class="rb-label" for="d-seed">Seed</label>
+    <input type="number" id="d-seed" class="rb-num" placeholder="random">
+    <span id="run-status" class="rb-status"></span>
+    <button id="d-run-btn" class="rb-btn rb-btn-green" type="button">
+      <span class="rb-btn-icon">&#9654;</span> Run Discovery
+    </button>
+  </div>
+
   <main class="discovery-container">
     <header class="discovery-header">
       <h1>Discovery</h1>
@@ -2082,34 +2082,10 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
       </div>
     </section>
 
-    <section class="discovery-config">
-      <h2>Run configuration</h2>
-      <form id="discovery-config-form" class="discovery-config-form">
-        <div class="discovery-config-field">
-          <label class="discovery-form-label" for="d-start">Start date</label>
-          <input type="date" id="d-start" class="rb-date" value="2025-07-01">
-        </div>
-        <div class="discovery-config-field">
-          <label class="discovery-form-label" for="d-end">End date</label>
-          <input type="date" id="d-end" class="rb-date" value="2025-12-31">
-        </div>
-        <div class="discovery-config-field">
-          <label class="discovery-form-label" for="d-trials">Trials</label>
-          <input type="number" id="d-trials" class="discovery-form-input" value="200" min="1" max="10000">
-        </div>
-        <div class="discovery-config-field">
-          <label class="discovery-form-label" for="d-seed">Seed</label>
-          <input type="number" id="d-seed" class="discovery-form-input" placeholder="random">
-        </div>
-        <button type="submit" id="d-run-btn" class="rb-btn rb-btn-green discovery-run-btn">&#9654; Run Discovery</button>
-      </form>
-      <div class="discovery-progress-row">
-        <span id="d-status-line" class="discovery-status-line">Idle.</span>
-        <div class="discovery-progress-bar">
-          <div id="d-progress-fill" class="discovery-progress-fill"></div>
-        </div>
-      </div>
-    </section>
+    <!-- Discovery's run configuration was moved into the top-of-page run bar
+         (May 2026) — the duplicated date/Trials/Seed inputs + progress row
+         that used to live here have been retired. The remaining Results
+         section is the only thing inside discovery-container now. -->
 
     <section class="discovery-results-section">
       <div class="discovery-results-header">
@@ -2170,14 +2146,17 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
       var POLL_MS = 1500;
 
       /* ── DOM refs ──────────────────────────────────────────────────────── */
-      var formEl     = document.getElementById("discovery-config-form");
+      /* formEl + fillEl were retired May 2026 when the standalone form +
+         progress bar moved into the shared run-bar layout. Status now flows
+         through #run-status (the same flex-1 slot BD + RA use), and the
+         spinner shows inside the Run Discovery button while a run is in
+         flight — matching RA's setRunning(true) treatment. */
       var runBtn     = document.getElementById("d-run-btn");
       var startEl    = document.getElementById("d-start");
       var endEl      = document.getElementById("d-end");
       var trialsEl   = document.getElementById("d-trials");
       var seedEl     = document.getElementById("d-seed");
-      var statusEl   = document.getElementById("d-status-line");
-      var fillEl     = document.getElementById("d-progress-fill");
+      var statusEl   = document.getElementById("run-status");
       var stackEl    = document.getElementById("d-runs-stack");
       var emptyEl    = document.getElementById("d-empty-state");
       var countEl    = document.getElementById("d-stack-count");
@@ -2745,27 +2724,30 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
 
       /* ── Run + poll ────────────────────────────────────────────────────── */
       function setStatus(text) { statusEl.textContent = text; }
-      function setProgress(pct) {
-        var p = Math.max(0, Math.min(100, pct));
-        fillEl.style.width = p + "%";
+
+      /* Swap the Run Discovery button between idle and running states.
+         Mirrors RA's setRunning(true) treatment: a CSS-only .rb-spin sits
+         inside the button while a discovery run is in flight, and the
+         button text becomes "Running…". Restoring sets the play-icon
+         glyph back. */
+      var RUN_BTN_IDLE_HTML    = "<span class='rb-btn-icon'>▶</span> Run Discovery";
+      var RUN_BTN_RUNNING_HTML = "<span class='rb-spin'></span> Running…";
+      function setRunningBtn(running) {
+        runBtn.disabled = !!running;
+        runBtn.innerHTML = running ? RUN_BTN_RUNNING_HTML : RUN_BTN_IDLE_HTML;
       }
 
       function pollStatus() {
         if (!STATE.polling) return;
-        /* Each tick: refresh the global status line/progress bar from the
-           lightweight /status endpoint, then refetch the full /results
-           array so the in-progress block's tbody updates as trials land.
-           For a 200-trial run the file grows to ~200KB at most; the cost
-           is bounded and the simpler "always render canonical state"
-           model avoids per-run-id stub bookkeeping. */
+        /* Each tick: refresh the status text from the lightweight /status
+           endpoint, then refetch the full /results array so the in-progress
+           block's tbody updates as trials land. For a 200-trial run the
+           file grows to ~200KB at most; the cost is bounded and the simpler
+           "always render canonical state" model avoids per-run-id stub
+           bookkeeping. */
         fetch("/api/discovery/status")
           .then(function (r) { return r.json(); })
           .then(function (s) {
-            var total = s.trials_total || 0;
-            var done  = s.trials_complete || 0;
-            var pct = total > 0 ? (done / total) * 100 : 0;
-            setProgress(pct);
-
             return loadResults().then(function () { return s; });
           })
           .then(function (s) {
@@ -2773,20 +2755,19 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
               var bestPF = s.best && s.best.metrics ? fmtPF(s.best.metrics.profit_factor) : "—";
               var done = s.trials_complete || 0;
               var total = s.trials_total || 0;
-              setStatus("Running: trial " + done + " / " + total + " — best PF so far: " + bestPF);
+              setStatus("Trial " + done + " / " + total + " — best PF: " + bestPF);
               setTimeout(pollStatus, POLL_MS);
             } else {
               STATE.polling = false;
-              runBtn.disabled = false;
+              setRunningBtn(false);
               if (s.status === "complete") {
                 setStatus("Complete: " + (s.trials_complete || 0) + " / " + (s.trials_total || 0) + " trials.");
-                setProgress(100);
               } else if (s.status === "error") {
                 setStatus("Errored: " + (s.error || "unknown error"));
               } else if (s.status === "cancelled") {
                 setStatus("Cancelled.");
               } else {
-                setStatus("Idle.");
+                setStatus("");
               }
               /* Final refetch + re-render guarantees the just-completed
                  block reflects its finalized state (status=complete,
@@ -2807,8 +2788,10 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           .catch(function () {});
       }
 
-      formEl.addEventListener("submit", function (e) {
-        e.preventDefault();
+      /* Click handler on the run-bar button (May 2026 — replaces the
+         retired <form> submit handler). Behaviour is identical: validate
+         dates, POST /api/discovery/run, poll on success. */
+      runBtn.addEventListener("click", function () {
         var trials = parseInt(trialsEl.value || "200", 10);
         var start  = startEl.value;
         var end    = endEl.value;
@@ -2817,9 +2800,8 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           setStatus("Pick both start and end dates.");
           return;
         }
-        runBtn.disabled = true;
+        setRunningBtn(true);
         setStatus("Starting discovery run…");
-        setProgress(0);
         var settings = getDiscoverySettings();
         var body = {
           trials: trials, start: start, end: end,
@@ -2841,7 +2823,7 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           .then(function (resp) {
             if (!resp.ok || !resp.body.ok) {
               setStatus("Failed: " + ((resp.body && resp.body.error) || "unknown error"));
-              runBtn.disabled = false;
+              setRunningBtn(false);
               return;
             }
             STATE.polling = true;
@@ -2849,7 +2831,7 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           })
           .catch(function () {
             setStatus("Request failed.");
-            runBtn.disabled = false;
+            setRunningBtn(false);
           });
       });
 
@@ -2967,7 +2949,8 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         .then(function (r) { return r.json(); })
         .then(function (s) {
           if (s.running) {
-            runBtn.disabled = true;
+            /* Resume the spinner-in-button + polling on page reload mid-run. */
+            setRunningBtn(true);
             STATE.polling = true;
             pollStatus();
           }
@@ -3690,158 +3673,10 @@ def _backtest_worker(env_overrides=None):
         _bt_state["stage"]   = ""
 
 
-def _get_best_worst_months(version_name):
-    """Read report.html, find the monthly data for version_name, return best & worst months."""
-    import calendar
-    from datetime import date
-    if not REPORT_FILE.exists():
-        return None, None
-    html = REPORT_FILE.read_text(encoding="utf-8")
-    match = re.search(
-        r'(<script[^>]+id=["\']versions-data["\'][^>]*>)([\s\S]*?)(</script>)',
-        html
-    )
-    if not match:
-        return None, None
-    try:
-        versions = json.loads(match.group(2).strip())
-    except (json.JSONDecodeError, ValueError):
-        return None, None
-    # Find the version
-    target = None
-    for v in versions:
-        if v.get("name") == version_name:
-            target = v
-            break
-    if not target:
-        return None, None
-    # Get monthly data from the first run (the full version run)
-    runs = target.get("runs", [])
-    if not runs:
-        return None, None
-    monthly = runs[0].get("metrics", {}).get("monthly", [])
-    if len(monthly) < 2:
-        return None, None
-    # Find best and worst by net_pnl
-    best  = max(monthly, key=lambda m: m.get("net_pnl", 0))
-    worst = min(monthly, key=lambda m: m.get("net_pnl", 0))
-    # Convert period string "2025-03" to date range
-    def month_to_range(period_str):
-        parts = period_str.split("-")
-        y, m = int(parts[0]), int(parts[1])
-        first = date(y, m, 1)
-        last_day = calendar.monthrange(y, m)[1]
-        last = date(y, m, last_day)
-        return first.strftime("%Y-%m-%d"), last.strftime("%Y-%m-%d")
-    return month_to_range(best["month"]), month_to_range(worst["month"])
-
-
-def _version_with_auto_ranges(env_overrides):
-    """Run new version backtest, then auto-add best & worst month date ranges."""
-    # Step 1: Run the version backtest
-    with _bt_lock:
-        _bt_state["stage"] = "Running version backtest\u2026"
-    result = _run_backtest_sync(env_overrides)
-    if not result["ok"]:
-        with _bt_lock:
-            _bt_state.update(result)
-            _bt_state["running"] = False
-            _bt_state["stage"]   = ""
-        return
-
-    # Done
-    with _bt_lock:
-        _bt_state["ok"]      = True
-        _bt_state["no_data"] = False
-        _bt_state["error"]   = None
-        _bt_state["running"] = False
-        _bt_state["stage"]   = ""
-
-
-@app.route("/run", methods=["POST"])
-def run_backtest():
-    """Start strategy.py as a new version run (730 days, version incremented)."""
-    with _bt_lock:
-        if _bt_state["running"]:
-            return jsonify({"ok": False, "error": "A backtest is already running"})
-        _bt_state["running"] = True
-        _bt_state["ok"]      = None
-        _bt_state["error"]   = None
-        _bt_state["no_data"] = False
-        _bt_state["stage"]   = ""
-        _bt_state["progress"] = 0
-
-    # RUN_MODE=new_version tells strategy.py to increment version
-    data = request.get_json(force=True) or {}
-    instrument = (data.get("instrument") or "").strip()
-    direction  = (data.get("direction") or "").strip()
-    interval   = (data.get("interval") or "").strip()
-    ema_short   = (data.get("ema_short") or "").strip()
-    ema_mid     = (data.get("ema_mid") or "").strip()
-    ema_long    = (data.get("ema_long") or "").strip()
-    stop_pips   = (data.get("stop_loss_pips") or "").strip()
-    rrr_risk    = (data.get("rrr_risk") or "").strip()
-    rrr_reward  = (data.get("rrr_reward") or "").strip()
-    blocked_hours = (data.get("blocked_hours") or "").strip()
-    max_daily_losses = (data.get("max_daily_losses") or "").strip()
-    apply_slippage   = (data.get("apply_slippage") or "").strip()
-    spread_pips      = (data.get("spread_pips") or "").strip()
-    sl_slippage_pips = (data.get("sl_slippage_pips") or "").strip()
-    use_ema_filter   = data.get("use_ema_filter")
-    strategy_version = (data.get("strategy_version") or "").strip()
-    env_overrides = {"RUN_MODE": "new_version"}
-    if strategy_version:
-        env_overrides["STRATEGY_VERSION"] = strategy_version
-    if instrument:
-        env_overrides["INSTRUMENT"] = instrument
-    if direction:
-        env_overrides["TRADE_DIRECTION"] = direction
-    if interval:
-        env_overrides["INTERVAL"] = interval
-    if ema_short:
-        env_overrides["EMA_SHORT"] = ema_short
-    if ema_mid:
-        env_overrides["EMA_MID"] = ema_mid
-    if ema_long:
-        env_overrides["EMA_LONG"] = ema_long
-    if stop_pips:
-        env_overrides["FRACTAL_STOP_PIPS"] = stop_pips
-    if rrr_risk:
-        env_overrides["RRR_RISK"] = rrr_risk
-    if rrr_reward:
-        env_overrides["RRR_REWARD"] = rrr_reward
-    env_overrides["BLOCKED_HOURS_UTC"] = blocked_hours if blocked_hours else ""
-    if max_daily_losses:
-        env_overrides["MAX_DAILY_LOSSES"] = max_daily_losses
-    if apply_slippage:
-        env_overrides["APPLY_SLIPPAGE"] = apply_slippage
-    if spread_pips:
-        env_overrides["SPREAD_PIPS"] = spread_pips
-    if sl_slippage_pips:
-        env_overrides["SL_SLIPPAGE_PIPS"] = sl_slippage_pips
-    # Bug fix (May 2026): explicit use_ema_filter in the BD payload now
-    # wins over the version's params.use_ema_filter. Previously the BD
-    # didn't send this field at all, so the version's value was always
-    # used — which broke when the dropdown was decoupled from the global
-    # active version (the strategy ran with the wrong version's filter
-    # state). Now the BD always sends what its checkbox shows.
-    if isinstance(use_ema_filter, bool):
-        env_overrides["USE_EMA_FILTER"] = "true" if use_ema_filter else "false"
-    elif isinstance(use_ema_filter, str) and use_ema_filter.strip():
-        env_overrides["USE_EMA_FILTER"] = use_ema_filter.strip()
-
-    # Layer in the SELECTED version's params + regime allow-lists.
-    # Selection comes from payload.version_id (or payload.strategy_version
-    # when it's a version id) — falls back to global active.
-    _apply_active_version_to_env(env_overrides, data)
-
-    t = threading.Thread(
-        target=_version_with_auto_ranges,
-        args=(env_overrides,),
-        daemon=True,
-    )
-    t.start()
-    return jsonify({"ok": True, "started": True})
+# May 2026: the /run endpoint, its `_version_with_auto_ranges` worker, and
+# the orphan `_get_best_worst_months` helper that fed it were retired along
+# with the BD's "Add Year" button. All BD backtests now flow through
+# /run_range (single date range) and /run_batch (multi-range).
 
 
 @app.route("/run_range", methods=["POST"])

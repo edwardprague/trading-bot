@@ -2428,16 +2428,18 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
            version is set exclusively on /versions and surfaced read-only
            in the top-right "Active: vN" indicator. The title row also
            reads the active version's instrument + interval (handled by
-           syncRegimePageTitle below). -->
-      <button id="run-analysis-btn" class="rb-btn rb-btn-green" type="button">
-        <span class="rb-btn-icon">&#9654;</span> Run Analysis
-      </button>
-      <span class="rb-sep"></span>
+           syncRegimePageTitle below).
+           May 2026 update: Run Analysis moved to the RIGHT of the date
+           pickers so the date inputs lead and the action follows them —
+           consistent with reading "From X To Y, then run". -->
       <!-- Task 3: native date inputs (no Mon-DD-YY overlay). -->
       <label class="rb-label" for="rb-start">From</label>
       <input type="date" id="rb-start" class="rb-date" value="{START_DATE}">
       <label class="rb-label" for="rb-end">To</label>
       <input type="date" id="rb-end" class="rb-date" value="{END_DATE}">
+      <button id="run-analysis-btn" class="rb-btn rb-btn-green" type="button">
+        <span class="rb-btn-icon">&#9654;</span> Run Analysis
+      </button>
       <span id="run-status" class="rb-status"></span>
       <div class="rb-action-group">
         <button id="regime-copy-btn" class="rb-btn rb-btn-copy" type="button"
