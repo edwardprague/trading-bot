@@ -3641,7 +3641,7 @@ def _run_backtest_sync(env_overrides=None):
                           "INTERVAL", "RUN_MODE", "RUN_START_DATE", "RUN_END_DATE"]
             snap = {k: env.get(k, "<UNSET>") for k in debug_keys}
             snap["__overrides_keys"] = sorted((env_overrides or {}).keys())
-            with open("/tmp/bd_last_env.json", "w") as _f:
+            with open(str(BASE_DIR / ".bd_debug_env.json"), "w") as _f:
                 _json.dump(snap, _f, indent=2)
         except Exception:
             pass

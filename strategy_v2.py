@@ -115,7 +115,9 @@ ALLOWED_MICRO_KEYS = {_micro_key(n) for n in _ALLOWED_MICRO_RAW}
 # saw for ALLOWED_*_REGIMES at import. Remove once fixed.
 try:
     import json as _dbg_json
-    with open("/tmp/strategy_v2_regime_load.json", "w") as _dbg_f:
+    from pathlib import Path as _DbgPath
+    _dbg_base = _DbgPath(__file__).resolve().parent
+    with open(str(_dbg_base / ".strategy_v2_regime_load.json"), "w") as _dbg_f:
         _dbg_json.dump({
             "env_ALLOWED_MACRO_REGIMES": os.environ.get("ALLOWED_MACRO_REGIMES", "<UNSET>"),
             "env_ALLOWED_MICRO_REGIMES": os.environ.get("ALLOWED_MICRO_REGIMES", "<UNSET>"),
