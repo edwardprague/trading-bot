@@ -2836,12 +2836,18 @@ __VERSIONS_JSON__
   }
 
   function _sectionFor(days) {
+    /* Sidebar bucketing — May 2026: multi-month ranges (4mo, 6mo, etc.)
+       previously fell into WEEKS because Month was scoped to exactly
+       28-31 days. New rule: anything from a full month up to a year
+       lands in Month. Buckets are still mutually exclusive.
+         1 day            → Day
+         2-27 days        → Weeks
+         28-364 days      → Month
+         365+ days        → Year */
     if (days >= 365) return "Year";
-    if (days >= 28 && days <= 31) return "Month";
-    if (days >= 2 && days <= 27) return "Weeks";
-    if (days === 1) return "Day";
-    /* 32-364 days that aren't exactly a month — group with Weeks as closest fit */
-    if (days > 31 && days < 365) return "Weeks";
+    if (days >= 28)  return "Month";
+    if (days >= 2)   return "Weeks";
+    if (days === 1)  return "Day";
     return "Other";
   }
 
