@@ -60,7 +60,7 @@
       },
       {
         "condition": "EMA Long",
-        "rule": "55"
+        "rule": "166"
       },
       {
         "condition": "Stop Loss Level",
@@ -65434,6 +65434,1364 @@
             "entry": "1.32547",
             "exit": "1.32680",
             "pnl": "-1320.28",
+            "result": "LOSS"
+          }
+        ],
+        "active_version": "v1"
+      },
+      {
+        "date": "2026-05-21 08:46",
+        "start_date": "2025-07-01",
+        "end_date": "2025-12-31",
+        "days_back": 0,
+        "label": "2025-07-01 → 2025-12-31",
+        "instrument": "GBPUSD",
+        "interval": "5m",
+        "trade_direction": "short_only",
+        "ema_short": 8,
+        "ema_mid": 20,
+        "ema_long": 166,
+        "stop_loss_pips": 10,
+        "rrr_risk": 1,
+        "rrr_reward": 4,
+        "blocked_hours": [
+          4,
+          5,
+          6,
+          8,
+          10,
+          11,
+          14,
+          17
+        ],
+        "max_daily_losses": 2,
+        "apply_slippage": true,
+        "sl_slippage_pips": 1.0,
+        "spread_pips": 1.0,
+        "notes": "Fractal geometry entries — no EMA alignment",
+        "chart_b64": "",
+        "eq_dd_chart_b64": "",
+        "metrics": {
+          "total_trades": 172,
+          "winning_trades": 35,
+          "losing_trades": 137,
+          "win_rate": 20.3,
+          "profit_factor": 0.88,
+          "avg_win": 3757.68,
+          "avg_loss": -1086.1,
+          "avg_stop_pips": 18.1,
+          "avg_target_pips": 72.4,
+          "best_trade": 4553.12,
+          "worst_trade": -1350.65,
+          "net_profit": -17276.18,
+          "net_profit_pct": -17.28,
+          "gross_profit": 131518.88,
+          "gross_loss": -148795.06,
+          "final_equity": 82723.82,
+          "max_drawdown": -34.07,
+          "max_drawdown_dollar": -41614.55,
+          "max_daily_drawdown": {
+            "dollar": -2636.78,
+            "pct": -2.64
+          },
+          "daily_drawdown": [
+            {
+              "date": "2025-07-31",
+              "trades": 2,
+              "pnl": -2636.78,
+              "drawdown_pct": -2.64
+            },
+            {
+              "date": "2025-08-05",
+              "trades": 2,
+              "pnl": -2560.33,
+              "drawdown_pct": -2.56
+            },
+            {
+              "date": "2025-08-08",
+              "trades": 2,
+              "pnl": -2539.94,
+              "drawdown_pct": -2.54
+            },
+            {
+              "date": "2025-07-22",
+              "trades": 2,
+              "pnl": -2524.1,
+              "drawdown_pct": -2.52
+            },
+            {
+              "date": "2025-07-08",
+              "trades": 2,
+              "pnl": -2466.56,
+              "drawdown_pct": -2.47
+            }
+          ],
+          "sharpe": -0.24,
+          "avg_position_size": 592058.0,
+          "min_position_size": 127732.0,
+          "max_position_size": 977129.0,
+          "by_direction": {
+            "long": null,
+            "short": {
+              "count": 172,
+              "win_rate": 20.3,
+              "profit_factor": 0.88,
+              "avg_win": 3757.68,
+              "avg_loss": -1086.1,
+              "avg_pnl_per_trade": -100.44,
+              "pct_of_total_trades": 100.0
+            }
+          },
+          "monthly": [
+            {
+              "month": "2025-07",
+              "trades": 32,
+              "wins": 10,
+              "losses": 22,
+              "win_rate": 31.2,
+              "max_dd": -11470.81,
+              "max_daily_dd": -2636.78,
+              "net_pnl": 14443.39
+            },
+            {
+              "month": "2025-08",
+              "trades": 29,
+              "wins": 5,
+              "losses": 24,
+              "win_rate": 17.2,
+              "max_dd": -17576.85,
+              "max_daily_dd": -2560.33,
+              "net_pnl": -8569.22
+            },
+            {
+              "month": "2025-09",
+              "trades": 33,
+              "wins": 4,
+              "losses": 29,
+              "win_rate": 12.1,
+              "max_dd": -18006.19,
+              "max_daily_dd": -2286.26,
+              "net_pnl": -16428.39
+            },
+            {
+              "month": "2025-10",
+              "trades": 24,
+              "wins": 6,
+              "losses": 18,
+              "win_rate": 25.0,
+              "max_dd": -6821.43,
+              "max_daily_dd": -2110.01,
+              "net_pnl": 2541.88
+            },
+            {
+              "month": "2025-11",
+              "trades": 29,
+              "wins": 5,
+              "losses": 24,
+              "win_rate": 17.2,
+              "max_dd": -13178.18,
+              "max_daily_dd": -2133.74,
+              "net_pnl": -6670.05
+            },
+            {
+              "month": "2025-12",
+              "trades": 24,
+              "wins": 5,
+              "losses": 19,
+              "win_rate": 20.8,
+              "max_dd": -7099.94,
+              "max_daily_dd": -1944.2,
+              "net_pnl": -1705.34
+            },
+            {
+              "month": "2026-01",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "max_dd": 0.0,
+              "max_daily_dd": -888.46,
+              "net_pnl": -888.46
+            }
+          ],
+          "daily": [
+            {
+              "date": "2025-07-01",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 3857.93
+            },
+            {
+              "date": "2025-07-02",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2201.05
+            },
+            {
+              "date": "2025-07-04",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 3905.11
+            },
+            {
+              "date": "2025-07-06",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 4062.16
+            },
+            {
+              "date": "2025-07-07",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2992.01
+            },
+            {
+              "date": "2025-07-08",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2466.56
+            },
+            {
+              "date": "2025-07-09",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1182.79
+            },
+            {
+              "date": "2025-07-10",
+              "trades": 3,
+              "wins": 2,
+              "losses": 1,
+              "win_rate": 66.7,
+              "net_pnl": 7248.56
+            },
+            {
+              "date": "2025-07-11",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 4495.05
+            },
+            {
+              "date": "2025-07-14",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1254.2
+            },
+            {
+              "date": "2025-07-16",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1246.53
+            },
+            {
+              "date": "2025-07-18",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1341.35
+            },
+            {
+              "date": "2025-07-20",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1320.41
+            },
+            {
+              "date": "2025-07-21",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1328.89
+            },
+            {
+              "date": "2025-07-22",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2524.1
+            },
+            {
+              "date": "2025-07-23",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2455.33
+            },
+            {
+              "date": "2025-07-24",
+              "trades": 3,
+              "wins": 2,
+              "losses": 1,
+              "win_rate": 66.7,
+              "net_pnl": 7309.66
+            },
+            {
+              "date": "2025-07-25",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1228.18
+            },
+            {
+              "date": "2025-07-28",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 3107.33
+            },
+            {
+              "date": "2025-07-30",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1348.24
+            },
+            {
+              "date": "2025-07-31",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2636.78
+            },
+            {
+              "date": "2025-08-01",
+              "trades": 4,
+              "wins": 2,
+              "losses": 2,
+              "win_rate": 50.0,
+              "net_pnl": 6351.59
+            },
+            {
+              "date": "2025-08-03",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1350.65
+            },
+            {
+              "date": "2025-08-04",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1280.99
+            },
+            {
+              "date": "2025-08-05",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2560.33
+            },
+            {
+              "date": "2025-08-06",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1269.02
+            },
+            {
+              "date": "2025-08-07",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1262.38
+            },
+            {
+              "date": "2025-08-08",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2539.94
+            },
+            {
+              "date": "2025-08-11",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1209.27
+            },
+            {
+              "date": "2025-08-12",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1136.53
+            },
+            {
+              "date": "2025-08-13",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2455.64
+            },
+            {
+              "date": "2025-08-14",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2895.9
+            },
+            {
+              "date": "2025-08-21",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2410.76
+            },
+            {
+              "date": "2025-08-22",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2872.91
+            },
+            {
+              "date": "2025-08-25",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2434.34
+            },
+            {
+              "date": "2025-08-26",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1186.64
+            },
+            {
+              "date": "2025-08-27",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2782.82
+            },
+            {
+              "date": "2025-08-28",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1187.5
+            },
+            {
+              "date": "2025-08-29",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2400.88
+            },
+            {
+              "date": "2025-09-01",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1178.68
+            },
+            {
+              "date": "2025-09-02",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2890.88
+            },
+            {
+              "date": "2025-09-05",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1227.75
+            },
+            {
+              "date": "2025-09-07",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1109.56
+            },
+            {
+              "date": "2025-09-08",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1172.65
+            },
+            {
+              "date": "2025-09-09",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2286.26
+            },
+            {
+              "date": "2025-09-10",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2173.09
+            },
+            {
+              "date": "2025-09-11",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2166.04
+            },
+            {
+              "date": "2025-09-12",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1026.65
+            },
+            {
+              "date": "2025-09-15",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1028.53
+            },
+            {
+              "date": "2025-09-16",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1032.0
+            },
+            {
+              "date": "2025-09-17",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2066.21
+            },
+            {
+              "date": "2025-09-18",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2451.75
+            },
+            {
+              "date": "2025-09-19",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2004.09
+            },
+            {
+              "date": "2025-09-23",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1037.4
+            },
+            {
+              "date": "2025-09-24",
+              "trades": 3,
+              "wins": 1,
+              "losses": 2,
+              "win_rate": 33.3,
+              "net_pnl": 1480.89
+            },
+            {
+              "date": "2025-09-25",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2479.77
+            },
+            {
+              "date": "2025-09-26",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1017.66
+            },
+            {
+              "date": "2025-09-28",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -988.72
+            },
+            {
+              "date": "2025-09-29",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1052.9
+            },
+            {
+              "date": "2025-09-30",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -1951.03
+            },
+            {
+              "date": "2025-10-01",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -1958.94
+            },
+            {
+              "date": "2025-10-02",
+              "trades": 3,
+              "wins": 1,
+              "losses": 2,
+              "win_rate": 33.3,
+              "net_pnl": 1368.16
+            },
+            {
+              "date": "2025-10-03",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -933.98
+            },
+            {
+              "date": "2025-10-05",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 3410.45
+            },
+            {
+              "date": "2025-10-14",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -1993.73
+            },
+            {
+              "date": "2025-10-15",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -1926.94
+            },
+            {
+              "date": "2025-10-16",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -1956.48
+            },
+            {
+              "date": "2025-10-17",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2301.05
+            },
+            {
+              "date": "2025-10-21",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 3379.4
+            },
+            {
+              "date": "2025-10-24",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -1960.87
+            },
+            {
+              "date": "2025-10-28",
+              "trades": 2,
+              "wins": 2,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 6985.89
+            },
+            {
+              "date": "2025-10-29",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2062.13
+            },
+            {
+              "date": "2025-10-30",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2110.01
+            },
+            {
+              "date": "2025-10-31",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 3532.0
+            },
+            {
+              "date": "2025-11-04",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1011.28
+            },
+            {
+              "date": "2025-11-06",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1046.15
+            },
+            {
+              "date": "2025-11-07",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2010.64
+            },
+            {
+              "date": "2025-11-10",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1019.1
+            },
+            {
+              "date": "2025-11-11",
+              "trades": 3,
+              "wins": 1,
+              "losses": 2,
+              "win_rate": 33.3,
+              "net_pnl": 1446.43
+            },
+            {
+              "date": "2025-11-12",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2472.55
+            },
+            {
+              "date": "2025-11-13",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1002.69
+            },
+            {
+              "date": "2025-11-14",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2019.77
+            },
+            {
+              "date": "2025-11-17",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 3508.35
+            },
+            {
+              "date": "2025-11-19",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2572.03
+            },
+            {
+              "date": "2025-11-20",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1063.44
+            },
+            {
+              "date": "2025-11-21",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2133.74
+            },
+            {
+              "date": "2025-11-23",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1056.42
+            },
+            {
+              "date": "2025-11-24",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1017.83
+            },
+            {
+              "date": "2025-11-25",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2032.09
+            },
+            {
+              "date": "2025-11-26",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -1923.34
+            },
+            {
+              "date": "2025-11-27",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -1922.43
+            },
+            {
+              "date": "2025-11-28",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -1863.5
+            },
+            {
+              "date": "2025-12-01",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 3230.34
+            },
+            {
+              "date": "2025-12-02",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -1944.2
+            },
+            {
+              "date": "2025-12-03",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -922.23
+            },
+            {
+              "date": "2025-12-04",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -1874.93
+            },
+            {
+              "date": "2025-12-05",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 3174.65
+            },
+            {
+              "date": "2025-12-09",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -899.8
+            },
+            {
+              "date": "2025-12-10",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -946.44
+            },
+            {
+              "date": "2025-12-11",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2279.87
+            },
+            {
+              "date": "2025-12-12",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -937.11
+            },
+            {
+              "date": "2025-12-15",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -957.05
+            },
+            {
+              "date": "2025-12-16",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -920.93
+            },
+            {
+              "date": "2025-12-17",
+              "trades": 3,
+              "wins": 1,
+              "losses": 2,
+              "win_rate": 33.3,
+              "net_pnl": 1400.67
+            },
+            {
+              "date": "2025-12-18",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -904.82
+            },
+            {
+              "date": "2025-12-22",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -945.85
+            },
+            {
+              "date": "2025-12-23",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -1816.46
+            },
+            {
+              "date": "2025-12-24",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2199.98
+            },
+            {
+              "date": "2025-12-30",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -888.46
+            }
+          ],
+          "intraday": [],
+          "streaks": {
+            "max_win_streak": 2,
+            "max_loss_streak": 16,
+            "avg_win_streak": 1.2,
+            "avg_loss_streak": 4.6,
+            "current_streak": "1L"
+          },
+          "stop_target": {
+            "pct_sl": 79.7,
+            "pct_tp": 20.3,
+            "avg_mae": 19.8
+          },
+          "regime": [
+            {
+              "regime": "Trending (ADX ≥25)",
+              "count": 78,
+              "win_rate": 19.2,
+              "profit_factor": 0.83,
+              "net_pnl": -11388.6
+            },
+            {
+              "regime": "Ranging (ADX <25)",
+              "count": 94,
+              "win_rate": 21.3,
+              "profit_factor": 0.93,
+              "net_pnl": -5887.58
+            }
+          ],
+          "time_of_day": {
+            "rows": [
+              {
+                "hour": 0,
+                "trades": 19,
+                "win_rate": 36.8,
+                "net_pnl": 12884.75
+              },
+              {
+                "hour": 1,
+                "trades": 14,
+                "win_rate": 7.1,
+                "net_pnl": -10069.48
+              },
+              {
+                "hour": 2,
+                "trades": 15,
+                "win_rate": 13.3,
+                "net_pnl": -6201.3
+              },
+              {
+                "hour": 3,
+                "trades": 4,
+                "win_rate": 50.0,
+                "net_pnl": 5031.46
+              },
+              {
+                "hour": 7,
+                "trades": 24,
+                "win_rate": 20.8,
+                "net_pnl": -2645.21
+              },
+              {
+                "hour": 9,
+                "trades": 19,
+                "win_rate": 21.1,
+                "net_pnl": -1340.61
+              },
+              {
+                "hour": 12,
+                "trades": 15,
+                "win_rate": 13.3,
+                "net_pnl": -6445.54
+              },
+              {
+                "hour": 13,
+                "trades": 14,
+                "win_rate": 21.4,
+                "net_pnl": -830.23
+              },
+              {
+                "hour": 15,
+                "trades": 15,
+                "win_rate": 20.0,
+                "net_pnl": 432.16
+              },
+              {
+                "hour": 16,
+                "trades": 10,
+                "win_rate": 10.0,
+                "net_pnl": -5239.21
+              },
+              {
+                "hour": 18,
+                "trades": 6,
+                "win_rate": 16.7,
+                "net_pnl": -3312.55
+              },
+              {
+                "hour": 19,
+                "trades": 4,
+                "win_rate": 0.0,
+                "net_pnl": -4544.0
+              },
+              {
+                "hour": 20,
+                "trades": 3,
+                "win_rate": 33.3,
+                "net_pnl": 1313.53
+              },
+              {
+                "hour": 21,
+                "trades": 4,
+                "win_rate": 50.0,
+                "net_pnl": 5667.22
+              },
+              {
+                "hour": 22,
+                "trades": 4,
+                "win_rate": 25.0,
+                "net_pnl": 281.53
+              },
+              {
+                "hour": 23,
+                "trades": 2,
+                "win_rate": 0.0,
+                "net_pnl": -2258.71
+              }
+            ],
+            "best_hour": 0,
+            "worst_hour": 1
+          },
+          "win_rate_trend": [
+            {
+              "period": "Jul-02-25 to Aug-26-25",
+              "trades": 57,
+              "win_rate": 24.6,
+              "profit_factor": 1.1,
+              "net_pnl": 5467.28
+            },
+            {
+              "period": "Aug-27-25 to Oct-29-25",
+              "trades": 57,
+              "win_rate": 19.3,
+              "profit_factor": 0.81,
+              "net_pnl": -9307.47
+            },
+            {
+              "period": "Oct-29-25 to Jan-02-26",
+              "trades": 58,
+              "win_rate": 17.2,
+              "profit_factor": 0.71,
+              "net_pnl": -13435.99
+            }
+          ],
+          "duration_analysis": {
+            "winners": {
+              "avg": 324.9,
+              "min": 45,
+              "max": 1834
+            },
+            "losers": {
+              "avg": 107.0,
+              "min": 1,
+              "max": 942
+            },
+            "all": {
+              "avg": 151.4,
+              "min": 1,
+              "max": 1834
+            }
+          },
+          "filter_impact": [
+            {
+              "filter": "Direction Filter",
+              "removed": 573,
+              "win_rate": 21.1,
+              "net_pnl": -18562.58
+            },
+            {
+              "filter": "Time Filter",
+              "removed": 85,
+              "win_rate": 21.2,
+              "net_pnl": 2320.98
+            }
+          ],
+          "rs_diagnostic": {
+            "trades_filtered": 0,
+            "trades_allowed": 172,
+            "total_signals": 172,
+            "filter_rate": 0.0,
+            "filtered_wr": 0.0,
+            "filtered_pf": null,
+            "allowed_wr": 20.3,
+            "allowed_pf": 0.88
+          },
+          "rrr_sensitivity": [
+            {
+              "trades": 308,
+              "win_rate": 44.8,
+              "profit_factor": 1.03,
+              "net_pnl": 5557.99,
+              "max_drawdown": -25.87,
+              "param": 1.5
+            },
+            {
+              "trades": 258,
+              "win_rate": 34.9,
+              "profit_factor": 0.91,
+              "net_pnl": -15608.9,
+              "max_drawdown": -33.56,
+              "param": 2.0
+            },
+            {
+              "trades": 196,
+              "win_rate": 30.6,
+              "profit_factor": 0.95,
+              "net_pnl": -8277.94,
+              "max_drawdown": -31.27,
+              "param": 2.5
+            },
+            {
+              "trades": 175,
+              "win_rate": 26.9,
+              "profit_factor": 0.95,
+              "net_pnl": -8035.3,
+              "max_drawdown": -25.54,
+              "param": 3.0
+            }
+          ],
+          "swing_sensitivity": [],
+          "pivot_diagnostics": {
+            "is_single_day": false,
+            "pivots": []
+          }
+        },
+        "last_trades": [
+          {
+            "direction": "Short",
+            "entry": "1.34230",
+            "exit": "1.33690",
+            "pnl": "+3198.76",
+            "result": "WIN"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.33467",
+            "exit": "1.33960",
+            "pnl": "-881.83",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.33943",
+            "exit": "1.34167",
+            "pnl": "-916.26",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.34112",
+            "exit": "1.34340",
+            "pnl": "-904.82",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.34327",
+            "exit": "1.34467",
+            "pnl": "-945.85",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.34797",
+            "exit": "1.34983",
+            "pnl": "-902.35",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.35055",
+            "exit": "1.35207",
+            "pnl": "-914.11",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.35110",
+            "exit": "1.35290",
+            "pnl": "-885.30",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.35157",
+            "exit": "1.34501",
+            "pnl": "+3085.28",
+            "result": "WIN"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.34646",
+            "exit": "1.34875",
+            "pnl": "-888.46",
             "result": "LOSS"
           }
         ],
