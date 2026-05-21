@@ -306,6 +306,37 @@ body {
     margin-bottom: 0;
 }
 
+/* ── Restore-to-version-defaults button (May 2026) ───────────────────────
+   Sits at the bottom of the Backtest Settings panel, right-aligned. Stays
+   hidden via the [hidden] attribute when the panel matches the active
+   version's params; INJECT_HTML's bdCheckRestoreVisibility toggles it
+   the instant any field diverges. Visual treatment is intentionally
+   muted — it's a "you've gone off-piste" affordance, not a primary
+   action; the green Run button stays the focal point. */
+.bs-restore-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+    min-height: 28px;
+}
+
+.bs-restore-defaults-btn {
+    background: transparent;
+    color: #ccc;
+    border: 1px solid #666;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.bs-restore-defaults-btn:hover {
+    color: #fff;
+    border-color: #999;
+    background: #222;
+}
+
 .v-notes {
     margin-top: 14px;
     padding: 11px 16px;

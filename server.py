@@ -960,22 +960,23 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ── BD pre-populate from active version's params ──────────────────────
-     Discovery-assigned versions carry a slim `params` snapshot — the new
-     schema replaces the old `backtest_params` field. Stamp these onto
-     the BD's settings-panel inputs in the DOM so the run-bar reflects
-     what the next backtest will actually use.
+     Discovery-assigned versions carry a slim `params` snapshot. This
+     function is the single authoritative way to populate the editable
+     Backtest Settings panel — it runs on page load (after /api/versions
+     resolves) and on Restore-button click. The panel's initial render in
+     the strategy templates uses these same params (window.__activeVersion);
+     this re-stamp guarantees consistency even if a re-render races with
+     the fetch.
 
-     Fields pre-filled (per spec): EMA Long, fractal stop pips, RRR
-     reward, max daily losses. rrr_risk is implicitly 1 (Discovery holds
-     it fixed). blocked_hours is NOT in the version's params block — it
-     stays under the user's own BD control.
+     Stamped fields (per spec — task May 2026):
+       EMA Long, Stop Loss (fractal_stop_pips), RRR Reward, Max DD,
+       EMA Filter (checkbox), Direction, Blocked Hours.
+     rrr_risk is implicitly 1 (Discovery holds it fixed).
 
-     We deliberately do NOT write to localStorage — switching to an
-     unassigned version (no params) restores from localStorage so the
-     user's hand-tuned BD prefs survive a discovery detour.
-
-     use_ema_filter has no visible BD checkbox today, but the strategy
-     subprocess still picks it up via _apply_active_version_to_env. */
+     localStorage is NOT consulted — the version params are the source of
+     truth on load. Session-local tweaks live in the DOM and surface the
+     Restore button via bdCheckRestoreVisibility; a refresh resets to
+     version defaults. */
   function applyBacktestParamsFromVersion(version) {
     var p = version && version.params;
     function setVal(id, v) {
@@ -986,11 +987,10 @@ document.addEventListener("DOMContentLoaded", function () {
       var el = document.getElementById(id);
       if (el && v !== undefined && v !== null) el.checked = !!v;
     }
-    /* Bug fix (May 2026): blocked_hours is a CSV string like
-       "4,5,6,8,10,11,14,17". Parse and apply to the 24 bs-bh-* checkboxes.
-       Hours present in the CSV → checked (blocked); absent → unchecked
-       (allowed). Done with an explicit reset so a switch from a version
-       with many blocked hours to one with few clears the extras. */
+    /* blocked_hours arrives as a CSV string like "4,5,6,8,10,11,14,17".
+       Parse and apply to the 24 bs-bh-* checkboxes. Reset all 24 first so
+       switching from a version with many blocked hours to one with few
+       clears the extras. */
     function setBlockedHours(csv) {
       var hSet = {};
       String(csv || "").split(",").forEach(function (s) {
@@ -1006,37 +1006,81 @@ document.addEventListener("DOMContentLoaded", function () {
       setVal("bs-stop-pips",  p.fractal_stop_pips);
       setVal("bs-rrr-reward", p.rrr_reward);
       setVal("bs-max-dd",     p.max_daily_losses);
-      /* Bug fix (May 2026): pre-fill the EMA filter checkbox from the
-         version's params.use_ema_filter so the user sees the state
-         that will be used for the next backtest. Previously the BD had
-         no visible toggle for this — the strategy subprocess silently
-         read USE_EMA_FILTER from env, and discrepancies between the
-         version's setting and the BD's default-on state went unnoticed. */
       setCheckbox("bs-use-ema-filter", p.use_ema_filter);
-      /* Bug fix (May 2026): pre-fill Direction and Blocked Hours from
-         the version's params. Discovery holds these fixed in Phase 1
-         (short_only / 4,5,6,8,10,11,14,17) — without applying them here
-         the BD's user-tunable Direction dropdown and blocked-hours
-         checkboxes silently override the Discovery setting on the next
-         run, producing materially different results. */
-      if (p.trade_direction) setVal("bs-direction-select", p.trade_direction);
+      if (p.trade_direction)        setVal("bs-direction-select", p.trade_direction);
       if (p.blocked_hours !== undefined) setBlockedHours(p.blocked_hours);
-    } else {
-      /* Unassigned version: restore inputs from localStorage so a
-         previous stamp from an assigned version doesn't bleed through. */
-      var ls = window.localStorage;
-      setVal("bs-ema-long",   ls.getItem("bs_ema_long"));
-      setVal("bs-stop-pips",  ls.getItem("bs_stop_pips"));
-      setVal("bs-rrr-reward", ls.getItem("bs_rrr_reward"));
-      setVal("bs-max-dd",     ls.getItem("bs_max_dd"));
-      var storedFilter = ls.getItem("bs_use_ema_filter");
-      if (storedFilter !== null) setCheckbox("bs-use-ema-filter", storedFilter === "true");
-      var storedDir = ls.getItem("bs_direction");
-      if (storedDir) setVal("bs-direction-select", storedDir);
-      var storedBH = ls.getItem("bs_blocked_hours");
-      if (storedBH !== null) setBlockedHours(storedBH);
     }
+    /* No-params (unassigned active version) → leave whatever the panel
+       template rendered. We don't fall back to localStorage anymore
+       (May 2026 bug fix). */
+    bdCheckRestoreVisibility();
   }
+
+  /* ── Restore-to-version-defaults button visibility (May 2026) ─────────
+     The button hides when the panel's editable values all match the
+     active version's params, and shows the moment any field diverges.
+     Called from: applyBacktestParamsFromVersion (after stamping —
+     guaranteed match → hide), and the delegated change/input listener
+     wired below (any edit → re-check). */
+  function bdCheckRestoreVisibility() {
+    var btn = document.getElementById("bs-restore-defaults");
+    if (!btn) return;
+    var p = window.__activeVersion && window.__activeVersion.params;
+    if (!p) {
+      /* No active version params → there's nothing to restore to. */
+      btn.hidden = true;
+      return;
+    }
+    function readVal(id)      { var el = document.getElementById(id); return el ? el.value : null; }
+    function readCheck(id)    { var el = document.getElementById(id); return el ? !!el.checked : null; }
+    function readBlockedCSV() {
+      var checked = [];
+      for (var h = 0; h <= 23; h++) {
+        var cb = document.getElementById("bs-bh-" + h);
+        if (cb && cb.checked) checked.push(h);
+      }
+      return checked.join(",");
+    }
+    function normalizeCSV(s) {
+      return String(s || "").split(",")
+        .map(function (x) { return (x || "").trim(); })
+        .filter(function (x) { return x !== ""; })
+        .map(function (x) { return parseInt(x, 10); })
+        .sort(function (a, b) { return a - b; })
+        .join(",");
+    }
+    var dirty =
+      (p.ema_long          != null && String(p.ema_long)          !== String(readVal("bs-ema-long"))) ||
+      (p.fractal_stop_pips != null && String(p.fractal_stop_pips) !== String(readVal("bs-stop-pips"))) ||
+      (p.rrr_reward        != null && String(p.rrr_reward)        !== String(readVal("bs-rrr-reward"))) ||
+      (p.max_daily_losses  != null && String(p.max_daily_losses)  !== String(readVal("bs-max-dd"))) ||
+      (p.use_ema_filter    != null && !!p.use_ema_filter          !== readCheck("bs-use-ema-filter")) ||
+      (p.trade_direction   && p.trade_direction                   !== readVal("bs-direction-select")) ||
+      (p.blocked_hours !== undefined && normalizeCSV(p.blocked_hours) !== normalizeCSV(readBlockedCSV()));
+    btn.hidden = !dirty;
+  }
+  /* Expose for the strategy template (called after panel re-renders to
+     re-check visibility — e.g. when switching sidebar runs). */
+  window._bdCheckRestoreVisibility = bdCheckRestoreVisibility;
+
+  /* Delegated listeners: any edit to a panel field re-checks dirty state.
+     Click on the Restore button re-stamps version params + hides itself.
+     Document-level so they survive panel re-renders. */
+  document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (!t || !t.id) return;
+    if (t.id.indexOf("bs-") === 0) bdCheckRestoreVisibility();
+  });
+  document.addEventListener("input", function (e) {
+    var t = e.target;
+    if (!t || !t.id) return;
+    if (t.id.indexOf("bs-") === 0) bdCheckRestoreVisibility();
+  });
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || t.id !== "bs-restore-defaults") return;
+    applyBacktestParamsFromVersion(window.__activeVersion);
+  });
 
   /* Active-version sync (May 2026 redesign). The version dropdown is gone;
      the active version is set exclusively on /versions and the BD reads
@@ -1254,12 +1298,12 @@ function getSelectedInstrument() {
   return "";
 }
 
-function getSelectedInterval() {
-  var el = document.getElementById("bs-interval-select");
-  if (el) return el.value;
-  var stored = localStorage.getItem("bs_interval");
-  return stored || "5m";
-}
+/* getSelectedInterval was removed (May 2026) — interval is a Discovery-level
+   setting now and lives only on the active version's params.interval. The
+   /run handlers in server.py layer that value into the backtest env via
+   _apply_active_version_to_env when the payload doesn't override it, which
+   is the desired behaviour. The run-payload assemblers below no longer
+   send `interval` at all. */
 
 function getSelectedEmaShort() {
   var el = document.getElementById("bs-ema-short");
@@ -1360,14 +1404,15 @@ function getSelectedUseEmaFilter() {
 function runNewVersion() {
   var instrument = getSelectedInstrument();
   var direction  = getSelectedDirection();
-  var interval   = getSelectedInterval();
   var version    = getSelectedVersion();
   localStorage.setItem("rb_pending_run_type", "new_version_auto");
   localStorage.setItem("rb_strategy_version", version);
   setRunning();
+  /* interval is intentionally omitted — server falls back to the active
+     version's params.interval via _apply_active_version_to_env. */
   fetch("/run", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, interval: interval, strategy_version: version, version_id: version, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), use_ema_filter: getSelectedUseEmaFilter(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
+    body: JSON.stringify({ mode: "new_version", instrument: instrument, direction: direction, strategy_version: version, version_id: version, ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), use_ema_filter: getSelectedUseEmaFilter(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {
@@ -1390,7 +1435,7 @@ function runDateRange() {
     setRunning();
     fetch("/run_batch", { method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ranges: selectedRanges, instrument: instrument, target_version: targetVersion, strategy_version: version, version_id: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), use_ema_filter: getSelectedUseEmaFilter(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
+      body: JSON.stringify({ ranges: selectedRanges, instrument: instrument, target_version: targetVersion, strategy_version: version, version_id: version, direction: getSelectedDirection(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), use_ema_filter: getSelectedUseEmaFilter(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
@@ -1415,7 +1460,7 @@ function runDateRange() {
   setRunning();
   fetch("/run_range", { method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, strategy_version: version, version_id: version, direction: getSelectedDirection(), interval: getSelectedInterval(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), use_ema_filter: getSelectedUseEmaFilter(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
+    body: JSON.stringify({ start_date: startDate, end_date: endDate, instrument: instrument, target_version: targetVersion, strategy_version: version, version_id: version, direction: getSelectedDirection(), ema_short: getSelectedEmaShort(), ema_mid: getSelectedEmaMid(), ema_long: getSelectedEmaLong(), stop_loss_pips: getSelectedStopPips(), rrr_risk: getSelectedRrrRisk(), rrr_reward: getSelectedRrrReward(), blocked_hours: getSelectedBlockedHours(), max_daily_losses: getSelectedMaxDD(), use_ema_filter: getSelectedUseEmaFilter(), apply_slippage: getSelectedApplySlippage(), spread_pips: getSelectedSpreadPips(), sl_slippage_pips: getSelectedSlSlippagePips() })
   })
   .then(function (r) { return r.json(); })
   .then(function (data) {

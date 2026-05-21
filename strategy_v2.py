@@ -4093,18 +4093,13 @@ __VERSIONS_JSON__
         return "<option value='" + o.value + "'" + (o.value === savedDir ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
 
-    var intervalOptions = [
-      { value: "1m", label: "1m" },
-      { value: "5m", label: "5m" },
-      { value: "15m", label: "15m" },
-      { value: "30m", label: "30m" },
-      { value: "60m", label: "60m" }
-    ];
+    /* Interval is a Discovery-level setting (May 2026 — version-aware BD).
+       The editable BD panel no longer offers an Interval row; the value is
+       always taken from the active version's params.interval (set when
+       Discovery assigned the version). `savedInterval` is still used below
+       in the read-only Parameters card to display what interval the
+       selected saved run actually used. */
     var savedInterval = run.interval || p.interval || "5m";
-    var intervalSelectHtml = "<select id='bs-interval-select' class='bs-select'>" +
-      intervalOptions.map(function(o) {
-        return "<option value='" + o.value + "'" + (o.value === savedInterval ? " selected" : "") + ">" + o.label + "</option>";
-      }).join("") + "</select>";
 
     var savedEmaShort = run.ema_short != null ? run.ema_short : (p.ema_short != null ? p.ema_short : 8);
     var savedEmaMid   = run.ema_mid   != null ? run.ema_mid   : (p.ema_mid   != null ? p.ema_mid   : 20);
@@ -4158,12 +4153,23 @@ __VERSIONS_JSON__
     var savedSpread = run.spread_pips != null ? run.spread_pips : (p.spread_pips != null ? p.spread_pips : 1.0);
     var spreadPipsHtml = "<input id='bs-spread-pips' type='number' class='bs-input' value='" + savedSpread + "' min='0' step='0.1'>";
 
-    /* Blocked Hours checkboxes */
+    /* Blocked Hours checkboxes. Initial state derives from the saved run's
+       blocked_hours (if present), then the active version's params.blocked_hours,
+       then the strategy module's DEFAULT_BLOCKED_HOURS. localStorage is no
+       longer consulted (May 2026 — bug fix: stale per-user tweaks were
+       overriding the version's intended blocked-hours set). The version's
+       params arrive as a CSV string "4,5,6,...", whereas run.blocked_hours
+       is an array; handle both. */
     var _defaultBlocked = DEFAULT_BLOCKED_HOURS;
-    var _savedBlocked = localStorage.getItem("bs_blocked_hours");
     var _blockedSet = {};
-    if (_savedBlocked) {
-      _savedBlocked.split(",").forEach(function (h) { if (h) _blockedSet[parseInt(h, 10)] = true; });
+    var _runBH = run.blocked_hours;
+    var _versionBH = p.blocked_hours;
+    if (Array.isArray(_runBH) && _runBH.length) {
+      _runBH.forEach(function (h) { _blockedSet[parseInt(h, 10)] = true; });
+    } else if (typeof _versionBH === "string" && _versionBH) {
+      _versionBH.split(",").forEach(function (h) {
+        var t = (h || "").trim(); if (t) _blockedSet[parseInt(t, 10)] = true;
+      });
     } else {
       _defaultBlocked.forEach(function (h) { _blockedSet[h] = true; });
     }
@@ -4183,12 +4189,12 @@ __VERSIONS_JSON__
 
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.filter(function(ec) {
-        return ec.condition !== "Instrument";
+        /* Interval row dropped from the editable panel (May 2026); the read-only
+           Parameters card still shows it. */
+        return ec.condition !== "Instrument" && ec.condition !== "Interval";
       }).map(function(ec) {
         var ruleCell = ec.condition === "Direction"
           ? dirSelectHtml
-          : ec.condition === "Interval"
-          ? intervalSelectHtml
           : ec.condition === "EMA Short"
           ? emaShortHtml
           : ec.condition === "EMA Mid"
@@ -4213,6 +4219,15 @@ __VERSIONS_JSON__
           "<table>" +
             "<tbody>" + ecRows + emaFilterRow + slippageRow + slSlippageRow + spreadRow + blockedHoursRow + "</tbody>" +
           "</table>" +
+          /* Restore to version defaults button — hidden by default; shown
+             by INJECT_HTML's bs-restore visibility check whenever any
+             editable panel value diverges from the active version's
+             params. Clicking it re-stamps params over the inputs. */
+          "<div class='bs-restore-row'>" +
+            "<button type='button' id='bs-restore-defaults' class='bs-restore-defaults-btn' hidden>" +
+              "Restore to version defaults" +
+            "</button>" +
+          "</div>" +
         "</div>";
     } else {
       entryCondHtml =
@@ -4220,7 +4235,8 @@ __VERSIONS_JSON__
           "<div class='section-title'>Backtest Settings</div>" +
           "<table>" +
             "<tbody>" +
-            "<tr><td class='bs-td-cond'>Interval</td><td class='bs-td-rule'>" + intervalSelectHtml + "</td></tr>" +
+            /* Interval row dropped from the editable panel (May 2026) —
+               interval is a Discovery-level setting now. */
             "<tr><td class='bs-td-cond'>EMA Short</td><td class='bs-td-rule'>" + emaShortHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>EMA Mid</td><td class='bs-td-rule'>" + emaMidHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>EMA Long</td><td class='bs-td-rule'>" + emaLongHtml + "</td></tr>" +
@@ -4235,6 +4251,11 @@ __VERSIONS_JSON__
             blockedHoursRow +
             "</tbody>" +
           "</table>" +
+          "<div class='bs-restore-row'>" +
+            "<button type='button' id='bs-restore-defaults' class='bs-restore-defaults-btn' hidden>" +
+              "Restore to version defaults" +
+            "</button>" +
+          "</div>" +
         "</div>";
     }
 
@@ -4435,16 +4456,9 @@ __VERSIONS_JSON__
       });
     }());
 
-    /* Wire interval select — persist to localStorage on change */
-    (function () {
-      var intEl = document.getElementById("bs-interval-select");
-      if (!intEl) return;
-      var stored = localStorage.getItem("bs_interval");
-      if (stored) intEl.value = stored;
-      intEl.addEventListener("change", function () {
-        localStorage.setItem("bs_interval", intEl.value);
-      });
-    }());
+    /* The interval row + its persistence wiring were removed (May 2026) —
+       interval is now per-version (Discovery-level). The active version's
+       params.interval drives the backtest subprocess via _apply_active_version_to_env. */
 
     /* Wire EMA inputs — persist to localStorage on change */
     (function () {
@@ -4819,52 +4833,48 @@ __VERSIONS_JSON__
     hideActionButtons();
     var ecThStyle = "class='bs-th'";
 
+    /* Empty-state (no saved runs yet) — initialise from the active version's
+       params on every page load. (May 2026 bug fix: previously read
+       stale tweaks from localStorage and let them override the version's
+       intended defaults.) `window.__activeVersion` is set by INJECT_HTML's
+       /api/versions fetch before the IIFE runs; if it isn't ready yet
+       (unassigned version active, or fetch still in flight) we render
+       hardcoded fallback defaults — INJECT_HTML's applyBacktestParamsFromVersion
+       will re-stamp the real values when the fetch resolves. */
+    var _versionParams = (window.__activeVersion && window.__activeVersion.params) || {};
+
     var _dirOptions = [
       { value: "short_only", label: "Short only" },
       { value: "long_only",  label: "Long only" },
       { value: "both",       label: "Both" }
     ];
-    var _savedDir = localStorage.getItem("bs_direction") || "short_only";
+    var _savedDir = _versionParams.trade_direction || "short_only";
     var _dirSelectHtml = "<select id='bs-direction-select' class='bs-select'>" +
       _dirOptions.map(function(o) {
         return "<option value='" + o.value + "'" + (o.value === _savedDir ? " selected" : "") + ">" + o.label + "</option>";
       }).join("") + "</select>";
 
-    var _intervalOptions = [
-      { value: "1m", label: "1m" },
-      { value: "5m", label: "5m" },
-      { value: "15m", label: "15m" },
-      { value: "30m", label: "30m" },
-      { value: "60m", label: "60m" }
-    ];
-    var _savedInterval = localStorage.getItem("bs_interval") || "5m";
-    var _intervalSelectHtml = "<select id='bs-interval-select' class='bs-select'>" +
-      _intervalOptions.map(function(o) {
-        return "<option value='" + o.value + "'" + (o.value === _savedInterval ? " selected" : "") + ">" + o.label + "</option>";
-      }).join("") + "</select>";
-
-    var _savedEmaShort = localStorage.getItem("bs_ema_short") || "8";
-    var _savedEmaMid   = localStorage.getItem("bs_ema_mid")   || "20";
-    var _savedEmaLong  = localStorage.getItem("bs_ema_long")  || "40";
+    var _savedEmaShort = "8";
+    var _savedEmaMid   = "20";
+    var _savedEmaLong  = String(_versionParams.ema_long != null ? _versionParams.ema_long : 40);
     var _emaShortHtml = "<input id='bs-ema-short' type='number' class='bs-input' value='" + _savedEmaShort + "' min='0' step='1'>";
     var _emaMidHtml   = "<input id='bs-ema-mid'   type='number' class='bs-input' value='" + _savedEmaMid   + "' min='0' step='1'>";
     var _emaLongHtml  = "<input id='bs-ema-long'  type='number' class='bs-input' value='" + _savedEmaLong  + "' min='0' step='1'>";
 
-    var _savedStopPips  = localStorage.getItem("bs_stop_pips") || "15";
+    var _savedStopPips  = String(_versionParams.fractal_stop_pips != null ? _versionParams.fractal_stop_pips : 15);
     var _stopPipsHtml   = "<input id='bs-stop-pips' type='number' class='bs-input' value='" + _savedStopPips + "' min='1' step='1'>";
 
-    var _savedApplySlippage = localStorage.getItem("bs_apply_slippage");
-    var _slippageChecked = _savedApplySlippage === null ? true : (_savedApplySlippage === "true");
+    var _slippageChecked = true;
     var _slippageHtml = "<label class='bs-toggle'><input id='bs-apply-slippage' type='checkbox' class='bs-checkbox'" + (_slippageChecked ? " checked" : "") + "><span class='bs-toggle-label'>Enabled</span></label>";
 
-    var _savedSpreadPips = localStorage.getItem("bs_spread_pips") || "1.0";
+    var _savedSpreadPips = "1.0";
     var _spreadPipsHtml  = "<input id='bs-spread-pips' type='number' class='bs-input' value='" + _savedSpreadPips + "' min='0' step='0.1'>";
 
-    var _savedSlSlippagePips = localStorage.getItem("bs_sl_slippage_pips") || "1.0";
+    var _savedSlSlippagePips = "1.0";
     var _slSlippagePipsHtml  = "<input id='bs-sl-slippage-pips' type='number' class='bs-input' value='" + _savedSlSlippagePips + "' min='0' step='0.1'>";
 
-    var _savedRrrRisk   = localStorage.getItem("bs_rrr_risk")   || "1";
-    var _savedRrrReward = localStorage.getItem("bs_rrr_reward") || "2";
+    var _savedRrrRisk   = "1";   /* Discovery fixes RRR risk at 1; not editable per-version */
+    var _savedRrrReward = String(_versionParams.rrr_reward != null ? _versionParams.rrr_reward : 2);
     var _rrrOpts = [1, 2, 3, 4, 5];
     var _rrrRiskHtml = "<select id='bs-rrr-risk' class='bs-select bs-select-narrow'>" +
       _rrrOpts.map(function(n) {
@@ -4876,30 +4886,27 @@ __VERSIONS_JSON__
       }).join("") + "</select>";
     var _rrrSelectHtml = _rrrRiskHtml + "<span class='bs-rrr-colon'>:</span>" + _rrrRewardHtml;
 
-    var _savedMaxDd = localStorage.getItem("bs_max_dd") || "2";
+    var _savedMaxDd = String(_versionParams.max_daily_losses != null ? _versionParams.max_daily_losses : 2);
     var _maxDdOpts = [1, 2, 3, 4, 5];
     var _maxDdSelectHtml = "<select id='bs-max-dd' class='bs-select bs-select-narrow'>" +
       _maxDdOpts.map(function(n) {
         return "<option value='" + n + "'" + (String(n) === _savedMaxDd ? " selected" : "") + ">" + n + "</option>";
       }).join("") + "</select>";
 
-    /* EMA Filter toggle (empty state). Bug fix (May 2026): the renderContent
-       path was given an EMA Filter row when use_ema_filter became visible to
-       the BD, but the renderEmptyState path was missed — so deleting all of
-       a version's runs (or switching to a freshly-assigned version with no
-       runs yet) made the toggle vanish. localStorage default: on, matching
-       strategy_v2's USE_EMA_FILTER default. */
-    var _savedEmaFilter = localStorage.getItem("bs_use_ema_filter");
-    var _emaFilterChecked = _savedEmaFilter === null ? true : (_savedEmaFilter === "true");
+    /* EMA Filter — pre-fills from version's params.use_ema_filter (default
+       on, matching strategy_v2's USE_EMA_FILTER default). */
+    var _emaFilterChecked = (_versionParams.use_ema_filter !== false);
     var _emaFilterHtml = "<label class='bs-toggle'><input id='bs-use-ema-filter' type='checkbox' class='bs-checkbox'" + (_emaFilterChecked ? " checked" : "") + "><span class='bs-toggle-label'>Enabled</span></label>";
     var _emaFilterRow = "<tr><td class='bs-td-cond'>EMA Filter</td><td class='bs-td-rule'>" + _emaFilterHtml + "</td></tr>";
 
-    /* Blocked Hours checkboxes (empty state) */
+    /* Blocked Hours checkboxes (empty state) — derived from version's
+       params.blocked_hours (CSV) with strategy module defaults as fallback. */
     var _eDefaultBlocked = DEFAULT_BLOCKED_HOURS;
-    var _eSavedBlocked = localStorage.getItem("bs_blocked_hours");
     var _eBlockedSet = {};
-    if (_eSavedBlocked) {
-      _eSavedBlocked.split(",").forEach(function (h) { if (h) _eBlockedSet[parseInt(h, 10)] = true; });
+    if (typeof _versionParams.blocked_hours === "string" && _versionParams.blocked_hours) {
+      _versionParams.blocked_hours.split(",").forEach(function (h) {
+        var t = (h || "").trim(); if (t) _eBlockedSet[parseInt(t, 10)] = true;
+      });
     } else {
       _eDefaultBlocked.forEach(function (h) { _eBlockedSet[h] = true; });
     }
@@ -4918,7 +4925,8 @@ __VERSIONS_JSON__
         "<div class='section-title'>Backtest Settings</div>" +
         "<table>" +
           "<tbody>" +
-          "<tr><td class='bs-td-cond'>Interval</td><td class='bs-td-rule'>" + _intervalSelectHtml + "</td></tr>" +
+          /* Interval row dropped (May 2026) — interval is a Discovery-level
+             setting; the active version's params.interval drives the backtest. */
           "<tr><td class='bs-td-cond'>EMA Short</td><td class='bs-td-rule'>" + _emaShortHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>EMA Mid</td><td class='bs-td-rule'>" + _emaMidHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>EMA Long</td><td class='bs-td-rule'>" + _emaLongHtml + "</td></tr>" +
@@ -4933,13 +4941,20 @@ __VERSIONS_JSON__
           _eBlockedRow +
           "</tbody>" +
         "</table>" +
+        "<div class='bs-restore-row'>" +
+          "<button type='button' id='bs-restore-defaults' class='bs-restore-defaults-btn' hidden>" +
+            "Restore to version defaults" +
+          "</button>" +
+        "</div>" +
       "</div>";
 
-    /* Wire localStorage persistence for the empty-state selects */
+    /* Wire localStorage persistence for the empty-state selects. (May 2026:
+       interval row was removed; reads on init were dropped — these writes
+       are kept inert for now so other consumers of the legacy keys don't
+       break, and so a session-local tweak doesn't disappear if a re-render
+       runs before applyBacktestParamsFromVersion fires.) */
     var _dirEl = document.getElementById("bs-direction-select");
     if (_dirEl) _dirEl.addEventListener("change", function () { localStorage.setItem("bs_direction", _dirEl.value); });
-    var _intEl = document.getElementById("bs-interval-select");
-    if (_intEl) _intEl.addEventListener("change", function () { localStorage.setItem("bs_interval", _intEl.value); });
     var _rrrRiskEl = document.getElementById("bs-rrr-risk");
     if (_rrrRiskEl) _rrrRiskEl.addEventListener("change", function () { localStorage.setItem("bs_rrr_risk", _rrrRiskEl.value); });
     var _rrrRewardEl = document.getElementById("bs-rrr-reward");
