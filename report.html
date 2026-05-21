@@ -60,7 +60,7 @@
       },
       {
         "condition": "EMA Long",
-        "rule": "55"
+        "rule": "166"
       },
       {
         "condition": "EMA Position Filter",
@@ -68,15 +68,15 @@
       },
       {
         "condition": "Stop Loss Level",
-        "rule": "23"
+        "rule": "10"
       },
       {
         "condition": "Direction",
-        "rule": "Both"
+        "rule": "Short Only"
       },
       {
         "condition": "RRR",
-        "rule": "1:1"
+        "rule": "1:4"
       },
       {
         "condition": "Max DD",
@@ -32350,6 +32350,1213 @@
             "entry": "1.34454",
             "exit": "1.34110",
             "pnl": "-1070.14",
+            "result": "LOSS"
+          }
+        ],
+        "active_version": "v1"
+      },
+      {
+        "date": "2026-05-21 14:12",
+        "start_date": "2025-09-01",
+        "end_date": "2025-12-31",
+        "days_back": 0,
+        "label": "2025-09-01 → 2025-12-31",
+        "instrument": "GBPUSD",
+        "interval": "5m",
+        "trade_direction": "short_only",
+        "ema_short": 8,
+        "ema_mid": 20,
+        "ema_long": 166,
+        "stop_loss_pips": 10,
+        "rrr_risk": 1,
+        "rrr_reward": 4,
+        "blocked_hours": [
+          4,
+          5,
+          6,
+          8,
+          10,
+          11,
+          14,
+          17
+        ],
+        "max_daily_losses": 2,
+        "apply_slippage": true,
+        "sl_slippage_pips": 1.0,
+        "spread_pips": 1.0,
+        "notes": "v1 + EMA position filter — long above / short below EMA Long",
+        "chart_b64": "",
+        "eq_dd_chart_b64": "",
+        "metrics": {
+          "total_trades": 37,
+          "winning_trades": 13,
+          "losing_trades": 24,
+          "win_rate": 35.1,
+          "profit_factor": 1.89,
+          "avg_win": 4293.38,
+          "avg_loss": -1229.65,
+          "avg_stop_pips": 21.2,
+          "avg_target_pips": 84.8,
+          "best_trade": 4845.99,
+          "worst_trade": -1490.92,
+          "net_profit": 26302.39,
+          "net_profit_pct": 26.3,
+          "gross_profit": 55813.88,
+          "gross_loss": -29511.49,
+          "final_equity": 126302.39,
+          "max_drawdown": -5.5,
+          "max_drawdown_dollar": -5500.55,
+          "max_daily_drawdown": {
+            "dollar": -2566.66,
+            "pct": -2.57
+          },
+          "daily_drawdown": [
+            {
+              "date": "2025-10-23",
+              "trades": 2,
+              "pnl": -2566.66,
+              "drawdown_pct": -2.57
+            },
+            {
+              "date": "2025-09-24",
+              "trades": 2,
+              "pnl": -2256.63,
+              "drawdown_pct": -2.26
+            },
+            {
+              "date": "2025-09-09",
+              "trades": 2,
+              "pnl": -2253.14,
+              "drawdown_pct": -2.25
+            },
+            {
+              "date": "2025-09-12",
+              "trades": 2,
+              "pnl": -2222.25,
+              "drawdown_pct": -2.22
+            },
+            {
+              "date": "2025-12-31",
+              "trades": 1,
+              "pnl": -1490.92,
+              "drawdown_pct": -1.49
+            }
+          ],
+          "sharpe": 0.79,
+          "avg_position_size": 639985.0,
+          "min_position_size": 125786.0,
+          "max_position_size": 1064944.0,
+          "by_direction": {
+            "long": null,
+            "short": {
+              "count": 37,
+              "win_rate": 35.1,
+              "profit_factor": 1.89,
+              "avg_win": 4293.38,
+              "avg_loss": -1229.65,
+              "avg_pnl_per_trade": 710.88,
+              "pct_of_total_trades": 100.0
+            }
+          },
+          "monthly": [
+            {
+              "month": "2025-09",
+              "trades": 10,
+              "wins": 2,
+              "losses": 8,
+              "win_rate": 20.0,
+              "max_dd": -4475.4,
+              "max_daily_dd": -2256.63,
+              "net_pnl": -1286.98
+            },
+            {
+              "month": "2025-10",
+              "trades": 16,
+              "wins": 8,
+              "losses": 8,
+              "win_rate": 50.0,
+              "max_dd": -3779.92,
+              "max_daily_dd": -2566.66,
+              "net_pnl": 24148.27
+            },
+            {
+              "month": "2025-11",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "max_dd": 0.0,
+              "max_daily_dd": -1263.03,
+              "net_pnl": -1263.03
+            },
+            {
+              "month": "2025-12",
+              "trades": 9,
+              "wins": 3,
+              "losses": 6,
+              "win_rate": 33.3,
+              "max_dd": -4101.57,
+              "max_daily_dd": -1369.17,
+              "net_pnl": 6195.05
+            },
+            {
+              "month": "2026-01",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "max_dd": 0.0,
+              "max_daily_dd": -1490.92,
+              "net_pnl": -1490.92
+            }
+          ],
+          "daily": [
+            {
+              "date": "2025-09-02",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1025.16
+            },
+            {
+              "date": "2025-09-09",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2253.14
+            },
+            {
+              "date": "2025-09-12",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2222.25
+            },
+            {
+              "date": "2025-09-18",
+              "trades": 2,
+              "wins": 2,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 7622.49
+            },
+            {
+              "date": "2025-09-24",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2256.63
+            },
+            {
+              "date": "2025-09-25",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1152.29
+            },
+            {
+              "date": "2025-10-02",
+              "trades": 3,
+              "wins": 1,
+              "losses": 2,
+              "win_rate": 33.3,
+              "net_pnl": 1584.05
+            },
+            {
+              "date": "2025-10-07",
+              "trades": 2,
+              "wins": 2,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 8030.63
+            },
+            {
+              "date": "2025-10-08",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 3021.52
+            },
+            {
+              "date": "2025-10-09",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1186.03
+            },
+            {
+              "date": "2025-10-17",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 3039.63
+            },
+            {
+              "date": "2025-10-23",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -2566.66
+            },
+            {
+              "date": "2025-10-24",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1213.26
+            },
+            {
+              "date": "2025-10-28",
+              "trades": 2,
+              "wins": 2,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 8769.5
+            },
+            {
+              "date": "2025-10-29",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 3405.87
+            },
+            {
+              "date": "2025-12-09",
+              "trades": 3,
+              "wins": 1,
+              "losses": 2,
+              "win_rate": 33.3,
+              "net_pnl": 2025.87
+            },
+            {
+              "date": "2025-12-12",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1369.17
+            },
+            {
+              "date": "2025-12-17",
+              "trades": 3,
+              "wins": 1,
+              "losses": 2,
+              "win_rate": 33.3,
+              "net_pnl": 2097.38
+            },
+            {
+              "date": "2025-12-24",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 3440.97
+            },
+            {
+              "date": "2025-12-31",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1490.92
+            }
+          ],
+          "intraday": [
+            {
+              "date": "2025-09-02",
+              "entry_time": "07:10",
+              "exit_time": "13:45",
+              "entry_price": 1.34635,
+              "exit_price": 1.3544,
+              "duration": 4715,
+              "direction": "short",
+              "stop_pips": 79.5,
+              "target_pips": 318.0,
+              "atr_pips": 9.0,
+              "adx": 20.1,
+              "fractal_bar": 372,
+              "fractal_label": "H",
+              "pnl": -1025.16
+            },
+            {
+              "date": "2025-09-09",
+              "entry_time": "12:25",
+              "exit_time": "14:00",
+              "entry_price": 1.3555,
+              "exit_price": 1.3571,
+              "duration": 95,
+              "direction": "short",
+              "stop_pips": 15.0,
+              "target_pips": 60.0,
+              "atr_pips": 5.8,
+              "adx": 34.6,
+              "fractal_bar": 1868,
+              "fractal_label": "H",
+              "pnl": -1121.71
+            },
+            {
+              "date": "2025-09-09",
+              "entry_time": "15:40",
+              "exit_time": "16:35",
+              "entry_price": 1.3532,
+              "exit_price": 1.35458,
+              "duration": 55,
+              "direction": "short",
+              "stop_pips": 12.8,
+              "target_pips": 51.2,
+              "atr_pips": 8.1,
+              "adx": 15.3,
+              "fractal_bar": 1907,
+              "fractal_label": "H",
+              "pnl": -1131.43
+            },
+            {
+              "date": "2025-09-12",
+              "entry_time": "02:20",
+              "exit_time": "07:20",
+              "entry_price": 1.35585,
+              "exit_price": 1.35735,
+              "duration": 300,
+              "direction": "short",
+              "stop_pips": 14.0,
+              "target_pips": 56.0,
+              "atr_pips": 4.0,
+              "adx": 38.3,
+              "fractal_bar": 2611,
+              "fractal_label": "H",
+              "pnl": -1105.39
+            },
+            {
+              "date": "2025-09-12",
+              "entry_time": "09:10",
+              "exit_time": "09:55",
+              "entry_price": 1.35352,
+              "exit_price": 1.35481,
+              "duration": 45,
+              "direction": "short",
+              "stop_pips": 11.9,
+              "target_pips": 47.6,
+              "atr_pips": 6.7,
+              "adx": 32.1,
+              "fractal_bar": 2693,
+              "fractal_label": "H",
+              "pnl": -1116.86
+            },
+            {
+              "date": "2025-09-18",
+              "entry_time": "12:05",
+              "exit_time": "13:55",
+              "entry_price": 1.36151,
+              "exit_price": 1.35347,
+              "duration": 110,
+              "direction": "short",
+              "stop_pips": 20.1,
+              "target_pips": 80.4,
+              "atr_pips": 7.7,
+              "adx": 23.2,
+              "fractal_bar": 3874,
+              "fractal_label": "H",
+              "pnl": 3732.96
+            },
+            {
+              "date": "2025-09-18",
+              "entry_time": "15:10",
+              "exit_time": "12:50",
+              "entry_price": 1.35473,
+              "exit_price": 1.34485,
+              "duration": 8500,
+              "direction": "short",
+              "stop_pips": 24.7,
+              "target_pips": 98.8,
+              "atr_pips": 10.3,
+              "adx": 36.0,
+              "fractal_bar": 3911,
+              "fractal_label": "H",
+              "pnl": 3889.53
+            },
+            {
+              "date": "2025-09-24",
+              "entry_time": "13:10",
+              "exit_time": "14:50",
+              "entry_price": 1.34357,
+              "exit_price": 1.34588,
+              "duration": 100,
+              "direction": "short",
+              "stop_pips": 22.1,
+              "target_pips": 88.4,
+              "atr_pips": 7.2,
+              "adx": 35.4,
+              "fractal_bar": 5030,
+              "fractal_label": "H",
+              "pnl": -1113.64
+            },
+            {
+              "date": "2025-09-24",
+              "entry_time": "16:55",
+              "exit_time": "01:00",
+              "entry_price": 1.34425,
+              "exit_price": 1.34587,
+              "duration": 485,
+              "direction": "short",
+              "stop_pips": 15.2,
+              "target_pips": 60.8,
+              "atr_pips": 6.7,
+              "adx": 15.1,
+              "fractal_bar": 5075,
+              "fractal_label": "H",
+              "pnl": -1142.99
+            },
+            {
+              "date": "2025-09-25",
+              "entry_time": "01:40",
+              "exit_time": "04:00",
+              "entry_price": 1.34503,
+              "exit_price": 1.34643,
+              "duration": 140,
+              "direction": "short",
+              "stop_pips": 13.0,
+              "target_pips": 52.0,
+              "atr_pips": 3.9,
+              "adx": 11.3,
+              "fractal_bar": 5180,
+              "fractal_label": "H",
+              "pnl": -1152.29
+            },
+            {
+              "date": "2025-10-02",
+              "entry_time": "02:40",
+              "exit_time": "07:00",
+              "entry_price": 1.34806,
+              "exit_price": 1.3495,
+              "duration": 260,
+              "direction": "short",
+              "stop_pips": 13.4,
+              "target_pips": 53.6,
+              "atr_pips": 3.8,
+              "adx": 29.3,
+              "fractal_bar": 6621,
+              "fractal_label": "H",
+              "pnl": -1134.46
+            },
+            {
+              "date": "2025-10-02",
+              "entry_time": "09:40",
+              "exit_time": "13:45",
+              "entry_price": 1.34999,
+              "exit_price": 1.34315,
+              "duration": 245,
+              "direction": "short",
+              "stop_pips": 17.1,
+              "target_pips": 68.4,
+              "atr_pips": 6.5,
+              "adx": 20.4,
+              "fractal_bar": 6705,
+              "fractal_label": "H",
+              "pnl": 3846.08
+            },
+            {
+              "date": "2025-10-02",
+              "entry_time": "20:15",
+              "exit_time": "07:40",
+              "entry_price": 1.34416,
+              "exit_price": 1.34605,
+              "duration": 685,
+              "direction": "short",
+              "stop_pips": 17.9,
+              "target_pips": 71.6,
+              "atr_pips": 4.2,
+              "adx": 16.4,
+              "fractal_bar": 6832,
+              "fractal_label": "H",
+              "pnl": -1127.57
+            },
+            {
+              "date": "2025-10-07",
+              "entry_time": "02:20",
+              "exit_time": "10:55",
+              "entry_price": 1.34756,
+              "exit_price": 1.3426,
+              "duration": 515,
+              "direction": "short",
+              "stop_pips": 12.4,
+              "target_pips": 49.6,
+              "atr_pips": 3.6,
+              "adx": 13.3,
+              "fractal_bar": 7473,
+              "fractal_label": "H",
+              "pnl": 3931.0
+            },
+            {
+              "date": "2025-10-07",
+              "entry_time": "16:20",
+              "exit_time": "05:10",
+              "entry_price": 1.3445,
+              "exit_price": 1.3385,
+              "duration": 770,
+              "direction": "short",
+              "stop_pips": 15.0,
+              "target_pips": 60.0,
+              "atr_pips": 6.7,
+              "adx": 37.3,
+              "fractal_bar": 7641,
+              "fractal_label": "H",
+              "pnl": 4099.64
+            },
+            {
+              "date": "2025-10-08",
+              "entry_time": "09:40",
+              "exit_time": "10:35",
+              "entry_price": 1.34041,
+              "exit_price": 1.34247,
+              "duration": 55,
+              "direction": "short",
+              "stop_pips": 19.6,
+              "target_pips": 78.4,
+              "atr_pips": 6.2,
+              "adx": 23.2,
+              "fractal_bar": 7849,
+              "fractal_label": "H",
+              "pnl": -1193.82
+            },
+            {
+              "date": "2025-10-08",
+              "entry_time": "13:50",
+              "exit_time": "06:50",
+              "entry_price": 1.34242,
+              "exit_price": 1.3363,
+              "duration": 1020,
+              "direction": "short",
+              "stop_pips": 15.3,
+              "target_pips": 61.2,
+              "atr_pips": 6.5,
+              "adx": 26.9,
+              "fractal_bar": 7899,
+              "fractal_label": "H",
+              "pnl": 4215.33
+            },
+            {
+              "date": "2025-10-09",
+              "entry_time": "15:05",
+              "exit_time": "15:05",
+              "entry_price": 1.33155,
+              "exit_price": 1.33472,
+              "duration": 1440,
+              "direction": "short",
+              "stop_pips": 30.7,
+              "target_pips": 122.8,
+              "atr_pips": 9.3,
+              "adx": 40.5,
+              "fractal_bar": 8202,
+              "fractal_label": "H",
+              "pnl": -1186.03
+            },
+            {
+              "date": "2025-10-17",
+              "entry_time": "01:40",
+              "exit_time": "05:05",
+              "entry_price": 1.34417,
+              "exit_price": 1.34569,
+              "duration": 205,
+              "direction": "short",
+              "stop_pips": 14.2,
+              "target_pips": 56.8,
+              "atr_pips": 4.8,
+              "adx": 23.2,
+              "fractal_bar": 9760,
+              "fractal_label": "H",
+              "pnl": -1256.79
+            },
+            {
+              "date": "2025-10-17",
+              "entry_time": "07:55",
+              "exit_time": "21:20",
+              "entry_price": 1.3432,
+              "exit_price": 1.33592,
+              "duration": 6565,
+              "direction": "short",
+              "stop_pips": 18.2,
+              "target_pips": 72.8,
+              "atr_pips": 8.1,
+              "adx": 33.9,
+              "fractal_bar": 9835,
+              "fractal_label": "H",
+              "pnl": 4296.42
+            },
+            {
+              "date": "2025-10-23",
+              "entry_time": "01:45",
+              "exit_time": "06:15",
+              "entry_price": 1.3342,
+              "exit_price": 1.3355,
+              "duration": 270,
+              "direction": "short",
+              "stop_pips": 12.0,
+              "target_pips": 48.0,
+              "atr_pips": 4.0,
+              "adx": 39.1,
+              "fractal_bar": 10908,
+              "fractal_label": "H",
+              "pnl": -1320.7
+            },
+            {
+              "date": "2025-10-23",
+              "entry_time": "07:25",
+              "exit_time": "12:30",
+              "entry_price": 1.33481,
+              "exit_price": 1.33667,
+              "duration": 1745,
+              "direction": "short",
+              "stop_pips": 17.6,
+              "target_pips": 70.4,
+              "atr_pips": 4.9,
+              "adx": 32.1,
+              "fractal_bar": 10976,
+              "fractal_label": "H",
+              "pnl": -1245.96
+            },
+            {
+              "date": "2025-10-24",
+              "entry_time": "13:15",
+              "exit_time": "05:05",
+              "entry_price": 1.33483,
+              "exit_price": 1.337,
+              "duration": 5270,
+              "direction": "short",
+              "stop_pips": 20.7,
+              "target_pips": 82.8,
+              "atr_pips": 10.9,
+              "adx": 43.9,
+              "fractal_bar": 11334,
+              "fractal_label": "H",
+              "pnl": -1213.26
+            },
+            {
+              "date": "2025-10-28",
+              "entry_time": "07:20",
+              "exit_time": "12:15",
+              "entry_price": 1.33493,
+              "exit_price": 1.32961,
+              "duration": 295,
+              "direction": "short",
+              "stop_pips": 13.3,
+              "target_pips": 53.2,
+              "atr_pips": 4.6,
+              "adx": 26.7,
+              "fractal_bar": 11830,
+              "fractal_label": "H",
+              "pnl": 4294.64
+            },
+            {
+              "date": "2025-10-28",
+              "entry_time": "20:25",
+              "exit_time": "08:10",
+              "entry_price": 1.32736,
+              "exit_price": 1.3212,
+              "duration": 705,
+              "direction": "short",
+              "stop_pips": 15.4,
+              "target_pips": 61.6,
+              "atr_pips": 4.3,
+              "adx": 14.4,
+              "fractal_bar": 11987,
+              "fractal_label": "H",
+              "pnl": 4474.86
+            },
+            {
+              "date": "2025-10-29",
+              "entry_time": "18:05",
+              "exit_time": "18:40",
+              "entry_price": 1.32199,
+              "exit_price": 1.31395,
+              "duration": 35,
+              "direction": "short",
+              "stop_pips": 20.1,
+              "target_pips": 80.4,
+              "atr_pips": 7.3,
+              "adx": 21.4,
+              "fractal_bar": 12247,
+              "fractal_label": "H",
+              "pnl": 4668.89
+            },
+            {
+              "date": "2025-10-29",
+              "entry_time": "18:40",
+              "exit_time": "15:15",
+              "entry_price": 1.31592,
+              "exit_price": 1.32316,
+              "duration": 40115,
+              "direction": "short",
+              "stop_pips": 71.4,
+              "target_pips": 285.6,
+              "atr_pips": 13.9,
+              "adx": 30.7,
+              "fractal_bar": 12254,
+              "fractal_label": "H",
+              "pnl": -1263.03
+            },
+            {
+              "date": "2025-12-09",
+              "entry_time": "03:40",
+              "exit_time": "08:30",
+              "entry_price": 1.33265,
+              "exit_price": 1.33422,
+              "duration": 290,
+              "direction": "short",
+              "stop_pips": 14.7,
+              "target_pips": 58.8,
+              "atr_pips": 3.8,
+              "adx": 13.0,
+              "fractal_bar": 20372,
+              "fractal_label": "H",
+              "pnl": -1381.42
+            },
+            {
+              "date": "2025-12-09",
+              "entry_time": "09:55",
+              "exit_time": "15:05",
+              "entry_price": 1.33469,
+              "exit_price": 1.32897,
+              "duration": 310,
+              "direction": "short",
+              "stop_pips": 14.3,
+              "target_pips": 57.2,
+              "atr_pips": 6.4,
+              "adx": 39.2,
+              "fractal_bar": 20447,
+              "fractal_label": "H",
+              "pnl": 4724.61
+            },
+            {
+              "date": "2025-12-09",
+              "entry_time": "15:05",
+              "exit_time": "08:05",
+              "entry_price": 1.32897,
+              "exit_price": 1.33275,
+              "duration": 1020,
+              "direction": "short",
+              "stop_pips": 36.8,
+              "target_pips": 147.2,
+              "atr_pips": 8.6,
+              "adx": 20.1,
+              "fractal_bar": 20509,
+              "fractal_label": "H",
+              "pnl": -1317.32
+            },
+            {
+              "date": "2025-12-12",
+              "entry_time": "12:10",
+              "exit_time": "09:55",
+              "entry_price": 1.33685,
+              "exit_price": 1.33881,
+              "duration": 4185,
+              "direction": "short",
+              "stop_pips": 18.6,
+              "target_pips": 74.4,
+              "atr_pips": 5.2,
+              "adx": 21.5,
+              "fractal_bar": 21338,
+              "fractal_label": "H",
+              "pnl": -1369.17
+            },
+            {
+              "date": "2025-12-17",
+              "entry_time": "03:10",
+              "exit_time": "07:00",
+              "entry_price": 1.34083,
+              "exit_price": 1.33575,
+              "duration": 230,
+              "direction": "short",
+              "stop_pips": 12.7,
+              "target_pips": 50.8,
+              "atr_pips": 4.2,
+              "adx": 39.2,
+              "fractal_bar": 22088,
+              "fractal_label": "H",
+              "pnl": 4793.93
+            },
+            {
+              "date": "2025-12-17",
+              "entry_time": "07:00",
+              "exit_time": "15:55",
+              "entry_price": 1.33465,
+              "exit_price": 1.3396,
+              "duration": 535,
+              "direction": "short",
+              "stop_pips": 48.5,
+              "target_pips": 194.0,
+              "atr_pips": 7.7,
+              "adx": 52.7,
+              "fractal_bar": 22134,
+              "fractal_label": "H",
+              "pnl": -1322.88
+            },
+            {
+              "date": "2025-12-17",
+              "entry_time": "16:30",
+              "exit_time": "13:30",
+              "entry_price": 1.33941,
+              "exit_price": 1.34167,
+              "duration": 1260,
+              "direction": "short",
+              "stop_pips": 21.6,
+              "target_pips": 86.4,
+              "atr_pips": 9.3,
+              "adx": 44.8,
+              "fractal_bar": 22248,
+              "fractal_label": "H",
+              "pnl": -1373.67
+            },
+            {
+              "date": "2025-12-24",
+              "entry_time": "00:10",
+              "exit_time": "01:35",
+              "entry_price": 1.35126,
+              "exit_price": 1.3529,
+              "duration": 85,
+              "direction": "short",
+              "stop_pips": 15.4,
+              "target_pips": 61.6,
+              "atr_pips": 7.8,
+              "adx": 39.9,
+              "fractal_bar": 23485,
+              "fractal_label": "H",
+              "pnl": -1405.02
+            },
+            {
+              "date": "2025-12-24",
+              "entry_time": "03:45",
+              "exit_time": "08:25",
+              "entry_price": 1.3515,
+              "exit_price": 1.34466,
+              "duration": 10360,
+              "direction": "short",
+              "stop_pips": 17.1,
+              "target_pips": 68.4,
+              "atr_pips": 4.6,
+              "adx": 29.6,
+              "fractal_bar": 23528,
+              "fractal_label": "H",
+              "pnl": 4845.99
+            },
+            {
+              "date": "2025-12-31",
+              "entry_time": "16:25",
+              "exit_time": "22:00",
+              "entry_price": 1.34582,
+              "exit_price": 1.34712,
+              "duration": 1775,
+              "direction": "short",
+              "stop_pips": 12.0,
+              "target_pips": 48.0,
+              "atr_pips": 9.6,
+              "adx": 33.7,
+              "fractal_bar": 24790,
+              "fractal_label": "H",
+              "pnl": -1490.92
+            }
+          ],
+          "streaks": {
+            "max_win_streak": 3,
+            "max_loss_streak": 5,
+            "avg_win_streak": 1.4,
+            "avg_loss_streak": 2.4,
+            "current_streak": "1L"
+          },
+          "stop_target": {
+            "pct_sl": 64.9,
+            "pct_tp": 35.1,
+            "avg_mae": 20.4
+          },
+          "regime": [
+            {
+              "regime": "Trending (ADX ≥25)",
+              "count": 22,
+              "win_rate": 36.4,
+              "profit_factor": 2.02,
+              "net_pnl": 17746.55
+            },
+            {
+              "regime": "Ranging (ADX <25)",
+              "count": 15,
+              "win_rate": 33.3,
+              "profit_factor": 1.71,
+              "net_pnl": 8555.84
+            }
+          ],
+          "time_of_day": {
+            "rows": [
+              {
+                "hour": 0,
+                "trades": 1,
+                "win_rate": 0.0,
+                "net_pnl": -1405.02
+              },
+              {
+                "hour": 1,
+                "trades": 3,
+                "win_rate": 0.0,
+                "net_pnl": -3729.78
+              },
+              {
+                "hour": 2,
+                "trades": 3,
+                "win_rate": 33.3,
+                "net_pnl": 1691.14
+              },
+              {
+                "hour": 3,
+                "trades": 3,
+                "win_rate": 66.7,
+                "net_pnl": 8258.51
+              },
+              {
+                "hour": 7,
+                "trades": 5,
+                "win_rate": 40.0,
+                "net_pnl": 4997.06
+              },
+              {
+                "hour": 9,
+                "trades": 4,
+                "win_rate": 50.0,
+                "net_pnl": 6260.01
+              },
+              {
+                "hour": 12,
+                "trades": 3,
+                "win_rate": 33.3,
+                "net_pnl": 1242.08
+              },
+              {
+                "hour": 13,
+                "trades": 3,
+                "win_rate": 33.3,
+                "net_pnl": 1888.44
+              },
+              {
+                "hour": 15,
+                "trades": 4,
+                "win_rate": 25.0,
+                "net_pnl": 254.75
+              },
+              {
+                "hour": 16,
+                "trades": 4,
+                "win_rate": 25.0,
+                "net_pnl": 92.05
+              },
+              {
+                "hour": 18,
+                "trades": 2,
+                "win_rate": 50.0,
+                "net_pnl": 3405.87
+              },
+              {
+                "hour": 20,
+                "trades": 2,
+                "win_rate": 50.0,
+                "net_pnl": 3347.29
+              }
+            ],
+            "best_hour": 3,
+            "worst_hour": 1
+          },
+          "win_rate_trend": [
+            {
+              "period": "Sep-05-25 to Oct-02-25",
+              "trades": 12,
+              "win_rate": 25.0,
+              "profit_factor": 1.14,
+              "net_pnl": 1424.63
+            },
+            {
+              "period": "Oct-03-25 to Oct-28-25",
+              "trades": 12,
+              "win_rate": 41.7,
+              "profit_factor": 2.44,
+              "net_pnl": 12292.9
+            },
+            {
+              "period": "Oct-29-25 to Jan-01-26",
+              "trades": 13,
+              "win_rate": 38.5,
+              "profit_factor": 2.15,
+              "net_pnl": 12584.85
+            }
+          ],
+          "duration_analysis": {
+            "winners": {
+              "avg": 296.9,
+              "min": 7,
+              "max": 1166
+            },
+            "losers": {
+              "avg": 383.0,
+              "min": 9,
+              "max": 5678
+            },
+            "all": {
+              "avg": 352.8,
+              "min": 7,
+              "max": 5678
+            }
+          },
+          "filter_impact": [
+            {
+              "filter": "Direction Filter",
+              "removed": 559,
+              "win_rate": 25.8,
+              "net_pnl": 130391.35
+            },
+            {
+              "filter": "Macro_regime Filter",
+              "removed": 300,
+              "win_rate": 9.0,
+              "net_pnl": -189142.26
+            },
+            {
+              "filter": "Micro_regime Filter",
+              "removed": 28,
+              "win_rate": 39.3,
+              "net_pnl": 24949.96
+            },
+            {
+              "filter": "Time Filter",
+              "removed": 200,
+              "win_rate": 18.5,
+              "net_pnl": -25937.73
+            }
+          ],
+          "rs_diagnostic": {
+            "trades_filtered": 0,
+            "trades_allowed": 37,
+            "total_signals": 37,
+            "filter_rate": 0.0,
+            "filtered_wr": 0.0,
+            "filtered_pf": null,
+            "allowed_wr": 35.1,
+            "allowed_pf": 1.89
+          },
+          "rrr_sensitivity": [
+            {
+              "trades": 129,
+              "win_rate": 38.0,
+              "profit_factor": 0.79,
+              "net_pnl": -17607.59,
+              "max_drawdown": -22.45,
+              "param": 1.5
+            },
+            {
+              "trades": 103,
+              "win_rate": 31.1,
+              "profit_factor": 0.78,
+              "net_pnl": -16334.0,
+              "max_drawdown": -20.91,
+              "param": 2.0
+            },
+            {
+              "trades": 76,
+              "win_rate": 28.9,
+              "profit_factor": 0.88,
+              "net_pnl": -6945.98,
+              "max_drawdown": -13.57,
+              "param": 2.5
+            },
+            {
+              "trades": 74,
+              "win_rate": 25.7,
+              "profit_factor": 0.9,
+              "net_pnl": -6172.95,
+              "max_drawdown": -14.51,
+              "param": 3.0
+            }
+          ],
+          "swing_sensitivity": [],
+          "pivot_diagnostics": {
+            "is_single_day": false,
+            "pivots": []
+          }
+        },
+        "last_trades": [
+          {
+            "direction": "Short",
+            "entry": "1.33265",
+            "exit": "1.33422",
+            "pnl": "-1381.42",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.33469",
+            "exit": "1.32897",
+            "pnl": "+4724.61",
+            "result": "WIN"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.32897",
+            "exit": "1.33275",
+            "pnl": "-1317.32",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.33685",
+            "exit": "1.33881",
+            "pnl": "-1369.17",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.34083",
+            "exit": "1.33575",
+            "pnl": "+4793.93",
+            "result": "WIN"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.33465",
+            "exit": "1.33960",
+            "pnl": "-1322.88",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.33941",
+            "exit": "1.34167",
+            "pnl": "-1373.67",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.35126",
+            "exit": "1.35290",
+            "pnl": "-1405.02",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.35150",
+            "exit": "1.34466",
+            "pnl": "+4845.99",
+            "result": "WIN"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.34582",
+            "exit": "1.34712",
+            "pnl": "-1490.92",
             "result": "LOSS"
           }
         ],
