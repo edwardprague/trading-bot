@@ -437,6 +437,30 @@ tbody tr:hover td {
     color: #fff;
 }
 
+/* Specificity boosters for the Discovery + RA perf tables (May 2026).
+   The base .pos / .neg rules above have specificity (0,1,0) and lose to
+   .discovery-table tbody td (color #c0c0e0) and .regime-table tbody td
+   (color #d0d0e8), both (0,2,1). The .discovery-row-fail td rule
+   (color #7a7a98) also wins over the base. These boosted selectors —
+   same colour values as the canonical .pos / .neg — re-take the cascade
+   on the affected tables while leaving everything else (BD's existing
+   usages) untouched. Inner <span class='pos|neg'> wrappers used in the
+   Total P&L column on the RA are covered via the descendant selectors
+   so locked-row counterfactual cells stay coloured too. */
+.discovery-table tbody td.pos,
+.discovery-table tbody tr.discovery-row-fail td.pos,
+.regime-perf-table td.pos,
+.regime-perf-table td .pos {
+    color: #6bcb77;
+}
+
+.discovery-table tbody td.neg,
+.discovery-table tbody tr.discovery-row-fail td.neg,
+.regime-perf-table td.neg,
+.regime-perf-table td .neg {
+    color: #ff6b6b;
+}
+
 /* ── Badge ────────────────────────────────────────────── */
 .badge {
     display: inline-block;
@@ -2635,8 +2659,8 @@ body.versions-page {
     column-gap: 16px;
     row-gap: 4px;
     padding: 16px 20px;
-    background: #10101e;
-    border: 1px solid #1e1e32;
+    background: #000;
+    border: 1px solid #666;
     border-radius: 6px;
 }
 
@@ -2652,6 +2676,7 @@ body.versions-page {
     cursor: pointer;
     padding: 0 4px;
 }
+
 .versions-row-radio input[type="radio"] {
     width: 18px;
     height: 18px;
@@ -2659,6 +2684,7 @@ body.versions-page {
     cursor: pointer;
     margin: 0;
 }
+
 .versions-row-radio input[type="radio"]:disabled {
     cursor: not-allowed;
     opacity: 0.35;
@@ -2669,9 +2695,8 @@ body.versions-page {
    stands out across the gap. overflow:hidden keeps the inset shadow
    clipped neatly inside the rounded corners. */
 .versions-row-active {
-    background: #14142a;
-    border-color: rgba(76, 201, 240, 0.35);
-    box-shadow: inset 4px 0 0 #4cc9f0;
+    /* border-color: rgba(76, 201, 240, 0.35); */
+    border: 2px solid steelblue;
     overflow: hidden;
 }
 
@@ -3749,7 +3774,9 @@ body.discovery-page {
 
 .discovery-result-count {
     font-size: 12px;
-    color: #707090;
+    color: #eee;
+    padding: 5px 7px;
+    background-color: #444;
     letter-spacing: 0.03em;
 }
 
@@ -4055,7 +4082,7 @@ body.discovery-trial-page {
 
 .discovery-run-block {
     background: #10101e;
-    border: 1px solid #1e1e32;
+    border: 1px solid #666;
     border-radius: 6px;
     padding: 14px 16px;
 }

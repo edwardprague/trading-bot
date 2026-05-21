@@ -326,14 +326,22 @@ def _row_stats(sub_df):
     pf   = gw / gl if gl > 0 else (float("inf") if gw > 0 else 0.0)
     avg  = float(sub_df["pnl"].mean())
     tot  = float(sub_df["pnl"].sum())
-    wr_cls = winrate_class(wr, n)
-    tot_pnl_cls = ("regime-pnl-pos" if tot > 0
-                   else ("regime-pnl-neg" if tot < 0 else "regime-pnl-zero"))
+    # May 2026: use BD's .pos / .neg text-colour classes everywhere so all
+    # three pages share a single colouring convention. Thresholds match the
+    # user-stated rules:
+    #   • Win Rate ≥ 50 → green, else red
+    #   • PF       ≥ 1.5 → green (∞ counts as ≥ 1.5), else red
+    #   • Total P&L > 0  → green, < 0 → red, 0 → no class (default text)
+    # The old win-good/win-bad background fill and the regime-pnl-pos/neg
+    # variants were retired in favour of this.
+    wr_cls      = "pos" if wr >= 50 else "neg"
+    pf_cls      = "pos" if (math.isinf(pf) or pf >= 1.5) else "neg"
+    tot_pnl_cls = "pos" if tot > 0 else ("neg" if tot < 0 else "")
     return {
         "n":         n,
         "wins_str":  str(wins),
         "wr_cell":   f"<td class='{wr_cls}'>{_fmt_pct(wr)}</td>",
-        "pf_cell":   f"<td>{_fmt_pf(pf)}</td>",
+        "pf_cell":   f"<td class='{pf_cls}'>{_fmt_pf(pf)}</td>",
         "avg_cell":  f"<td>{_fmt_money(avg)}</td>",
         "tot_inner": f"<span class='{tot_pnl_cls}'>{_fmt_money(tot)}</span>",
         "tot_pnl":   tot,
@@ -511,14 +519,20 @@ def build_perf_table_html(perf_df, regime_count, blocked_micro_keys=None,
         else:
             n_trades = int(r["trades"])
             if n_trades > 0:
-                cls         = winrate_class(r["win_rate"], n_trades)
-                wins_cell   = str(int(r["wins"]))
-                wr_cell     = f"<td class='{cls}'>{_fmt_pct(r['win_rate'])}</td>"
-                pf_cell     = f"<td>{_fmt_pf(r['profit_factor'])}</td>"
-                avg_cell    = f"<td>{_fmt_money(r['avg_pnl'])}</td>"
+                # May 2026: BD-style binary text colours. Same thresholds as
+                # _row_stats (the blocked-row helper), keeping macro/micro/non-
+                # blocked/blocked rows visually identical across the table.
+                pf_val      = r["profit_factor"]
+                pf_is_good  = (pf_val is not None
+                               and (math.isinf(pf_val) or pf_val >= 1.5))
+                wr_cls      = "pos" if r["win_rate"] >= 50 else "neg"
+                pf_cls      = "pos" if pf_is_good else "neg"
                 tot_pnl     = float(r["total_pnl"])
-                tot_pnl_cls = ("regime-pnl-pos" if tot_pnl > 0
-                               else ("regime-pnl-neg" if tot_pnl < 0 else "regime-pnl-zero"))
+                tot_pnl_cls = "pos" if tot_pnl > 0 else ("neg" if tot_pnl < 0 else "")
+                wins_cell   = str(int(r["wins"]))
+                wr_cell     = f"<td class='{wr_cls}'>{_fmt_pct(r['win_rate'])}</td>"
+                pf_cell     = f"<td class='{pf_cls}'>{_fmt_pf(pf_val)}</td>"
+                avg_cell    = f"<td>{_fmt_money(r['avg_pnl'])}</td>"
                 total_cell  = f"<td><span class='{tot_pnl_cls}'>{_fmt_money(tot_pnl)}</span></td>"
             else:
                 wins_cell   = "—"

@@ -2191,6 +2191,23 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         var sign = n < 0 ? "-$" : "$";
         return sign + Math.abs(n).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
       }
+
+      /* Text-colour classifiers — return BD's .pos / .neg class names so
+         every metric cell on the BD, Discovery, and RA pages shares one
+         colour convention (May 2026). Thresholds:
+           • PF      ≥ 1.5  → green   (null = ∞ = green)
+           • P&L     > 0    → green   (zero = no class, default text colour)
+           • Win %   ≥ 50   → green
+         Anything below the threshold is red. */
+      function pfTextCls(v)  { return (v === null || v === undefined || Number(v) >= 1.5) ? "pos" : "neg"; }
+      function pnlTextCls(v) {
+        if (v === null || v === undefined) return "";
+        var n = Number(v); return n > 0 ? "pos" : (n < 0 ? "neg" : "");
+      }
+      function wrTextCls(v)  {
+        if (v === null || v === undefined) return "";
+        return Number(v) >= 50 ? "pos" : "neg";
+      }
       function describeParams(p) {
         if (!p) return "";
         var emaFilter = p.use_ema_filter ? "on" : "off";
@@ -2540,13 +2557,19 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
 
           /* Data cells — order MUST match the cols[] definition in
              renderBlock above: PF, P&L, Trades, Wins, Losses, Win %,
-             DD 1 (max_drawdown), DD 2 (max_daily_drawdown.pct). */
-          tr.appendChild(td(fmtPF(m.profit_factor),            "discovery-cell-num"));
-          tr.appendChild(td(fmtUSD(m.net_profit),              "discovery-cell-num"));
+             DD 1 (max_drawdown), DD 2 (max_daily_drawdown.pct).
+             May 2026: PF / P&L / Win % cells now carry the BD's .pos / .neg
+             text-colour classes (defined in style.css) so the three pages
+             share a single colouring convention. Thresholds match the user-
+             stated rules: PF ≥ 1.5 → green, Net Profit > 0 → green, Win %
+             ≥ 50 → green; everything else (or missing) → red. Null PF is
+             infinity and counts as green. */
+          tr.appendChild(td(fmtPF(m.profit_factor),            "discovery-cell-num " + pfTextCls(m.profit_factor)));
+          tr.appendChild(td(fmtUSD(m.net_profit),              "discovery-cell-num " + pnlTextCls(m.net_profit)));
           tr.appendChild(td(fmtInt(m.total_trades),            "discovery-cell-num"));
           tr.appendChild(td(fmtInt(m.winning_trades),          "discovery-cell-num"));
           tr.appendChild(td(fmtInt(m.losing_trades),           "discovery-cell-num"));
-          tr.appendChild(td(fmtPct(m.win_rate),                "discovery-cell-num"));
+          tr.appendChild(td(fmtPct(m.win_rate),                "discovery-cell-num " + wrTextCls(m.win_rate)));
           tr.appendChild(td(fmtPct(m.max_drawdown),            "discovery-cell-num"));
           tr.appendChild(td(fmtPct(maxDailyDDPct(m)),          "discovery-cell-num"));
 
