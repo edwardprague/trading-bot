@@ -1,7 +1,7 @@
 {
   "ALLOWED_MACRO_REGIMES": "staircase_down,strong_down",
   "ALLOWED_MICRO_REGIMES": "ranging_wide,transitioning,trending_fast_down,trending_medium_down,trending_medium_up,trending_slow_down,trending_slow_up",
-  "STRATEGY_VERSION": "v1",
+  "STRATEGY_VERSION": "v2",
   "EMA_LONG": "166",
   "USE_EMA_FILTER": "false",
   "TRADE_DIRECTION": "short_only",
@@ -10,29 +10,5 @@
   "INTERVAL": "5m",
   "RUN_MODE": "date_range",
   "RUN_START_DATE": "2025-07-01",
-  "RUN_END_DATE": "2025-12-31",
-  "__overrides_keys": [
-    "ALLOWED_MACRO_REGIMES",
-    "ALLOWED_MICRO_REGIMES",
-    "APPLY_SLIPPAGE",
-    "BLOCKED_HOURS_UTC",
-    "EMA_LONG",
-    "EMA_MID",
-    "EMA_SHORT",
-    "FRACTAL_STOP_PIPS",
-    "INSTRUMENT",
-    "INTERVAL",
-    "MAX_DAILY_LOSSES",
-    "RRR_REWARD",
-    "RRR_RISK",
-    "RUN_END_DATE",
-    "RUN_MODE",
-    "RUN_START_DATE",
-    "SL_SLIPPAGE_PIPS",
-    "SPREAD_PIPS",
-    "STRATEGY_VERSION",
-    "TARGET_VERSION",
-    "TRADE_DIRECTION",
-    "USE_EMA_FILTER"
-  ]
+  "RUN_END_DATE": "2025-12-31"
 }
