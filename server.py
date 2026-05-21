@@ -3636,17 +3636,6 @@ def _run_backtest_sync(env_overrides=None):
         env = os.environ.copy()
         if env_overrides:
             env.update(env_overrides)
-        try:
-            import json as _json
-            debug_keys = ["ALLOWED_MACRO_REGIMES", "ALLOWED_MICRO_REGIMES",
-                          "STRATEGY_VERSION", "EMA_LONG", "USE_EMA_FILTER",
-                          "TRADE_DIRECTION", "BLOCKED_HOURS_UTC", "INSTRUMENT",
-                          "INTERVAL", "RUN_MODE", "RUN_START_DATE", "RUN_END_DATE"]
-            snap = {k: env.get(k, "<UNSET>") for k in debug_keys}
-            with open(str(BASE_DIR / ".bd_debug_env.json"), "w") as _f:
-                _json.dump(snap, _f, indent=2)
-        except Exception:
-            pass
         proc = subprocess.Popen(
             [sys.executable, "-u", str(STRATEGY_FILE)],
             stdout=subprocess.PIPE,
