@@ -2570,9 +2570,9 @@ body.regime-report #chart-preview-overlay #chart-preview-img {
    the Versions page each fetch /api/active_version to fill it). */
 .top-nav-active-version {
     margin-left: auto;
-    font-size: 11px;
-    color: #eee;
-    background: #444;
+    font-size: 12px;
+    color: #fff;
+    background: steelblue;
     padding: 5px 7px;
     letter-spacing: 0.04em;
     white-space: nowrap;
