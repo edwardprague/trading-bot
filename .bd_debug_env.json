@@ -9,6 +9,6 @@
   "INSTRUMENT": "GBPUSD",
   "INTERVAL": "5m",
   "RUN_MODE": "date_range",
-  "RUN_START_DATE": "2025-07-01",
+  "RUN_START_DATE": "2025-01-01",
   "RUN_END_DATE": "2025-12-31"
 }
