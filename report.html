@@ -6892,6 +6892,834 @@
         "active_version": "v1"
       }
     ]
+  },
+  {
+    "name": "v1",
+    "strategy": "Trend Following",
+    "strategy_version": "v2",
+    "entry_conditions": [
+      {
+        "condition": "Instrument",
+        "rule": "GBPUSD"
+      },
+      {
+        "condition": "Interval",
+        "rule": "5m"
+      },
+      {
+        "condition": "EMA Short",
+        "rule": "8"
+      },
+      {
+        "condition": "EMA Mid",
+        "rule": "20"
+      },
+      {
+        "condition": "EMA Long",
+        "rule": "166"
+      },
+      {
+        "condition": "EMA Position Filter",
+        "rule": "Long above / Short below EMA Long"
+      },
+      {
+        "condition": "Stop Loss Level",
+        "rule": "10"
+      },
+      {
+        "condition": "Direction",
+        "rule": "Short Only"
+      },
+      {
+        "condition": "RRR",
+        "rule": "1:4"
+      },
+      {
+        "condition": "Max DD",
+        "rule": "2"
+      }
+    ],
+    "params": {
+      "ticker": "GBPUSD",
+      "interval": "5m",
+      "days_back": 365,
+      "starting_cash": 100000.0,
+      "ema_short": 8,
+      "ema_mid": 20,
+      "ema_long": 166,
+      "stop_loss_pips": 10,
+      "rrr": 4.0,
+      "rrr_risk": 1,
+      "rrr_reward": 4,
+      "risk_pct": 0.01,
+      "min_stop": 0.0005,
+      "max_stop": 0.02,
+      "trade_direction": "short_only",
+      "max_daily_losses": 2,
+      "apply_slippage": true,
+      "sl_slippage_pips": 1.0,
+      "spread_pips": 1.0
+    },
+    "runs": [
+      {
+        "date": "2026-05-21 09:17",
+        "start_date": "2025-07-01",
+        "end_date": "2025-12-31",
+        "days_back": 0,
+        "label": "2025-07-01 → 2025-12-31",
+        "instrument": "GBPUSD",
+        "interval": "5m",
+        "trade_direction": "short_only",
+        "ema_short": 8,
+        "ema_mid": 20,
+        "ema_long": 166,
+        "stop_loss_pips": 10,
+        "rrr_risk": 1,
+        "rrr_reward": 4,
+        "blocked_hours": [
+          4,
+          5,
+          6,
+          8,
+          10,
+          11,
+          14,
+          17
+        ],
+        "max_daily_losses": 2,
+        "apply_slippage": true,
+        "sl_slippage_pips": 1.0,
+        "spread_pips": 1.0,
+        "notes": "v1 + EMA position filter — long above / short below EMA Long",
+        "chart_b64": "",
+        "eq_dd_chart_b64": "",
+        "metrics": {
+          "total_trades": 57,
+          "winning_trades": 24,
+          "losing_trades": 33,
+          "win_rate": 42.1,
+          "profit_factor": 2.4,
+          "avg_win": 5339.61,
+          "avg_loss": -1617.11,
+          "avg_stop_pips": 21.0,
+          "avg_target_pips": 84.1,
+          "best_trade": 6706.22,
+          "worst_trade": -2063.24,
+          "net_profit": 74785.91,
+          "net_profit_pct": 74.79,
+          "gross_profit": 128150.62,
+          "gross_loss": -53364.71,
+          "final_equity": 174785.91,
+          "max_drawdown": -6.59,
+          "max_drawdown_dollar": -9227.45,
+          "max_daily_drawdown": {
+            "dollar": -3551.92,
+            "pct": -3.55
+          },
+          "daily_drawdown": [
+            {
+              "date": "2025-10-23",
+              "trades": 2,
+              "pnl": -3551.92,
+              "drawdown_pct": -3.55
+            },
+            {
+              "date": "2025-09-24",
+              "trades": 2,
+              "pnl": -3122.87,
+              "drawdown_pct": -3.12
+            },
+            {
+              "date": "2025-09-09",
+              "trades": 2,
+              "pnl": -3118.05,
+              "drawdown_pct": -3.12
+            },
+            {
+              "date": "2025-09-12",
+              "trades": 2,
+              "pnl": -3075.31,
+              "drawdown_pct": -3.08
+            },
+            {
+              "date": "2025-12-31",
+              "trades": 1,
+              "pnl": -2063.24,
+              "drawdown_pct": -2.06
+            }
+          ],
+          "sharpe": 1.14,
+          "avg_position_size": 810300.0,
+          "min_position_size": 174072.0,
+          "max_position_size": 1473743.0,
+          "by_direction": {
+            "long": null,
+            "short": {
+              "count": 57,
+              "win_rate": 42.1,
+              "profit_factor": 2.4,
+              "avg_win": 5339.61,
+              "avg_loss": -1617.11,
+              "avg_pnl_per_trade": 1312.03,
+              "pct_of_total_trades": 100.0
+            }
+          },
+          "monthly": [
+            {
+              "month": "2025-07",
+              "trades": 13,
+              "wins": 8,
+              "losses": 5,
+              "win_rate": 61.5,
+              "max_dd": -1473.21,
+              "max_daily_dd": -1473.21,
+              "net_pnl": 28816.2
+            },
+            {
+              "month": "2025-08",
+              "trades": 7,
+              "wins": 3,
+              "losses": 4,
+              "win_rate": 42.9,
+              "max_dd": -3002.12,
+              "max_daily_dd": -1455.51,
+              "net_pnl": 9570.66
+            },
+            {
+              "month": "2025-09",
+              "trades": 10,
+              "wins": 2,
+              "losses": 8,
+              "win_rate": 20.0,
+              "max_dd": -6193.36,
+              "max_daily_dd": -3122.87,
+              "net_pnl": -1781.01
+            },
+            {
+              "month": "2025-10",
+              "trades": 16,
+              "wins": 8,
+              "losses": 8,
+              "win_rate": 50.0,
+              "max_dd": -5230.91,
+              "max_daily_dd": -3551.92,
+              "net_pnl": 33418.03
+            },
+            {
+              "month": "2025-11",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "max_dd": 0.0,
+              "max_daily_dd": -1747.86,
+              "net_pnl": -1747.86
+            },
+            {
+              "month": "2025-12",
+              "trades": 9,
+              "wins": 3,
+              "losses": 6,
+              "win_rate": 33.3,
+              "max_dd": -5676.04,
+              "max_daily_dd": -1894.75,
+              "net_pnl": 8573.14
+            },
+            {
+              "month": "2026-01",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "max_dd": 0.0,
+              "max_daily_dd": -2063.24,
+              "net_pnl": -2063.24
+            }
+          ],
+          "daily": [
+            {
+              "date": "2025-07-02",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 2818.68
+            },
+            {
+              "date": "2025-07-04",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 4063.79
+            },
+            {
+              "date": "2025-07-07",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 4226.27
+            },
+            {
+              "date": "2025-07-08",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1302.65
+            },
+            {
+              "date": "2025-07-10",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 4323.61
+            },
+            {
+              "date": "2025-07-11",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 3178.83
+            },
+            {
+              "date": "2025-07-14",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1241.89
+            },
+            {
+              "date": "2025-07-24",
+              "trades": 2,
+              "wins": 2,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 9271.89
+            },
+            {
+              "date": "2025-07-25",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 4950.87
+            },
+            {
+              "date": "2025-07-28",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1473.21
+            },
+            {
+              "date": "2025-07-30",
+              "trades": 1,
+              "wins": 1,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 5124.64
+            },
+            {
+              "date": "2025-08-14",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 3763.49
+            },
+            {
+              "date": "2025-08-21",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1455.51
+            },
+            {
+              "date": "2025-08-25",
+              "trades": 3,
+              "wins": 1,
+              "losses": 2,
+              "win_rate": 33.3,
+              "net_pnl": 2138.03
+            },
+            {
+              "date": "2025-09-02",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1418.68
+            },
+            {
+              "date": "2025-09-09",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -3118.05
+            },
+            {
+              "date": "2025-09-12",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -3075.31
+            },
+            {
+              "date": "2025-09-18",
+              "trades": 2,
+              "wins": 2,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 10548.52
+            },
+            {
+              "date": "2025-09-24",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -3122.87
+            },
+            {
+              "date": "2025-09-25",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1594.62
+            },
+            {
+              "date": "2025-10-02",
+              "trades": 3,
+              "wins": 1,
+              "losses": 2,
+              "win_rate": 33.3,
+              "net_pnl": 2192.11
+            },
+            {
+              "date": "2025-10-07",
+              "trades": 2,
+              "wins": 2,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 11113.34
+            },
+            {
+              "date": "2025-10-08",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 4181.38
+            },
+            {
+              "date": "2025-10-09",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1641.31
+            },
+            {
+              "date": "2025-10-17",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 4206.44
+            },
+            {
+              "date": "2025-10-23",
+              "trades": 2,
+              "wins": 0,
+              "losses": 2,
+              "win_rate": 0.0,
+              "net_pnl": -3551.92
+            },
+            {
+              "date": "2025-10-24",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1678.99
+            },
+            {
+              "date": "2025-10-28",
+              "trades": 2,
+              "wins": 2,
+              "losses": 0,
+              "win_rate": 100.0,
+              "net_pnl": 12135.84
+            },
+            {
+              "date": "2025-10-29",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 4713.27
+            },
+            {
+              "date": "2025-12-09",
+              "trades": 3,
+              "wins": 1,
+              "losses": 2,
+              "win_rate": 33.3,
+              "net_pnl": 2803.53
+            },
+            {
+              "date": "2025-12-12",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -1894.75
+            },
+            {
+              "date": "2025-12-17",
+              "trades": 3,
+              "wins": 1,
+              "losses": 2,
+              "win_rate": 33.3,
+              "net_pnl": 2902.5
+            },
+            {
+              "date": "2025-12-24",
+              "trades": 2,
+              "wins": 1,
+              "losses": 1,
+              "win_rate": 50.0,
+              "net_pnl": 4761.86
+            },
+            {
+              "date": "2025-12-31",
+              "trades": 1,
+              "wins": 0,
+              "losses": 1,
+              "win_rate": 0.0,
+              "net_pnl": -2063.24
+            }
+          ],
+          "intraday": [],
+          "streaks": {
+            "max_win_streak": 3,
+            "max_loss_streak": 6,
+            "avg_win_streak": 1.4,
+            "avg_loss_streak": 1.9,
+            "current_streak": "1L"
+          },
+          "stop_target": {
+            "pct_sl": 57.9,
+            "pct_tp": 42.1,
+            "avg_mae": 19.1
+          },
+          "regime": [
+            {
+              "regime": "Trending (ADX ≥25)",
+              "count": 35,
+              "win_rate": 42.9,
+              "profit_factor": 2.49,
+              "net_pnl": 48126.03
+            },
+            {
+              "regime": "Ranging (ADX <25)",
+              "count": 22,
+              "win_rate": 40.9,
+              "profit_factor": 2.27,
+              "net_pnl": 26659.88
+            }
+          ],
+          "time_of_day": {
+            "rows": [
+              {
+                "hour": 0,
+                "trades": 1,
+                "win_rate": 0.0,
+                "net_pnl": -1944.36
+              },
+              {
+                "hour": 1,
+                "trades": 5,
+                "win_rate": 20.0,
+                "net_pnl": -2384.52
+              },
+              {
+                "hour": 2,
+                "trades": 4,
+                "win_rate": 25.0,
+                "net_pnl": 848.71
+              },
+              {
+                "hour": 3,
+                "trades": 3,
+                "win_rate": 66.7,
+                "net_pnl": 11428.69
+              },
+              {
+                "hour": 7,
+                "trades": 9,
+                "win_rate": 66.7,
+                "net_pnl": 24778.6
+              },
+              {
+                "hour": 9,
+                "trades": 4,
+                "win_rate": 50.0,
+                "net_pnl": 8663.03
+              },
+              {
+                "hour": 12,
+                "trades": 8,
+                "win_rate": 50.0,
+                "net_pnl": 14651.7
+              },
+              {
+                "hour": 13,
+                "trades": 4,
+                "win_rate": 25.0,
+                "net_pnl": 1157.84
+              },
+              {
+                "hour": 15,
+                "trades": 7,
+                "win_rate": 42.9,
+                "net_pnl": 7787.48
+              },
+              {
+                "hour": 16,
+                "trades": 4,
+                "win_rate": 25.0,
+                "net_pnl": 127.39
+              },
+              {
+                "hour": 18,
+                "trades": 4,
+                "win_rate": 25.0,
+                "net_pnl": 1937.41
+              },
+              {
+                "hour": 19,
+                "trades": 1,
+                "win_rate": 0.0,
+                "net_pnl": -1615.41
+              },
+              {
+                "hour": 20,
+                "trades": 2,
+                "win_rate": 50.0,
+                "net_pnl": 4632.21
+              },
+              {
+                "hour": 23,
+                "trades": 1,
+                "win_rate": 100.0,
+                "net_pnl": 4717.16
+              }
+            ],
+            "best_hour": 7,
+            "worst_hour": 1
+          },
+          "win_rate_trend": [
+            {
+              "period": "Jul-02-25 to Aug-25-25",
+              "trades": 19,
+              "win_rate": 57.9,
+              "profit_factor": 4.67,
+              "net_pnl": 40002.26
+            },
+            {
+              "period": "Aug-25-25 to Oct-10-25",
+              "trades": 19,
+              "win_rate": 31.6,
+              "profit_factor": 1.61,
+              "net_pnl": 12449.1
+            },
+            {
+              "period": "Oct-17-25 to Jan-01-26",
+              "trades": 19,
+              "win_rate": 36.8,
+              "profit_factor": 2.01,
+              "net_pnl": 22334.54
+            }
+          ],
+          "duration_analysis": {
+            "winners": {
+              "avg": 312.6,
+              "min": 7,
+              "max": 1366
+            },
+            "losers": {
+              "avg": 339.5,
+              "min": 9,
+              "max": 5678
+            },
+            "all": {
+              "avg": 328.2,
+              "min": 7,
+              "max": 5678
+            }
+          },
+          "filter_impact": [
+            {
+              "filter": "Direction Filter",
+              "removed": 883,
+              "win_rate": 27.2,
+              "net_pnl": 367527.98
+            },
+            {
+              "filter": "Macro_regime Filter",
+              "removed": 506,
+              "win_rate": 9.7,
+              "net_pnl": -385999.48
+            },
+            {
+              "filter": "Micro_regime Filter",
+              "removed": 44,
+              "win_rate": 47.7,
+              "net_pnl": 73338.13
+            },
+            {
+              "filter": "Time Filter",
+              "removed": 330,
+              "win_rate": 17.9,
+              "net_pnl": -71503.92
+            }
+          ],
+          "rs_diagnostic": {
+            "trades_filtered": 0,
+            "trades_allowed": 57,
+            "total_signals": 57,
+            "filter_rate": 0.0,
+            "filtered_wr": 0.0,
+            "filtered_pf": null,
+            "allowed_wr": 42.1,
+            "allowed_pf": 2.4
+          },
+          "rrr_sensitivity": [
+            {
+              "trades": 210,
+              "win_rate": 42.9,
+              "profit_factor": 0.96,
+              "net_pnl": -5421.33,
+              "max_drawdown": -22.45,
+              "param": 1.5
+            },
+            {
+              "trades": 167,
+              "win_rate": 35.3,
+              "profit_factor": 0.95,
+              "net_pnl": -7021.77,
+              "max_drawdown": -20.91,
+              "param": 2.0
+            },
+            {
+              "trades": 128,
+              "win_rate": 34.4,
+              "profit_factor": 1.12,
+              "net_pnl": 13326.66,
+              "max_drawdown": -13.57,
+              "param": 2.5
+            },
+            {
+              "trades": 121,
+              "win_rate": 30.6,
+              "profit_factor": 1.13,
+              "net_pnl": 14523.36,
+              "max_drawdown": -14.51,
+              "param": 3.0
+            }
+          ],
+          "swing_sensitivity": [],
+          "pivot_diagnostics": {
+            "is_single_day": false,
+            "pivots": []
+          }
+        },
+        "last_trades": [
+          {
+            "direction": "Short",
+            "entry": "1.33265",
+            "exit": "1.33422",
+            "pnl": "-1911.71",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.33469",
+            "exit": "1.32897",
+            "pnl": "+6538.23",
+            "result": "WIN"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.32897",
+            "exit": "1.33275",
+            "pnl": "-1822.99",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.33685",
+            "exit": "1.33881",
+            "pnl": "-1894.75",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.34083",
+            "exit": "1.33575",
+            "pnl": "+6634.18",
+            "result": "WIN"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.33465",
+            "exit": "1.33960",
+            "pnl": "-1830.69",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.33941",
+            "exit": "1.34167",
+            "pnl": "-1900.98",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.35126",
+            "exit": "1.35290",
+            "pnl": "-1944.36",
+            "result": "LOSS"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.35150",
+            "exit": "1.34466",
+            "pnl": "+6706.22",
+            "result": "WIN"
+          },
+          {
+            "direction": "Short",
+            "entry": "1.34582",
+            "exit": "1.34712",
+            "pnl": "-2063.24",
+            "result": "LOSS"
+          }
+        ],
+        "active_version": "v1"
+      }
+    ]
   }
 ]
 </script>
@@ -7263,8 +8091,8 @@
       if (pvList.length === 0) {
         lines.push("No fractal pivot points detected in this date range.");
       } else {
-        lines.push("| Time | # | Type | Prior H | Prior L | L# | VD High | VD Low | H6 | H3 | H1 | ATR (pips) | ADX | Pullback % | Price |");
-        lines.push("|------|---|------|---------|---------|----|---------|--------|-----|-----|-----|------------|-----|-----------|----- -|");
+        lines.push("| Time | # | Type | L# | VD High | VD Low | H6 | H3 | H1 | ATR (pips) | ADX | Pullback % | Price |");
+        lines.push("|------|---|------|----|---------|--------|-----|-----|-----|------------|-----|-----------|----- -|");
         var mdBarOutcome = {};
         (m.intraday || []).forEach(function (t) {
           if (t.fractal_bar !== null && t.fractal_bar !== undefined) {
@@ -7322,16 +8150,7 @@
           var mdNum = String(idx + 1);
           var mdOc = mdBarOutcome[pv.bar];
           if (mdOc) mdNum += " " + mdOc;
-          var mdPriorHigh = "";
-          var mdPriorLow  = "";
-          if (pv.prior_price !== null && pv.prior_price !== undefined) {
-            if (pv.kind === "H") {
-              mdPriorHigh = mf(pv.prior_price, 5);
-            } else {
-              mdPriorLow  = mf(pv.prior_price, 5);
-            }
-          }
-          lines.push("| " + (pv.time || "") + " | " + mdNum + " | " + (mdType2 || "") + " | " + mdPriorHigh + " | " + mdPriorLow + " | " + mdLhNum + " | " + mdVertHigh + " | " + mdVertLow + " | " + mdH6 + " | " + mdH3 + " | " + mdHeight + " | " + atrD + " | " + adxD + " | " + pullbackD + " | " +
+          lines.push("| " + (pv.time || "") + " | " + mdNum + " | " + (mdType2 || "") + " | " + mdLhNum + " | " + mdVertHigh + " | " + mdVertLow + " | " + mdH6 + " | " + mdH3 + " | " + mdHeight + " | " + atrD + " | " + adxD + " | " + pullbackD + " | " +
             mf(pv.price, 5) + " |");
         });
       }
@@ -8484,23 +9303,11 @@
           _prevHighPrice = pv.price;
         }
 
-        var priorHighHtml = "";
-        var priorLowHtml  = "";
-        if (pv.prior_price !== null && pv.prior_price !== undefined) {
-          if (pv.kind === "H") {
-            priorHighHtml = fmt(pv.prior_price, 5);
-          } else {
-            priorLowHtml  = fmt(pv.prior_price, 5);
-          }
-        }
-
         pvRows +=
           "<tr" + bgClass + ">" +
           "<td class='nowrap'>" + numHtml + "</td>" +
           "<td class='nowrap'>" + esc(pv.time || "") + "</td>" +
           "<td>" + type2Html + "</td>" +
-          "<td class='nowrap'>" + priorHighHtml + "</td>" +
-          "<td class='nowrap'>" + priorLowHtml + "</td>" +
           "<td>" + lhNumHtml + "</td>" +
           "<td>" + vertHigh + "</td>" +
           "<td>" + vertLow + "</td>" +
@@ -8521,8 +9328,6 @@
           "<th style='width:52px'>#</th>" +
           "<th>Time</th>" +
           "<th>Type</th>" +
-          "<th>Prior H</th>" +
-          "<th>Prior L</th>" +
           "<th>L#</th>" +
           "<th>VD High</th>" +
           "<th>VD Low</th>" +
@@ -8577,7 +9382,8 @@
     /* Structural change (May 2026): instrument + interval are now per-version
        and surfaced in the title. Prefer v.params.instrument / v.params.interval
        (the new source of truth), then run.instrument/interval (legacy runs
-       predating the schema), then GBPUSD / 5m defaults. */
+       predating the schema), then GBPUSD / 5m defaults. The .replace strips
+       any legacy Yahoo-Finance "=X" suffix on old run.instrument values. */
     var _vp = (v && v.params) || {};
     var hdrParts = [esc(v.name || v.strategy_version || "v1")];
     var hdrInstr    = (_vp.instrument || run.instrument || "GBPUSD").replace(/=X$/i, "");
@@ -8626,8 +9432,11 @@
       }).join("") + "</select>";
 
     /* Interval is a Discovery-level setting (May 2026 — version-aware BD).
-       Kept as `savedInterval` for the read-only Parameters card below; the
-       editable panel no longer offers an Interval row. */
+       The editable BD panel no longer offers an Interval row; the value is
+       always taken from the active version's params.interval (set when
+       Discovery assigned the version). `savedInterval` is still used below
+       in the read-only Parameters card to display what interval the
+       selected saved run actually used. */
     var savedInterval = run.interval || p.interval || "5m";
 
     var savedEmaShort = run.ema_short != null ? run.ema_short : (p.ema_short != null ? p.ema_short : 8);
@@ -8665,12 +9474,11 @@
     var slippageCheckedAttr = savedSlippage ? " checked" : "";
     var slippageHtml = "<label class='bs-toggle'><input id='bs-apply-slippage' type='checkbox' class='bs-checkbox'" + slippageCheckedAttr + "><span class='bs-toggle-label'>Enabled</span></label>";
 
-    /* EMA Filter toggle. v1 doesn't use the EMA position filter, but the
-       BD's checkbox lives in INJECT_HTML's run payload, so we render the
-       row even on v1 reports for visual parity. Defaults to true to
-       match strategy_v2's default; runs on v1 ignore the env var so the
-       state here is informational only. (Bug fix May 2026 — paired with
-       the strategy_v2 change.) */
+    /* EMA Filter toggle. Bug fix (May 2026): the strategy_v2 EMA-position
+       filter (USE_EMA_FILTER) had no visible BD control, so the user
+       couldn't see what state the next backtest would actually run with.
+       Pre-fills from the version's params.use_ema_filter via
+       applyBacktestParamsFromVersion in INJECT_HTML. */
     var savedEmaFilter = run.use_ema_filter != null ? run.use_ema_filter : (p.use_ema_filter != null ? p.use_ema_filter : true);
     var emaFilterCheckedAttr = savedEmaFilter ? " checked" : "";
     var emaFilterHtml = "<label class='bs-toggle'><input id='bs-use-ema-filter' type='checkbox' class='bs-checkbox'" + emaFilterCheckedAttr + "><span class='bs-toggle-label'>Enabled</span></label>";
@@ -8683,9 +9491,13 @@
     var savedSpread = run.spread_pips != null ? run.spread_pips : (p.spread_pips != null ? p.spread_pips : 1.0);
     var spreadPipsHtml = "<input id='bs-spread-pips' type='number' class='bs-input' value='" + savedSpread + "' min='0' step='0.1'>";
 
-    /* Blocked Hours checkboxes — same version-first init as strategy_v2 (May 2026).
-       Initial state: run.blocked_hours (array) → p.blocked_hours (CSV) → defaults.
-       localStorage is no longer read. */
+    /* Blocked Hours checkboxes. Initial state derives from the saved run's
+       blocked_hours (if present), then the active version's params.blocked_hours,
+       then the strategy module's DEFAULT_BLOCKED_HOURS. localStorage is no
+       longer consulted (May 2026 — bug fix: stale per-user tweaks were
+       overriding the version's intended blocked-hours set). The version's
+       params arrive as a CSV string "4,5,6,...", whereas run.blocked_hours
+       is an array; handle both. */
     var _defaultBlocked = DEFAULT_BLOCKED_HOURS;
     var _blockedSet = {};
     var _runBH = run.blocked_hours;
@@ -8715,7 +9527,8 @@
 
     if (ecData && ecData.length > 0) {
       var ecRows = ecData.filter(function(ec) {
-        /* Interval row dropped from the editable panel (May 2026). */
+        /* Interval row dropped from the editable panel (May 2026); the read-only
+           Parameters card still shows it. */
         return ec.condition !== "Instrument" && ec.condition !== "Interval";
       }).map(function(ec) {
         var ruleCell = ec.condition === "Direction"
@@ -8744,6 +9557,10 @@
           "<table>" +
             "<tbody>" + ecRows + emaFilterRow + slippageRow + slSlippageRow + spreadRow + blockedHoursRow + "</tbody>" +
           "</table>" +
+          /* Restore to version defaults button — hidden by default; shown
+             by INJECT_HTML's bs-restore visibility check whenever any
+             editable panel value diverges from the active version's
+             params. Clicking it re-stamps params over the inputs. */
           "<div class='bs-restore-row'>" +
             "<button type='button' id='bs-restore-defaults' class='bs-restore-defaults-btn' hidden>" +
               "Restore to version defaults" +
@@ -8756,7 +9573,8 @@
           "<div class='section-title'>Backtest Settings</div>" +
           "<table>" +
             "<tbody>" +
-            /* Interval row dropped from the editable panel (May 2026). */
+            /* Interval row dropped from the editable panel (May 2026) —
+               interval is a Discovery-level setting now. */
             "<tr><td class='bs-td-cond'>EMA Short</td><td class='bs-td-rule'>" + emaShortHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>EMA Mid</td><td class='bs-td-rule'>" + emaMidHtml + "</td></tr>" +
             "<tr><td class='bs-td-cond'>EMA Long</td><td class='bs-td-rule'>" + emaLongHtml + "</td></tr>" +
@@ -8977,7 +9795,8 @@
     }());
 
     /* The interval row + its persistence wiring were removed (May 2026) —
-       interval is now per-version (Discovery-level). */
+       interval is now per-version (Discovery-level). The active version's
+       params.interval drives the backtest subprocess via _apply_active_version_to_env. */
 
     /* Wire EMA inputs — persist to localStorage on change */
     (function () {
@@ -9012,9 +9831,10 @@
     }());
 
     /* Wire EMA Filter checkbox (bug fix May 2026) — persist to
-       localStorage on change. v1 ignores the env var at runtime so this
-       is informational only on v1 reports, but the persistence keeps the
-       BD's checkbox state stable when switching back to a v2 version. */
+       localStorage on change. Initial value comes from the run / version
+       params via the renderer above; INJECT_HTML's
+       applyBacktestParamsFromVersion may further pre-fill on version
+       switch. */
     (function () {
       var cb = document.getElementById("bs-use-ema-filter");
       if (!cb) return;
@@ -9351,8 +10171,14 @@
     hideActionButtons();
     var ecThStyle = "class='bs-th'";
 
-    /* Empty-state init — version-first (May 2026). See parallel comment in
-       strategy_v2.py for rationale. */
+    /* Empty-state (no saved runs yet) — initialise from the active version's
+       params on every page load. (May 2026 bug fix: previously read
+       stale tweaks from localStorage and let them override the version's
+       intended defaults.) `window.__activeVersion` is set by INJECT_HTML's
+       /api/versions fetch before the IIFE runs; if it isn't ready yet
+       (unassigned version active, or fetch still in flight) we render
+       hardcoded fallback defaults — INJECT_HTML's applyBacktestParamsFromVersion
+       will re-stamp the real values when the fetch resolves. */
     var _versionParams = (window.__activeVersion && window.__activeVersion.params) || {};
 
     var _dirOptions = [
@@ -9385,7 +10211,7 @@
     var _savedSlSlippagePips = "1.0";
     var _slSlippagePipsHtml  = "<input id='bs-sl-slippage-pips' type='number' class='bs-input' value='" + _savedSlSlippagePips + "' min='0' step='0.1'>";
 
-    var _savedRrrRisk   = "1";
+    var _savedRrrRisk   = "1";   /* Discovery fixes RRR risk at 1; not editable per-version */
     var _savedRrrReward = String(_versionParams.rrr_reward != null ? _versionParams.rrr_reward : 2);
     var _rrrOpts = [1, 2, 3, 4, 5];
     var _rrrRiskHtml = "<select id='bs-rrr-risk' class='bs-select bs-select-narrow'>" +
@@ -9405,13 +10231,14 @@
         return "<option value='" + n + "'" + (String(n) === _savedMaxDd ? " selected" : "") + ">" + n + "</option>";
       }).join("") + "</select>";
 
-    /* EMA Filter — v1 doesn't actually read USE_EMA_FILTER but the BD checkbox
-       persists visually for parity with v2; pre-fills from version's params. */
+    /* EMA Filter — pre-fills from version's params.use_ema_filter (default
+       on, matching strategy_v2's USE_EMA_FILTER default). */
     var _emaFilterChecked = (_versionParams.use_ema_filter !== false);
     var _emaFilterHtml = "<label class='bs-toggle'><input id='bs-use-ema-filter' type='checkbox' class='bs-checkbox'" + (_emaFilterChecked ? " checked" : "") + "><span class='bs-toggle-label'>Enabled</span></label>";
     var _emaFilterRow = "<tr><td class='bs-td-cond'>EMA Filter</td><td class='bs-td-rule'>" + _emaFilterHtml + "</td></tr>";
 
-    /* Blocked Hours checkboxes (empty state) — version params first. */
+    /* Blocked Hours checkboxes (empty state) — derived from version's
+       params.blocked_hours (CSV) with strategy module defaults as fallback. */
     var _eDefaultBlocked = DEFAULT_BLOCKED_HOURS;
     var _eBlockedSet = {};
     if (typeof _versionParams.blocked_hours === "string" && _versionParams.blocked_hours) {
@@ -9436,7 +10263,8 @@
         "<div class='section-title'>Backtest Settings</div>" +
         "<table>" +
           "<tbody>" +
-          /* Interval row dropped (May 2026). */
+          /* Interval row dropped (May 2026) — interval is a Discovery-level
+             setting; the active version's params.interval drives the backtest. */
           "<tr><td class='bs-td-cond'>EMA Short</td><td class='bs-td-rule'>" + _emaShortHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>EMA Mid</td><td class='bs-td-rule'>" + _emaMidHtml + "</td></tr>" +
           "<tr><td class='bs-td-cond'>EMA Long</td><td class='bs-td-rule'>" + _emaLongHtml + "</td></tr>" +
@@ -9458,8 +10286,11 @@
         "</div>" +
       "</div>";
 
-    /* Wire localStorage persistence for the empty-state selects. (Reads on
-       init were dropped May 2026; writes kept inert.) */
+    /* Wire localStorage persistence for the empty-state selects. (May 2026:
+       interval row was removed; reads on init were dropped — these writes
+       are kept inert for now so other consumers of the legacy keys don't
+       break, and so a session-local tweak doesn't disappear if a re-render
+       runs before applyBacktestParamsFromVersion fires.) */
     var _dirEl = document.getElementById("bs-direction-select");
     if (_dirEl) _dirEl.addEventListener("change", function () { localStorage.setItem("bs_direction", _dirEl.value); });
     var _rrrRiskEl = document.getElementById("bs-rrr-risk");
@@ -9497,13 +10328,18 @@
   /* The selector shows strategy versions.
      currentVersion holds the selected strategy version tag. */
   function populateVersionSelector() {
-    /* Structural change (May 2026): the version dropdown was removed.
-       Active version is set on /versions and read by the strategy template
-       from window.__activeVersionId (injected server-side). */
+    /* Structural change (May 2026): the version dropdown was removed from
+       the toolbar. The active version is now set on /versions via per-card
+       radio buttons and read by the strategy template from
+       window.__activeVersionId (injected server-side by the / route
+       handler). currentVersion is matched against VERSIONS[i].name in
+       getStrategyVersions, so we set it to the active version id. */
     var sel = document.getElementById("version-select");
     if (window.__activeVersionId) {
       currentVersion = window.__activeVersionId;
     } else {
+      /* Fallback for any legacy code path: prefer the most recently
+         added version's name (assigned versions only), then v1. */
       var assigned = [];
       for (var j = 0; j < VERSIONS.length; j++) {
         if (VERSIONS[j] && VERSIONS[j].params) {
@@ -9512,7 +10348,7 @@
       }
       currentVersion = assigned.length ? assigned[assigned.length - 1] : "v1";
     }
-    if (sel) sel.value = currentVersion;
+    if (sel) sel.value = currentVersion;  /* no-op if dropdown removed */
   }
 
   function onVersionChange() {
@@ -9529,17 +10365,14 @@
     var found = false;
     for (var si = svs.length - 1; si >= 0; si--) {
       var runs = getRuns(svs[si].v);
-      for (var ri = runs.length - 1; ri >= 0; ri--) {
-        {
-          activeVersionIdx = svs[si].idx;
-          activeRunIdx = ri;
-          renderSidebar();
-          renderContent(svs[si].idx, ri);
-          found = true;
-          break;
-        }
+      if (runs.length > 0) {
+        activeVersionIdx = svs[si].idx;
+        activeRunIdx = runs.length - 1;
+        renderSidebar();
+        renderContent(svs[si].idx, runs.length - 1);
+        found = true;
+        break;
       }
-      if (found) break;
     }
     if (!found) {
       renderEmptyState();
@@ -9574,17 +10407,19 @@
     }
   };
 
+  /* Structural change (May 2026): the instrument toolbar dropdown was
+     removed — instrument is now per-version. populateInstrumentSelector
+     and onInstrumentChange are guarded so they no-op when the dropdown
+     element is absent. currentInstrument is kept as a global for any
+     legacy code path that might still reference it, but is left empty
+     so sidebar/runtime filters that gate on it have no effect. */
   function populateInstrumentSelector() {
     var sel = document.getElementById("instrument-select");
-    /* Structural change (May 2026): the instrument dropdown was removed from
-       the toolbar — instrument is now fixed per version. Bail out cleanly
-       when the element is absent. */
-    if (!sel) return;
+    if (!sel) return;  /* dropdown removed — no-op */
     var stored = localStorage.getItem("rb_instrument");
     if (stored) {
       currentInstrument = stored;
     } else {
-      /* Default to the first instrument that actually has runs */
       var firstWithData = "";
       for (var oi = 0; oi < sel.options.length; oi++) {
         var optVal = sel.options[oi].value;
@@ -9611,9 +10446,7 @@
     devLogOpen = false;
     document.getElementById("devlog-btn").classList.remove("active");
     renderSidebar();
-
     var svs = getStrategyVersions();
-    /* Find the last run matching the instrument within current strategy versions */
     var found = false;
     for (var si = svs.length - 1; si >= 0; si--) {
       var runs = getRuns(svs[si].v);
@@ -9630,24 +10463,21 @@
       }
       if (found) break;
     }
-    if (!found) {
-      activeVersionIdx = -1;
-      activeRunIdx = 0;
-      renderSidebar();
-      renderEmptyState();
-    }
+    if (!found) { activeVersionIdx = -1; activeRunIdx = 0; renderSidebar(); renderEmptyState(); }
   }
 
   /* ── Init ──────────────────────────────────────────────────── */
   populateVersionSelector();
   populateInstrumentSelector();
-  /* Structural change (May 2026): both version-select and instrument-select
-     were removed from the toolbar. Wire change handlers only if the
-     elements still exist. */
-  var _verSel = document.getElementById("version-select");
-  if (_verSel) _verSel.addEventListener("change", onVersionChange);
-  var _instrSel = document.getElementById("instrument-select");
-  if (_instrSel) _instrSel.addEventListener("change", onInstrumentChange);
+  /* Version + instrument dropdowns both removed (May 2026). Wire the
+     handlers only if the elements still exist (for backwards compat with
+     pre-update report.html snapshots). */
+  (function () {
+    var verSel = document.getElementById("version-select");
+    if (verSel) verSel.addEventListener("change", onVersionChange);
+    var instSel = document.getElementById("instrument-select");
+    if (instSel) instSel.addEventListener("change", onInstrumentChange);
+  })();
 
   document.getElementById("devlog-btn").addEventListener("click", function () {
     devLogOpen = !devLogOpen;

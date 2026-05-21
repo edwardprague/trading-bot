@@ -665,21 +665,27 @@ def _apply_active_version_to_env(env_overrides, payload):
         return
 
     # ── STRATEGY_VERSION resolution ─────────────────────────────────────
-    current_sv = (env_overrides.get("STRATEGY_VERSION") or "").strip()
-    if current_sv and current_sv not in _KNOWN_STRATEGY_MODULES:
-        # Treat the payload value as a version id and resolve to the
-        # underlying strategy module via versions.json.
-        env_overrides.pop("STRATEGY_VERSION", None)
-        for v in _read_versions().get("versions", []):
-            if v.get("id") == current_sv:
-                resolved = (v.get("strategy_version") or "").strip()
-                if resolved in _KNOWN_STRATEGY_MODULES:
-                    env_overrides["STRATEGY_VERSION"] = resolved
-                break
-    if "STRATEGY_VERSION" not in env_overrides:
-        av_sv = (av.get("strategy_version") or "").strip()
-        if av_sv in _KNOWN_STRATEGY_MODULES:
-            env_overrides["STRATEGY_VERSION"] = av_sv
+    # The payload's `strategy_version` field is a misnomer — the BD's run
+    # bar populates it from the active version's id, so for a profile named
+    # "v1" or "v2" it collides with the strategy module names (v1 / v2).
+    # That collision was the regime-gate bug (May 2026): the old guard
+    # `if current_sv and current_sv not in _KNOWN_STRATEGY_MODULES` short-
+    # circuited the version-lookup for any profile whose id matched a
+    # module name, leaving STRATEGY_VERSION="v1" even when the resolved
+    # version's underlying module was v2 — so strategy_v1.py loaded and
+    # the macro/micro gates silently disappeared.
+    #
+    # Fix: the RESOLVED version's `strategy_version` field is the only
+    # authoritative answer. If it points at a valid module, use it. Only
+    # fall back to whatever the payload set when the version doesn't
+    # carry a usable strategy_version (unassigned slots, legacy callers).
+    av_sv = (av.get("strategy_version") or "").strip()
+    if av_sv in _KNOWN_STRATEGY_MODULES:
+        env_overrides["STRATEGY_VERSION"] = av_sv
+    elif "STRATEGY_VERSION" not in env_overrides:
+        # Defensive: nothing on the version, nothing in the payload.
+        # Leave unset so strategy.py uses its own default (v1).
+        pass
 
     # ── Regime allow-lists ──────────────────────────────────────────────
     payload_macro = payload.get("allowed_macro_regimes") if isinstance(payload, dict) else None
@@ -3630,21 +3636,6 @@ def _run_backtest_sync(env_overrides=None):
         env = os.environ.copy()
         if env_overrides:
             env.update(env_overrides)
-        # TEMP DIAGNOSTIC (regime-gate bug investigation): write the env vars
-        # we're about to hand the subprocess to a file so we can verify the
-        # ALLOWED_*_REGIMES propagation independently. Remove once fixed.
-        try:
-            import json as _json
-            debug_keys = ["ALLOWED_MACRO_REGIMES", "ALLOWED_MICRO_REGIMES",
-                          "STRATEGY_VERSION", "EMA_LONG", "USE_EMA_FILTER",
-                          "TRADE_DIRECTION", "BLOCKED_HOURS_UTC", "INSTRUMENT",
-                          "INTERVAL", "RUN_MODE", "RUN_START_DATE", "RUN_END_DATE"]
-            snap = {k: env.get(k, "<UNSET>") for k in debug_keys}
-            snap["__overrides_keys"] = sorted((env_overrides or {}).keys())
-            with open(str(BASE_DIR / ".bd_debug_env.json"), "w") as _f:
-                _json.dump(snap, _f, indent=2)
-        except Exception:
-            pass
         proc = subprocess.Popen(
             [sys.executable, "-u", str(STRATEGY_FILE)],
             stdout=subprocess.PIPE,
