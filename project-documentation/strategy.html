@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategy Logic — Fractal Bot Docs</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="index.html">Fractal Bot</a>
+  <a href="index.html">Overview</a>
+  <a href="platform.html">Platform</a>
+  <a href="strategy.html" class="active">Strategy</a>
+  <a href="technical.html">Technical</a>
+  <a href="workflow.html">Workflow</a>
+  <a href="research.html">Research</a>
+</nav>
+
+<div class="page">
+  <a class="back-link" href="index.html">← Back to Overview</a>
+
+  <div class="page-header">
+    <div class="eyebrow">Documentation</div>
+    <h1>Strategy Logic</h1>
+    <p class="subtitle">Fractal detection, entry gates, regime classification, and position sizing for strategy v1 and v2.</p>
+  </div>
+
+  <!-- Current config -->
+  <div class="section">
+    <div class="section-title">Current Active Configuration — v1</div>
+    <div class="callout callout-tip">
+      <span class="callout-icon">✅</span>
+      <div class="callout-body"><strong>Verified baseline (Jul–Dec 2025, GBPUSD):</strong> 57 trades · 42.1% win rate · PF 2.40 · $74,786. Assigned from Discovery trial #24.</div>
+    </div>
+    <div class="grid-2" style="margin-top:16px;">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Instrument</td><td>GBPUSD</td></tr>
+            <tr><td>Interval</td><td>5m</td></tr>
+            <tr><td>Direction</td><td><span class="badge badge-accent">Short Only</span></td></tr>
+            <tr><td>EMA Long</td><td>166</td></tr>
+            <tr><td>Stop Loss</td><td>10 pips</td></tr>
+            <tr><td>RRR</td><td>1 : 4</td></tr>
+            <tr><td>Max DD</td><td>2</td></tr>
+            <tr><td>EMA Filter</td><td>Off</td></tr>
+            <tr><td>Blocked Hours (UTC)</td><td>4, 5, 6, 8, 10, 11, 14, 17</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card" style="align-self:start;">
+        <div class="card-title">Regime Gates</div>
+        <div style="margin-top:10px;">
+          <div style="font-size:12px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">Macro (allowed)</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">
+            <span class="badge badge-accent">staircase_down</span>
+            <span class="badge badge-accent">strong_down</span>
+          </div>
+          <div style="font-size:12px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">Micro (allowed)</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <span class="badge badge-blue">ranging_wide</span>
+            <span class="badge badge-blue">transitioning</span>
+            <span class="badge badge-blue">trending_fast_down</span>
+            <span class="badge badge-blue">trending_medium_down</span>
+            <span class="badge badge-blue">trending_medium_up</span>
+            <span class="badge badge-blue">trending_slow_down</span>
+            <span class="badge badge-blue">trending_slow_up</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- v1 -->
+  <div class="section">
+    <div class="section-title">v1 — Fractal Geometry Entries</div>
+
+    <div class="grid-2">
+      <div>
+        <h2>Fractal Detection</h2>
+        <p>Williams N=2. A fractal at bar <code>fi</code> requires bars <code>fi±1</code> and <code>fi±2</code> to all have lower highs (fractal high) or higher lows (fractal low). Confirmation happens 2 bars later.</p>
+
+        <h2>Entry Signals</h2>
+        <ul class="doc-list">
+          <li><strong>Long</strong> — new fractal low forms higher than the prior fractal low</li>
+          <li><strong>Short</strong> — new fractal high forms lower than the prior fractal high</li>
+        </ul>
+
+        <h2>Entry Reference</h2>
+        <ul class="doc-list">
+          <li><strong>Python</strong> — close of the bar after confirmation</li>
+          <li><strong>cBot</strong> — <code>Symbol.Ask</code> for longs, <code>Symbol.Bid</code> for shorts, on first tick of bar after confirmation</li>
+        </ul>
+      </div>
+
+      <div>
+        <h2>Stop &amp; Target</h2>
+        <ul class="doc-list">
+          <li><strong>Stop-loss</strong> — fractal price ± <code>FRACTAL_STOP_PIPS</code> offset (default 15)</li>
+          <li><strong>Take-profit</strong> — entry ± (stop distance × RRR)</li>
+          <li><strong>Stop validation</strong> — distance must be between <code>MIN_STOP</code> (5 pips) and <code>MAX_STOP</code> (200 pips)</li>
+        </ul>
+
+        <h2>Position Sizing</h2>
+        <p>Formula: <code>(equity × RISK_PCT) / stop_distance_in_price</code>, normalised to broker volume step. <code>RISK_PCT</code> fixed at 1% — not a Discovery variable.</p>
+
+        <h2>Other Rules</h2>
+        <ul class="doc-list">
+          <li><strong>Daily loss limit</strong> — no new trades once losing-trade count reaches <code>MAX_DAILY_LOSSES</code> (default 2). Resets at UTC midnight.</li>
+          <li><strong>Re-entry</strong> — no cooldown. A new signal on the bar after a close is accepted.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- v2 -->
+  <div class="section">
+    <div class="section-title">v2 — Additional Gates (on top of v1)</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">EMA Position Filter</div>
+        <div class="card-subtitle">Toggle: <code>USE_EMA_FILTER</code> (default on)</div>
+        <p>Evaluated on the confirmation bar's close. Long requires <code>close &gt; EMA Long</code>; short requires <code>close &lt; EMA Long</code>. <code>EMA_LONG</code> defaults to 40 bars.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">EMA Buffer</div>
+        <div class="card-subtitle"><code>EMA40_BUFFER_PIPS</code> — default 5 pips</div>
+        <p>Tightens the EMA filter. Short requires <code>close &lt; ema_long − buffer</code>; long requires <code>close &gt; ema_long + buffer</code>. Setting to 0 recovers strict-below behaviour.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Macro Regime Gate</div>
+        <div class="card-subtitle"><code>ALLOWED_MACRO_REGIMES</code></div>
+        <p>Skips entries on days whose macro regime isn't in the allow-list. If the parquet doesn't cover a day, the gate passes through silently.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Micro Regime Gate</div>
+        <div class="card-subtitle"><code>ALLOWED_MICRO_REGIMES</code></div>
+        <p>Skips entries whose micro regime at entry timestamp isn't in the allow-list. Labels loaded from <code>data/regime_labels.parquet</code> at import.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gate pipeline -->
+  <div class="section">
+    <div class="section-title">Entry Gate Pipeline — Order Matters</div>
+    <p>The first gate that rejects a signal stamps a <code>reason</code> on it, driving counterfactual stats in the RA.</p>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div class="flow-steps" style="padding:8px 24px;">
+        <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><h4>Signal generation</h4><p>Fractal detection + higher-low / lower-high test</p></div></div>
+        <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>Direction filter</h4><p><code>TRADE_DIRECTION</code> — both / long_only / short_only</p></div></div>
+        <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>EMA position filter</h4><p>v2 only, if <code>USE_EMA_FILTER</code> is on</p></div></div>
+        <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><h4>Daily loss limit</h4><p>Blocks entries once <code>MAX_DAILY_LOSSES</code> is reached for the UTC day</p></div></div>
+        <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><h4>Time filter</h4><p><code>BLOCKED_HOURS_UTC</code></p></div></div>
+        <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><h4>Macro regime gate</h4><p>v2 only</p></div></div>
+        <div class="flow-step"><div class="flow-num">7</div><div class="flow-content"><h4>Micro regime gate</h4><p>v2 only</p></div></div>
+        <div class="flow-step"><div class="flow-num">8</div><div class="flow-content"><h4>Stop-distance validation</h4><p><code>MIN_STOP</code> / <code>MAX_STOP</code> range check</p></div></div>
+        <div class="flow-step" style="border-bottom:none;"><div class="flow-num" style="background:var(--green);">9</div><div class="flow-content"><h4>Trade execution</h4><p>Signal accepted — position opened</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Regime classification -->
+  <div class="section">
+    <div class="section-title">Regime Classification</div>
+    <div class="grid-2">
+      <div>
+        <h2>Macro Regime</h2>
+        <p>Per-day classification combining three signals: net displacement (open → close), EMA-40 slope across the day, and N=18 fractal structure.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Label</th><th>Character</th></tr></thead>
+            <tbody>
+              <tr><td>strong_down</td><td>Sharp directional fall</td></tr>
+              <tr><td>staircase_down</td><td>Stepped decline</td></tr>
+              <tr><td>flat</td><td>No clear direction</td></tr>
+              <tr><td>staircase_up</td><td>Stepped rise</td></tr>
+              <tr><td>strong_up</td><td>Sharp directional rise</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h2>Micro Regime</h2>
+        <p>Per-fractal classification. Coarse label from rolling lookback of last 4 same-kind fractals; refined into 10 fine labels via tercile thresholds (quantile-based — not absolute).</p>
+        <div class="callout callout-info" style="margin-top:12px;">
+          <span class="callout-icon">ℹ️</span>
+          <div class="callout-body">Fast/medium/slow and narrow/medium/wide cuts are computed as terciles across all observed periods in the run. A "fast" period in a quiet date range may not be fast by absolute standards.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -2546,6 +2546,7 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       <li><a class="top-nav-link top-nav-link-active" href="/results/regime_analysis.html">Regimes</a></li>
       <li><a class="top-nav-link" href="/discovery">Discovery</a></li>
       <li><a class="top-nav-link" href="/versions">Versions</a></li>
+      <li><a class="top-nav-link" href="/docs/" target="_blank" rel="noopener noreferrer">Docs</a></li>
     </ul>
     <span class="top-nav-active-version" id="top-nav-active-version"></span>
   </nav>

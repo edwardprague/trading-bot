@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Technical Reference — Fractal Bot Docs</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="index.html">Fractal Bot</a>
+  <a href="index.html">Overview</a>
+  <a href="platform.html">Platform</a>
+  <a href="strategy.html">Strategy</a>
+  <a href="technical.html" class="active">Technical</a>
+  <a href="workflow.html">Workflow</a>
+  <a href="research.html">Research</a>
+</nav>
+
+<div class="page">
+  <a class="back-link" href="index.html">← Back to Overview</a>
+
+  <div class="page-header">
+    <div class="eyebrow">Documentation</div>
+    <h1>Technical Reference</h1>
+    <p class="subtitle">Project files, Flask endpoints, environment variables, Python packages, and data folder contents.</p>
+  </div>
+
+  <!-- Setup -->
+  <div class="section">
+    <div class="section-title">Setup</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Environment</div>
+        <ul class="doc-list" style="margin-top:10px;">
+          <li><strong>Working directory</strong> — <code>~/Documents/GitHub/trading-bot</code></li>
+          <li><strong>Venv activation</strong> — <code>source venv/bin/activate</code></li>
+          <li><strong>Repository</strong> — <a href="https://github.com/edwardprague/trading-bot" target="_blank" style="color:var(--blue);">github.com/edwardprague/trading-bot</a></li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">Startup</div>
+        <p style="margin-top:8px; font-size:13px;">Double-click <code>start.command</code> from Finder. Runs:</p>
+        <pre><code>cd ~/Documents/GitHub/trading-bot
+git pull
+source venv/bin/activate
+python3 server.py</code></pre>
+        <p style="margin-top:8px; font-size:13px;">Opens dashboard at <code>http://localhost:8080</code></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Python packages -->
+  <div class="section">
+    <div class="section-title">Python Packages</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Package</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>flask</td><td>Dashboard + regime analysis web server</td></tr>
+          <tr><td>pandas</td><td>Data manipulation</td></tr>
+          <tr><td>numpy</td><td>Numerical calculations</td></tr>
+          <tr><td>pyarrow / fastparquet</td><td>Parquet I/O (either works)</td></tr>
+          <tr><td>massive</td><td>Massive.io API client (data source)</td></tr>
+          <tr><td>python-dotenv</td><td>Loads API keys from <code>.env</code></td></tr>
+          <tr><td>matplotlib</td><td>Chart generation</td></tr>
+          <tr><td>ta / pandas-ta</td><td>Technical indicators (ADX, EMA)</td></tr>
+          <tr><td>requests</td><td>HTTP requests</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Project files -->
+  <div class="section">
+    <div class="section-title">Project Files</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>File / Folder</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td>server.py</td><td>Flask web server — routes dashboard, regime analysis, async backtests, and <code>/versions</code>. Hosts <code>INJECT_HTML</code> (top-nav + run bar) injected on <code>/</code></td></tr>
+          <tr><td>strategy.py</td><td>Thin router — reads <code>STRATEGY_VERSION</code> env var, delegates to <code>strategy_vN.py</code></td></tr>
+          <tr><td>strategy_v1.py</td><td>Fractal-only entries</td></tr>
+          <tr><td>strategy_v2.py</td><td>v1 + EMA position filter + regime gates (current)</td></tr>
+          <tr><td>regime_analysis.py</td><td>Builds <code>regime_labels.parquet</code> + <code>results/regime_analysis.html</code></td></tr>
+          <tr><td>cbot_templates.py</td><td>Renders <code>FractalBot_v{N}.cs</code> for cTrader</td></tr>
+          <tr><td>download_data.py</td><td>Fetches OHLC bars from Massive API → <code>data/&lt;instrument&gt;_&lt;interval&gt;.parquet</code></td></tr>
+          <tr><td>start.command</td><td>Double-click startup (git pull + Flask)</td></tr>
+          <tr><td>report.html</td><td>Auto-generated dashboard — <strong>never edit directly</strong>; edit <code>strategy_vN.py</code></td></tr>
+          <tr><td>style.css</td><td>Shared stylesheet for dashboard + regime analysis</td></tr>
+          <tr><td>.env</td><td>API keys — gitignored, never commit</td></tr>
+          <tr><td>data/</td><td>Cached OHLC parquets, regime labels, versions store</td></tr>
+          <tr><td>results/</td><td>Generated reports + charts</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Data folder -->
+  <div class="section">
+    <div class="section-title">Data Folder</div>
+    <div class="grid-2">
+      <div>
+        <h2>OHLC Parquets</h2>
+        <ul class="doc-list">
+          <li><code>GBPUSD_5m.parquet</code> — Cached 5-minute bars from Massive API</li>
+          <li><code>EURUSD_5m.parquet</code> — Cached EURUSD 5-minute bars</li>
+          <li><code>GBPJPY_5m.parquet</code> — <span class="badge badge-green">New</span></li>
+          <li><code>USDJPY_5m.parquet</code> — <span class="badge badge-green">New</span></li>
+          <li><code>EURJPY_5m.parquet</code> — <span class="badge badge-green">New</span></li>
+          <li><code>AUDUSD_5m.parquet</code> — <span class="badge badge-green">New</span></li>
+          <li><code>USDCAD_5m.parquet</code> — <span class="badge badge-green">New</span></li>
+        </ul>
+        <p style="margin-top:10px; font-size:12.5px; color:var(--text3);">Refresh with <code>python3 download_data.py</code></p>
+      </div>
+      <div>
+        <h2>Config &amp; Labels</h2>
+        <ul class="doc-list">
+          <li><code>regime_labels.parquet</code> — Per-fractal regime labels. Schema metadata carries macro_by_date JSON + tercile thresholds.</li>
+          <li><code>macro_by_date.json</code> — Sidecar macro labels fallback</li>
+          <li><code>versions.json</code> — Active-version id + per-version regime allow-lists + notes. Source of truth — tracked in git.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Env vars -->
+  <div class="section">
+    <div class="section-title">Environment Variables</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Variable</th><th>Default</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td>STRATEGY_VERSION</td><td>v1</td><td>Routes <code>strategy.py</code> to <code>strategy_vN.py</code></td></tr>
+          <tr><td>INSTRUMENT</td><td>EURUSD</td><td>One of EURUSD, GBPUSD, GBPJPY, etc.</td></tr>
+          <tr><td>INTERVAL</td><td>5m</td><td>Bar interval (1m, 5m, 15m, 60m…)</td></tr>
+          <tr><td>TRADE_DIRECTION</td><td>both</td><td>both / long_only / short_only</td></tr>
+          <tr><td>EMA_SHORT</td><td>8</td><td>Short EMA period</td></tr>
+          <tr><td>EMA_MID</td><td>20</td><td>Mid EMA period</td></tr>
+          <tr><td>EMA_LONG</td><td>40</td><td>Long EMA period</td></tr>
+          <tr><td>RRR_RISK / RRR_REWARD</td><td>1 / 2</td><td>RRR ratio</td></tr>
+          <tr><td>FRACTAL_STOP_PIPS</td><td>15</td><td>Pip offset for fractal-based SL</td></tr>
+          <tr><td>MAX_DAILY_LOSSES</td><td>2</td><td>Daily-loss-stop threshold</td></tr>
+          <tr><td>BLOCKED_HOURS_UTC</td><td>4,5,6,8,10,11,14,17</td><td>UTC hours where entries are skipped</td></tr>
+          <tr><td>USE_EMA_FILTER</td><td>true</td><td>v2 EMA position filter toggle</td></tr>
+          <tr><td>EMA40_BUFFER_PIPS</td><td>5</td><td>Extra distance beyond EMA Long required</td></tr>
+          <tr><td>ALLOWED_MACRO_REGIMES</td><td>Staircase Down,Strong Down</td><td>Macro regime allow-list (empty = no gate)</td></tr>
+          <tr><td>ALLOWED_MICRO_REGIMES</td><td>ranging-medium,ranging-wide</td><td>Micro regime allow-list (empty = no gate)</td></tr>
+          <tr><td>APPLY_SLIPPAGE</td><td>true</td><td>Apply SL slippage in P&amp;L</td></tr>
+          <tr><td>SL_SLIPPAGE_PIPS</td><td>1.0</td><td>Pips of adverse slippage on SL fills</td></tr>
+          <tr><td>SPREAD_PIPS</td><td>1.0</td><td>Round-trip spread cost per trade</td></tr>
+          <tr><td>GENERATE_DAILY_CHARTS</td><td>true</td><td>Per-day chart loop in regime_analysis.py</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout callout-info" style="margin-top:16px;">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-body"><strong>Naming note:</strong> Python uses <code>SCREAMING_SNAKE_CASE</code>. The cBot template uses <code>PascalCase</code> — same concepts, different conventions.</div>
+    </div>
+  </div>
+
+  <!-- Flask endpoints -->
+  <div class="section">
+    <div class="section-title">Flask Endpoints</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Route</th><th>Method</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>/</td><td>GET</td><td>Dashboard — serves <code>report.html</code> with run-bar injected</td></tr>
+          <tr><td>/style.css</td><td>GET</td><td>Shared stylesheet</td></tr>
+          <tr><td>/versions</td><td>GET</td><td>Versions management page</td></tr>
+          <tr><td>/discovery</td><td>GET</td><td>Discovery page</td></tr>
+          <tr><td>/docs</td><td>GET</td><td>This documentation</td></tr>
+          <tr><td>/run</td><td>POST</td><td>Kick off backtest subprocess (full date range)</td></tr>
+          <tr><td>/run_range</td><td>POST</td><td>Kick off backtest over a specific date range</td></tr>
+          <tr><td>/run_batch</td><td>POST</td><td>Queue multiple backtests</td></tr>
+          <tr><td>/status</td><td>GET</td><td>Poll backtest progress — BD only</td></tr>
+          <tr><td>/api/versions</td><td>GET</td><td>Return full versions.json store</td></tr>
+          <tr><td>/api/versions</td><td>POST</td><td>Add a new profile</td></tr>
+          <tr><td>/api/versions/&lt;id&gt;</td><td>DELETE</td><td>Delete a profile; auto-switches active if needed</td></tr>
+          <tr><td>/api/versions/&lt;id&gt;/notes</td><td>POST</td><td>Update a profile's notes field</td></tr>
+          <tr><td>/api/active_version</td><td>GET</td><td>Return currently-active profile dict</td></tr>
+          <tr><td>/api/active_version</td><td>POST</td><td>Switch the active profile</td></tr>
+          <tr><td>/run_regime_analysis</td><td>POST</td><td>Synchronous RA backtest re-run (~30–100s). Writes regime_state back to versions.json.</td></tr>
+          <tr><td>/results/&lt;filename&gt;</td><td>GET</td><td>Serve any file in results/</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

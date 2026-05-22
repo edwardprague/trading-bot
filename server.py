@@ -45,6 +45,7 @@ REPORT_FILE   = BASE_DIR / "report.html"
 STRATEGY_FILE = BASE_DIR / "strategy.py"
 RESULTS_DIR   = BASE_DIR / "results"
 DATA_DIR      = BASE_DIR / "data"
+DOCS_DIR      = BASE_DIR / "project-documentation"
 
 # Versions store — server-side source of truth for the user's strategy
 # profiles. Each version bundles:
@@ -767,6 +768,7 @@ INJECT_HTML = """
     <li><a class="top-nav-link" href="/results/regime_analysis.html">Regimes</a></li>
     <li><a class="top-nav-link" href="/discovery">Discovery</a></li>
     <li><a class="top-nav-link" href="/versions">Versions</a></li>
+    <li><a class="top-nav-link" href="/docs/" target="_blank" rel="noopener noreferrer">Docs</a></li>
   </ul>
   <span class="top-nav-active-version" id="top-nav-active-version"></span>
 </nav>
@@ -1592,6 +1594,7 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
       <li><a class="top-nav-link" href="/results/regime_analysis.html">Regimes</a></li>
       <li><a class="top-nav-link" href="/discovery">Discovery</a></li>
       <li><a class="top-nav-link top-nav-link-active" href="/versions">Versions</a></li>
+      <li><a class="top-nav-link" href="/docs/" target="_blank" rel="noopener noreferrer">Docs</a></li>
     </ul>
     <span class="top-nav-active-version" id="top-nav-active-version"></span>
   </nav>
@@ -1956,6 +1959,7 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
       <li><a class="top-nav-link" href="/results/regime_analysis.html">Regimes</a></li>
       <li><a class="top-nav-link top-nav-link-active" href="/discovery">Discovery</a></li>
       <li><a class="top-nav-link" href="/versions">Versions</a></li>
+      <li><a class="top-nav-link" href="/docs/" target="_blank" rel="noopener noreferrer">Docs</a></li>
     </ul>
     <span class="top-nav-active-version" id="top-nav-active-version"></span>
   </nav>
@@ -2323,6 +2327,28 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         return iso.replace("T", " ").replace(/:\d{2}Z?$/, "");
       }
 
+      /* Wall-clock elapsed between two ISO timestamps (or between startISO
+         and "now" when endISO is null/undefined). Returns "1h 04m 32s",
+         "4m 32s", "32s", or "—" when start is missing. May 2026 — used in
+         the Discovery run header to surface how long each run took, and
+         updated live on the in-flight run via the 1.5s status poll which
+         re-renders the running block every tick. */
+      function fmtElapsed(startISO, endISO) {
+        if (!startISO) return "—";
+        /* Treat Zulu timestamps as UTC. Browser's Date() handles "Z". */
+        var start = Date.parse(startISO);
+        if (isNaN(start)) return "—";
+        var end = endISO ? Date.parse(endISO) : Date.now();
+        if (isNaN(end) || end < start) return "—";
+        var total = Math.max(0, Math.floor((end - start) / 1000));
+        var h = Math.floor(total / 3600);
+        var m = Math.floor((total % 3600) / 60);
+        var s = total % 60;
+        if (h > 0) return h + "h " + (m < 10 ? "0" : "") + m + "m " + (s < 10 ? "0" : "") + s + "s";
+        if (m > 0) return m + "m " + (s < 10 ? "0" : "") + s + "s";
+        return s + "s";
+      }
+
       /* short_only / long_only / both → "Short Only" / "Long Only" / "Both"
          (May 2026 redesign — surfaces the run's direction in the header). */
       function humanizeDirection(d) {
@@ -2382,6 +2408,20 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         meta.appendChild(spanCls("discovery-run-stat", trials.length + " / " + (run.trials_total || trials.length) + " trials"));
         meta.appendChild(spanCls("discovery-run-stat", passCount + " passing"));
         meta.appendChild(spanCls("discovery-run-date", fmtRunDate(run.started_at)));
+        /* Elapsed wall-clock time. May 2026:
+             • Completed run → started_at → finished_at (frozen).
+             • Running run    → started_at → "now" (ticks at POLL_MS=1.5s
+                                because pollStatus → loadResults → renderStack
+                                rebuilds every running block on each tick).
+             • Idle / errored / no started_at → "—".
+           Class is .discovery-run-elapsed so it can be styled separately if
+           needed; today it inherits .discovery-run-stat's pill look via a
+           sibling rule in style.css. */
+        var elapsedText = fmtElapsed(
+          run.started_at,
+          run.status === "running" ? null : run.finished_at
+        );
+        meta.appendChild(spanCls("discovery-run-elapsed", elapsedText));
         var statusClass = "discovery-run-status discovery-run-status-" + (run.status || "idle");
         meta.appendChild(spanCls(statusClass, (run.status || "—").toUpperCase()));
         header.appendChild(meta);
@@ -3131,6 +3171,59 @@ def _results_page(body_html):
 </head>
 <body class='results-listing'>{body_html}</body>
 </html>"""
+
+
+# ── /docs — static server for project-documentation/ ─────────────────────────
+# Serves everything under project-documentation/ at /docs/<path>. Mirrors the
+# /results pattern (send_from_directory handles path-traversal protection +
+# conditional caching). The bare /docs and /docs/ URLs resolve to
+# project-documentation/index.html so the user lands on the docs home rather
+# than a 404 or a directory listing — the docs folder isn't an asset dump,
+# it's a small curated set of HTML pages.
+#
+# HTML responses get Cache-Control: no-store so edits to the docs pages are
+# visible on the next reload without a hard-refresh; that matches the
+# /results behaviour for the same reason.
+
+@app.route("/docs")
+@app.route("/docs/")
+def serve_docs_index():
+    """Land on project-documentation/index.html when no filename is given."""
+    if not DOCS_DIR.exists():
+        abort(404)
+    try:
+        resp = send_from_directory(str(DOCS_DIR), "index.html", conditional=True)
+        resp.headers["Cache-Control"] = "no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
+    except FileNotFoundError:
+        abort(404)
+
+
+@app.route("/docs/<path:filename>")
+def serve_docs_file(filename):
+    """Serve any file beneath project-documentation/, including nested paths.
+
+    send_from_directory rejects paths that escape the directory root, so this
+    is safe against path-traversal attacks (e.g. /docs/../server.py) even
+    when `filename` comes straight from the URL.
+
+    HTML pages get Cache-Control: no-store so docs edits show up on the next
+    plain reload — same reasoning as /results/<filename>. CSS / images keep
+    normal cache behaviour.
+    """
+    if not DOCS_DIR.exists():
+        abort(404)
+    try:
+        resp = send_from_directory(str(DOCS_DIR), filename, conditional=True)
+        if filename.endswith(".html"):
+            resp.headers["Cache-Control"] = "no-store, must-revalidate"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+        return resp
+    except FileNotFoundError:
+        abort(404)
 
 
 # ── /run_regime_analysis — interactive endpoint for the regime labeler page ──

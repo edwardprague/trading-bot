@@ -4134,6 +4134,15 @@ body.discovery-trial-page {
     letter-spacing: 0.02em;
 }
 
+/* Elapsed wall-clock time pill (May 2026). Same muted-grey treatment as
+   the date / stat pills, with tabular-nums so the seconds digit doesn't
+   shift width when it ticks every 1.5s on the in-flight run. */
+.discovery-run-elapsed {
+    color: #9090b8;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
 .discovery-run-status {
     display: inline-block;
     padding: 2px 8px;
