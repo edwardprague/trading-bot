@@ -298,7 +298,12 @@ def _assign_version_from_trial(version_id, trial_params, run_config=None):
         "use_ema_filter":   bool(tp.get("use_ema_filter", True)),
         "fractal_stop_pips": tp.get("stop_loss_pips"),
         "rrr_reward":       tp.get("rrr_reward"),
-        "max_daily_losses": tp.get("max_daily_losses"),
+        # max_daily_losses was retired from the Discovery search space
+        # (May 2026). New trials won't carry the field; legacy trials still
+        # do. Default to 2 (the strategy's documented default + the new
+        # FIXED_MAX_DAILY_LOSSES in discovery.py) when missing so version
+        # records always store a concrete value.
+        "max_daily_losses": tp.get("max_daily_losses", 2) if tp.get("max_daily_losses") is not None else 2,
         # Bug fix (May 2026): Phase 1 Discovery holds trade_direction and
         # blocked_hours fixed, but they're still active inputs in the
         # backtest. Without recording them here the BD's user-tunable
@@ -2020,6 +2025,11 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                 <td><select id="ds-instrument" class="discovery-form-input ds-select">
                       <option value="GBPUSD">GBPUSD</option>
                       <option value="EURUSD">EURUSD</option>
+                      <option value="GBPJPY">GBPJPY</option>
+                      <option value="USDJPY">USDJPY</option>
+                      <option value="EURJPY">EURJPY</option>
+                      <option value="AUDUSD">AUDUSD</option>
+                      <option value="USDCAD">USDCAD</option>
                     </select></td></tr>
             <tr><td class="lbl">Interval</td>
                 <td><select id="ds-interval" class="discovery-form-input ds-select">
@@ -2045,6 +2055,15 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                 </td></tr>
             <tr><td class="lbl">Slippage</td>
                 <td><span class="val-highlight">On</span> <span class="text-dim">— 1 pip SL slippage + 1 pip spread (read-only)</span></td></tr>
+            <!-- EMA Filter — promoted from a per-trial searched dimension
+                 to a per-run Fixed Constant (May 2026). On/Off toggle that
+                 every trial in the run inherits. Matches the .ds-select
+                 style of Instrument / Interval / Direction above. -->
+            <tr><td class="lbl">EMA Filter</td>
+                <td><select id="ds-use-ema-filter" class="discovery-form-input ds-select">
+                      <option value="true">On</option>
+                      <option value="false">Off</option>
+                    </select></td></tr>
           </tbody></table>
         </div>
         <div class="discovery-settings-group">
@@ -2052,9 +2071,25 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           <table><tbody>
             <tr><td class="lbl">EMA Long</td>      <td><span class="val-highlight">10 – 200</span></td></tr>
             <tr><td class="lbl">Stop Loss</td>     <td><span class="val-highlight">5 – 50 pips</span></td></tr>
-            <tr><td class="lbl">RRR Reward</td>    <td><span class="val-highlight">1 – 5</span> <span class="text-dim">(risk fixed at 1)</span></td></tr>
-            <tr><td class="lbl">Max DD</td>        <td><span class="val-highlight">1 – 5</span></td></tr>
-            <tr><td class="lbl">EMA Filter</td>    <td><span class="val-highlight">on / off</span></td></tr>
+            <!-- RRR Reward — May 2026: the lower bound stays fixed at 1
+                 (the rrr_risk is implicitly 1 across every Discovery
+                 trial), but the upper bound is now an editable per-run
+                 knob. Renders as "1 – [input]" so the search-range
+                 semantics stay visible while the user controls the cap. -->
+            <tr><td class="lbl">RRR Reward</td>
+                <td>
+                  <span class="val-highlight">1 –</span>
+                  <input type="number" id="ds-rrr-reward-max" class="discovery-form-input ds-num-input"
+                         step="1" min="1" max="20" value="5">
+                  <span class="text-dim">(risk fixed at 1)</span>
+                </td></tr>
+            <!-- "Max DD 1–5" row removed (May 2026). That row was actually
+                 the legacy MAX_DAILY_LOSSES (daily-loss-stop count) sweep,
+                 misleadingly labelled. The daily-loss stop is now a fixed
+                 strategy safety rail (pinned to 2 in discovery.py via
+                 FIXED_MAX_DAILY_LOSSES) rather than a tunable. -->
+            <!-- EMA Filter row removed (May 2026) — it now lives in Fixed
+                 Constants above as a per-run On/Off toggle. -->
             <tr><td class="lbl">Macro Regimes</td> <td><span class="val-highlight">any combination of 5</span></td></tr>
             <tr><td class="lbl">Micro Regimes</td> <td><span class="val-highlight">any combination of 10</span></td></tr>
           </tbody></table>
@@ -2078,8 +2113,19 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                 <td>
                   <span class="ds-op">&le;</span>
                   <input type="number" id="ds-max-dd-pct" class="discovery-form-input ds-num-input"
-                         step="0.5" min="0" max="100" value="15">
-                  <span class="text-dim">%</span>
+                         step="0.5" min="0" max="100" value="10">
+                  <span class="text-dim">% &mdash; DD1 (peak-to-trough)</span>
+                </td></tr>
+            <!-- New (May 2026): Max Daily Drawdown caps DD2 (worst single-
+                 day equity drawdown). Default 5%. Tightens results to
+                 strategies that don't blow up on any single day, even if
+                 the run-level DD1 looks fine. -->
+            <tr><td class="lbl">Max Daily Drawdown</td>
+                <td>
+                  <span class="ds-op">&le;</span>
+                  <input type="number" id="ds-max-daily-dd-pct" class="discovery-form-input ds-num-input"
+                         step="0.5" min="0" max="100" value="5">
+                  <span class="text-dim">% &mdash; DD2 (worst single day)</span>
                 </td></tr>
           </tbody></table>
         </div>
@@ -2215,8 +2261,11 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
       function describeParams(p) {
         if (!p) return "";
         var emaFilter = p.use_ema_filter ? "on" : "off";
+        /* DLL dropped May 2026 — daily-loss-stop is fixed per-run now,
+           same value across every trial in the run, so showing it on each
+           row added no signal. */
         return "EMA " + p.ema_long + " (" + emaFilter + ") | SL " + p.stop_loss_pips +
-               "p | RRR 1:" + p.rrr_reward + " | DLL " + p.max_daily_losses +
+               "p | RRR 1:" + p.rrr_reward +
                " | macro[" + (p.allowed_macro_regimes || []).length +
                "] micro[" + (p.allowed_micro_regimes || []).length + "]";
       }
@@ -2288,6 +2337,22 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
       function sortKeyOf(trial, key) {
         if (key === "pass") return trial.pass ? 1 : 0;
         if (key === "trial") return trial.trial;
+        /* RRR lives in trial.params (not trial.metrics). rrr_risk is
+           implicitly 1 across all Discovery trials, so sorting by
+           rrr_reward alone preserves the user's intuition that bigger
+           "1 : N" = higher reward. Legacy rows without params sort to 0. */
+        if (key === "rrr") {
+          var p = trial.params || {};
+          return (p.rrr_reward == null) ? 0 : Number(p.rrr_reward);
+        }
+        /* EMA also lives in trial.params. Boolean → 0 / 1 so "On" rows
+           sort above "Off" rows when descending. Legacy rows without
+           params sort below both. */
+        if (key === "ema") {
+          var pe = trial.params || {};
+          if (pe.use_ema_filter == null) return -1;
+          return pe.use_ema_filter ? 1 : 0;
+        }
         var m = trial.metrics || {};
         var v = m[key];
         /* Profit factor null = infinity = best */
@@ -2407,6 +2472,15 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         }
         meta.appendChild(spanCls("discovery-run-stat", trials.length + " / " + (run.trials_total || trials.length) + " trials"));
         meta.appendChild(spanCls("discovery-run-stat", passCount + " passing"));
+        /* Seed pill (May 2026). discovery.py always resolves a "random"
+           seed to int(time.time()) BEFORE persisting it into the run's
+           config, so cfg.seed is the concrete integer that can be
+           re-entered into the run-bar Seed input to reproduce this exact
+           run. If the field is somehow missing on a legacy run record we
+           skip rendering — the rest of the header still works. */
+        if (cfg.seed !== undefined && cfg.seed !== null) {
+          meta.appendChild(spanCls("discovery-run-stat", "seed " + cfg.seed));
+        }
         meta.appendChild(spanCls("discovery-run-date", fmtRunDate(run.started_at)));
         /* Elapsed wall-clock time. May 2026:
              • Completed run → started_at → finished_at (frozen).
@@ -2472,24 +2546,40 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         table.className = "discovery-table";
         var thead = document.createElement("thead");
         var theadTr = document.createElement("tr");
-        /* Columns (updated May 2026): #, Pass, PF, P&L, Trades, Wins,
-           Losses, Win %, DD 1 (max), DD 2 (max daily), Assign. Params
-           column was dropped — full params are visible on the trial
-           detail page (click any row). DD 1 = max_drawdown (run-level).
-           DD 2 = max_daily_drawdown.pct (worst single-day drawdown).
-           Both shown as percent; DD 2 is stored as {dollar, pct} so we
-           pull .pct in renderBlockBody. */
+        /* Columns (updated May 2026): #, PF, P&L, Win %, DD 1 (max),
+           DD 2 (max daily), RRR, EMA, Trades, Wins, Losses, Assign.
+           Win % / DD 1 / DD 2 sit immediately after P&L so the three
+           "quality" metrics the user scans for first (return, smoothness,
+           drawdown risk) are grouped together; RRR + EMA follow them as
+           the trade's setup profile; trade counts then sit on the right.
+           The Pass column was dropped earlier — renderBlockBody already
+           filters the table to passing trials only, so every visible row
+           was guaranteed to carry a PASS badge. Params column was dropped
+           even earlier; full params are still visible on the trial detail
+           page (click any row). DD 1 = max_drawdown (run-level). DD 2 =
+           max_daily_drawdown.pct (worst single-day drawdown). Both shown
+           as percent; DD 2 is stored as {dollar, pct} so we pull .pct in
+           renderBlockBody. RRR is rendered as "1 : N" from trial.params
+           — rrr_risk is implicitly 1 across every Discovery trial; only
+           rrr_reward varies. EMA is rendered as "On" / "Off" from
+           trial.params.use_ema_filter (since May 2026 this is a fixed
+           per-run constant, so every trial in a single run carries the
+           same value — that's intentional and matches the per-trial RRR
+           pattern). Both RRR and EMA are sorted via "rrr" / "ema" keys,
+           special-cased in sortKeyOf to read from .params instead of
+           .metrics. */
         var cols = [
           ["trial",              "#"],
-          ["pass",               "Pass"],
           ["profit_factor",      "PF"],
           ["net_profit",         "P&L"],
-          ["total_trades",       "Trades"],
-          ["winning_trades",     "Wins"],
-          ["losing_trades",      "Losses"],
           ["win_rate",           "Win %"],
           ["max_drawdown",       "DD 1"],
           ["max_daily_drawdown", "DD 2"],
+          ["rrr",                "RRR"],
+          ["ema",                "EMA"],
+          ["total_trades",       "Trades"],
+          ["winning_trades",     "Wins"],
+          ["losing_trades",      "Losses"],
           [null,                 "Assign"],
         ];
         cols.forEach(function (c) {
@@ -2559,11 +2649,13 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         tbody.innerHTML = "";
         if (visible.length === 0) {
           /* No passing trials — render a single colspanned message row
-             instead of an empty tbody. colspan matches the 11-column header. */
+             instead of an empty tbody. colspan matches the 12-column
+             header (10 after Pass was dropped, 11 after RRR was added,
+             12 after EMA was added). */
           var emptyTr = document.createElement("tr");
           emptyTr.className = "discovery-run-empty";
           var emptyTd = document.createElement("td");
-          emptyTd.setAttribute("colspan", "11");
+          emptyTd.setAttribute("colspan", "12");
           emptyTd.textContent = "No passing results.";
           emptyTr.appendChild(emptyTd);
           tbody.appendChild(emptyTr);
@@ -2583,35 +2675,46 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
 
           tr.appendChild(td(String(t.trial)));
 
-          var passTd = document.createElement("td");
-          var badge = document.createElement("span");
-          badge.className = "discovery-badge " + (t.pass ? "discovery-badge-pass" : "discovery-badge-fail");
-          badge.textContent = t.pass ? "PASS" : (t.error ? "ERR" : "FAIL");
-          if (t.error) {
-            badge.title = t.error;
-          } else if (!t.pass && t.fail_reasons && t.fail_reasons.length) {
-            badge.title = t.fail_reasons.join("; ");
-          }
-          passTd.appendChild(badge);
-          tr.appendChild(passTd);
+          /* Pass column was removed (May 2026). The table is already
+             filtered to passing trials only by `visible`, so the PASS
+             badge cell was redundant — every visible row carries it by
+             construction. fail_reasons / error info is still surfaced
+             on the trial detail page reached by clicking the row. */
 
           /* Data cells — order MUST match the cols[] definition in
-             renderBlock above: PF, P&L, Trades, Wins, Losses, Win %,
-             DD 1 (max_drawdown), DD 2 (max_daily_drawdown.pct).
+             renderBlock above: PF, P&L, Win %, DD 1 (max_drawdown),
+             DD 2 (max_daily_drawdown.pct), RRR (from trial.params),
+             EMA (from trial.params), Trades, Wins, Losses.
              May 2026: PF / P&L / Win % cells now carry the BD's .pos / .neg
              text-colour classes (defined in style.css) so the three pages
              share a single colouring convention. Thresholds match the user-
              stated rules: PF ≥ 1.5 → green, Net Profit > 0 → green, Win %
              ≥ 50 → green; everything else (or missing) → red. Null PF is
              infinity and counts as green. */
+          var p = t.params || {};
+          /* RRR display matches the trial detail page convention
+             ("rrr_risk : rrr_reward"). rrr_risk is implicitly 1 across
+             every Discovery trial so this collapses to "1 : N"; falling
+             back to "—" for legacy rows that lack params. */
+          var rrrText = (p.rrr_reward !== undefined && p.rrr_reward !== null)
+            ? ((p.rrr_risk || 1) + " : " + p.rrr_reward)
+            : "—";
+          /* EMA display: capitalised "On" / "Off" to match the Discovery
+             Settings dropdown. use_ema_filter is a boolean — falling
+             back to "—" for legacy rows that lack params. */
+          var emaText = (p.use_ema_filter === undefined || p.use_ema_filter === null)
+            ? "—"
+            : (p.use_ema_filter ? "On" : "Off");
           tr.appendChild(td(fmtPF(m.profit_factor),            "discovery-cell-num " + pfTextCls(m.profit_factor)));
           tr.appendChild(td(fmtUSD(m.net_profit),              "discovery-cell-num " + pnlTextCls(m.net_profit)));
-          tr.appendChild(td(fmtInt(m.total_trades),            "discovery-cell-num"));
-          tr.appendChild(td(fmtInt(m.winning_trades),          "discovery-cell-num"));
-          tr.appendChild(td(fmtInt(m.losing_trades),           "discovery-cell-num"));
           tr.appendChild(td(fmtPct(m.win_rate),                "discovery-cell-num " + wrTextCls(m.win_rate)));
           tr.appendChild(td(fmtPct(m.max_drawdown),            "discovery-cell-num"));
           tr.appendChild(td(fmtPct(maxDailyDDPct(m)),          "discovery-cell-num"));
+          tr.appendChild(td(rrrText,                           "discovery-cell-num"));
+          tr.appendChild(td(emaText,                           "discovery-cell-num"));
+          tr.appendChild(td(fmtInt(m.total_trades),            "discovery-cell-num"));
+          tr.appendChild(td(fmtInt(m.winning_trades),          "discovery-cell-num"));
+          tr.appendChild(td(fmtInt(m.losing_trades),           "discovery-cell-num"));
 
           var actionTd = document.createElement("td");
           if (t.pass) {
@@ -2785,6 +2888,23 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         });
       })();
 
+      /* ── Keyboard shortcut: S — Toggle Discovery Settings panel ──────────
+         Mirrors the BD's S shortcut so the same key opens the equivalent
+         settings panel on every page (BD / RA / Discovery). Suppressed
+         when focus is in a form field — Discovery has trial-count, date,
+         and seed inputs in its run bar that should keep accepting letter
+         input. */
+      document.addEventListener("keydown", function (e) {
+        if (e.key !== "s" && e.key !== "S") return;
+        if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+        var tag = (e.target.tagName || "").toLowerCase();
+        if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
+        var btn = document.getElementById("d-settings-toggle");
+        if (!btn) return;
+        e.preventDefault();
+        btn.click();
+      });
+
       /* ── Run + poll ────────────────────────────────────────────────────── */
       function setStatus(text) { statusEl.textContent = text; }
 
@@ -2868,13 +2988,19 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         var settings = getDiscoverySettings();
         var body = {
           trials: trials, start: start, end: end,
-          instrument:    settings.instrument,
-          interval:      settings.interval,
-          direction:     settings.direction,
-          blocked_hours: settings.blocked_hours,
-          min_pf:        settings.min_pf,
-          min_trades:    settings.min_trades,
-          max_dd_pct:    settings.max_dd_pct,
+          instrument:       settings.instrument,
+          interval:         settings.interval,
+          direction:        settings.direction,
+          blocked_hours:    settings.blocked_hours,
+          min_pf:           settings.min_pf,
+          min_trades:       settings.min_trades,
+          max_dd_pct:       settings.max_dd_pct,
+          /* May 2026 — DD2 cap (worst single-day drawdown). */
+          max_daily_dd_pct: settings.max_daily_dd_pct,
+          /* May 2026 — per-run EMA filter (Fixed Constant) + RRR Reward
+             upper bound (editable Search Bound). */
+          use_ema_filter:   settings.use_ema_filter,
+          rrr_reward_max:   settings.rrr_reward_max,
         };
         if (seed !== null && !isNaN(seed)) body.seed = seed;
         fetch("/api/discovery/run", {
@@ -2904,13 +3030,22 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
          submit handler above so the values land in every /api/discovery/run
          payload — each trial then honors them via discovery.py's config. */
       var DISCO_DEFAULTS = {
-        instrument:    "GBPUSD",
-        interval:      "5m",
-        direction:     "short_only",
-        blocked_hours: "4,5,6,8,10,11,14,17",
-        min_pf:        "1.5",
-        min_trades:    "50",
-        max_dd_pct:    "15",
+        instrument:       "GBPUSD",
+        interval:         "5m",
+        direction:        "short_only",
+        blocked_hours:    "4,5,6,8,10,11,14,17",
+        min_pf:           "1.5",
+        min_trades:       "50",
+        /* May 2026: Max Drawdown default tightened from 15 → 10 (DD1, peak-
+           to-trough) and a new Max Daily Drawdown criterion (DD2, worst
+           single-day) added at 5%. */
+        max_dd_pct:       "10",
+        max_daily_dd_pct: "5",
+        /* May 2026 — per-run EMA filter (was a searched dimension) + the
+           editable RRR Reward upper bound (was hardcoded to 5). Both are
+           persisted to localStorage and folded into /api/discovery/run. */
+        use_ema_filter:   "true",
+        rrr_reward_max:   "5",
       };
       function loadDS(key) {
         try {
@@ -2936,12 +3071,23 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           el.value = loadDS(k);
           el.addEventListener("change", function () { saveDS(k, el.value); });
         });
-        [["min-pf", "min_pf"], ["min-trades", "min_trades"], ["max-dd-pct", "max_dd_pct"]].forEach(function (p) {
+        [["min-pf", "min_pf"], ["min-trades", "min_trades"], ["max-dd-pct", "max_dd_pct"],
+         ["max-daily-dd-pct", "max_daily_dd_pct"],
+         ["rrr-reward-max", "rrr_reward_max"]].forEach(function (p) {
           var el = document.getElementById("ds-" + p[0]);
           if (!el) return;
           el.value = loadDS(p[1]);
           el.addEventListener("change", function () { saveDS(p[1], el.value); });
         });
+        /* EMA Filter — select stores the string "true" / "false". The
+           /api/discovery/run handler accepts either form (see use_ema_filter
+           parsing in server.py); persisting the raw string keeps the
+           localStorage convention identical to the other ds-* select keys. */
+        var emaEl = document.getElementById("ds-use-ema-filter");
+        if (emaEl) {
+          emaEl.value = loadDS("use_ema_filter");
+          emaEl.addEventListener("change", function () { saveDS("use_ema_filter", emaEl.value); });
+        }
         var grid = document.getElementById("ds-blocked-hours-grid");
         if (grid) {
           var csv = loadDS("blocked_hours");
@@ -2982,13 +3128,20 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           return (el && el.value !== "") ? el.value : dflt;
         }
         return {
-          instrument:    v("ds-instrument", DISCO_DEFAULTS.instrument),
-          interval:      v("ds-interval",   DISCO_DEFAULTS.interval),
-          direction:     v("ds-direction",  DISCO_DEFAULTS.direction),
-          blocked_hours: blocked.join(","),
-          min_pf:        parseFloat(v("ds-min-pf",     DISCO_DEFAULTS.min_pf)),
-          min_trades:    parseInt(v("ds-min-trades",   DISCO_DEFAULTS.min_trades), 10),
-          max_dd_pct:    parseFloat(v("ds-max-dd-pct", DISCO_DEFAULTS.max_dd_pct)),
+          instrument:       v("ds-instrument", DISCO_DEFAULTS.instrument),
+          interval:         v("ds-interval",   DISCO_DEFAULTS.interval),
+          direction:        v("ds-direction",  DISCO_DEFAULTS.direction),
+          blocked_hours:    blocked.join(","),
+          min_pf:           parseFloat(v("ds-min-pf",           DISCO_DEFAULTS.min_pf)),
+          min_trades:       parseInt(v("ds-min-trades",         DISCO_DEFAULTS.min_trades), 10),
+          max_dd_pct:       parseFloat(v("ds-max-dd-pct",       DISCO_DEFAULTS.max_dd_pct)),
+          /* DD2 cap added May 2026. */
+          max_daily_dd_pct: parseFloat(v("ds-max-daily-dd-pct", DISCO_DEFAULTS.max_daily_dd_pct)),
+          /* May 2026 — fold the new per-run knobs into the payload. The
+             string "true"/"false" is parsed server-side; sending the raw
+             string keeps the wire format consistent with the other selects. */
+          use_ema_filter:   v("ds-use-ema-filter",  DISCO_DEFAULTS.use_ema_filter),
+          rrr_reward_max:   parseInt(v("ds-rrr-reward-max", DISCO_DEFAULTS.rrr_reward_max), 10),
         };
       }
 
@@ -4192,7 +4345,12 @@ def api_discovery_run():
     """Launch discovery.py as a subprocess. Body accepts:
       trials, start, end, seed (existing)
       instrument, interval, direction, blocked_hours (editable fixed-constants)
-      min_pf, min_trades, max_dd_pct (editable passing criteria)
+      use_ema_filter (May 2026 — fixed per-run on/off toggle; previously a
+                      searched dimension)
+      rrr_reward_max (May 2026 — editable RRR Reward upper bound, lower
+                      bound stays fixed at 1)
+      min_pf, min_trades, max_dd_pct, max_daily_dd_pct (editable passing
+                      criteria; max_daily_dd_pct = DD2 cap, added May 2026)
     Anything missing falls back to discovery.py's hardcoded defaults.
     Refuses if a discovery run is already in flight."""
     body = request.get_json(force=True, silent=True) or {}
@@ -4219,7 +4377,12 @@ def api_discovery_run():
     # Validation: enumerate allowed values for instrument/interval/direction;
     # blocked_hours is a CSV of integers 0–23; thresholds are numbers in
     # sane ranges. Any invalid input → 400 with a clear error message.
-    _ALLOWED_INSTRUMENTS = {"GBPUSD", "EURUSD"}
+    # May 2026: extended the catalogue to cover the major + JPY-cross set.
+    # Mirrors download_data.py's INSTRUMENTS list — keep them in sync so a
+    # selection here resolves to data/{INSTRUMENT}_{interval}.parquet via
+    # strategy_v2's fetch_data() local-cache path.
+    _ALLOWED_INSTRUMENTS = {"GBPUSD", "EURUSD", "GBPJPY", "USDJPY",
+                            "EURJPY", "AUDUSD", "USDCAD"}
     _ALLOWED_INTERVALS   = {"1m", "5m", "15m", "1h"}
     _ALLOWED_DIRECTIONS  = {"short_only", "long_only", "both"}
 
@@ -4258,15 +4421,42 @@ def api_discovery_run():
     min_pf      = _parse_num("min_pf",     0.0,  10.0,  float)
     min_trades  = _parse_num("min_trades", 0,    10000, int)
     max_dd_pct  = _parse_num("max_dd_pct", 0.0,  100.0, float)
+    # May 2026: new DD2 (max daily drawdown) passing-criterion cap. Same
+    # 0–100% band as max_dd_pct since both express equity percent
+    # drawdowns. Default in the UI is 5%.
+    max_daily_dd_pct = _parse_num("max_daily_dd_pct", 0.0, 100.0, float)
+    # May 2026: editable RRR Reward upper bound. Lower bound stays at 1.
+    # Sane band: 1 ≤ max ≤ 20 (anything beyond starts blowing out tail risk
+    # well past anything the strategy realistically holds for).
+    rrr_reward_max = _parse_num("rrr_reward_max", 1, 20, int)
     # _parse_num returns a (jsonify(...), 400) tuple on validation failure
     # (not a Response object). Detect the tuple and propagate it as the
     # endpoint's error response. Bug fix (May 2026): previously this used
     # hasattr(v, "status_code") which a tuple doesn't have — out-of-range
     # values fell through and triggered a 500 when json.dump tried to
     # serialise the tuple into the config file.
-    for v in (min_pf, min_trades, max_dd_pct):
+    for v in (min_pf, min_trades, max_dd_pct, max_daily_dd_pct, rrr_reward_max):
         if isinstance(v, tuple):
             return v
+
+    # use_ema_filter: accept JSON true/false, or the string "true"/"false"
+    # / "on"/"off". None / missing → leave the cfg key unset so discovery.py
+    # falls back to its default.
+    raw_use_ema = body.get("use_ema_filter")
+    use_ema_filter = None
+    if raw_use_ema is not None:
+        if isinstance(raw_use_ema, bool):
+            use_ema_filter = raw_use_ema
+        elif isinstance(raw_use_ema, str):
+            s = raw_use_ema.strip().lower()
+            if s in ("true", "1", "on", "yes"):
+                use_ema_filter = True
+            elif s in ("false", "0", "off", "no"):
+                use_ema_filter = False
+            else:
+                return jsonify({"ok": False, "error": "use_ema_filter must be true or false"}), 400
+        else:
+            return jsonify({"ok": False, "error": "use_ema_filter must be true or false"}), 400
 
     with _disco_lock:
         if _discovery_is_running():
@@ -4289,9 +4479,14 @@ def api_discovery_run():
         if interval:      cfg["interval"]      = interval
         if direction:     cfg["direction"]     = direction
         if blocked_hours: cfg["blocked_hours"] = blocked_hours
-        if min_pf is not None:     cfg["min_pf"]     = min_pf
-        if min_trades is not None: cfg["min_trades"] = min_trades
-        if max_dd_pct is not None: cfg["max_dd_pct"] = max_dd_pct
+        if min_pf is not None:           cfg["min_pf"]           = min_pf
+        if min_trades is not None:       cfg["min_trades"]       = min_trades
+        if max_dd_pct is not None:       cfg["max_dd_pct"]       = max_dd_pct
+        if max_daily_dd_pct is not None: cfg["max_daily_dd_pct"] = max_daily_dd_pct
+        # May 2026 additions — only set if the caller provided them so
+        # discovery.py can fall back to its defaults for CLI users.
+        if rrr_reward_max is not None: cfg["rrr_reward_max"] = rrr_reward_max
+        if use_ema_filter is not None: cfg["use_ema_filter"] = use_ema_filter
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(cfg, f)
 

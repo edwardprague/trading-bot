@@ -510,7 +510,7 @@ focus is in an input, textarea, select, or contenteditable element.
 | `D`                              | Add Date Range                                                                |
 | `C`                              | Copy Report                                                                   |
 | `L`                              | Toggle Development Log                                                        |
-| `B`                              | Toggle Backtest Settings panel                                                |
+| `S`                              | Toggle Backtest Settings panel (shared key on Regimes + Discovery)            |
 | `G`                              | General tab                                                                   |
 | `A`                              | Advanced tab                                                                  |
 | `Shift` + `1`–`4`                | Toggle sidebar section — Year / Month / Weeks / Day                           |
@@ -519,18 +519,25 @@ focus is in an input, textarea, select, or contenteditable element.
 
 ## Regime Analysis — Keyboard Shortcuts
 
-| Key | Action                   |
-| --- | ------------------------ |
-| `1` | Scroll to top            |
-| `2` | Stats cards              |
-| `3` | Macro regime performance |
-| `4` | Micro regime performance |
-| `5` | Regime timeline          |
-| `6` | Daily performance        |
-| `7` | Macro Regime Profiles    |
-| `8` | Regime summary cards     |
-| `9` | Threshold distributions  |
-| `0` | Regime periods (bottom)  |
+| Key | Action                                                  |
+| --- | ------------------------------------------------------- |
+| `1` | Scroll to top                                           |
+| `2` | Stats cards                                             |
+| `3` | Macro regime performance                                |
+| `4` | Micro regime performance                                |
+| `5` | Regime timeline                                         |
+| `6` | Daily performance                                       |
+| `7` | Macro Regime Profiles                                   |
+| `8` | Regime summary cards                                    |
+| `9` | Threshold distributions                                 |
+| `0` | Regime periods (bottom)                                 |
+| `S` | Toggle Regime Filters panel (shared key on BD + Discovery) |
+
+## Discovery — Keyboard Shortcuts
+
+| Key | Action                                                       |
+| --- | ------------------------------------------------------------ |
+| `S` | Toggle Discovery Settings panel (shared key on BD + Regimes) |
 
 ---
 

@@ -1,144 +1,178 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Research &amp; Findings — Fractal Bot Docs</title>
-<link rel="stylesheet" href="docs.css">
-<style>
-.finding-card {
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 22px 26px;
-  margin-bottom: 14px;
-}
-.finding-meta {
-  font-size: 11px;
-  color: var(--text3);
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-.finding-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 8px;
-}
-.finding-body { font-size: 13px; color: var(--text2); line-height: 1.6; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research &amp; Findings — Fractal Bot Docs</title>
+    <link rel="stylesheet" href="docs.css">
 </head>
+
 <body>
 
-<nav>
-  <a class="nav-brand" href="index.html">Fractal Bot</a>
-  <a href="index.html">Overview</a>
-  <a href="platform.html">Platform</a>
-  <a href="strategy.html">Strategy</a>
-  <a href="technical.html">Technical</a>
-  <a href="workflow.html">Workflow</a>
-  <a href="research.html" class="active">Research</a>
-</nav>
+    <nav>
+        <a class="nav-brand" href="index.html">Fractal Geo</a>
+        <a href="index.html">Overview</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="technical.html">Technical Setup</a>
+        <a href="strategy.html">Strategy</a>
+        <a href="research.html" class="active">Research &amp; Development</a>
+    </nav>
 
-<div class="page">
-  <a class="back-link" href="index.html">← Back to Overview</a>
+    <div class="page">
+        <a class="back-link" href="index.html">← Back to Overview</a>
 
-  <div class="page-header">
-    <div class="eyebrow">Documentation</div>
-    <h1>Research &amp; Findings</h1>
-    <p class="subtitle">Key conclusions from analysis sessions — Discovery insights, regime edge, instrument findings, and strategic direction.</p>
-  </div>
+        <div class="page-header">
+            <h1>Research &amp; Development</h1>
+        </div>
 
-  <!-- Near-future -->
-  <div class="section">
-    <div class="section-title">Near-Future Priorities</div>
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">🎯 Walk-Forward Validation</div>
-        <p style="margin-top:8px;">Train on a historical window, validate on out-of-sample window, slide forward. Prevents overfitting and gives statistical confidence that regime gates capture a real edge rather than noise. Highest-value next build.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">☁️ Cloud Deployment</div>
-        <p style="margin-top:8px;">Move to a persistent server (DigitalOcean / Render / Railway) to eliminate machine-syncing and allow Discovery to run long jobs without tying up a laptop.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">📊 Discovery Improvements</div>
-        <p style="margin-top:8px;">Bayesian / guided search (e.g. Optuna) instead of pure random. Composite objective function scoring. Seed stored in run results. Min trades scaled to date range.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">🌍 Additional Instruments</div>
-        <p style="margin-top:8px;">GBPJPY, USDJPY, EURJPY, AUDUSD, USDCAD now downloaded. Indices (DE40, US30) planned when indices subscription is added.</p>
-      </div>
+        <!-- Discovery -->
+        <div class="section">
+            <div class="section-title">Discovery Development</div>
+
+            <div class="finding-card">
+                <div class="finding-title">Seed stored in run results</div>
+                <div class="finding-body">Currently the random seed used for each Discovery run is not recorded anywhere
+                    in the run results. This means a run using a random seed cannot be reproduced — if you want to
+                    re-examine exactly which parameter combinations were tested, that information is lost. The fix is to
+                    store the seed (whether random or user-specified) in the run metadata and display it in the run
+                    header alongside trial count, pass count, and timestamp.
+                </div>
+            </div>
+
+            <div class="finding-card">
+                <div class="finding-title">Bayesian / guided search (e.g. Optuna) instead of pure random</div>
+                <div class="finding-body">Current Discovery uses pure random sampling — each trial picks parameter
+                    combinations independently with no learning from previous trials. Bayesian search (e.g. using the
+                    Optuna library in Python) instead builds a probabilistic model of which regions of the search space
+                    are promising, and samples more densely there over time. This dramatically improves the pass rate
+                    per trial — fewer wasted trials in clearly poor regions, more exploration around combinations that
+                    are working. The practical benefit is finding better candidates with the same trial budget, or the
+                    same quality candidates with far fewer trials.</div>
+            </div>
+
+            <div class="finding-card">
+                <div class="finding-title">Composite objective function scoring
+                </div>
+                <div class="finding-body">Currently passing is binary — a trial either clears all thresholds (PF ≥ 1.5,
+                    min trades, max DD) or it doesn't. All passing trials are shown equally with no ranking beyond PF
+                    sort. A composite score such as <code>PF × win_rate / max_DD</code> would rank trials by overall
+                    quality rather than just filtering them, surfacing the genuinely best candidates at the top. This
+                    also reduces the influence of trials that barely pass one criterion while excelling at others — a
+                    more honest picture of which parameter sets are worth assigning to a version.
+                </div>
+            </div>
+
+            <div class="finding-card">
+                <div class="finding-title">Sharpe ratio should be added as a ranking/filter criterion
+                </div>
+                <div class="finding-body">Current passing criteria (PF, min trades, max DD) can't distinguish between a
+                    smooth equity curve and a lumpy one with similar aggregate numbers. A 1:4 RRR strategy earns in
+                    bursts — high variability in periodic returns. A 1:1 strategy with 70% win rate is smoother. Sharpe
+                    penalises both sides equally; Sortino (downside only) may be more appropriate for high-RRR
+                    strategies. Adding Sharpe ≥ 1.0 as a filter would improve result quality.
+                </div>
+            </div>
+
+            <div class="finding-card">
+                <div class="finding-title">Walk-Forward Validation</div>
+                <div class="finding-body">Train on a historical window, validate on out-of-sample window, slide forward.
+                    Prevents overfitting and gives statistical confidence that regime gates capture a real edge rather
+                    than noise. Highest-value next build.
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Key findings -->
+        <div class="section">
+            <div class="section-title">Key Historical Findings</div>
+
+            <div class="finding-card">
+                <div class="finding-meta">Regime Edge</div>
+                <div class="finding-title">The regime filter is the likely source of edge — but walk-forward will
+                    confirm or deny</div>
+                <div class="finding-body">The fractal entry logic and Discovery-style parameter search are not a deep
+                    moat — anyone with a backtest framework could replicate them. The regime filtering — systematically
+                    identifying which market conditions the strategy should sit out — is harder to discover by intuition
+                    and specific to this strategy. But edge is only real if regime gates hold up out-of-sample across
+                    multiple walk-forward windows. Without that, the RA is sophisticated overfitting.</div>
+            </div>
+
+            <div class="finding-card">
+                <div class="finding-meta">Discovery</div>
+                <div class="finding-title">200 trials is the right minimum — 30 trials leaves too much on the table
+                </div>
+                <div class="finding-body">The search space (EMA 10–200, SL 5–50, RRR 1–5, regime gate combinations) is
+                    large. 30-trial runs found 3 passing on GBPUSD; 200-trial runs found 8. The improvement is
+                    sub-linear, which is actually encouraging — it suggests passing combinations are genuinely rare
+                    rather than easy to stumble on, meaning those that do pass are more likely capturing something real.
+                </div>
+            </div>
+
+            <div class="finding-card">
+                <div class="finding-meta">Strategy</div>
+                <div class="finding-title">The strategy is genuinely asymmetric — longs do not work</div>
+                <div class="finding-body">Long-only Discovery runs find no passing trials. The RA macro table confirms
+                    why: staircase_up shows 9.3% win rate, strong_up shows 0.0% — these are the regimes where long
+                    fractal signals predominantly fire. This is not a code or parameter problem. Markets often fall
+                    faster than they rise, creating cleaner fractal structure on the downside. The edge appears to be
+                    short-side specific for GBPUSD/EURUSD 5m in this period.</div>
+            </div>
+
+            <div class="finding-card">
+                <div class="finding-meta">Platform · BD / RA Role</div>
+                <div class="finding-title">BD and RA are now primarily out-of-sample validation and diagnostic tools
+                </div>
+                <div class="finding-body">Discovery handles parameter search. BD's role is validating a Discovery
+                    candidate on a window it never saw — checking whether numbers degrade gracefully or collapse. RA's
+                    role is confirming regime gates make intuitive sense out-of-sample and diagnosing underperformance
+                    after live forward testing. Manual parameter tweaking on BD/RA is not recommended — Discovery finds
+                    better combinations than intuition.</div>
+            </div>
+
+            <div class="finding-card">
+                <div class="finding-meta">Platform · P&amp;L Accuracy</div>
+                <div class="finding-title">Sub-period re-runs produce different P&L than the parent run — this is
+                    expected</div>
+                <div class="finding-body">Position sizing uses <code>equity × RISK_PCT / stop_distance</code>. A fresh
+                    October run starts at $100k; in the 6-month run, October starts at ~$136k (compounded from earlier
+                    months). Trade counts and win rates match exactly; dollar P&L diverges. Rule: read sub-period P&L
+                    from the parent run's Monthly / Daily tables. Don't re-run to check P&L.</div>
+            </div>
+
+            <div class="finding-card">
+                <div class="finding-meta">Discovery · Sharpe Ratio</div>
+                <div class="finding-title">Sharpe ratio should be added as a ranking/filter criterion</div>
+                <div class="finding-body">Current passing criteria (PF, min trades, max DD) can't distinguish between a
+                    smooth equity curve and a lumpy one with similar aggregate numbers. A 1:4 RRR strategy earns in
+                    bursts — high variability in periodic returns. A 1:1 strategy with 70% win rate is smoother. Sharpe
+                    penalises both sides equally; Sortino (downside only) may be more appropriate for high-RRR
+                    strategies. Adding Sharpe ≥ 1.0 as a filter would improve result quality.</div>
+            </div>
+        </div>
+
+        <!-- Near-future -->
+        <div class="section">
+            <div class="section-title">Future Development</div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">Test Indices</div>
+                    <p>DE40 and US30 preferred for live manual trading; indices subscription to
+                        be added in a future cycle.</p>
+                </div>
+                <div class="card">
+                    <div class="card-title">Cloud Deployment</div>
+                    <p>Move to a persistent server (DigitalOcean / Render / Railway) to
+                        eliminate machine-syncing and allow Discovery to run long jobs without tying up a laptop.</p>
+                </div>
+                <div class="card">
+                    <div class="card-title">TBD</div>
+                    <p>Lorem ipsum dolor sit amet.</p>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-
-  <!-- Key findings -->
-  <div class="section">
-    <div class="section-title">Key Findings — Session 2026-05-22</div>
-
-    <div class="finding-card">
-      <div class="finding-meta">Discovery · Trials</div>
-      <div class="finding-title">200 trials is the right minimum — 30 trials leaves too much on the table</div>
-      <div class="finding-body">The search space (EMA 10–200, SL 5–50, RRR 1–5, regime gate combinations) is large. 30-trial runs found 3 passing on GBPUSD; 200-trial runs found 8. The improvement is sub-linear, which is actually encouraging — it suggests passing combinations are genuinely rare rather than easy to stumble on, meaning those that do pass are more likely capturing something real.</div>
-    </div>
-
-    <div class="finding-card">
-      <div class="finding-meta">Discovery · EURUSD</div>
-      <div class="finding-title">EURUSD has edge — earlier zero results were sampling failures</div>
-      <div class="finding-body">20–30 trial runs on EURUSD found nothing. A 200-trial run found 3 passing trials, including trial #82: 53 trades, 71.7% win rate, PF 2.31. This is a meaningful sample and a serious result. The question of whether EURUSD and GBPUSD passing parameter sets are similar (universal edge) or different (distinct strategies sharing a framework) is worth investigating.</div>
-    </div>
-
-    <div class="finding-card">
-      <div class="finding-meta">Strategy · Directionality</div>
-      <div class="finding-title">The strategy is genuinely asymmetric — longs do not work</div>
-      <div class="finding-body">Long-only Discovery runs find no passing trials. The RA macro table confirms why: staircase_up shows 9.3% win rate, strong_up shows 0.0% — these are the regimes where long fractal signals predominantly fire. This is not a code or parameter problem. Markets often fall faster than they rise, creating cleaner fractal structure on the downside. The edge appears to be short-side specific for GBPUSD/EURUSD 5m in this period.</div>
-    </div>
-
-    <div class="finding-card">
-      <div class="finding-meta">Platform · BD / RA Role</div>
-      <div class="finding-title">BD and RA are now primarily out-of-sample validation and diagnostic tools</div>
-      <div class="finding-body">Discovery handles parameter search. BD's role is validating a Discovery candidate on a window it never saw — checking whether numbers degrade gracefully or collapse. RA's role is confirming regime gates make intuitive sense out-of-sample and diagnosing underperformance after live forward testing. Manual parameter tweaking on BD/RA is not recommended — Discovery finds better combinations than intuition.</div>
-    </div>
-
-    <div class="finding-card">
-      <div class="finding-meta">Platform · P&amp;L Accuracy</div>
-      <div class="finding-title">Sub-period re-runs produce different P&L than the parent run — this is expected</div>
-      <div class="finding-body">Position sizing uses <code>equity × RISK_PCT / stop_distance</code>. A fresh October run starts at $100k; in the 6-month run, October starts at ~$136k (compounded from earlier months). Trade counts and win rates match exactly; dollar P&L diverges. Rule: read sub-period P&L from the parent run's Monthly / Daily tables. Don't re-run to check P&L.</div>
-    </div>
-
-    <div class="finding-card">
-      <div class="finding-meta">Strategy · Regime Edge</div>
-      <div class="finding-title">The regime filter is the likely source of edge — but walk-forward will confirm or deny</div>
-      <div class="finding-body">The fractal entry logic and Discovery-style parameter search are not a deep moat — anyone with a backtest framework could replicate them. The regime filtering — systematically identifying which market conditions the strategy should sit out — is harder to discover by intuition and specific to this strategy. But edge is only real if regime gates hold up out-of-sample across multiple walk-forward windows. Without that, the RA is sophisticated overfitting.</div>
-    </div>
-
-    <div class="finding-card">
-      <div class="finding-meta">Discovery · Sharpe Ratio</div>
-      <div class="finding-title">Sharpe ratio should be added as a ranking/filter criterion</div>
-      <div class="finding-body">Current passing criteria (PF, min trades, max DD) can't distinguish between a smooth equity curve and a lumpy one with similar aggregate numbers. A 1:4 RRR strategy earns in bursts — high variability in periodic returns. A 1:1 strategy with 70% win rate is smoother. Sharpe penalises both sides equally; Sortino (downside only) may be more appropriate for high-RRR strategies. Adding Sharpe ≥ 1.0 as a filter would improve result quality.</div>
-    </div>
-
-    <div class="finding-card">
-      <div class="finding-meta">Discovery · Min Trades</div>
-      <div class="finding-title">Min trades threshold should scale with date range</div>
-      <div class="finding-body">Min 50 was too restrictive for short windows (biased toward low-RRR, high-frequency parameter sets). Min 5 is too loose (6-trade results pass with 100% win rate — statistically meaningless). Suggested scaling: ~10 trades/month of window. A hard floor of ~15 trades regardless of window is recommended, combined with a visual confidence indicator on low-sample results.</div>
-    </div>
-
-  </div>
-
-  <!-- Data -->
-  <div class="section">
-    <div class="section-title">Data &amp; Infrastructure</div>
-    <ul class="doc-list">
-      <li><strong>All backtests run against local .parquet files</strong> — no Massive API calls during Discovery, BD, or RA runs. Speed and cost efficiency.</li>
-      <li><strong>Massive subscription paused May 2026</strong> — sufficient cached data for ongoing research. Refresh with <code>python3 download_data.py</code> when new bars are needed.</li>
-      <li><strong>New instruments downloaded</strong> — GBPJPY, USDJPY, EURJPY, AUDUSD, USDCAD added at 5m interval.</li>
-      <li><strong>Indices planned</strong> — DE40 and US30 preferred for live manual trading; indices subscription to be added in a future cycle.</li>
-    </ul>
-  </div>
-
-</div>
 </body>
+
 </html>

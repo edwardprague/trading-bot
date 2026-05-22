@@ -3519,6 +3519,22 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       }});
     }}());
 
+    // ── Keyboard shortcut: S — Toggle Regime Filters panel ──────────────────
+    // Mirrors the BD's S shortcut so the same key opens the equivalent
+    // settings panel on every page (BD / RA / Discovery). Suppressed when
+    // focus is in a form field, matching the digit-shortcut conventions
+    // above.
+    document.addEventListener("keydown", function (e) {{
+      if (e.key !== "s" && e.key !== "S") return;
+      if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+      var tag = (e.target.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
+      var btn = document.getElementById("regime-filters-toggle-btn");
+      if (!btn) return;
+      e.preventDefault();
+      btn.click();
+    }});
+
     // ── Hover-preview + daily-table sort handlers (extracted so they can be
     //    re-attached after a Run Analysis innerHTML swap) ──
     function attachDailyHandlers() {{

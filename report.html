@@ -71103,9 +71103,12 @@
     btn.click();
   });
 
-  /* ── Keyboard shortcut: B — Toggle Backtest Settings ──────── */
+  /* ── Keyboard shortcut: S — Toggle Backtest Settings ────────
+     May 2026: changed from "B" to "S" so the same key opens the
+     equivalent settings panel on the BD, Regimes, and Discovery
+     pages — a single muscle-memory shortcut across the platform. */
   document.addEventListener("keydown", function (e) {
-    if (e.key !== "b" && e.key !== "B") return;
+    if (e.key !== "s" && e.key !== "S") return;
     if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
     if (isInputFocused(e)) return;
     var btn = document.getElementById("bs-toggle-btn");

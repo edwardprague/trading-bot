@@ -6,273 +6,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fractal Bot — Project Docs</title>
     <link rel="stylesheet" href="docs.css">
-    <style>
-        .hero {
-            padding: 64px 0 48px;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 56px;
-        }
-
-        .hero-eyebrow {
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--accent);
-            margin-bottom: 14px;
-        }
-
-        .hero h1 {
-            font-size: 38px;
-            font-weight: 600;
-            letter-spacing: -0.03em;
-            line-height: 1.1;
-            color: var(--text);
-            margin-bottom: 16px;
-        }
-
-        .hero .lead {
-            font-size: 16px;
-            font-weight: 300;
-            color: var(--text2);
-            max-width: 580px;
-            line-height: 1.6;
-            margin-bottom: 28px;
-        }
-
-        .hero-meta {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-            flex-wrap: wrap;
-        }
-
-        .hero-meta-item {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            font-size: 12.5px;
-            color: var(--text3);
-        }
-
-        .hero-meta-item span {
-            color: var(--text2);
-            font-weight: 500;
-        }
-
-        .doc-card {
-            background: var(--white);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 26px 28px;
-            text-decoration: none;
-            display: block;
-            transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .doc-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: var(--border);
-            transition: background 0.15s;
-        }
-
-        .doc-card:hover {
-            border-color: var(--border2);
-            box-shadow: var(--shadow);
-            transform: translateY(-1px);
-        }
-
-        .doc-card:hover::before {
-            background: var(--accent);
-        }
-
-        .doc-card-icon {
-            font-size: 22px;
-            margin-bottom: 12px;
-            display: block;
-        }
-
-        .doc-card-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 6px;
-        }
-
-        .doc-card-desc {
-            font-size: 13px;
-            color: var(--text2);
-            line-height: 1.5;
-            margin-bottom: 14px;
-        }
-
-        .doc-card-tags {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-
-        .platform-bar {
-            background: var(--white);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 20px 28px;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 0;
-            margin-bottom: 52px;
-        }
-
-        .platform-item {
-            padding: 0 20px;
-            border-right: 1px solid var(--border);
-            text-decoration: none;
-        }
-
-        .platform-item:first-child {
-            padding-left: 0;
-        }
-
-        .platform-item:last-child {
-            border-right: none;
-        }
-
-        .platform-item-label {
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: var(--text3);
-            margin-bottom: 4px;
-        }
-
-        .platform-item-name {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--accent-dk);
-            margin-bottom: 2px;
-        }
-
-        .platform-item-url {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            color: var(--text3);
-        }
-
-        .team-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 52px;
-        }
-
-        .team-card {
-            background: var(--white);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 18px 20px;
-        }
-
-        .team-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 4px;
-        }
-
-        .team-role {
-            font-size: 12px;
-            color: var(--accent);
-            font-weight: 500;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .team-desc {
-            font-size: 13px;
-            color: var(--text2);
-        }
-
-        @media (max-width: 800px) {
-            .platform-bar {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .platform-item {
-                border-right: none;
-                border-bottom: 1px solid var(--border);
-                padding: 12px 0;
-            }
-
-            .platform-item:last-child {
-                border-bottom: none;
-            }
-
-            .team-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
 </head>
 
 <body>
 
     <nav>
-        <a class="nav-brand" href="index.html">Fractal Geometry</a>
+        <a class="nav-brand" href="index.html">Fractal Geo</a>
         <a href="index.html" class="active">Overview</a>
-        <a href="platform.html">Platform</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="technical.html">Technical Setup</a>
         <a href="strategy.html">Strategy</a>
-        <a href="technical.html">Technical</a>
-        <a href="workflow.html">Workflow</a>
-        <a href="research.html">Research</a>
+        <a href="research.html">Research &amp; Development</a>
     </nav>
 
     <div class="page">
 
         <div class="hero">
-            <div class="hero-eyebrow">Project Documentation</div>
-            <h1>Backtesting Dashboard</h1>
+            <h1>Project Overview</h1>
             <p class="lead">A backtesting dashboard for developing an algorithmic trading bot for cTrader. Python
                 handles research and backtesting; the final strategy is exported as C# for live trading.</p>
-            <div class="hero-meta">
-                <!-- <div class="hero-meta-item">Instrument <span>GBPUSD · EURUSD</span></div>
-      <div class="hero-meta-item">Interval <span>5m</span></div>
-      <div class="hero-meta-item">Active Version <span>v1</span></div>
-      <div class="hero-meta-item">Strategy <span>Fractal Geometry · Short Only</span></div> -->
-            </div>
-        </div>
-
-        <!-- Platform quick-links -->
-        <div class="section-title">Dashboard Pages</div>
-        <div class="platform-bar">
-            <a class="platform-item" href="http://localhost:8080/" target="_blank">
-                <!-- <div class="platform-item-label">Backtesting</div> -->
-                <div class="platform-item-name">Backtesting</div>
-                <div class="platform-item-url">localhost:8080/</div>
-            </a>
-            <a class="platform-item" href="http://localhost:8080/results/regime_analysis.html" target="_blank">
-                <!-- <div class="platform-item-label">Regimes</div> -->
-                <div class="platform-item-name">Regimes</div>
-                <div class="platform-item-url">localhost:8080/results/…</div>
-            </a>
-            <a class="platform-item" href="http://localhost:8080/discovery" target="_blank">
-                <!-- <div class="platform-item-label">Discovery</div> -->
-                <div class="platform-item-name">Discovery</div>
-                <div class="platform-item-url">localhost:8080/discovery</div>
-            </a>
-            <a class="platform-item" href="http://localhost:8080/versions" target="_blank">
-                <!-- <div class="platform-item-label">Versions</div> -->
-                <div class="platform-item-name">Versions</div>
-                <div class="platform-item-url">localhost:8080/versions</div>
-            </a>
+            <!-- <div class="hero-meta">
+                <div class="hero-meta-item">Instrument <span>GBPUSD · EURUSD</span></div>
+                <div class="hero-meta-item">Interval <span>5m</span></div>
+                <div class="hero-meta-item">Active Version <span>v1</span></div>
+                <div class="hero-meta-item">Strategy <span>Fractal Geometry · Short Only</span></div>
+            </div> -->
         </div>
 
         <!-- Team -->
@@ -291,39 +49,74 @@
                     in Chrome extension.</div>
             </div>
             <div class="team-card">
-                <div class="team-name">Ada</div>
+                <div class="team-name">Cowork (Ada)</div>
                 <div class="team-role">Implementation</div>
                 <div class="team-desc">Executes all implementation tasks. Verifies fixes in the browser before marking
                     tasks complete.</div>
             </div>
         </div>
 
+        <div class="section">
+
+
+            <div class="section-title">Team Workflow Responsibilities</div>
+
+            <h2 class="mt-xl">Ongoing Docs Maintenance (Chat / Ada)</h2>
+            <ul class="doc-list">
+                <li>At significant milestones in each chat we'll be updating the docs, located in the
+                    <code>project-documentation</code>
+                    directory or URL <code>http://localhost:8080/docs/index.html</code>
+                </li>
+                <li>Ada should update the docs directly in the file, and Chat should provide code snippets in the chat
+                    window
+                    for
+                    copy and paste.</li>
+            </ul>
+
+            <h2 class="mt-xl">Instructions to Ada from Chat</h2>
+            <ul class="doc-list">
+                <li>After Edward and Chat decide on instructions for Ada, Chat will summarize the instructions and
+                    Edward will relay them.
+                </li>
+                <li>When Chat gives instructions to Edward for Ada to execute, the instructions should be in a single
+                    paragraph block of text, in italics.</li>
+            </ul>
+
+            <h2 class="mt-xl">Ada's Workflow</h2>
+            <ul class="doc-list">
+                <li>Development is task-driven — Receiving tasks, then implementing them.
+                </li>
+                <li>Always ask clarifying questions if the request is ambiguous.</li>
+                <li>New styling goes in style.css — never use inline style="…" attributes
+                    on new HTML.</li>
+                <li>When a task is done, state what Edward needs to do to see the change:</li>
+                <li>Restart the Flask server (needed for server.py changes including INJECT_HTML)</li>
+                <li>Run a backtest from the dashboard to regenerate report.html (only if a strategy-template change
+                    should be visible immediately)</li>
+                <li>Run python3 regime_analysis.py to regenerate results/regime_analysis.html (RA page changes only)
+                </li>
+                <li>Or any combination of the above.</li>
+                <li>In-browser verification. Visual and event-flow bugs must be verified in a real browser via Claude in
+                    Chrome, not just sandbox-tested.</li>
+            </ul>
+
+        </div>
+
         <!-- Doc cards -->
-        <div class="section-title">Documentation</div>
+        <div class="section-title">Documentation Pages</div>
         <div class="grid-2">
 
-            <a class="doc-card" href="platform.html">
+            <a class="doc-card" href="dashboard.html">
                 <span class="doc-card-icon">🖥️</span>
-                <div class="doc-card-title">Platform Guide</div>
-                <div class="doc-card-desc">The four-page platform — BD, RA, Discovery, and Versions. What each page
+                <div class="doc-card-title">Dashboard Guide</div>
+                <div class="doc-card-desc">The four-page dashboard — Backtesting, Regimes, Discovery, and Versions. What
+                    each page
                     does, how to use it, and keyboard shortcuts.</div>
                 <div class="doc-card-tags">
                     <span class="badge badge-accent">Backtesting</span>
                     <span class="badge badge-blue">Regimes</span>
                     <span class="badge badge-green">Discovery</span>
                     <span class="badge badge-neutral">Versions</span>
-                </div>
-            </a>
-
-            <a class="doc-card" href="strategy.html">
-                <span class="doc-card-icon">📐</span>
-                <div class="doc-card-title">Strategy Logic</div>
-                <div class="doc-card-desc">Fractal detection, entry gates, regime classification, position sizing, and
-                    the full entry gate pipeline for v1 and v2.</div>
-                <div class="doc-card-tags">
-                    <span class="badge badge-accent">v1 · v2</span>
-                    <span class="badge badge-neutral">Fractals</span>
-                    <span class="badge badge-blue">Regimes</span>
                 </div>
             </a>
 
@@ -339,15 +132,15 @@
                 </div>
             </a>
 
-            <a class="doc-card" href="workflow.html">
-                <span class="doc-card-icon">🔄</span>
-                <div class="doc-card-title">Workflow &amp; Methodology</div>
-                <div class="doc-card-desc">How to work with the platform: the Discovery → Version → BD/RA pipeline,
-                    development rules, git hygiene, and cTrader export.</div>
+            <a class="doc-card" href="strategy.html">
+                <span class="doc-card-icon">📐</span>
+                <div class="doc-card-title">Strategy Logic</div>
+                <div class="doc-card-desc">Fractal detection, entry gates, regime classification, position sizing, and
+                    the full entry gate pipeline for v1 and v2.</div>
                 <div class="doc-card-tags">
-                    <span class="badge badge-green">Discovery First</span>
-                    <span class="badge badge-neutral">Git</span>
-                    <span class="badge badge-neutral">cTrader</span>
+                    <span class="badge badge-accent">v1 · v2</span>
+                    <span class="badge badge-neutral">Fractals</span>
+                    <span class="badge badge-blue">Regimes</span>
                 </div>
             </a>
 

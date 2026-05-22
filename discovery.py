@@ -53,7 +53,13 @@ DISCOVERY_TMP_DIR    = DATA_DIR / ".discovery_tmp"
 EMA_LONG_RANGE      = (10, 200)
 STOP_LOSS_RANGE     = (5, 50)
 RRR_REWARD_RANGE    = (1, 5)
-MAX_DAILY_LOSS_RANGE = (1, 5)
+# MAX_DAILY_LOSS_RANGE was retired (May 2026). The 1–5 sweep over
+# MAX_DAILY_LOSSES (daily-loss-stop count) was a legacy of an earlier
+# search-space design and no longer matches how the strategy is used —
+# the daily-loss stop is now treated as a fixed strategy safety rail
+# rather than a tunable Discovery dimension. We pin it to the strategy's
+# documented default (2) via FIXED_MAX_DAILY_LOSSES below so every trial
+# still receives a valid value through the env.
 
 ALL_MACRO_REGIMES = ["strong_down", "staircase_down", "flat", "staircase_up", "strong_up"]
 ALL_MICRO_REGIMES = [
@@ -63,21 +69,29 @@ ALL_MICRO_REGIMES = [
 ]
 
 # ── Fixed constants (Phase 1) ─────────────────────────────────────────────────
-FIXED_INSTRUMENT     = "GBPUSD"
-FIXED_INTERVAL       = "5m"
-FIXED_DIRECTION      = "short_only"
-FIXED_EMA_SHORT      = 8
-FIXED_EMA_MID        = 20
-FIXED_BLOCKED_HOURS  = "4,5,6,8,10,11,14,17"  # v3's current values
-FIXED_APPLY_SLIPPAGE = "true"
-FIXED_SPREAD_PIPS    = "1.0"
-FIXED_SL_SLIPPAGE    = "1.0"
-FIXED_STRATEGY_VER   = "v2"
+FIXED_INSTRUMENT        = "GBPUSD"
+FIXED_INTERVAL          = "5m"
+FIXED_DIRECTION         = "short_only"
+FIXED_EMA_SHORT         = 8
+FIXED_EMA_MID           = 20
+FIXED_BLOCKED_HOURS     = "4,5,6,8,10,11,14,17"  # v3's current values
+FIXED_APPLY_SLIPPAGE    = "true"
+FIXED_SPREAD_PIPS       = "1.0"
+FIXED_SL_SLIPPAGE       = "1.0"
+FIXED_STRATEGY_VER      = "v2"
+# May 2026: MAX_DAILY_LOSSES is no longer searched. Pinned to the
+# strategy's documented default so every trial receives a valid env var.
+FIXED_MAX_DAILY_LOSSES  = 2
 
 # ── Objective function (Phase 1) ──────────────────────────────────────────────
-OBJ_PROFIT_FACTOR_MIN = 1.5
-OBJ_TRADES_MIN        = 50
-OBJ_MAX_DRAWDOWN_MAX  = 15.0   # percent
+OBJ_PROFIT_FACTOR_MIN     = 1.5
+OBJ_TRADES_MIN            = 50
+OBJ_MAX_DRAWDOWN_MAX      = 10.0   # DD1 cap (peak-to-trough, percent). May 2026
+                                   # tightened from 15% → 10% so the default
+                                   # passing posture matches the risk profile
+                                   # the user actually wants.
+OBJ_MAX_DAILY_DRAWDOWN_MAX = 5.0   # DD2 cap (worst single-day drawdown, percent).
+                                   # New passing criterion (May 2026).
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 DEFAULT_TRIALS = 200
@@ -96,24 +110,57 @@ DEFAULT_END    = "2025-12-31"
 
 def resolve_settings(config):
     """Pull the editable fixed-constants out of the run config (with
-    FIXED_* defaults). Returns a dict consumed by sample_params + build_env."""
+    FIXED_* defaults). Returns a dict consumed by sample_params + build_env.
+
+    May 2026 — added `use_ema_filter` and `rrr_reward_max`. EMA filter was
+    promoted from a per-trial searched dimension to a per-run fixed
+    constant (transparency: every trial in a run carries the same setting).
+    `rrr_reward_max` exposes the previously-hardcoded RRR upper bound of
+    5 as an editable per-run knob — the lower bound stays fixed at 1."""
     cfg = config or {}
+    # use_ema_filter: accept bool or string ("true"/"false"/"on"/"off").
+    raw_ema = cfg.get("use_ema_filter")
+    if isinstance(raw_ema, bool):
+        ema_on = raw_ema
+    elif isinstance(raw_ema, str):
+        ema_on = raw_ema.strip().lower() in ("true", "1", "on", "yes")
+    else:
+        ema_on = True  # default matches the historical p=0.5 sampling default-ish + strategy default
+    # rrr_reward_max: int, defaulted to the original Phase 1 upper bound.
+    try:
+        rrr_max = int(cfg.get("rrr_reward_max")) if cfg.get("rrr_reward_max") is not None else RRR_REWARD_RANGE[1]
+    except (TypeError, ValueError):
+        rrr_max = RRR_REWARD_RANGE[1]
+    # Clamp into a sensible band — sample_params calls rng.randint(1, max)
+    # so a max < 1 would crash; an absurdly large max would inflate variance.
+    if rrr_max < 1:
+        rrr_max = 1
+    if rrr_max > 100:
+        rrr_max = 100
     return {
-        "instrument":    (cfg.get("instrument")    or FIXED_INSTRUMENT).upper(),
-        "interval":       cfg.get("interval")      or FIXED_INTERVAL,
-        "direction":      cfg.get("direction")     or FIXED_DIRECTION,
-        "blocked_hours":  cfg.get("blocked_hours") or FIXED_BLOCKED_HOURS,
+        "instrument":      (cfg.get("instrument")    or FIXED_INSTRUMENT).upper(),
+        "interval":         cfg.get("interval")      or FIXED_INTERVAL,
+        "direction":        cfg.get("direction")     or FIXED_DIRECTION,
+        "blocked_hours":    cfg.get("blocked_hours") or FIXED_BLOCKED_HOURS,
+        "use_ema_filter":   ema_on,
+        "rrr_reward_max":   rrr_max,
     }
 
 
 def resolve_thresholds(config):
     """Pull the editable passing-criteria thresholds out of the run config
-    (with OBJ_* defaults). Returns a dict consumed by evaluate_objective."""
+    (with OBJ_* defaults). Returns a dict consumed by evaluate_objective.
+
+    May 2026 — added max_daily_dd_pct (DD2 cap, default 5%). The existing
+    max_dd_pct now defaults to 10% (was 15%) to match the tighter risk
+    posture the user wants by default. Both values are still editable per
+    run via the Discovery Settings panel's Passing Criteria section."""
     cfg = config or {}
     return {
-        "min_pf":     float(cfg.get("min_pf")     if cfg.get("min_pf")     is not None else OBJ_PROFIT_FACTOR_MIN),
-        "min_trades": int(  cfg.get("min_trades") if cfg.get("min_trades") is not None else OBJ_TRADES_MIN),
-        "max_dd_pct": float(cfg.get("max_dd_pct") if cfg.get("max_dd_pct") is not None else OBJ_MAX_DRAWDOWN_MAX),
+        "min_pf":           float(cfg.get("min_pf")           if cfg.get("min_pf")           is not None else OBJ_PROFIT_FACTOR_MIN),
+        "min_trades":       int(  cfg.get("min_trades")       if cfg.get("min_trades")       is not None else OBJ_TRADES_MIN),
+        "max_dd_pct":       float(cfg.get("max_dd_pct")       if cfg.get("max_dd_pct")       is not None else OBJ_MAX_DRAWDOWN_MAX),
+        "max_daily_dd_pct": float(cfg.get("max_daily_dd_pct") if cfg.get("max_daily_dd_pct") is not None else OBJ_MAX_DAILY_DRAWDOWN_MAX),
     }
 
 
@@ -131,18 +178,29 @@ def _sample_subset(labels, rng):
 
 def sample_params(rng, settings=None):
     """Draw a single parameter set uniformly from the Phase 1 search space.
-    `settings` (from resolve_settings) supplies blocked_hours — the rest
-    of the per-trial dimensions are sampled. blocked_hours is NOT
-    randomised — Discovery applies the same blocked-hour set to every
-    trial per the user's intent (transparency over search-space breadth)."""
+    `settings` (from resolve_settings) supplies blocked_hours, use_ema_filter
+    (fixed per-run since May 2026), and rrr_reward_max (the editable upper
+    bound of the RRR Reward sweep, lower bound fixed at 1). The rest of the
+    per-trial dimensions are sampled. blocked_hours, use_ema_filter, and
+    rrr_reward_max are NOT randomised — Discovery applies the same value
+    to every trial in a run per the user's intent (transparency over
+    search-space breadth).
+
+    May 2026: max_daily_losses was retired from the search space (it was a
+    legacy 1–5 sweep over a strategy safety rail, not a true tunable). It's
+    now pinned to FIXED_MAX_DAILY_LOSSES in build_env, so this dict no
+    longer carries the field."""
     s = settings or resolve_settings(None)
+    rrr_lo = RRR_REWARD_RANGE[0]
+    rrr_hi = int(s.get("rrr_reward_max") or RRR_REWARD_RANGE[1])
+    if rrr_hi < rrr_lo:
+        rrr_hi = rrr_lo  # guard against an upper < lower edit
     return {
         "ema_long":              rng.randint(*EMA_LONG_RANGE),
         "stop_loss_pips":        rng.randint(*STOP_LOSS_RANGE),
         "rrr_risk":              1,
-        "rrr_reward":            rng.randint(*RRR_REWARD_RANGE),
-        "max_daily_losses":      rng.randint(*MAX_DAILY_LOSS_RANGE),
-        "use_ema_filter":        rng.random() < 0.5,
+        "rrr_reward":            rng.randint(rrr_lo, rrr_hi),
+        "use_ema_filter":        bool(s.get("use_ema_filter", True)),
         "allowed_macro_regimes": _sample_subset(ALL_MACRO_REGIMES, rng),
         "allowed_micro_regimes": _sample_subset(ALL_MICRO_REGIMES, rng),
         "blocked_hours":         s["blocked_hours"],
@@ -172,7 +230,9 @@ def build_env(params, start_date, end_date, settings=None):
         "FRACTAL_STOP_PIPS":     str(params["stop_loss_pips"]),
         "RRR_RISK":              str(params["rrr_risk"]),
         "RRR_REWARD":            str(params["rrr_reward"]),
-        "MAX_DAILY_LOSSES":      str(params["max_daily_losses"]),
+        # MAX_DAILY_LOSSES is fixed per-run now (May 2026) — see
+        # FIXED_MAX_DAILY_LOSSES at the top of this file.
+        "MAX_DAILY_LOSSES":      str(FIXED_MAX_DAILY_LOSSES),
         "USE_EMA_FILTER":        "true" if params["use_ema_filter"] else "false",
         "BLOCKED_HOURS_UTC":     params["blocked_hours"],
         "ALLOWED_MACRO_REGIMES": ",".join(params["allowed_macro_regimes"]),
@@ -188,17 +248,31 @@ def evaluate_objective(metrics, thresholds=None):
     """Return (pass, reasons[]). PF=None (∞) treated as passing the PF bar.
 
     `thresholds` (from resolve_thresholds) supplies min_pf / min_trades /
-    max_dd_pct — defaults to the Phase 1 OBJ_* constants. Max drawdown
-    is compared as an absolute magnitude: strategy_v2's compute_metrics
-    writes drawdown with a negative-sign convention, but the objective
-    "max DD ≤ X%" reads naturally as a positive cap — without the abs()
-    here, a catastrophic -50% drawdown would silently pass because
-    -50 < X for any reasonable X."""
+    max_dd_pct / max_daily_dd_pct — defaults to the Phase 1 OBJ_*
+    constants. Both drawdown checks compare as absolute magnitudes:
+    strategy_v2's compute_metrics writes drawdown with a negative-sign
+    convention, but the objective "max DD ≤ X%" reads naturally as a
+    positive cap — without the abs() here, a catastrophic -50% drawdown
+    would silently pass because -50 < X for any reasonable X.
+
+    DD1 (max_drawdown):       peak-to-trough drawdown across the run.
+    DD2 (max_daily_drawdown): worst single-day drawdown (stored as a
+                              {dollar, pct} dict by strategy_v2; we read
+                              .pct). New since May 2026."""
     t = thresholds or resolve_thresholds(None)
     reasons = []
     pf       = metrics.get("profit_factor")
     trades   = metrics.get("total_trades", 0) or 0
     max_dd   = abs(metrics.get("max_drawdown", 0.0) or 0.0)
+    # DD2 is stored as {"dollar": …, "pct": …}; coerce defensively because
+    # legacy metric records may omit it or store a flat scalar.
+    mdd_raw  = metrics.get("max_daily_drawdown")
+    if isinstance(mdd_raw, dict):
+        max_daily_dd = abs(float(mdd_raw.get("pct") or 0.0))
+    elif mdd_raw is None:
+        max_daily_dd = 0.0
+    else:
+        max_daily_dd = abs(float(mdd_raw))
 
     if pf is not None and pf < t["min_pf"]:
         reasons.append(f"profit_factor {pf:.2f} < {t['min_pf']}")
@@ -206,6 +280,8 @@ def evaluate_objective(metrics, thresholds=None):
         reasons.append(f"trades {trades} < {t['min_trades']}")
     if max_dd > t["max_dd_pct"]:
         reasons.append(f"max_drawdown {max_dd:.1f}% > {t['max_dd_pct']}%")
+    if max_daily_dd > t["max_daily_dd_pct"]:
+        reasons.append(f"max_daily_drawdown {max_daily_dd:.1f}% > {t['max_daily_dd_pct']}%")
     return (len(reasons) == 0, reasons)
 
 
@@ -434,15 +510,17 @@ def main(argv=None):
 
     # ── --once: deterministic single-trial mode (sanity-check) ───────────────
     if args.once:
-        if None in (args.ema_long, args.stop_loss, args.rrr_reward, args.max_dll, args.macro, args.micro):
-            print("--once requires --ema-long, --stop-loss, --rrr-reward, --max-dll, --macro, --micro", file=sys.stderr)
+        # max_dll was retired from required args (May 2026) — daily-loss-stop
+        # is now a fixed strategy safety rail, not a Discovery dimension.
+        # The flag still parses (for back-compat) but is silently ignored.
+        if None in (args.ema_long, args.stop_loss, args.rrr_reward, args.macro, args.micro):
+            print("--once requires --ema-long, --stop-loss, --rrr-reward, --macro, --micro", file=sys.stderr)
             return 2
         params = {
             "ema_long":              args.ema_long,
             "stop_loss_pips":        args.stop_loss,
             "rrr_risk":              1,
             "rrr_reward":            args.rrr_reward,
-            "max_daily_losses":      args.max_dll,
             "use_ema_filter":        args.ema_filter == "on",
             "allowed_macro_regimes": [s.strip() for s in args.macro.split(",") if s.strip()],
             "allowed_micro_regimes": [s.strip() for s in args.micro.split(",") if s.strip()],
@@ -467,13 +545,20 @@ def main(argv=None):
     config = {
         "trials": args.trials, "start": args.start, "end": args.end,
         "seed":   seed,
-        "instrument":    settings["instrument"],
-        "interval":      settings["interval"],
-        "direction":     settings["direction"],
-        "blocked_hours": settings["blocked_hours"],
-        "min_pf":     thresholds["min_pf"],
-        "min_trades": thresholds["min_trades"],
-        "max_dd_pct": thresholds["max_dd_pct"],
+        "instrument":     settings["instrument"],
+        "interval":       settings["interval"],
+        "direction":      settings["direction"],
+        "blocked_hours":  settings["blocked_hours"],
+        # May 2026: persist the per-run EMA-filter choice (promoted from a
+        # searched dimension to a fixed constant) and the RRR Reward upper
+        # bound (lower bound stays fixed at 1) so the run header can
+        # display them and a future re-run can reproduce them exactly.
+        "use_ema_filter": settings["use_ema_filter"],
+        "rrr_reward_max": settings["rrr_reward_max"],
+        "min_pf":           thresholds["min_pf"],
+        "min_trades":       thresholds["min_trades"],
+        "max_dd_pct":       thresholds["max_dd_pct"],
+        "max_daily_dd_pct": thresholds["max_daily_dd_pct"],
     }
     results_path = Path(args.results_file)
     payload = init_results_file(results_path, run_id, config)

@@ -1,166 +1,158 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Workflow — Fractal Bot Docs</title>
-<link rel="stylesheet" href="docs.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow — Fractal Bot Docs</title>
+    <link rel="stylesheet" href="docs.css">
 </head>
+
 <body>
 
-<nav>
-  <a class="nav-brand" href="index.html">Fractal Bot</a>
-  <a href="index.html">Overview</a>
-  <a href="platform.html">Platform</a>
-  <a href="strategy.html">Strategy</a>
-  <a href="technical.html">Technical</a>
-  <a href="workflow.html" class="active">Workflow</a>
-  <a href="research.html">Research</a>
-</nav>
+    <nav>
+        <a class="nav-brand" href="index.html">Fractal Geo</a>
+        <a href="index.html">Overview</a>
+        <a href="platform.html">Platform</a>
+        <a href="workflow.html" class="active">Workflow</a>
+        <a href="technical.html">Technical Setup</a>
+        <a href="strategy.html">Strategy</a>
+        <a href="research.html">Research &amp; Development</a>
+    </nav>
 
-<div class="page">
-  <a class="back-link" href="index.html">← Back to Overview</a>
+    <div class="page">
+        <a class="back-link" href="index.html">← Back to Overview</a>
 
-  <div class="page-header">
-    <div class="eyebrow">Documentation</div>
-    <h1>Workflow &amp; Methodology</h1>
-    <p class="subtitle">The Discovery → Version → BD/RA pipeline, development rules, testing approach, and git hygiene.</p>
-  </div>
-
-  <!-- Core workflow -->
-  <div class="section">
-    <div class="section-title">Core Workflow</div>
-    <div class="card" style="padding:0; overflow:hidden;">
-      <div class="flow-steps" style="padding:8px 24px;">
-        <div class="flow-step">
-          <div class="flow-num">1</div>
-          <div class="flow-content">
-            <h4>Run Discovery</h4>
-            <p>Set instrument, interval, direction, blocked hours. Run 200+ trials over a training window. Review passing trials sorted by PF.</p>
-          </div>
+        <div class="page-header">
+            <div class="eyebrow">Documentation</div>
+            <h1>Workflow &amp; Methodology</h1>
+            <p class="subtitle">The Discovery → Version → BD/RA pipeline, development rules, testing approach, and git
+                hygiene.</p>
         </div>
-        <div class="flow-step">
-          <div class="flow-num">2</div>
-          <div class="flow-content">
-            <h4>Assign to Version</h4>
-            <p>Click Assign on a promising trial. This creates a version profile with all parameters locked. <code>data/versions.json</code> is the source of truth — commit after changes.</p>
-          </div>
+
+        <!-- Core workflow -->
+        <div class="section">
+            <div class="section-title">Dashboard Workflow</div>
+            <div class="card card-flow">
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-num">1</div>
+                        <div class="flow-content">
+                            <h4>Run Discovery</h4>
+                            <p>Set instrument, interval, direction, blocked hours. Run 200+ trials over a training
+                                window. Review passing trials sorted by PF.</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">2</div>
+                        <div class="flow-content">
+                            <h4>Assign to Version</h4>
+                            <p>Click Assign on a promising trial. This creates a version profile with all parameters
+                                locked. <code>data/versions.json</code> is the source of truth — commit after changes.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">3</div>
+                        <div class="flow-content">
+                            <h4>Validate on BD (out-of-sample)</h4>
+                            <p>Run the version on a date range Discovery never saw. Check whether numbers degrade
+                                gracefully or collapse. Accurate P&L — don't re-run sub-periods, read from the parent
+                                run's tables.</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">4</div>
+                        <div class="flow-content">
+                            <h4>Confirm on RA</h4>
+                            <p>Check that regime gates make intuitive sense on the out-of-sample window. Are the blocked
+                                regimes genuinely bad, or overfitting to training noise?</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num flow-num-green">5</div>
+                        <div class="flow-content">
+                            <h4>Generate cBot &amp; Forward Test</h4>
+                            <p>Click Create cBot on the BD. Copy <code>FractalBot_v{N}.cs</code> into cTrader. Run on
+                                live data. Edit logic in <code>cbot_templates.py</code>, not the generated file.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-tip mt-lg">
+                <span class="callout-icon">💡</span>
+                <div class="callout-body"><strong>Discovery is the source of truth</strong> for all strategy parameters.
+                    Parameters flow Discovery → Version → BD/RA. Nothing downstream should override instrument,
+                    interval, or direction.</div>
+            </div>
         </div>
-        <div class="flow-step">
-          <div class="flow-num">3</div>
-          <div class="flow-content">
-            <h4>Validate on BD (out-of-sample)</h4>
-            <p>Run the version on a date range Discovery never saw. Check whether numbers degrade gracefully or collapse. Accurate P&L — don't re-run sub-periods, read from the parent run's tables.</p>
-          </div>
+
+        <!-- Development rules -->
+        <div class="section">
+            <div class="section-title">Development Rules</div>
+            <div class="grid-2">
+                <div>
+                    <ul class="doc-list">
+                        <li><strong>New styling goes in <code>style.css</code></strong> — never inline
+                            <code>style="…"</code> on new HTML. Legacy inline styles in <code>INJECT_HTML</code> are
+                            grandfathered.
+                        </li>
+                        <li><strong>Strategy template duplication</strong> — <code>strategy_v1.py</code> and
+                            <code>strategy_v2.py</code> each carry their own copy of <code>report.html</code>'s
+                            structure. Any change to the inline JS or markup must be applied to both templates.
+                        </li>
+                        <li><strong>Never edit <code>report.html</code> directly</strong> — it is auto-generated and
+                            will be overwritten on the next backtest run.</li>
+                    </ul>
+                </div>
+                <div>
+                    <ul class="doc-list">
+                        <li><strong>Task completion</strong> — always state what needs to happen to see the change:
+                            restart Flask, run a backtest, run <code>python3 regime_analysis.py</code>, or a
+                            combination.</li>
+                        <li><strong>In-browser verification</strong> — visual and event-flow bugs must be verified in a
+                            real browser via Claude in Chrome, not just sandbox-tested.</li>
+                        <li><strong>RRR cached constant bug</strong> — <code>strategy_v2.py</code> computes RRR once at
+                            import. When overriding params in-process, always recompute:
+                            <code>strat.RRR = float(strat.RRR_REWARD) / float(strat.RRR_RISK)</code>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
-        <div class="flow-step">
-          <div class="flow-num">4</div>
-          <div class="flow-content">
-            <h4>Confirm on RA</h4>
-            <p>Check that regime gates make intuitive sense on the out-of-sample window. Are the blocked regimes genuinely bad, or overfitting to training noise?</p>
-          </div>
+
+        <!-- Browser testing -->
+        <div class="section">
+
+
+            <h2 class="mt-xl">Testing Approach</h2>
+            <ul class="doc-list">
+                <li><code>computer(action='screenshot')</code> — see current state</li>
+                <li><code>javascript_tool</code> — read DOM state, check scroll positions, verify data</li>
+                <li><code>computer(action='type', text='2')</code> — trigger keyboard shortcuts (click page body first)
+                </li>
+                <li><code>computer(action='wait', duration=N)</code> — max 10s between polling for long-running
+                    operations</li>
+                <li><strong>Avoid RA Run Analysis during testing</strong> — the ~100s run blocks Flask and can drop the
+                    MCP connection</li>
+            </ul>
+
+            <h2 class="mt-xl">Known Limitations</h2>
+            <ul class="doc-list">
+                <li>MCP connection can drop during long RA runs. Reconnect with
+                    <code>tabs_context_mcp(createIfEmpty=True)</code>
+                </li>
+                <li>Programmatic <code>KeyboardEvent</code> dispatch doesn't trigger shortcut handlers — use
+                    <code>computer(action='type')</code> instead
+                </li>
+                <li>The <code>#main</code> div is the scroll container —
+                    <code>document.getElementById('main').scrollTop</code> gives the true scroll position
+                </li>
+            </ul>
         </div>
-        <div class="flow-step" style="border-bottom:none;">
-          <div class="flow-num" style="background:var(--green);">5</div>
-          <div class="flow-content">
-            <h4>Generate cBot &amp; Forward Test</h4>
-            <p>Click Create cBot on the BD. Copy <code>FractalBot_v{N}.cs</code> into cTrader. Run on live data. Edit logic in <code>cbot_templates.py</code>, not the generated file.</p>
-          </div>
-        </div>
-      </div>
+
     </div>
-
-    <div class="callout callout-tip" style="margin-top:20px;">
-      <span class="callout-icon">💡</span>
-      <div class="callout-body"><strong>Discovery is the source of truth</strong> for all strategy parameters. Parameters flow Discovery → Version → BD/RA. Nothing downstream should override instrument, interval, or direction.</div>
-    </div>
-  </div>
-
-  <!-- Development rules -->
-  <div class="section">
-    <div class="section-title">Development Rules</div>
-    <div class="grid-2">
-      <div>
-        <ul class="doc-list">
-          <li><strong>New styling goes in <code>style.css</code></strong> — never inline <code>style="…"</code> on new HTML. Legacy inline styles in <code>INJECT_HTML</code> are grandfathered.</li>
-          <li><strong>Strategy template duplication</strong> — <code>strategy_v1.py</code> and <code>strategy_v2.py</code> each carry their own copy of <code>report.html</code>'s structure. Any change to the inline JS or markup must be applied to both templates.</li>
-          <li><strong>Never edit <code>report.html</code> directly</strong> — it is auto-generated and will be overwritten on the next backtest run.</li>
-        </ul>
-      </div>
-      <div>
-        <ul class="doc-list">
-          <li><strong>Task completion</strong> — always state what needs to happen to see the change: restart Flask, run a backtest, run <code>python3 regime_analysis.py</code>, or a combination.</li>
-          <li><strong>In-browser verification</strong> — visual and event-flow bugs must be verified in a real browser via Claude in Chrome, not just sandbox-tested.</li>
-          <li><strong>RRR cached constant bug</strong> — <code>strategy_v2.py</code> computes RRR once at import. When overriding params in-process, always recompute: <code>strat.RRR = float(strat.RRR_REWARD) / float(strat.RRR_RISK)</code></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-
-  <!-- Browser testing -->
-  <div class="section">
-    <div class="section-title">Browser Testing (Chat / Claude in Chrome)</div>
-
-    <h2>Connection Procedure</h2>
-    <div class="card" style="padding:0; overflow:hidden;">
-      <div class="flow-steps" style="padding:8px 24px;">
-        <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><h4>list_connected_browsers → select_browser</h4><p>Use the correct deviceId from the list.</p></div></div>
-        <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>tabs_context_mcp (createIfEmpty: true)</h4><p>Creates the MCP tab group.</p></div></div>
-        <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>navigate to http://localhost:8080/</h4><p>Triggers Chrome's permission prompt for the extension.</p></div></div>
-        <div class="flow-step" style="border-bottom:none;"><div class="flow-num">4</div><div class="flow-content"><h4>Tell Edward: "Please click Allow"</h4><p>Wait for confirmation before proceeding with any actions.</p></div></div>
-      </div>
-    </div>
-
-    <div class="callout callout-warning" style="margin-top:16px;">
-      <span class="callout-icon">⚠️</span>
-      <div class="callout-body"><strong>Never attempt browser actions on a <code>chrome://newtab</code> tab</strong> — the extension cannot interact with Chrome's internal pages. If actions fail after the above steps, close the MCP tab group entirely and repeat from step 2.</div>
-    </div>
-
-    <h2 style="margin-top:28px;">Testing Approach</h2>
-    <ul class="doc-list">
-      <li><code>computer(action='screenshot')</code> — see current state</li>
-      <li><code>javascript_tool</code> — read DOM state, check scroll positions, verify data</li>
-      <li><code>computer(action='type', text='2')</code> — trigger keyboard shortcuts (click page body first)</li>
-      <li><code>computer(action='wait', duration=N)</code> — max 10s between polling for long-running operations</li>
-      <li><strong>Avoid RA Run Analysis during testing</strong> — the ~100s run blocks Flask and can drop the MCP connection</li>
-    </ul>
-
-    <h2 style="margin-top:28px;">Known Limitations</h2>
-    <ul class="doc-list">
-      <li>MCP connection can drop during long RA runs. Reconnect with <code>tabs_context_mcp(createIfEmpty=True)</code></li>
-      <li>Programmatic <code>KeyboardEvent</code> dispatch doesn't trigger shortcut handlers — use <code>computer(action='type')</code> instead</li>
-      <li>The <code>#main</code> div is the scroll container — <code>document.getElementById('main').scrollTop</code> gives the true scroll position</li>
-    </ul>
-  </div>
-
-  <!-- Git -->
-  <div class="section">
-    <div class="section-title">Git &amp; Sync</div>
-    <div class="grid-2">
-      <ul class="doc-list">
-        <li><code>data/versions.json</code> — tracked in git. Always commit after version changes.</li>
-        <li><code>data/</code> — otherwise gitignored (large OHLC parquets stay local)</li>
-      </ul>
-      <ul class="doc-list">
-        <li>Always <code>git pull</code> before starting a session on a new machine</li>
-        <li><code>start.command</code> does <code>git pull</code> automatically on launch</li>
-      </ul>
-    </div>
-  </div>
-
-  <!-- cTrader -->
-  <div class="section">
-    <div class="section-title">cTrader Integration</div>
-    <div class="card">
-      <div class="card-title">Code Generation</div>
-      <p style="margin-top:8px;">Click <strong>Create cBot</strong> on the BD. This calls <code>cbot_templates.py</code> which renders <code>FractalBot_v{N}.cs</code>. The generated file is overwritten on every generation — <strong>never edit it directly.</strong> All logic changes go in <code>cbot_templates.py</code>.</p>
-      <div class="callout callout-info" style="margin-top:14px; margin-bottom:0;">
-        <span class="callout-icon">ℹ️</span>
-        <div class="callout-body">C# runs natively inside cTrader as a cBot. The Python Open API is an external connection not suitable for prop firm use.</div>
-      </div>
-    </div>
-  </div>
-
-</div>
 </body>
+
 </html>
