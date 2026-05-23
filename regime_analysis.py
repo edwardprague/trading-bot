@@ -3434,8 +3434,26 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
             applyResponseHtml(_savedState.html);
           }}
         }}
-        if (!resp || !resp.ok || !resp.active || !resp.active.regime_state) return;
-        var rs = resp.active.regime_state;
+        if (!resp || !resp.ok || !resp.active) return;
+        // Issue 5 fix: page-init toggles now reflect the version's
+        // Discovery defaults (params.allowed_*), NOT the mutable
+        // regime_state. Edward's expectation is that the page always
+        // opens at the version's Discovery baseline — opening at the
+        // last-run state (regime_state) was confusing because every Run
+        // drifts it away from the assignment.
+        // Fallback chain matches the _versionParamsDefaults populator:
+        //   1. params.allowed_*  (immutable Discovery snapshot)
+        //   2. regime_state.allowed_*  (legacy, for unmigrated versions)
+        //   3. nothing — leave the static-render checked state untouched
+        //      (preserves the file-level defaults baked by build_report)
+        var ap  = resp.active.params       || {{}};
+        var ars = resp.active.regime_state || {{}};
+        var initMacro = (ap.allowed_macro_regimes !== undefined)
+                          ? ap.allowed_macro_regimes
+                          : ars.allowed_macro_regimes;
+        var initMicro = (ap.allowed_micro_regimes !== undefined)
+                          ? ap.allowed_micro_regimes
+                          : ars.allowed_micro_regimes;
         function setAllow(containerId, allowed) {{
           var container = document.getElementById(containerId);
           if (!container) return;
@@ -3449,8 +3467,8 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
             applyToggleVisual(toggle);
           }});
         }}
-        setAllow("regime-macro-toggles", rs.allowed_macro_regimes);
-        setAllow("regime-micro-toggles", rs.allowed_micro_regimes);
+        if (initMacro !== undefined) setAllow("regime-macro-toggles", initMacro);
+        if (initMicro !== undefined) setAllow("regime-micro-toggles", initMicro);
       }})
       .catch(function () {{}});
 
@@ -3477,15 +3495,36 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
           if (!activeV && versions.length) activeV = versions[0];
           window.__activeVersion = activeV;
           window.__activeVersionId = activeV ? activeV.id : "";
-          // Issue 4 fix: capture the version's IMMUTABLE Discovery params
-          // for the Reset to Defaults button. Using params (not
-          // regime_state) is the whole point — regime_state gets
-          // overwritten on every Run, so it's not a stable "default".
-          if (activeV && activeV.params) {{
-            _versionParamsDefaults = {{
-              macro: (activeV.params.allowed_macro_regimes || []).slice(),
-              micro: (activeV.params.allowed_micro_regimes || []).slice(),
-            }};
+          // Issue 4/5 fix: capture the version's IMMUTABLE Discovery
+          // allow-lists for the Reset-to-Defaults button + page-init.
+          // Source preference:
+          //   1. params.allowed_macro/micro (set at assignment time by
+          //      the May-2026 schema fix; immutable snapshot).
+          //   2. regime_state.allowed_macro/micro (mutable working copy,
+          //      written on every Run). Used as a fallback ONLY for
+          //      versions that pre-date the schema fix AND that the
+          //      _backfill_params_allow_lists migration couldn't match
+          //      uniquely to a Discovery trial.
+          // Skip entirely (leave defaults null → file-level fallback in
+          // the Reset handler) if neither source has the lists — that's
+          // an unassigned version like a freshly-created empty v1.
+          if (activeV) {{
+            var p  = activeV.params || {{}};
+            var rs = activeV.regime_state || {{}};
+            var macro = p.allowed_macro_regimes;
+            var micro = p.allowed_micro_regimes;
+            if (macro === undefined && rs.allowed_macro_regimes !== undefined) {{
+              macro = rs.allowed_macro_regimes;
+            }}
+            if (micro === undefined && rs.allowed_micro_regimes !== undefined) {{
+              micro = rs.allowed_micro_regimes;
+            }}
+            if (macro !== undefined && micro !== undefined) {{
+              _versionParamsDefaults = {{
+                macro: (macro || []).slice(),
+                micro: (micro || []).slice(),
+              }};
+            }}
           }}
           if (typeof syncRegimePageTitle === "function") syncRegimePageTitle();
         }})
@@ -3502,13 +3541,21 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       }}
     }}());
 
-    // Hook into Reset to Defaults so refreshing actually goes back to the
-    // labeler's hardcoded defaults rather than re-restoring from storage.
-    if (resetBtn) {{
-      resetBtn.addEventListener("click", function () {{
-        clearRegimeAnalysisState();
-      }});
-    }}
+    // Issue 5 fix (May 2026): the previous handler called
+    // clearRegimeAnalysisState() on Reset, which wipes the entire
+    // per-version localStorage cache — including the date range. Symptom:
+    // clicking Reset and then refreshing the page snapped the date
+    // pickers back to the full 15-month server-rendered defaults,
+    // surprising the user. Reset's intent is "toggles → Discovery
+    // baseline", nothing else. Cache invalidation now happens naturally
+    // on the next Run (which writes a fresh entry). If the user reloads
+    // before clicking Run, applySavedStateToControls's allow-list
+    // comparison detects the mismatch and skips painting the stale
+    // cached HTML — toggles still snap to the new baseline via the
+    // active-version sync block above, so nothing is visually wrong.
+    // (Intentionally a no-op block — the handler #1 above already
+    // resets the toggle state.) Kept here as a comment for the next
+    // person who wonders why the second resetBtn handler is gone.
 
     // ── Keyboard shortcuts: 1, 2-9, 0 jump to RA sections ─────────────────
     // Mirrors the BD's pattern. `#main` is `<html>` (it carries id="main"

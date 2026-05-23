@@ -231,331 +231,341 @@
                     — don't re-run to check.</div>
             </div>
 
-            <h3>BD Keyboard Shortcuts</h3>
-            <p class="text-note">Click the page body first to
-                ensure focus. Suppressed when focus is in an input, select, or textarea.</p>
-            <div class="grid-2">
-                <div class="shortcut-grid">
+
+
+            <hr>
+
+            <!-- RA -->
+            <div class="page-section" id="ra">
+                <h2>2 · Regimes (RA)</h2>
+                <div class="callout callout-note">
+                    <span class="callout-icon">🔗</span>
+                    <div class="callout-body"><a class="url-pill"
+                            href="http://localhost:8080/results/regime_analysis.html"
+                            target="_blank">localhost:8080/results/regime_analysis.html</a></div>
+                </div>
+                <p>The <strong>diagnostic lens</strong>. Breaks the active version's behaviour down by market
+                    regime
+                    — both day-level (macro) and intraday (micro). Always uses the active version — no version
+                    dropdown.</p>
+
+                <div class="grid-2 my-md">
+                    <div class="card">
+                        <div class="card-title">Macro Regimes <span class="badge badge-neutral">5</span></div>
+                        <ul class="doc-list">
+                            <li><strong>Strong Down</strong> — sharp directional fall</li>
+                            <li><strong>Staircase Down</strong> — stepped decline</li>
+                            <li><strong>Flat</strong> — no clear direction</li>
+                            <li><strong>Staircase Up</strong> — stepped rise</li>
+                            <li><strong>Strong Up</strong> — sharp directional rise</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Micro Regimes <span class="badge badge-neutral">10</span></div>
+                        <ul class="doc-list">
+                            <li>Trending Fast / Medium / Slow Down</li>
+                            <li>Trending Fast / Medium / Slow Up</li>
+                            <li>Ranging Narrow / Medium / Wide</li>
+                            <li>Transitioning</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="callout callout-warning">
+                    <span class="callout-icon">⚠️</span>
+                    <div class="callout-body"><strong>RA does not auto-run on load.</strong> Results shown are
+                        from
+                        the last saved run. Click Run Analysis to refresh (~30–100s, blocks Flask). Avoid
+                        triggering
+                        during browser testing.</div>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- Discovery -->
+            <div class="page-section" id="discovery">
+                <h2>3 · Discovery</h2>
+                <div class="callout callout-note">
+                    <span class="callout-icon">🔗</span>
+                    <div class="callout-body"><a class="url-pill" href="http://localhost:8080/discovery"
+                            target="_blank">localhost:8080/discovery</a></div>
+                </div>
+                <p>The <strong>optimisation engine</strong>. Explores the parameter space via random search,
+                    running
+                    a full backtest for each trial and scoring against the passing criteria. Each run is
+                    independent
+                    — random seed, no pooling across runs.</p>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Setting</th>
+                                <th>Type</th>
+                                <th>Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Instrument</td>
+                                <td><span class="badge badge-green">Fixed · Editable</span></td>
+                                <td>GBPUSD or EURUSD (and new pairs)</td>
+                            </tr>
+                            <tr>
+                                <td>Interval</td>
+                                <td><span class="badge badge-green">Fixed · Editable</span></td>
+                                <td>Bar interval — set per run, not randomised</td>
+                            </tr>
+                            <tr>
+                                <td>Direction</td>
+                                <td><span class="badge badge-green">Fixed · Editable</span></td>
+                                <td>Both / Long Only / Short Only</td>
+                            </tr>
+                            <tr>
+                                <td>Blocked Hours</td>
+                                <td><span class="badge badge-green">Fixed · Editable</span></td>
+                                <td>UTC hours excluded from entries (pill UI)</td>
+                            </tr>
+                            <tr>
+                                <td>Slippage</td>
+                                <td><span class="badge badge-neutral">Fixed · Read-only</span></td>
+                                <td>On — 1 pip SL + 1 pip spread</td>
+                            </tr>
+                            <tr>
+                                <td>EMA Long</td>
+                                <td><span class="badge badge-blue">Searched</span></td>
+                                <td>10 – 200</td>
+                            </tr>
+                            <tr>
+                                <td>Stop Loss</td>
+                                <td><span class="badge badge-blue">Searched</span></td>
+                                <td>5 – 50 pips</td>
+                            </tr>
+                            <tr>
+                                <td>RRR Reward</td>
+                                <td><span class="badge badge-blue">Searched</span></td>
+                                <td>1 – 5 (risk fixed at 1)</td>
+                            </tr>
+                            <tr>
+                                <td>Max DD</td>
+                                <td><span class="badge badge-blue">Searched</span></td>
+                                <td>1 – 5</td>
+                            </tr>
+                            <tr>
+                                <td>EMA Filter</td>
+                                <td><span class="badge badge-blue">Searched</span></td>
+                                <td>On / Off</td>
+                            </tr>
+                            <tr>
+                                <td>Macro Regimes</td>
+                                <td><span class="badge badge-blue">Searched</span></td>
+                                <td>Any combination of 5</td>
+                            </tr>
+                            <tr>
+                                <td>Micro Regimes</td>
+                                <td><span class="badge badge-blue">Searched</span></td>
+                                <td>Any combination of 10</td>
+                            </tr>
+                            <tr>
+                                <td>Profit Factor</td>
+                                <td><span class="badge badge-accent">Passing Criteria</span></td>
+                                <td>≥ 1.5 (editable)</td>
+                            </tr>
+                            <tr>
+                                <td>Min Trades</td>
+                                <td><span class="badge badge-accent">Passing Criteria</span></td>
+                                <td>Editable — scale with date range</td>
+                            </tr>
+                            <tr>
+                                <td>Max Drawdown</td>
+                                <td><span class="badge badge-accent">Passing Criteria</span></td>
+                                <td>≤ 15% (editable)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="callout callout-tip">
+                    <span class="callout-icon">💡</span>
+                    <div class="callout-body"><strong>Seed:</strong> Leave as "random" for exploration. Note the
+                        seed if you need to reproduce a specific run exactly. Currently the seed is not stored
+                        in
+                        run results — a known gap to fix.</div>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- Versions -->
+            <div class="page-section" id="versions">
+                <h2>4 · Versions</h2>
+                <div class="callout callout-note">
+                    <span class="callout-icon">🔗</span>
+                    <div class="callout-body"><a class="url-pill" href="http://localhost:8080/versions"
+                            target="_blank">localhost:8080/versions</a></div>
+                </div>
+                <p>The <strong>lifecycle manager</strong>. Each version is a named profile bundling a set of
+                    Discovery-assigned parameters and its own regime allow-list state. The active version drives
+                    all
+                    BD backtests and RA runs.</p>
+
+                <ul class="doc-list">
+                    <li><strong>Radio buttons</strong> — selecting sets that version as active immediately,
+                        persists
+                        to <code>data/versions.json</code></li>
+                    <li><strong>Version numbering</strong> — sequential, auto-renumbers on deletion. New
+                        additions
+                        always increment from highest existing number.</li>
+                    <li><strong>Add Version</strong> — creates the next vN as an unassigned slot. Parameters are
+                        filled by assigning a Discovery trial.</li>
+                    <li><strong>Notes field</strong> — free-form per version, auto-saves on blur</li>
+                    <li><strong>Delete</strong> — removes version and triggers live rekey of versions.json, run
+                        buckets, and Discovery assignment records</li>
+                </ul>
+
+                <div class="callout callout-warning">
+                    <span class="callout-icon">⚠️</span>
+                    <div class="callout-body"><code>data/versions.json</code> is the source of truth. Always
+                        commit
+                        to git after version changes.</div>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- Keyboard Shortcuts -->
+            <div class="page-section" id="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <h3>BD Keyboard Shortcuts</h3>
+                <p class="text-note">Click the page body first to
+                    ensure focus. Suppressed when focus is in an input, select, or textarea.</p>
+                <div class="grid-2">
+                    <div class="shortcut-grid">
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>1</kbd></div>
+                            <div class="shortcut-desc">Scroll to top</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>2</kbd>–<kbd>9</kbd></div>
+                            <div class="shortcut-desc">Scroll to Nth visible section</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>0</kbd></div>
+                            <div class="shortcut-desc">Scroll to bottom</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>↑</kbd> <kbd>↓</kbd></div>
+                            <div class="shortcut-desc">Sidebar navigation</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>D</kbd></div>
+                            <div class="shortcut-desc">Add Date Range</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>C</kbd></div>
+                            <div class="shortcut-desc">Copy Report</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>G</kbd></div>
+                            <div class="shortcut-desc">General tab</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>A</kbd></div>
+                            <div class="shortcut-desc">Advanced tab</div>
+                        </div>
+                    </div>
+                    <div class="shortcut-grid">
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>S</kbd></div>
+                            <div class="shortcut-desc">Toggle Backtest Settings panel (shared key on Regimes +
+                                Discovery)</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>L</kbd></div>
+                            <div class="shortcut-desc">Toggle Development Log</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>V</kbd>+<kbd>1–9</kbd></div>
+                            <div class="shortcut-desc">Pick Nth version (chord, 800ms)</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>I</kbd>+<kbd>1–9</kbd></div>
+                            <div class="shortcut-desc">Pick Nth instrument (chord)</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>⇧</kbd>+<kbd>1–4</kbd></div>
+                            <div class="shortcut-desc">Toggle sidebar section Year/Month/Weeks/Day</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>⇧</kbd>+<kbd>Del</kbd></div>
+                            <div class="shortcut-desc">Delete selected version or run</div>
+                        </div>
+                        <div class="shortcut-row">
+                            <div class="shortcut-key"><kbd>↵</kbd></div>
+                            <div class="shortcut-desc">Submit in dialogs / edit fields</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>RA Keyboard Shortcuts</h3>
+                <div class="shortcut-grid shortcut-grid-narrow">
                     <div class="shortcut-row">
                         <div class="shortcut-key"><kbd>1</kbd></div>
                         <div class="shortcut-desc">Scroll to top</div>
                     </div>
                     <div class="shortcut-row">
-                        <div class="shortcut-key"><kbd>2</kbd>–<kbd>9</kbd></div>
-                        <div class="shortcut-desc">Scroll to Nth visible section</div>
+                        <div class="shortcut-key"><kbd>2</kbd></div>
+                        <div class="shortcut-desc">Stats cards</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>3</kbd></div>
+                        <div class="shortcut-desc">Macro regime performance</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>4</kbd></div>
+                        <div class="shortcut-desc">Micro regime performance</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>5</kbd></div>
+                        <div class="shortcut-desc">Regime timeline</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>6</kbd></div>
+                        <div class="shortcut-desc">Daily performance</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>7</kbd></div>
+                        <div class="shortcut-desc">Macro Regime Profiles</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>8</kbd></div>
+                        <div class="shortcut-desc">Regime summary cards</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>9</kbd></div>
+                        <div class="shortcut-desc">Threshold distributions</div>
                     </div>
                     <div class="shortcut-row">
                         <div class="shortcut-key"><kbd>0</kbd></div>
-                        <div class="shortcut-desc">Scroll to bottom</div>
+                        <div class="shortcut-desc">Regime periods (bottom)</div>
                     </div>
-                    <div class="shortcut-row">
-                        <div class="shortcut-key"><kbd>↑</kbd> <kbd>↓</kbd></div>
-                        <div class="shortcut-desc">Sidebar navigation</div>
-                    </div>
-                    <div class="shortcut-row">
-                        <div class="shortcut-key"><kbd>D</kbd></div>
-                        <div class="shortcut-desc">Add Date Range</div>
-                    </div>
-                    <div class="shortcut-row">
-                        <div class="shortcut-key"><kbd>C</kbd></div>
-                        <div class="shortcut-desc">Copy Report</div>
-                    </div>
-                    <div class="shortcut-row">
-                        <div class="shortcut-key"><kbd>G</kbd></div>
-                        <div class="shortcut-desc">General tab</div>
-                    </div>
-                    <div class="shortcut-row">
-                        <div class="shortcut-key"><kbd>A</kbd></div>
-                        <div class="shortcut-desc">Advanced tab</div>
-                    </div>
-                </div>
-                <div class="shortcut-grid">
                     <div class="shortcut-row">
                         <div class="shortcut-key"><kbd>S</kbd></div>
-                        <div class="shortcut-desc">Toggle Backtest Settings panel (shared key on Regimes +
-                            Discovery)</div>
+                        <div class="shortcut-desc">Toggle Regime Filters panel (shared key on BD + Discovery)
+                        </div>
                     </div>
+                </div>
+
+                <h3>Discovery Keyboard Shortcuts</h3>
+                <div class="shortcut-grid shortcut-grid-narrow">
                     <div class="shortcut-row">
-                        <div class="shortcut-key"><kbd>L</kbd></div>
-                        <div class="shortcut-desc">Toggle Development Log</div>
-                    </div>
-                    <div class="shortcut-row">
-                        <div class="shortcut-key"><kbd>V</kbd>+<kbd>1–9</kbd></div>
-                        <div class="shortcut-desc">Pick Nth version (chord, 800ms)</div>
-                    </div>
-                    <div class="shortcut-row">
-                        <div class="shortcut-key"><kbd>I</kbd>+<kbd>1–9</kbd></div>
-                        <div class="shortcut-desc">Pick Nth instrument (chord)</div>
-                    </div>
-                    <div class="shortcut-row">
-                        <div class="shortcut-key"><kbd>⇧</kbd>+<kbd>1–4</kbd></div>
-                        <div class="shortcut-desc">Toggle sidebar section Year/Month/Weeks/Day</div>
-                    </div>
-                    <div class="shortcut-row">
-                        <div class="shortcut-key"><kbd>⇧</kbd>+<kbd>Del</kbd></div>
-                        <div class="shortcut-desc">Delete selected version or run</div>
-                    </div>
-                    <div class="shortcut-row">
-                        <div class="shortcut-key"><kbd>↵</kbd></div>
-                        <div class="shortcut-desc">Submit in dialogs / edit fields</div>
+                        <div class="shortcut-key"><kbd>S</kbd></div>
+                        <div class="shortcut-desc">Toggle Discovery Settings panel (shared key on BD + Regimes)
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <hr>
-
-        <!-- RA -->
-        <div class="page-section" id="ra">
-            <h2>2 · Regimes (RA)</h2>
-            <div class="callout callout-note">
-                <span class="callout-icon">🔗</span>
-                <div class="callout-body"><a class="url-pill" href="http://localhost:8080/results/regime_analysis.html"
-                        target="_blank">localhost:8080/results/regime_analysis.html</a></div>
-            </div>
-            <p>The <strong>diagnostic lens</strong>. Breaks the active version's behaviour down by market
-                regime
-                — both day-level (macro) and intraday (micro). Always uses the active version — no version
-                dropdown.</p>
-
-            <div class="grid-2 my-md">
-                <div class="card">
-                    <div class="card-title">Macro Regimes <span class="badge badge-neutral">5</span></div>
-                    <ul class="doc-list">
-                        <li><strong>Strong Down</strong> — sharp directional fall</li>
-                        <li><strong>Staircase Down</strong> — stepped decline</li>
-                        <li><strong>Flat</strong> — no clear direction</li>
-                        <li><strong>Staircase Up</strong> — stepped rise</li>
-                        <li><strong>Strong Up</strong> — sharp directional rise</li>
-                    </ul>
-                </div>
-                <div class="card">
-                    <div class="card-title">Micro Regimes <span class="badge badge-neutral">10</span></div>
-                    <ul class="doc-list">
-                        <li>Trending Fast / Medium / Slow Down</li>
-                        <li>Trending Fast / Medium / Slow Up</li>
-                        <li>Ranging Narrow / Medium / Wide</li>
-                        <li>Transitioning</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="callout callout-warning">
-                <span class="callout-icon">⚠️</span>
-                <div class="callout-body"><strong>RA does not auto-run on load.</strong> Results shown are
-                    from
-                    the last saved run. Click Run Analysis to refresh (~30–100s, blocks Flask). Avoid
-                    triggering
-                    during browser testing.</div>
-            </div>
-
-            <h3>RA Keyboard Shortcuts</h3>
-            <div class="shortcut-grid shortcut-grid-narrow">
-                <div class="shortcut-row">
-                    <div class="shortcut-key"><kbd>1</kbd></div>
-                    <div class="shortcut-desc">Scroll to top</div>
-                </div>
-                <div class="shortcut-row">
-                    <div class="shortcut-key"><kbd>2</kbd></div>
-                    <div class="shortcut-desc">Stats cards</div>
-                </div>
-                <div class="shortcut-row">
-                    <div class="shortcut-key"><kbd>3</kbd></div>
-                    <div class="shortcut-desc">Macro regime performance</div>
-                </div>
-                <div class="shortcut-row">
-                    <div class="shortcut-key"><kbd>4</kbd></div>
-                    <div class="shortcut-desc">Micro regime performance</div>
-                </div>
-                <div class="shortcut-row">
-                    <div class="shortcut-key"><kbd>5</kbd></div>
-                    <div class="shortcut-desc">Regime timeline</div>
-                </div>
-                <div class="shortcut-row">
-                    <div class="shortcut-key"><kbd>6</kbd></div>
-                    <div class="shortcut-desc">Daily performance</div>
-                </div>
-                <div class="shortcut-row">
-                    <div class="shortcut-key"><kbd>7</kbd></div>
-                    <div class="shortcut-desc">Macro Regime Profiles</div>
-                </div>
-                <div class="shortcut-row">
-                    <div class="shortcut-key"><kbd>8</kbd></div>
-                    <div class="shortcut-desc">Regime summary cards</div>
-                </div>
-                <div class="shortcut-row">
-                    <div class="shortcut-key"><kbd>9</kbd></div>
-                    <div class="shortcut-desc">Threshold distributions</div>
-                </div>
-                <div class="shortcut-row">
-                    <div class="shortcut-key"><kbd>0</kbd></div>
-                    <div class="shortcut-desc">Regime periods (bottom)</div>
-                </div>
-                <div class="shortcut-row">
-                    <div class="shortcut-key"><kbd>S</kbd></div>
-                    <div class="shortcut-desc">Toggle Regime Filters panel (shared key on BD + Discovery)
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <hr>
-
-        <!-- Discovery -->
-        <div class="page-section" id="discovery">
-            <h2>3 · Discovery</h2>
-            <div class="callout callout-note">
-                <span class="callout-icon">🔗</span>
-                <div class="callout-body"><a class="url-pill" href="http://localhost:8080/discovery"
-                        target="_blank">localhost:8080/discovery</a></div>
-            </div>
-            <p>The <strong>optimisation engine</strong>. Explores the parameter space via random search,
-                running
-                a full backtest for each trial and scoring against the passing criteria. Each run is
-                independent
-                — random seed, no pooling across runs.</p>
-
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Setting</th>
-                            <th>Type</th>
-                            <th>Detail</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Instrument</td>
-                            <td><span class="badge badge-green">Fixed · Editable</span></td>
-                            <td>GBPUSD or EURUSD (and new pairs)</td>
-                        </tr>
-                        <tr>
-                            <td>Interval</td>
-                            <td><span class="badge badge-green">Fixed · Editable</span></td>
-                            <td>Bar interval — set per run, not randomised</td>
-                        </tr>
-                        <tr>
-                            <td>Direction</td>
-                            <td><span class="badge badge-green">Fixed · Editable</span></td>
-                            <td>Both / Long Only / Short Only</td>
-                        </tr>
-                        <tr>
-                            <td>Blocked Hours</td>
-                            <td><span class="badge badge-green">Fixed · Editable</span></td>
-                            <td>UTC hours excluded from entries (pill UI)</td>
-                        </tr>
-                        <tr>
-                            <td>Slippage</td>
-                            <td><span class="badge badge-neutral">Fixed · Read-only</span></td>
-                            <td>On — 1 pip SL + 1 pip spread</td>
-                        </tr>
-                        <tr>
-                            <td>EMA Long</td>
-                            <td><span class="badge badge-blue">Searched</span></td>
-                            <td>10 – 200</td>
-                        </tr>
-                        <tr>
-                            <td>Stop Loss</td>
-                            <td><span class="badge badge-blue">Searched</span></td>
-                            <td>5 – 50 pips</td>
-                        </tr>
-                        <tr>
-                            <td>RRR Reward</td>
-                            <td><span class="badge badge-blue">Searched</span></td>
-                            <td>1 – 5 (risk fixed at 1)</td>
-                        </tr>
-                        <tr>
-                            <td>Max DD</td>
-                            <td><span class="badge badge-blue">Searched</span></td>
-                            <td>1 – 5</td>
-                        </tr>
-                        <tr>
-                            <td>EMA Filter</td>
-                            <td><span class="badge badge-blue">Searched</span></td>
-                            <td>On / Off</td>
-                        </tr>
-                        <tr>
-                            <td>Macro Regimes</td>
-                            <td><span class="badge badge-blue">Searched</span></td>
-                            <td>Any combination of 5</td>
-                        </tr>
-                        <tr>
-                            <td>Micro Regimes</td>
-                            <td><span class="badge badge-blue">Searched</span></td>
-                            <td>Any combination of 10</td>
-                        </tr>
-                        <tr>
-                            <td>Profit Factor</td>
-                            <td><span class="badge badge-accent">Passing Criteria</span></td>
-                            <td>≥ 1.5 (editable)</td>
-                        </tr>
-                        <tr>
-                            <td>Min Trades</td>
-                            <td><span class="badge badge-accent">Passing Criteria</span></td>
-                            <td>Editable — scale with date range</td>
-                        </tr>
-                        <tr>
-                            <td>Max Drawdown</td>
-                            <td><span class="badge badge-accent">Passing Criteria</span></td>
-                            <td>≤ 15% (editable)</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="callout callout-tip">
-                <span class="callout-icon">💡</span>
-                <div class="callout-body"><strong>Seed:</strong> Leave as "random" for exploration. Note the
-                    seed if you need to reproduce a specific run exactly. Currently the seed is not stored
-                    in
-                    run results — a known gap to fix.</div>
-            </div>
-
-            <h3>Discovery Keyboard Shortcuts</h3>
-            <div class="shortcut-grid shortcut-grid-narrow">
-                <div class="shortcut-row">
-                    <div class="shortcut-key"><kbd>S</kbd></div>
-                    <div class="shortcut-desc">Toggle Discovery Settings panel (shared key on BD + Regimes)
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <hr>
-
-        <!-- Versions -->
-        <div class="page-section" id="versions">
-            <h2>4 · Versions</h2>
-            <div class="callout callout-note">
-                <span class="callout-icon">🔗</span>
-                <div class="callout-body"><a class="url-pill" href="http://localhost:8080/versions"
-                        target="_blank">localhost:8080/versions</a></div>
-            </div>
-            <p>The <strong>lifecycle manager</strong>. Each version is a named profile bundling a set of
-                Discovery-assigned parameters and its own regime allow-list state. The active version drives
-                all
-                BD backtests and RA runs.</p>
-
-            <ul class="doc-list">
-                <li><strong>Radio buttons</strong> — selecting sets that version as active immediately,
-                    persists
-                    to <code>data/versions.json</code></li>
-                <li><strong>Version numbering</strong> — sequential, auto-renumbers on deletion. New
-                    additions
-                    always increment from highest existing number.</li>
-                <li><strong>Add Version</strong> — creates the next vN as an unassigned slot. Parameters are
-                    filled by assigning a Discovery trial.</li>
-                <li><strong>Notes field</strong> — free-form per version, auto-saves on blur</li>
-                <li><strong>Delete</strong> — removes version and triggers live rekey of versions.json, run
-                    buckets, and Discovery assignment records</li>
-            </ul>
-
-            <div class="callout callout-warning">
-                <span class="callout-icon">⚠️</span>
-                <div class="callout-body"><code>data/versions.json</code> is the source of truth. Always
-                    commit
-                    to git after version changes.</div>
             </div>
         </div>
 

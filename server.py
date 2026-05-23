@@ -134,6 +134,65 @@ def _migrate_legacy_regime_state(data):
         print(f"  [versions] legacy migration skipped: {e}", file=sys.stderr)
 
 
+def _backfill_params_allow_lists(data):
+    """Issue 5 migration (May 2026): older assignments only wrote regime
+    allow-lists to regime_state, not to params. regime_state then drifts as
+    the user runs the Regimes page, so there's no immutable record of the
+    Discovery defaults for the RA Reset-to-Defaults button or page-init to
+    read. This backfills missing allow-lists into params by finding the
+    originally-assigned Discovery trial (matched by every other params
+    field), and copying its allow-lists. Returns True if anything changed.
+
+    Only backfills when EXACTLY ONE Discovery trial matches the version's
+    other params — if 0 or >1 match, we skip rather than risk picking the
+    wrong trial.
+    """
+    needs_backfill = [
+        v for v in (data.get("versions") or [])
+        if (v.get("params")
+            and ("allowed_macro_regimes" not in v["params"]
+                 or "allowed_micro_regimes" not in v["params"]))
+    ]
+    if not needs_backfill:
+        return False
+
+    runs = _read_discovery_runs()
+    changed = False
+    for v in needs_backfill:
+        p = v["params"]
+        matches = []
+        for run in runs:
+            rc = run.get("config") or {}
+            run_inst = (rc.get("instrument") or "GBPUSD").upper()
+            run_intv = rc.get("interval") or "5m"
+            for t in (run.get("trials") or []):
+                tp = t.get("params") or {}
+                # Field map: version's `fractal_stop_pips` ↔ trial's
+                # `stop_loss_pips`. Other keys match by name.
+                if (tp.get("ema_long")         == p.get("ema_long")
+                    and tp.get("stop_loss_pips") == p.get("fractal_stop_pips")
+                    and tp.get("rrr_reward")    == p.get("rrr_reward")
+                    and bool(tp.get("use_ema_filter")) == bool(p.get("use_ema_filter"))
+                    and (tp.get("trade_direction") or "short_only") == p.get("trade_direction")
+                    and (tp.get("blocked_hours") or "") == (p.get("blocked_hours") or "")
+                    and run_inst == p.get("instrument")
+                    and run_intv == p.get("interval")):
+                    matches.append(t)
+        if len(matches) == 1:
+            tp = matches[0].get("params") or {}
+            p["allowed_macro_regimes"] = list(tp.get("allowed_macro_regimes") or [])
+            p["allowed_micro_regimes"] = list(tp.get("allowed_micro_regimes") or [])
+            changed = True
+            print(f"  [versions] backfilled allow-lists for "
+                  f"{v.get('name')} from trial {matches[0].get('id')}",
+                  file=sys.stderr)
+        else:
+            print(f"  [versions] could not backfill allow-lists for "
+                  f"{v.get('name')} ({len(matches)} trial matches)",
+                  file=sys.stderr)
+    return changed
+
+
 def _read_versions():
     """Load data/versions.json. If absent or malformed, seed with the two
     default versions (v1, v2), migrate any legacy regime state into v2,
@@ -153,7 +212,13 @@ def _read_versions():
                     if new_name and v.get("name") != new_name:
                         v["name"] = new_name
                         renamed = True
-                if renamed:
+                # Issue 5 migration: backfill allow-lists into params for
+                # already-assigned versions that pre-date the schema change.
+                # Cheap to attempt every call (early-exits when nothing
+                # needs migrating), and the first successful migration adds
+                # the keys so subsequent calls skip the discovery I/O.
+                backfilled = _backfill_params_allow_lists(data)
+                if renamed or backfilled:
                     _write_versions(data)
                 return data
         except (OSError, ValueError) as e:
@@ -319,6 +384,16 @@ def _assign_version_from_trial(version_id, trial_params, run_config=None):
         # Pulled from the parent Discovery run's config (defaults if missing).
         "instrument":       (rc.get("instrument") or "GBPUSD").upper(),
         "interval":          rc.get("interval")   or "5m",
+        # Bug fix (May 2026 — Issue 5): also record the trial's regime
+        # allow-lists into params as the IMMUTABLE Discovery snapshot.
+        # Previously the allow-lists lived only in regime_state, which
+        # /run_regime_analysis overwrites on every Run — leaving no
+        # stable record of the version's Discovery defaults for the RA
+        # "Reset to Defaults" button or for page-init to read. Storing
+        # them here too gives us a permanent baseline. regime_state still
+        # carries the working copy (mutable, drives BD backtests).
+        "allowed_macro_regimes": list(tp.get("allowed_macro_regimes") or []),
+        "allowed_micro_regimes": list(tp.get("allowed_micro_regimes") or []),
         "assigned_at":      datetime.utcnow().isoformat(timespec="seconds") + "Z",
     }
     target["regime_state"] = {

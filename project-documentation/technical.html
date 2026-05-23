@@ -26,34 +26,7 @@
             <h1>Technical Setup</h1>
         </div>
 
-        <!-- Setup -->
-        <div class="section">
-            <div class="section-title">Setup</div>
-            <div class="grid-2">
-                <div class="card">
-                    <div class="card-title">Environment</div>
-                    <ul class="doc-list">
-                        <li><strong>Working directory</strong> — <code>~/Documents/GitHub/trading-bot</code></li>
-                        <li><strong>Venv activation</strong> — <code>source venv/bin/activate</code></li>
-                        <li><strong>Repository</strong> — <a href="https://github.com/edwardprague/trading-bot"
-                                target="_blank" class="link-blue">github.com/edwardprague/trading-bot</a></li>
-                    </ul>
-                </div>
-                <div class="card">
-                    <div class="card-title">Startup</div>
-                    <p>Double-click <code>start.command</code> from Finder.
-                        Runs:</p>
-                    <pre><code>cd ~/Documents/GitHub/trading-bot
-git pull
-source venv/bin/activate
-python3 server.py</code></pre>
-                    <p>Opens dashboard at <code>http://localhost:8080</code></p>
-                </div>
-            </div>
-        </div>
-
-
-        <!-- Git -->
+        <!-- Environment -->
         <div class="section">
             <div class="section-title">Environment</div>
 
@@ -63,20 +36,40 @@ python3 server.py</code></pre>
             </ul>
         </div>
 
+        <!-- Setup -->
+        <div class="section">
+
+            <div class="card">
+                <div class="card-title">Startup</div>
+                <p>Double-click <code>start.command</code> from Finder.
+                    Runs:</p>
+                <pre><code>cd ~/Documents/GitHub/trading-bot
+git pull
+source venv/bin/activate
+python3 server.py</code></pre>
+
+                <p>Opens dashboard at <code>http://localhost:8080</code></p>
+                <p>Run without creating new images:</p>
+                <pre><code>GENERATE_DAILY_CHARTS=false python3 regime_analysis.py</code></pre>
+            </div>
+
+
+
+        </div>
+
 
         <!-- Git -->
         <div class="section">
-            <div class="section-title">Git &amp; Sync</div>
-            <div class="grid-2">
-                <ul class="doc-list">
-                    <li><code>data/versions.json</code> — tracked in git. Always commit after version changes.</li>
-                    <li><code>data/</code> — otherwise gitignored (large OHLC parquets stay local)</li>
-                </ul>
-                <ul class="doc-list">
-                    <li>Always <code>git pull</code> before starting a session on a new machine</li>
-                    <li><code>start.command</code> does <code>git pull</code> automatically on launch</li>
-                </ul>
-            </div>
+            <div class="section-title">Git</div>
+            <ul class="doc-list">
+                <li><strong>Repository</strong> — <a href="https://github.com/edwardprague/trading-bot" target="_blank"
+                        class="link-blue">github.com/edwardprague/trading-bot</a></li>
+
+                <li><code>data/versions.json</code> — tracked in git. Always commit after version changes.</li>
+                <li><code>data/</code> — otherwise gitignored (large OHLC parquets stay local)</li>
+                <li>Always <code>git pull</code> before starting a session on a new machine</li>
+                <li><code>start.command</code> does <code>git pull</code> automatically on launch</li>
+            </ul>
         </div>
 
         <!-- Python packages -->
