@@ -119,12 +119,13 @@ def resolve_settings(config):
     5 as an editable per-run knob — the lower bound stays fixed at 1.
 
     May 2026 (Regime Filters) — added `allowed_macro_regimes` /
-    `allowed_micro_regimes`. These constrain the per-trial random subset
-    search to the user-selected pool: every trial's allow-list is sampled
-    from these lists, so toggled-off regimes (the complement) are guaranteed
-    locked out of every trial. Missing / null → defaults to the full
-    canonical set, preserving the legacy "any combination of 5/10" behaviour
-    for CLI callers that don't pass these keys."""
+    `allowed_micro_regimes`. These are the per-run allow-lists used by
+    every trial: the toggled-on set IS the allow-list (no per-trial
+    randomisation), and the toggled-off complement is locked out for the
+    whole run — identical to how the RA page's regime toggles gate trades,
+    just set at the run level rather than the version level. Missing /
+    null → defaults to the full canonical set, so CLI callers that don't
+    pass these keys get an all-open run."""
     cfg = config or {}
     # use_ema_filter: accept bool or string ("true"/"false"/"on"/"off").
     raw_ema = cfg.get("use_ema_filter")
@@ -200,34 +201,42 @@ def resolve_thresholds(config):
 
 
 # ── Sampling ──────────────────────────────────────────────────────────────────
-
-def _sample_subset(labels, rng):
-    """Bernoulli p=0.5 per label; resample if the subset comes back empty.
-    Empty allow-lists would block 100% of trades, which is degenerate, so we
-    guarantee at least one label."""
-    while True:
-        picked = [lbl for lbl in labels if rng.random() < 0.5]
-        if picked:
-            return picked
+#
+# Historical note (May 2026): regime allow-lists used to be sampled per-trial
+# via a Bernoulli p=0.5 helper called `_sample_subset`. That helper was
+# retired when the Regime Filters UX changed: regimes are now treated
+# exactly like Instrument / Direction / EMA Filter — a fixed-per-run
+# constant set by the user's toggles, applied identically to every trial.
+# The toggled-on set is the allow-list; the toggled-off set is locked out
+# for the whole run. No randomisation across regimes anymore.
 
 
 def sample_params(rng, settings=None):
     """Draw a single parameter set uniformly from the Phase 1 search space.
     `settings` (from resolve_settings) supplies blocked_hours, use_ema_filter
-    (fixed per-run since May 2026), and rrr_reward_max (the editable upper
-    bound of the RRR Reward sweep, lower bound fixed at 1). The rest of the
-    per-trial dimensions are sampled. blocked_hours, use_ema_filter, and
-    rrr_reward_max are NOT randomised — Discovery applies the same value
-    to every trial in a run per the user's intent (transparency over
-    search-space breadth).
+    (fixed per-run since May 2026), rrr_reward_max (the editable upper
+    bound of the RRR Reward sweep, lower bound fixed at 1), and the
+    per-run regime allow-lists. The remaining per-trial dimensions are
+    sampled (ema_long, stop_loss_pips, rrr_reward). blocked_hours,
+    use_ema_filter, rrr_reward_max, and the regime allow-lists are NOT
+    randomised — every trial in a run carries the same value (the user's
+    toggle state) per the user's intent (transparency over search-space
+    breadth).
+
+    Regime semantics (May 2026 update): every trial gets the FULL toggled-on
+    set as its allow-list. Toggled-off regimes are locked out for the whole
+    run — identical to how the RA page's regime toggles gate trades, just
+    set at the run level rather than the version level. This replaces the
+    earlier behaviour where each trial got a random Bernoulli p=0.5 subset
+    of the toggled-on pool.
 
     May 2026: each trial's params dict is now self-describing — the
     per-run fixed constants (instrument, interval, direction,
-    blocked_hours, use_ema_filter, max_daily_losses) are folded into
-    every returned record. Previously these lived only at the run's
-    top-level config dict and downstream consumers (the trial detail
-    page, version assignment) would silently fall back to defaults when
-    the run used non-default values. Storing them per trial makes the
+    blocked_hours, use_ema_filter, allowed_*_regimes, max_daily_losses)
+    are folded into every returned record. Previously these lived only at
+    the run's top-level config dict and downstream consumers (the trial
+    detail page, version assignment) would silently fall back to defaults
+    when the run used non-default values. Storing them per trial makes the
     record self-describing without changing search behaviour — they're
     still identical across every trial in a single run.
 
@@ -240,21 +249,20 @@ def sample_params(rng, settings=None):
     rrr_hi = int(s.get("rrr_reward_max") or RRR_REWARD_RANGE[1])
     if rrr_hi < rrr_lo:
         rrr_hi = rrr_lo  # guard against an upper < lower edit
-    # Per-run regime allow-lists (Regime Filters, May 2026). Sample each
-    # trial's allow-list from this pool instead of the full canonical set
-    # so toggled-off regimes are guaranteed locked out of every trial.
-    # Falls back to the canonical set when settings omits the keys (CLI
-    # --once / legacy callers).
-    macro_pool = s.get("allowed_macro_regimes") or ALL_MACRO_REGIMES
-    micro_pool = s.get("allowed_micro_regimes") or ALL_MICRO_REGIMES
+    # Per-run regime allow-lists. The toggled-on set IS the allow-list;
+    # every trial in the run shares it. Copy on the way out so a downstream
+    # consumer that mutates trial.params doesn't accidentally edit the
+    # shared settings dict.
+    macro_allow = list(s.get("allowed_macro_regimes") or ALL_MACRO_REGIMES)
+    micro_allow = list(s.get("allowed_micro_regimes") or ALL_MICRO_REGIMES)
     return {
         "ema_long":              rng.randint(*EMA_LONG_RANGE),
         "stop_loss_pips":        rng.randint(*STOP_LOSS_RANGE),
         "rrr_risk":              1,
         "rrr_reward":            rng.randint(rrr_lo, rrr_hi),
         "use_ema_filter":        bool(s.get("use_ema_filter", True)),
-        "allowed_macro_regimes": _sample_subset(macro_pool, rng),
-        "allowed_micro_regimes": _sample_subset(micro_pool, rng),
+        "allowed_macro_regimes": macro_allow,
+        "allowed_micro_regimes": micro_allow,
         "blocked_hours":         s["blocked_hours"],
         # Per-run fixed constants (May 2026) — duplicated into every trial's
         # params dict so the trial record is self-describing.
@@ -620,11 +628,12 @@ def main(argv=None):
         # display them and a future re-run can reproduce them exactly.
         "use_ema_filter": settings["use_ema_filter"],
         "rrr_reward_max": settings["rrr_reward_max"],
-        # Regime Filters (May 2026). Persisted into the run record so
-        # completed-run blocks can show which regimes were in / out of the
-        # search space for this run. Stored as ordered lists for stable
-        # JSON round-tripping; resolve_settings re-orders to canonical on
-        # the way back in.
+        # Regime Filters (May 2026). The toggled-on allow-list applied to
+        # every trial in this run. Persisted into the run record so
+        # completed-run blocks can show which regimes were open / locked
+        # out for this run. Stored as ordered lists for stable JSON
+        # round-tripping; resolve_settings re-orders to canonical on the
+        # way back in.
         "allowed_macro_regimes": settings["allowed_macro_regimes"],
         "allowed_micro_regimes": settings["allowed_micro_regimes"],
         "min_pf":           thresholds["min_pf"],

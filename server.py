@@ -2184,15 +2184,16 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           </tbody></table>
         </div>
         <!-- ── Regime Filters ────────────────────────────────────────────
-             Toggled-off regimes are excluded from every trial's allow-list
-             — applied as fixed locked-out constants for the whole run, the
-             same mechanical pattern as Instrument / Interval / Direction.
-             Toggled-on regimes remain part of the per-trial random-subset
-             search. Visual design mirrors the RA page's regime filter
-             panel (.regime-toggle*, .regime-color-*, .macro-color-* classes
-             reused), with the key behavioural distinction noted below:
-             these toggles constrain the Discovery search space for this
-             run only — they are NOT persisted to versions.json. -->
+             Per-run regime allow-list. Toggled-on regimes are allowed for
+             every trial; toggled-off regimes are locked out for the entire
+             run — mechanically identical to the Instrument / Interval /
+             Direction fixed constants above, and semantically identical to
+             the RA page's regime toggles (just set at the run level rather
+             than the version level). Visual design mirrors the RA page's
+             regime filter panel (.regime-toggle*, .regime-color-*,
+             .macro-color-* classes reused), with one behavioural
+             distinction worth flagging: these toggles configure the
+             Discovery run only — they are NOT persisted to versions.json. -->
         <div class="discovery-settings-group">
           <div class="discovery-regime-header">
             <div class="section-title">Regime Filters</div>
@@ -2200,8 +2201,8 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                     title="Restore all regime toggles to on">Reset to Defaults</button>
           </div>
           <p class="text-dim ds-hint discovery-regime-hint">
-            Toggled-off regimes are excluded from every trial's allow-list. Toggled-on
-            regimes remain part of the per-trial random-subset search.
+            Toggled-on regimes are allowed for every trial. Toggled-off regimes are
+            locked out for the entire run.
           </p>
           <div class="regime-control-grid">
             <div class="regime-control-col">
@@ -2716,11 +2717,11 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         meta.appendChild(spanCls("discovery-run-stat", trials.length + " / " + (run.trials_total || trials.length) + " trials"));
         meta.appendChild(spanCls("discovery-run-stat", passCount + " passing"));
         /* Regime Filters (May 2026) — surface as a "regimes: M/5 macro · N/10
-           micro" chip when the run constrained the search space. Only render
-           when the allow-lists were actually narrowed (length < canonical)
-           so default all-on runs don't get a noisy chip. Tooltip lists the
-           excluded labels so reviewers of an old run can see at a glance
-           which regimes were locked out. */
+           micro" chip when the run narrowed the allow-list. Only render
+           when at least one regime was toggled off (length < canonical) so
+           default all-open runs don't get a noisy chip. Tooltip lists the
+           locked-out labels so reviewers of an old run can see at a glance
+           which regimes were excluded. */
         var DISCO_MACRO_ALL = [
           "staircase_up", "strong_up", "flat", "staircase_down", "strong_down",
         ];
