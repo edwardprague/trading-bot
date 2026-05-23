@@ -1,5 +1,5 @@
 {
-  "active_version_id": "v1",
+  "active_version_id": "v2",
   "versions": [
     {
       "id": "v1",
@@ -43,6 +43,46 @@
           "trending_slow_up"
         ],
         "updated_at": "2026-05-23T10:34:35Z"
+      }
+    },
+    {
+      "id": "v2",
+      "name": "v2",
+      "strategy_version": "v2",
+      "params": {
+        "ema_long": 40,
+        "use_ema_filter": false,
+        "fractal_stop_pips": 25,
+        "rrr_reward": 1,
+        "max_daily_losses": 2,
+        "trade_direction": "short_only",
+        "blocked_hours": "4,5,6,8,10,11,14,17",
+        "instrument": "GBPUSD",
+        "interval": "5m",
+        "allowed_macro_regimes": [
+          "staircase_down",
+          "flat",
+          "strong_up"
+        ],
+        "allowed_micro_regimes": [
+          "trending_fast_down",
+          "trending_medium_down",
+          "ranging_wide"
+        ],
+        "assigned_at": "2026-05-23T10:50:33Z"
+      },
+      "regime_state": {
+        "allowed_macro_regimes": [
+          "staircase_down",
+          "flat",
+          "strong_up"
+        ],
+        "allowed_micro_regimes": [
+          "trending_fast_down",
+          "trending_medium_down",
+          "ranging_wide"
+        ],
+        "updated_at": "2026-05-23T10:50:33Z"
       }
     }
   ]

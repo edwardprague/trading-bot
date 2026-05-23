@@ -1672,7 +1672,6 @@ body.regime-report {
 
 .regime-header {
     margin-bottom: 24px;
-    padding-bottom: 18px;
     border-bottom: 1px solid #1e1e30;
 }
 
@@ -2605,7 +2604,6 @@ body.versions-page {
     justify-content: space-between;
     gap: 16px;
     margin-bottom: 28px;
-    padding-bottom: 18px;
     border-bottom: 1px solid #1e1e30;
 }
 
@@ -3619,7 +3617,6 @@ body.discovery-page {
     justify-content: space-between;
     gap: 16px;
     margin-bottom: 24px;
-    padding-bottom: 18px;
     border-bottom: 1px solid #1e1e30;
 }
 
