@@ -2971,15 +2971,63 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
       }}
     }});
 
+    // Bug fix (May 2026 — Issue 4): Reset to Defaults used to read the
+    // `data-default` attribute baked into each toggle at HTML render
+    // time. Those defaults come from the file-level BLOCKED_MACRO_REGIMES
+    // and BLOCKED_MICRO_REGIMES constants — the labeler's hardcoded
+    // defaults, which have nothing to do with the active version's
+    // Discovery-assigned allow-lists. Symptom: after running with
+    // modified toggles, clicking Reset snapped the toggles to the file
+    // defaults (e.g. macro=staircase_down+strong_down, micro=ranging_
+    // medium+ranging_wide) instead of restoring the version's Discovery
+    // params (which is what users mean by "defaults" once a version is
+    // bound to a Discovery trial).
+    //
+    // Fix: Reset reads `_versionParamsDefaults` (populated below from
+    // `activeV.params.allowed_*` — the IMMUTABLE assignment record, not
+    // the mutable `regime_state` that gets overwritten on every Run). If
+    // the active version has no params (e.g. a freshly-created v1 with
+    // no Discovery assignment), we fall back to `data-default` to
+    // preserve the previous behaviour for unassigned versions.
+    var _versionParamsDefaults = null;  // {{macro: [...], micro: [...]}}
+
     var resetBtn = document.getElementById("regime-reset-btn");
     if (resetBtn) {{
       resetBtn.addEventListener("click", function () {{
-        document.querySelectorAll(".regime-toggle").forEach(function (toggle) {{
-          var def = toggle.getAttribute("data-default") === "1";
-          var input = toggle.querySelector(".regime-toggle-input");
-          if (input) input.checked = def;
-          applyToggleVisual(toggle);
-        }});
+        if (_versionParamsDefaults
+            && _versionParamsDefaults.macro
+            && _versionParamsDefaults.micro) {{
+          // Discovery-assigned version: reset to the immutable params.
+          var mAllowed = {{}};
+          _versionParamsDefaults.macro.forEach(function (k) {{ mAllowed[k] = true; }});
+          var uAllowed = {{}};
+          _versionParamsDefaults.micro.forEach(function (k) {{ uAllowed[k] = true; }});
+          document.querySelectorAll("#regime-macro-toggles .regime-toggle").forEach(function (toggle) {{
+            var k = toggle.getAttribute("data-regime-key");
+            var input = toggle.querySelector(".regime-toggle-input");
+            if (input) input.checked = !!mAllowed[k];
+            applyToggleVisual(toggle);
+          }});
+          document.querySelectorAll("#regime-micro-toggles .regime-toggle").forEach(function (toggle) {{
+            var k = toggle.getAttribute("data-regime-key");
+            var input = toggle.querySelector(".regime-toggle-input");
+            if (input) input.checked = !!uAllowed[k];
+            applyToggleVisual(toggle);
+          }});
+        }} else {{
+          // Unassigned version or /api/versions not yet resolved: fall
+          // back to the file-level defaults baked into data-default.
+          document.querySelectorAll(".regime-toggle").forEach(function (toggle) {{
+            var def = toggle.getAttribute("data-default") === "1";
+            var input = toggle.querySelector(".regime-toggle-input");
+            if (input) input.checked = def;
+            applyToggleVisual(toggle);
+          }});
+        }}
+        // Toggles now diverge from the last-rendered stats — match the
+        // change-handler at line ~2970 so the report sections dim and
+        // prompt for a fresh Run.
+        markStale();
       }});
     }}
 
@@ -3429,6 +3477,16 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
           if (!activeV && versions.length) activeV = versions[0];
           window.__activeVersion = activeV;
           window.__activeVersionId = activeV ? activeV.id : "";
+          // Issue 4 fix: capture the version's IMMUTABLE Discovery params
+          // for the Reset to Defaults button. Using params (not
+          // regime_state) is the whole point — regime_state gets
+          // overwritten on every Run, so it's not a stable "default".
+          if (activeV && activeV.params) {{
+            _versionParamsDefaults = {{
+              macro: (activeV.params.allowed_macro_regimes || []).slice(),
+              micro: (activeV.params.allowed_micro_regimes || []).slice(),
+            }};
+          }}
           if (typeof syncRegimePageTitle === "function") syncRegimePageTitle();
         }})
         .catch(function () {{}});

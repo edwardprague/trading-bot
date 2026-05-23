@@ -52,6 +52,33 @@ python3 server.py</code></pre>
             </div>
         </div>
 
+
+        <!-- Git -->
+        <div class="section">
+            <div class="section-title">Environment</div>
+
+            <ul class="doc-list">
+                <li><strong>Working directory</strong> — <code>~/Documents/GitHub/trading-bot</code></li>
+                <li><strong>Venv activation</strong> — <code>source venv/bin/activate</code></li>
+            </ul>
+        </div>
+
+
+        <!-- Git -->
+        <div class="section">
+            <div class="section-title">Git &amp; Sync</div>
+            <div class="grid-2">
+                <ul class="doc-list">
+                    <li><code>data/versions.json</code> — tracked in git. Always commit after version changes.</li>
+                    <li><code>data/</code> — otherwise gitignored (large OHLC parquets stay local)</li>
+                </ul>
+                <ul class="doc-list">
+                    <li>Always <code>git pull</code> before starting a session on a new machine</li>
+                    <li><code>start.command</code> does <code>git pull</code> automatically on launch</li>
+                </ul>
+            </div>
+        </div>
+
         <!-- Python packages -->
         <div class="section">
             <div class="section-title">Python Packages</div>
@@ -435,21 +462,6 @@ python3 server.py</code></pre>
                         </tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-
-        <!-- Git -->
-        <div class="section">
-            <div class="section-title">Git &amp; Sync</div>
-            <div class="grid-2">
-                <ul class="doc-list">
-                    <li><code>data/versions.json</code> — tracked in git. Always commit after version changes.</li>
-                    <li><code>data/</code> — otherwise gitignored (large OHLC parquets stay local)</li>
-                </ul>
-                <ul class="doc-list">
-                    <li>Always <code>git pull</code> before starting a session on a new machine</li>
-                    <li><code>start.command</code> does <code>git pull</code> automatically on launch</li>
-                </ul>
             </div>
         </div>
 
