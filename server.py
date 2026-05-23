@@ -2175,9 +2175,136 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                  FIXED_MAX_DAILY_LOSSES) rather than a tunable. -->
             <!-- EMA Filter row removed (May 2026) — it now lives in Fixed
                  Constants above as a per-run On/Off toggle. -->
-            <tr><td class="lbl">Macro Regimes</td> <td><span class="val-highlight">any combination of 5</span></td></tr>
-            <tr><td class="lbl">Micro Regimes</td> <td><span class="val-highlight">any combination of 10</span></td></tr>
+            <!-- "Macro Regimes — any combination of 5" / "Micro Regimes —
+                 any combination of 10" rows removed (May 2026). Replaced by
+                 the Regime Filters section below, which surfaces every
+                 regime as an individual toggle so the user can lock specific
+                 regimes out of the search space (mechanically identical to
+                 the Instrument / Direction fixed constants above). -->
           </tbody></table>
+        </div>
+        <!-- ── Regime Filters ────────────────────────────────────────────
+             Toggled-off regimes are excluded from every trial's allow-list
+             — applied as fixed locked-out constants for the whole run, the
+             same mechanical pattern as Instrument / Interval / Direction.
+             Toggled-on regimes remain part of the per-trial random-subset
+             search. Visual design mirrors the RA page's regime filter
+             panel (.regime-toggle*, .regime-color-*, .macro-color-* classes
+             reused), with the key behavioural distinction noted below:
+             these toggles constrain the Discovery search space for this
+             run only — they are NOT persisted to versions.json. -->
+        <div class="discovery-settings-group">
+          <div class="discovery-regime-header">
+            <div class="section-title">Regime Filters</div>
+            <button type="button" id="ds-regime-reset" class="rb-btn rb-btn-ghost"
+                    title="Restore all regime toggles to on">Reset to Defaults</button>
+          </div>
+          <p class="text-dim ds-hint discovery-regime-hint">
+            Toggled-off regimes are excluded from every trial's allow-list. Toggled-on
+            regimes remain part of the per-trial random-subset search.
+          </p>
+          <div class="regime-control-grid">
+            <div class="regime-control-col">
+              <h3 class="regime-control-col-title">Macro Regimes</h3>
+              <div class="regime-toggle-list" id="ds-regime-macro-toggles">
+                <label class="regime-toggle" data-regime-key="staircase_up">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch macro-color-staircase-up"></span>
+                  <span class="regime-toggle-label">Staircase Up</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="strong_up">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch macro-color-strong-up"></span>
+                  <span class="regime-toggle-label">Strong Up</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="flat">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch macro-color-flat"></span>
+                  <span class="regime-toggle-label">Flat</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="staircase_down">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch macro-color-staircase-down"></span>
+                  <span class="regime-toggle-label">Staircase Down</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="strong_down">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch macro-color-strong-down"></span>
+                  <span class="regime-toggle-label">Strong Down</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+              </div>
+            </div>
+            <div class="regime-control-col">
+              <h3 class="regime-control-col-title">Micro Regimes</h3>
+              <div class="regime-toggle-list" id="ds-regime-micro-toggles">
+                <label class="regime-toggle" data-regime-key="trending_fast_up">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch regime-color-trending-fast-up"></span>
+                  <span class="regime-toggle-label">Trending — Fast Up</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="trending_medium_up">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch regime-color-trending-medium-up"></span>
+                  <span class="regime-toggle-label">Trending — Medium Up</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="trending_slow_up">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch regime-color-trending-slow-up"></span>
+                  <span class="regime-toggle-label">Trending — Slow Up</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="ranging_wide">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch regime-color-ranging-wide"></span>
+                  <span class="regime-toggle-label">Ranging — Wide</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="ranging_medium">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch regime-color-ranging-medium"></span>
+                  <span class="regime-toggle-label">Ranging — Medium</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="ranging_narrow">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch regime-color-ranging-narrow"></span>
+                  <span class="regime-toggle-label">Ranging — Narrow</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="trending_fast_down">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch regime-color-trending-fast-down"></span>
+                  <span class="regime-toggle-label">Trending — Fast Down</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="trending_medium_down">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch regime-color-trending-medium-down"></span>
+                  <span class="regime-toggle-label">Trending — Medium Down</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="trending_slow_down">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch regime-color-trending-slow-down"></span>
+                  <span class="regime-toggle-label">Trending — Slow Down</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+                <label class="regime-toggle" data-regime-key="transitioning">
+                  <input type="checkbox" class="regime-toggle-input" checked>
+                  <span class="regime-toggle-swatch regime-color-transitioning"></span>
+                  <span class="regime-toggle-label">Transitioning</span>
+                  <span class="regime-toggle-switch"></span>
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="discovery-settings-group">
           <div class="section-title">Passing Criteria</div>
@@ -2343,6 +2470,21 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         if (v === null || v === undefined) return "";
         return Number(v) >= 50 ? "pos" : "neg";
       }
+      /* Sharpe — 2 dp. Binary colour rule chosen for the Discovery table
+         (May 2026): ≥ 1 → green, < 1 → red. The Discovery list is filtered
+         to passing trials only (PF ≥ 1.5 / Net Profit > 0 / Win % ≥ 50),
+         so a 3-band rule with a neutral middle left ~half the rows
+         colourless and conveyed no signal. Binary keeps it consistent with
+         PF / Win % which use the same "green = good, red = below threshold"
+         convention. Null / undefined renders as an em-dash with no class. */
+      function fmtSharpe(v) {
+        if (v === null || v === undefined) return "—";
+        return Number(v).toFixed(2);
+      }
+      function sharpeTextCls(v) {
+        if (v === null || v === undefined) return "";
+        return Number(v) >= 1 ? "pos" : "neg";
+      }
       function describeParams(p) {
         if (!p) return "";
         var emaFilter = p.use_ema_filter ? "on" : "off";
@@ -2446,6 +2588,13 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           var pe = trial.params || {};
           if (pe.use_ema_filter == null) return -1;
           return pe.use_ema_filter ? 1 : 0;
+        }
+        /* SL (Stop Loss, pips) also lives in trial.params. Integer → numeric
+           sort. Legacy rows without params (or where stop_loss_pips is
+           absent) sort to 0 so they fall to the bottom on descending sorts. */
+        if (key === "sl") {
+          var ps = trial.params || {};
+          return (ps.stop_loss_pips == null) ? 0 : Number(ps.stop_loss_pips);
         }
         var m = trial.metrics || {};
         var v = m[key];
@@ -2566,6 +2715,55 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         }
         meta.appendChild(spanCls("discovery-run-stat", trials.length + " / " + (run.trials_total || trials.length) + " trials"));
         meta.appendChild(spanCls("discovery-run-stat", passCount + " passing"));
+        /* Regime Filters (May 2026) — surface as a "regimes: M/5 macro · N/10
+           micro" chip when the run constrained the search space. Only render
+           when the allow-lists were actually narrowed (length < canonical)
+           so default all-on runs don't get a noisy chip. Tooltip lists the
+           excluded labels so reviewers of an old run can see at a glance
+           which regimes were locked out. */
+        var DISCO_MACRO_ALL = [
+          "staircase_up", "strong_up", "flat", "staircase_down", "strong_down",
+        ];
+        var DISCO_MICRO_ALL = [
+          "trending_fast_up", "trending_medium_up", "trending_slow_up",
+          "ranging_wide",     "ranging_medium",     "ranging_narrow",
+          "trending_fast_down", "trending_medium_down", "trending_slow_down",
+          "transitioning",
+        ];
+        var DISCO_REGIME_DISPLAY = {
+          "staircase_up": "Staircase Up", "strong_up": "Strong Up",
+          "flat": "Flat", "staircase_down": "Staircase Down", "strong_down": "Strong Down",
+          "trending_fast_up": "Trending — Fast Up", "trending_medium_up": "Trending — Medium Up",
+          "trending_slow_up": "Trending — Slow Up", "ranging_wide": "Ranging — Wide",
+          "ranging_medium": "Ranging — Medium", "ranging_narrow": "Ranging — Narrow",
+          "trending_fast_down": "Trending — Fast Down", "trending_medium_down": "Trending — Medium Down",
+          "trending_slow_down": "Trending — Slow Down", "transitioning": "Transitioning",
+        };
+        function excludedLabels(allowedList, canonical) {
+          if (!Array.isArray(allowedList)) return [];
+          var allowed = {};
+          allowedList.forEach(function (k) { allowed[k] = true; });
+          return canonical.filter(function (k) { return !allowed[k]; })
+                          .map(function (k) { return DISCO_REGIME_DISPLAY[k] || k; });
+        }
+        var macroAllowed = Array.isArray(cfg.allowed_macro_regimes) ? cfg.allowed_macro_regimes : null;
+        var microAllowed = Array.isArray(cfg.allowed_micro_regimes) ? cfg.allowed_micro_regimes : null;
+        var macroNarrowed = macroAllowed && macroAllowed.length < DISCO_MACRO_ALL.length;
+        var microNarrowed = microAllowed && microAllowed.length < DISCO_MICRO_ALL.length;
+        if (macroNarrowed || microNarrowed) {
+          var parts = [];
+          if (macroAllowed) parts.push(macroAllowed.length + "/" + DISCO_MACRO_ALL.length + " macro");
+          if (microAllowed) parts.push(microAllowed.length + "/" + DISCO_MICRO_ALL.length + " micro");
+          var chip = spanCls("discovery-run-stat", "regimes: " + parts.join(" · "));
+          var excluded = [].concat(
+            excludedLabels(macroAllowed, DISCO_MACRO_ALL),
+            excludedLabels(microAllowed, DISCO_MICRO_ALL)
+          );
+          if (excluded.length) {
+            chip.title = "Excluded: " + excluded.join(", ");
+          }
+          meta.appendChild(chip);
+        }
         /* Seed pill (May 2026). discovery.py always resolves a "random"
            seed to int(time.time()) BEFORE persisting it into the run's
            config, so cfg.seed is the concrete integer that can be
@@ -2640,8 +2838,9 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         table.className = "discovery-table";
         var thead = document.createElement("thead");
         var theadTr = document.createElement("tr");
-        /* Columns (updated May 2026): #, PF, P&L, Win %, DD 1 (max),
-           DD 2 (max daily), RRR, EMA, Trades, Wins, Losses, Assign.
+        /* Columns (updated May 2026): #, PF, P&L, Win %, Sharpe, SL,
+           DD 1 (max), DD 2 (max daily), RRR, EMA, Trades, Wins, Losses,
+           Assign.
            Win % / DD 1 / DD 2 sit immediately after P&L so the three
            "quality" metrics the user scans for first (return, smoothness,
            drawdown risk) are grouped together; RRR + EMA follow them as
@@ -2661,12 +2860,18 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
            same value — that's intentional and matches the per-trial RRR
            pattern). Both RRR and EMA are sorted via "rrr" / "ema" keys,
            special-cased in sortKeyOf to read from .params instead of
-           .metrics. */
+           .metrics. SL (Stop Loss, in pips) was added May 2026 after
+           Sharpe — it's a sampled per-trial param, so it sits in the
+           "trade setup" group near RRR / EMA conceptually, but the user
+           wanted it adjacent to Sharpe to scan SL-vs-risk metrics quickly.
+           Sorted via "sl" key, also special-cased to read from .params. */
         var cols = [
           ["trial",              "#"],
           ["profit_factor",      "PF"],
           ["net_profit",         "P&L"],
           ["win_rate",           "Win %"],
+          ["sharpe",             "Sharpe"],
+          ["sl",                 "SL"],
           ["max_drawdown",       "DD 1"],
           ["max_daily_drawdown", "DD 2"],
           ["rrr",                "RRR"],
@@ -2743,13 +2948,14 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         tbody.innerHTML = "";
         if (visible.length === 0) {
           /* No passing trials — render a single colspanned message row
-             instead of an empty tbody. colspan matches the 12-column
+             instead of an empty tbody. colspan matches the 14-column
              header (10 after Pass was dropped, 11 after RRR was added,
-             12 after EMA was added). */
+             12 after EMA was added, 13 after Sharpe was added, 14 after
+             SL was added). */
           var emptyTr = document.createElement("tr");
           emptyTr.className = "discovery-run-empty";
           var emptyTd = document.createElement("td");
-          emptyTd.setAttribute("colspan", "12");
+          emptyTd.setAttribute("colspan", "14");
           emptyTd.textContent = "No passing results.";
           emptyTr.appendChild(emptyTd);
           tbody.appendChild(emptyTr);
@@ -2776,7 +2982,8 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
              on the trial detail page reached by clicking the row. */
 
           /* Data cells — order MUST match the cols[] definition in
-             renderBlock above: PF, P&L, Win %, DD 1 (max_drawdown),
+             renderBlock above: PF, P&L, Win %, Sharpe, SL (from
+             trial.params.stop_loss_pips), DD 1 (max_drawdown),
              DD 2 (max_daily_drawdown.pct), RRR (from trial.params),
              EMA (from trial.params), Trades, Wins, Losses.
              May 2026: PF / P&L / Win % cells now carry the BD's .pos / .neg
@@ -2802,6 +3009,10 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           tr.appendChild(td(fmtPF(m.profit_factor),            "discovery-cell-num " + pfTextCls(m.profit_factor)));
           tr.appendChild(td(fmtUSD(m.net_profit),              "discovery-cell-num " + pnlTextCls(m.net_profit)));
           tr.appendChild(td(fmtPct(m.win_rate),                "discovery-cell-num " + wrTextCls(m.win_rate)));
+          tr.appendChild(td(fmtSharpe(m.sharpe),               "discovery-cell-num " + sharpeTextCls(m.sharpe)));
+          /* SL — raw integer pip count. fmtInt handles null / undefined
+             (returns "—") so legacy trials without params don't crash. */
+          tr.appendChild(td(fmtInt(p.stop_loss_pips),          "discovery-cell-num"));
           tr.appendChild(td(fmtPct(m.max_drawdown),            "discovery-cell-num"));
           tr.appendChild(td(fmtPct(maxDailyDDPct(m)),          "discovery-cell-num"));
           tr.appendChild(td(rrrText,                           "discovery-cell-num"));
@@ -3095,6 +3306,12 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
              upper bound (editable Search Bound). */
           use_ema_filter:   settings.use_ema_filter,
           rrr_reward_max:   settings.rrr_reward_max,
+          /* May 2026 — Regime Filters: CSV of allowed (toggled-on) regime
+             keys per axis. Empty string means "no regimes allowed" → the
+             server rejects with a 400 so the user can't accidentally start
+             a 200-trial run that's guaranteed to find zero trades. */
+          allowed_macro_regimes: settings.allowed_macro_regimes,
+          allowed_micro_regimes: settings.allowed_micro_regimes,
         };
         if (seed !== null && !isNaN(seed)) body.seed = seed;
         fetch("/api/discovery/run", {
@@ -3141,6 +3358,20 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         use_ema_filter:   "true",
         rrr_reward_max:   "5",
       };
+      /* Regime keys in the canonical display order. Mirror discovery.py's
+         ALL_MACRO_REGIMES / ALL_MICRO_REGIMES + the RA page's
+         MACRO_REGIME_ORDER / REGIME_ORDER. Used to iterate the toggle DOM
+         on init / reset / collect. The default (all-on) is implicit: an
+         absent localStorage entry means "all regimes allowed". */
+      var DISCO_MACRO_KEYS = [
+        "staircase_up", "strong_up", "flat", "staircase_down", "strong_down",
+      ];
+      var DISCO_MICRO_KEYS = [
+        "trending_fast_up", "trending_medium_up", "trending_slow_up",
+        "ranging_wide",     "ranging_medium",     "ranging_narrow",
+        "trending_fast_down", "trending_medium_down", "trending_slow_down",
+        "transitioning",
+      ];
       function loadDS(key) {
         try {
           var s = window.localStorage.getItem("disco_" + key);
@@ -3207,6 +3438,98 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
             grid.appendChild(label);
           }
         }
+        initRegimeToggles();
+      }
+
+      /* ── Regime Filters (Discovery-scoped, NOT persisted to versions.json) ──
+         Toggle list lives in #ds-regime-macro-toggles / -micro-toggles.
+         Persistence model: store the CSV of *allowed* (checked) keys under
+         "disco_allowed_macro_regimes" / "..._micro_regimes". An absent
+         localStorage entry means "all on" — that way the very first visit
+         and the post-Reset state are the same on-disk shape ("all on" =
+         default), and we don't have to enumerate every key in storage. */
+      function loadAllowedCsv(key, allKeys) {
+        try {
+          var s = window.localStorage.getItem("disco_allowed_" + key + "_regimes");
+          if (s === null) return allKeys.slice();
+          if (s === "")    return [];
+          return s.split(",").map(function (k) { return k.trim(); })
+                            .filter(function (k) { return allKeys.indexOf(k) !== -1; });
+        } catch (e) { return allKeys.slice(); }
+      }
+      function saveAllowedCsv(key, allowedList) {
+        try { window.localStorage.setItem("disco_allowed_" + key + "_regimes", allowedList.join(",")); } catch (e) {}
+      }
+      function paintToggleOffState(toggle) {
+        /* Mirror RA's behaviour: add .regime-toggle-off when unchecked so a
+           future stylesheet rule can target it. The switch graphic itself
+           is driven by :checked sibling selectors in style.css. */
+        var input = toggle.querySelector(".regime-toggle-input");
+        if (input && input.checked) toggle.classList.remove("regime-toggle-off");
+        else                        toggle.classList.add("regime-toggle-off");
+      }
+      function hydrateRegimeColumn(containerId, storageKey, allKeys) {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        var allowed = loadAllowedCsv(storageKey, allKeys);
+        var allowedSet = {};
+        allowed.forEach(function (k) { allowedSet[k] = true; });
+        var toggles = container.querySelectorAll(".regime-toggle");
+        Array.prototype.forEach.call(toggles, function (toggle) {
+          var key = toggle.getAttribute("data-regime-key");
+          var input = toggle.querySelector(".regime-toggle-input");
+          if (input) input.checked = !!allowedSet[key];
+          paintToggleOffState(toggle);
+          /* Persist on every change. Read the full column afresh so the CSV
+             always reflects the live DOM, never a stale union of prior writes. */
+          if (input && !input._dsBound) {
+            input._dsBound = true;
+            input.addEventListener("change", function () {
+              paintToggleOffState(toggle);
+              var live = [];
+              Array.prototype.forEach.call(toggles, function (t) {
+                var k = t.getAttribute("data-regime-key");
+                var i = t.querySelector(".regime-toggle-input");
+                if (k && i && i.checked) live.push(k);
+              });
+              saveAllowedCsv(storageKey, live);
+            });
+          }
+        });
+      }
+      function collectAllowedRegimes(containerId) {
+        var container = document.getElementById(containerId);
+        if (!container) return [];
+        var out = [];
+        container.querySelectorAll(".regime-toggle").forEach(function (toggle) {
+          var input = toggle.querySelector(".regime-toggle-input");
+          if (input && input.checked) {
+            out.push(toggle.getAttribute("data-regime-key"));
+          }
+        });
+        return out;
+      }
+      function resetRegimeToggles() {
+        ["ds-regime-macro-toggles", "ds-regime-micro-toggles"].forEach(function (id) {
+          var container = document.getElementById(id);
+          if (!container) return;
+          container.querySelectorAll(".regime-toggle").forEach(function (toggle) {
+            var input = toggle.querySelector(".regime-toggle-input");
+            if (input) input.checked = true;
+            paintToggleOffState(toggle);
+          });
+        });
+        saveAllowedCsv("macro", DISCO_MACRO_KEYS);
+        saveAllowedCsv("micro", DISCO_MICRO_KEYS);
+      }
+      function initRegimeToggles() {
+        hydrateRegimeColumn("ds-regime-macro-toggles", "macro", DISCO_MACRO_KEYS);
+        hydrateRegimeColumn("ds-regime-micro-toggles", "micro", DISCO_MICRO_KEYS);
+        var resetBtn = document.getElementById("ds-regime-reset");
+        if (resetBtn && !resetBtn._dsBound) {
+          resetBtn._dsBound = true;
+          resetBtn.addEventListener("click", resetRegimeToggles);
+        }
       }
       /* Called from the form submit handler to fold current values into
          the /api/discovery/run payload. Reads live from the DOM so any
@@ -3236,6 +3559,12 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
              string keeps the wire format consistent with the other selects. */
           use_ema_filter:   v("ds-use-ema-filter",  DISCO_DEFAULTS.use_ema_filter),
           rrr_reward_max:   parseInt(v("ds-rrr-reward-max", DISCO_DEFAULTS.rrr_reward_max), 10),
+          /* Regime Filters (Discovery-scoped). CSV of allowed (toggled-on)
+             regime keys per axis — toggled-off regimes are excluded from
+             every trial's allow-list, identical to how the other fixed
+             constants apply to the whole run. NOT persisted to versions.json. */
+          allowed_macro_regimes: collectAllowedRegimes("ds-regime-macro-toggles").join(","),
+          allowed_micro_regimes: collectAllowedRegimes("ds-regime-micro-toggles").join(","),
         };
       }
 
@@ -4555,6 +4884,64 @@ def api_discovery_run():
         else:
             return jsonify({"ok": False, "error": "use_ema_filter must be true or false"}), 400
 
+    # ── Regime Filters (May 2026) ────────────────────────────────────────
+    # Allow-list of toggled-on regime keys per axis. Wire format is CSV;
+    # JSON array also accepted defensively (CLI callers might pass either).
+    # Empty list → reject: a 0-regime allow-list guarantees the strategy
+    # blocks every trade, so a "go" with that state is almost certainly an
+    # accident. Missing key → leave cfg unset so discovery.py defaults to
+    # all-on (ALL_MACRO_REGIMES / ALL_MICRO_REGIMES). Keys must be members
+    # of the canonical sets — anything else is a typo and yields 400.
+    _ALLOWED_MACRO_KEYS = {
+        "strong_down", "staircase_down", "flat", "staircase_up", "strong_up",
+    }
+    _ALLOWED_MICRO_KEYS = {
+        "trending_fast_down", "trending_medium_down", "trending_slow_down",
+        "trending_fast_up",   "trending_medium_up",   "trending_slow_up",
+        "ranging_narrow", "ranging_medium", "ranging_wide", "transitioning",
+    }
+
+    def _parse_regime_csv(field_key, valid_set):
+        """Return a deduped list of valid keys or a (jsonify, 400) tuple
+        on validation failure. None when the field was omitted entirely."""
+        raw = body.get(field_key)
+        if raw is None:
+            return None
+        if isinstance(raw, list):
+            items = [str(x).strip() for x in raw]
+        elif isinstance(raw, str):
+            # An empty string means "no regimes allowed" — semantically
+            # distinct from "field omitted" (which falls back to all-on).
+            items = [s.strip() for s in raw.split(",")]
+        else:
+            return jsonify({"ok": False, "error": f"{field_key} must be a CSV string or list"}), 400
+        # Drop empty fragments from the CSV split, dedupe while preserving order
+        seen = set()
+        cleaned = []
+        for item in items:
+            if not item:
+                continue
+            if item not in valid_set:
+                return jsonify({"ok": False,
+                                "error": f"{field_key} contains unknown key: {item}"}), 400
+            if item not in seen:
+                seen.add(item)
+                cleaned.append(item)
+        if not cleaned:
+            # Reject explicit-empty allow-lists. A 0-regime list pins every
+            # trial's allow-list to empty, which strategy_v2's regime gates
+            # treat as "block everything" — guaranteed-zero-trades run.
+            axis = field_key.replace("allowed_", "").replace("_regimes", "")
+            return jsonify({"ok": False,
+                            "error": f"At least one {axis} regime must be allowed"}), 400
+        return cleaned
+
+    allowed_macro_regimes = _parse_regime_csv("allowed_macro_regimes", _ALLOWED_MACRO_KEYS)
+    allowed_micro_regimes = _parse_regime_csv("allowed_micro_regimes", _ALLOWED_MICRO_KEYS)
+    for v in (allowed_macro_regimes, allowed_micro_regimes):
+        if isinstance(v, tuple):
+            return v
+
     with _disco_lock:
         if _discovery_is_running():
             return jsonify({"ok": False, "error": "A discovery run is already in progress"}), 409
@@ -4584,6 +4971,15 @@ def api_discovery_run():
         # discovery.py can fall back to its defaults for CLI users.
         if rrr_reward_max is not None: cfg["rrr_reward_max"] = rrr_reward_max
         if use_ema_filter is not None: cfg["use_ema_filter"] = use_ema_filter
+        # Regime Filters (May 2026). Stored as lists in the cfg dict so they
+        # round-trip cleanly through discovery.py's _load_runs / the
+        # /api/discovery/results JSON. They land in the run record's
+        # config dict — that's what completed-run blocks read to display
+        # which regimes were included / excluded.
+        if allowed_macro_regimes is not None:
+            cfg["allowed_macro_regimes"] = allowed_macro_regimes
+        if allowed_micro_regimes is not None:
+            cfg["allowed_micro_regimes"] = allowed_micro_regimes
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(cfg, f)
 

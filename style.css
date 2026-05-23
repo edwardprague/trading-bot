@@ -1666,7 +1666,7 @@ body.regime-report {
 }
 
 .regime-container {
-    max-width: 1180px;
+    max-width: 1380px;
     margin: 20px auto 0;
 }
 
@@ -2589,7 +2589,7 @@ body.versions-page {
 }
 
 .versions-container {
-    max-width: 920px;
+    max-width: 1380px;
     margin: 28px auto 0;
     padding: 0 24px;
 }
@@ -3602,7 +3602,7 @@ body.discovery-page {
 }
 
 .discovery-container {
-    max-width: 1180px;
+    max-width: 1380px;
     margin: 28px auto 0;
     padding: 0 24px;
 }
@@ -4293,6 +4293,25 @@ body.discovery-trial-page {
     font-weight: 700;
     font-size: 14px;
     vertical-align: middle;
+}
+
+/* Regime Filters group inside Discovery Settings (May 2026). The toggle
+   grid + swatch / switch widgets reuse the RA page's .regime-control-grid
+   and .regime-toggle* classes verbatim — only the header (section title +
+   Reset button) and the explanatory hint are Discovery-specific. */
+.discovery-regime-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.discovery-regime-header .section-title {
+    margin: 0;
+}
+
+.discovery-regime-hint {
+    margin: 0 0 10px;
 }
 
 .discovery-settings-panel .ds-hint {

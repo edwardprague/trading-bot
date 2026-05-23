@@ -2,7 +2,6 @@
 
 | Version | Date | Strategy | Instrument | Timeframe | Notes | Trades | Win Rate | Profit Factor | Net P&L | Max Drawdown | Sharpe Ratio |
 |---------|------|----------|------------|-----------|-------|--------|----------|---------------|---------|--------------|-------------|
-| v3 | 2026-05-16 13:46 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 224 | 65.2% | 1.49 | +$58171.24 | -7.89% | 0.90 |
 | v2 | 2026-05-23 10:18 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 48 | 18.8% | 0.21 | -$27835.32 | -27.84% | -1.81 |
 | v2 | 2026-05-23 10:37 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 63 | 73.0% | 2.41 | +$30418.30 | -2.30% | 1.37 |
 | v1 | 2026-05-23 10:38 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 79 | 73.4% | 2.46 | +$40445.54 | -2.10% | 1.56 |
@@ -27,3 +26,4 @@
 | v2 | 2026-05-23 17:12 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 365 | 48.2% | 0.86 | -$23931.77 | -31.11% | -0.38 |
 | v2 | 2026-05-23 17:13 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 160 | 70.0% | 2.23 | +$81089.99 | -4.34% | 1.35 |
 | v2 | 2026-05-23 17:14 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 94 | 58.5% | 1.29 | +$13150.68 | -10.79% | 0.64 |
+| v2 | 2026-05-23 19:45 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 62 | 62.9% | 1.48 | +$13082.61 | -3.68% | 0.76 |

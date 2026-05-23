@@ -90,9 +90,9 @@
       "name": "v3",
       "strategy_version": "v2",
       "params": {
-        "ema_long": 167,
+        "ema_long": 144,
         "use_ema_filter": false,
-        "fractal_stop_pips": 36,
+        "fractal_stop_pips": 18,
         "rrr_reward": 1,
         "max_daily_losses": 2,
         "trade_direction": "short_only",
@@ -106,26 +106,23 @@
         "allowed_micro_regimes": [
           "trending_fast_down",
           "trending_slow_down",
-          "ranging_medium",
-          "ranging_wide",
-          "transitioning"
+          "ranging_narrow",
+          "ranging_wide"
         ],
-        "assigned_at": "2026-05-23T11:20:25Z"
+        "assigned_at": "2026-05-23T17:44:41Z"
       },
       "regime_state": {
         "allowed_macro_regimes": [
-          "staircase_down",
-          "strong_down"
+          "strong_down",
+          "staircase_down"
         ],
         "allowed_micro_regimes": [
-          "ranging_medium",
-          "ranging_narrow",
-          "ranging_wide",
-          "transitioning",
           "trending_fast_down",
-          "trending_slow_down"
+          "trending_slow_down",
+          "ranging_narrow",
+          "ranging_wide"
         ],
-        "updated_at": "2026-05-23T11:23:02Z"
+        "updated_at": "2026-05-23T17:44:41Z"
       }
     }
   ]

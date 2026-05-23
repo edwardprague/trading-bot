@@ -26,6 +26,16 @@
             <h1>Research &amp; Development</h1>
         </div>
 
+        <!-- Key findings -->
+        <div class="section">
+            <div class="section-title">Key Strategy Findings</div>
+            <ul class="doc-list">
+                <li>The strategy is genuinely asymmetric — longs do not work
+                </li>
+                <li>RRR 1:1 performs best</li>
+            </ul>
+        </div>
+
         <!-- Discovery -->
         <div class="section">
             <div class="section-title">Discovery Development</div>
@@ -54,13 +64,21 @@
             </div>
 
             <div class="finding-card">
-                <div class="finding-title">Sharpe ratio should be added as a ranking/filter criterion
+                <div class="finding-title">Sharpe ratio as a ranking/filter criterion
                 </div>
                 <div class="finding-body">Current passing criteria (PF, min trades, max DD) can't distinguish between a
                     smooth equity curve and a lumpy one with similar aggregate numbers. A 1:4 RRR strategy earns in
                     bursts — high variability in periodic returns. A 1:1 strategy with 70% win rate is smoother. Sharpe
                     penalises both sides equally; Sortino (downside only) may be more appropriate for high-RRR
                     strategies. Adding Sharpe ≥ 1.0 as a filter would improve result quality.
+                </div>
+            </div>
+
+            <div class="finding-card">
+                <div class="finding-title">EMA Buffer as a search bounds parameter in Discovery
+                </div>
+                <div class="finding-body">The strategy currently defaults to a 5 pip buffer and testing a range could be
+                    helpful.
                 </div>
             </div>
 
@@ -77,50 +95,6 @@
         <!-- Key findings -->
         <div class="section">
             <div class="section-title">Key Historical Findings</div>
-
-            <div class="finding-card">
-                <div class="finding-meta">Regime Edge</div>
-                <div class="finding-title">The regime filter is the likely source of edge — but walk-forward will
-                    confirm or deny</div>
-                <div class="finding-body">The fractal entry logic and Discovery-style parameter search are not a deep
-                    moat — anyone with a backtest framework could replicate them. The regime filtering — systematically
-                    identifying which market conditions the strategy should sit out — is harder to discover by intuition
-                    and specific to this strategy. But edge is only real if regime gates hold up out-of-sample across
-                    multiple walk-forward windows. Without that, the RA is sophisticated overfitting.</div>
-            </div>
-
-            <div class="finding-card">
-                <div class="finding-meta">Discovery</div>
-                <div class="finding-title">200 trials is the right minimum — 30 trials leaves too much on the table
-                </div>
-                <div class="finding-body">The search space (EMA 10–200, SL 5–50, RRR 1–5, regime gate combinations) is
-                    large. 30-trial runs found 3 passing on GBPUSD; 200-trial runs found 8. The improvement is
-                    sub-linear, which is actually encouraging — it suggests passing combinations are genuinely rare
-                    rather than easy to stumble on, meaning those that do pass are more likely capturing something real.
-                </div>
-            </div>
-
-            <div class="finding-card">
-                <div class="finding-meta">Strategy</div>
-                <div class="finding-title">The strategy is genuinely asymmetric — longs do not work</div>
-                <div class="finding-body">Long-only Discovery runs find no passing trials. The RA macro table confirms
-                    why: staircase_up shows 9.3% win rate, strong_up shows 0.0% — these are the regimes where long
-                    fractal signals predominantly fire. This is not a code or parameter problem. Markets often fall
-                    faster than they rise, creating cleaner fractal structure on the downside. The edge appears to be
-                    short-side specific for GBPUSD/EURUSD 5m in this period.</div>
-            </div>
-
-            <div class="finding-card">
-                <div class="finding-meta">Platform · BD / RA Role</div>
-                <div class="finding-title">BD and RA are now primarily out-of-sample validation and diagnostic tools
-                </div>
-                <div class="finding-body">Discovery handles parameter search. BD's role is validating a Discovery
-                    candidate on a window it never saw — checking whether numbers degrade gracefully or collapse. RA's
-                    role is confirming regime gates make intuitive sense out-of-sample and diagnosing underperformance
-                    after live forward testing. Manual parameter tweaking on BD/RA is not recommended — Discovery finds
-                    better combinations than intuition.</div>
-            </div>
-
             <div class="finding-card">
                 <div class="finding-meta">Platform · P&amp;L Accuracy</div>
                 <div class="finding-title">Sub-period re-runs produce different P&L than the parent run — this is
@@ -129,16 +103,6 @@
                     October run starts at $100k; in the 6-month run, October starts at ~$136k (compounded from earlier
                     months). Trade counts and win rates match exactly; dollar P&L diverges. Rule: read sub-period P&L
                     from the parent run's Monthly / Daily tables. Don't re-run to check P&L.</div>
-            </div>
-
-            <div class="finding-card">
-                <div class="finding-meta">Discovery · Sharpe Ratio</div>
-                <div class="finding-title">Sharpe ratio should be added as a ranking/filter criterion</div>
-                <div class="finding-body">Current passing criteria (PF, min trades, max DD) can't distinguish between a
-                    smooth equity curve and a lumpy one with similar aggregate numbers. A 1:4 RRR strategy earns in
-                    bursts — high variability in periodic returns. A 1:1 strategy with 70% win rate is smoother. Sharpe
-                    penalises both sides equally; Sortino (downside only) may be more appropriate for high-RRR
-                    strategies. Adding Sharpe ≥ 1.0 as a filter would improve result quality.</div>
             </div>
         </div>
 

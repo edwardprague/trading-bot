@@ -116,7 +116,15 @@ def resolve_settings(config):
     promoted from a per-trial searched dimension to a per-run fixed
     constant (transparency: every trial in a run carries the same setting).
     `rrr_reward_max` exposes the previously-hardcoded RRR upper bound of
-    5 as an editable per-run knob — the lower bound stays fixed at 1."""
+    5 as an editable per-run knob — the lower bound stays fixed at 1.
+
+    May 2026 (Regime Filters) — added `allowed_macro_regimes` /
+    `allowed_micro_regimes`. These constrain the per-trial random subset
+    search to the user-selected pool: every trial's allow-list is sampled
+    from these lists, so toggled-off regimes (the complement) are guaranteed
+    locked out of every trial. Missing / null → defaults to the full
+    canonical set, preserving the legacy "any combination of 5/10" behaviour
+    for CLI callers that don't pass these keys."""
     cfg = config or {}
     # use_ema_filter: accept bool or string ("true"/"false"/"on"/"off").
     raw_ema = cfg.get("use_ema_filter")
@@ -137,6 +145,31 @@ def resolve_settings(config):
         rrr_max = 1
     if rrr_max > 100:
         rrr_max = 100
+
+    # ── Regime Filters ───────────────────────────────────────────────────
+    # Accept list / CSV string / None. Intersect with the canonical sets so a
+    # stale key from an older results file (e.g. a renamed regime) can't
+    # poison the search. Empty after filtering → fall back to the canonical
+    # set; the server endpoint already rejects user-facing empty lists, this
+    # is the CLI safety net.
+    def _norm_regime_list(raw, canonical):
+        if raw is None:
+            return list(canonical)
+        if isinstance(raw, str):
+            items = [s.strip() for s in raw.split(",")]
+        elif isinstance(raw, (list, tuple)):
+            items = [str(s).strip() for s in raw]
+        else:
+            return list(canonical)
+        valid = [s for s in items if s in canonical]
+        # Preserve canonical order regardless of how the caller supplied them
+        # so downstream display + CSV-equality checks are stable.
+        ordered = [k for k in canonical if k in valid]
+        return ordered if ordered else list(canonical)
+
+    macro_allowed = _norm_regime_list(cfg.get("allowed_macro_regimes"), ALL_MACRO_REGIMES)
+    micro_allowed = _norm_regime_list(cfg.get("allowed_micro_regimes"), ALL_MICRO_REGIMES)
+
     return {
         "instrument":      (cfg.get("instrument")    or FIXED_INSTRUMENT).upper(),
         "interval":         cfg.get("interval")      or FIXED_INTERVAL,
@@ -144,6 +177,8 @@ def resolve_settings(config):
         "blocked_hours":    cfg.get("blocked_hours") or FIXED_BLOCKED_HOURS,
         "use_ema_filter":   ema_on,
         "rrr_reward_max":   rrr_max,
+        "allowed_macro_regimes": macro_allowed,
+        "allowed_micro_regimes": micro_allowed,
     }
 
 
@@ -205,14 +240,21 @@ def sample_params(rng, settings=None):
     rrr_hi = int(s.get("rrr_reward_max") or RRR_REWARD_RANGE[1])
     if rrr_hi < rrr_lo:
         rrr_hi = rrr_lo  # guard against an upper < lower edit
+    # Per-run regime allow-lists (Regime Filters, May 2026). Sample each
+    # trial's allow-list from this pool instead of the full canonical set
+    # so toggled-off regimes are guaranteed locked out of every trial.
+    # Falls back to the canonical set when settings omits the keys (CLI
+    # --once / legacy callers).
+    macro_pool = s.get("allowed_macro_regimes") or ALL_MACRO_REGIMES
+    micro_pool = s.get("allowed_micro_regimes") or ALL_MICRO_REGIMES
     return {
         "ema_long":              rng.randint(*EMA_LONG_RANGE),
         "stop_loss_pips":        rng.randint(*STOP_LOSS_RANGE),
         "rrr_risk":              1,
         "rrr_reward":            rng.randint(rrr_lo, rrr_hi),
         "use_ema_filter":        bool(s.get("use_ema_filter", True)),
-        "allowed_macro_regimes": _sample_subset(ALL_MACRO_REGIMES, rng),
-        "allowed_micro_regimes": _sample_subset(ALL_MICRO_REGIMES, rng),
+        "allowed_macro_regimes": _sample_subset(macro_pool, rng),
+        "allowed_micro_regimes": _sample_subset(micro_pool, rng),
         "blocked_hours":         s["blocked_hours"],
         # Per-run fixed constants (May 2026) — duplicated into every trial's
         # params dict so the trial record is self-describing.
@@ -578,6 +620,13 @@ def main(argv=None):
         # display them and a future re-run can reproduce them exactly.
         "use_ema_filter": settings["use_ema_filter"],
         "rrr_reward_max": settings["rrr_reward_max"],
+        # Regime Filters (May 2026). Persisted into the run record so
+        # completed-run blocks can show which regimes were in / out of the
+        # search space for this run. Stored as ordered lists for stable
+        # JSON round-tripping; resolve_settings re-orders to canonical on
+        # the way back in.
+        "allowed_macro_regimes": settings["allowed_macro_regimes"],
+        "allowed_micro_regimes": settings["allowed_micro_regimes"],
         "min_pf":           thresholds["min_pf"],
         "min_trades":       thresholds["min_trades"],
         "max_dd_pct":       thresholds["max_dd_pct"],
