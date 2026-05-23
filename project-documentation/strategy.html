@@ -28,6 +28,46 @@
 
         <!-- Gate pipeline -->
         <div class="section">
+            <div class="section-title">Fractal Geometry Methodology</div>
+            <p>Fractal entry strategy filtered by macro and micro regimes.</p>
+            <div class="card card-flow">
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-num flow-num-green">1</div>
+                        <div class="flow-content">
+                            <h4>Entry Logic</h4>
+                            <p>The fractal entry logic is a clean, structurally-sound signal. It's not predicting
+                                direction, it's just identifying moments where price has already demonstrated a
+                                lower-high structure, which is a meaningful read on short-term momentum. That's a solid
+                                foundation.</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num flow-num-green">2</div>
+                        <div class="flow-content">
+                            <h4>Regime Layers</h4>
+                            <p>The fractal regime layer is what's doing the heavy lifting in terms of selectivity. It’s
+                                essentially saying "we know this entry strategy only works when the broader market
+                                context is aligned" — and locking out the conditions where it structurally can't win.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num flow-num-green">3</div>
+                        <div class="flow-content">
+                            <h4>Based on real market structure</h4>
+                            <p>What makes this particularly encouraging is that the regime classification is based on
+                                real market structure — it's not an optimised parameter, it's a description of what the
+                                market is doing. So the filter has a genuine logical basis, which makes it more likely
+                                to hold out-of-sample than if you'd just curve-fitted a time-of-day filter or something
+                                arbitrary.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Gate pipeline -->
+        <div class="section">
             <div class="section-title">Entry Gate Pipeline Order</div>
             <p>The first gate that rejects a signal stamps a <code>reason</code> on it, driving counterfactual stats in
                 the RA.</p>
@@ -159,133 +199,53 @@
         <div class="section">
             <div class="section-title">v1 — Fractal Geometry Entries</div>
 
-            <div class="grid-2">
-                <div>
-                    <h2>Fractal Detection</h2>
-                    <p>Williams N=2. A fractal at bar <code>fi</code> requires bars <code>fi±1</code> and
-                        <code>fi±2</code> to all have lower highs (fractal high) or higher lows (fractal low).
-                        Confirmation happens 2 bars later.
-                    </p>
+            <!-- <div class="grid-2"> -->
+            <div>
+                <h2>Fractal Detection</h2>
+                <p>Williams N=2. A fractal at bar <code>fi</code> requires bars <code>fi±1</code> and
+                    <code>fi±2</code> to all have lower highs (fractal high) or higher lows (fractal low).
+                    Confirmation happens 2 bars later.
+                </p>
 
-                    <h2>Entry Signals</h2>
-                    <ul class="doc-list">
-                        <li><strong>Long</strong> — new fractal low forms higher than the prior fractal low</li>
-                        <li><strong>Short</strong> — new fractal high forms lower than the prior fractal high</li>
-                    </ul>
+                <h2>Entry Signals</h2>
+                <ul class="doc-list">
+                    <li><strong>Long</strong> — new fractal low forms higher than the prior fractal low</li>
+                    <li><strong>Short</strong> — new fractal high forms lower than the prior fractal high</li>
+                </ul>
 
-                    <h2>Entry Reference</h2>
-                    <ul class="doc-list">
-                        <li><strong>Python</strong> — close of the bar after confirmation</li>
-                        <li><strong>cBot</strong> — <code>Symbol.Ask</code> for longs, <code>Symbol.Bid</code> for
-                            shorts, on first tick of bar after confirmation</li>
-                    </ul>
-                </div>
+                <h2>Entry Reference</h2>
+                <ul class="doc-list">
+                    <li><strong>Python</strong> — close of the bar after confirmation</li>
+                    <li><strong>cBot</strong> — <code>Symbol.Ask</code> for longs, <code>Symbol.Bid</code> for
+                        shorts, on first tick of bar after confirmation</li>
+                </ul>
 
-                <div>
-                    <h2>Stop &amp; Target</h2>
-                    <ul class="doc-list">
-                        <li><strong>Stop-loss</strong> — fractal price ± <code>FRACTAL_STOP_PIPS</code> offset (default
-                            15)</li>
-                        <li><strong>Take-profit</strong> — entry ± (stop distance × RRR)</li>
-                        <li><strong>Stop validation</strong> — distance must be between <code>MIN_STOP</code> (5 pips)
-                            and <code>MAX_STOP</code> (200 pips)</li>
-                    </ul>
+                <h2>Stop &amp; Target</h2>
+                <ul class="doc-list">
+                    <li><strong>Stop-loss</strong> — fractal price ± <code>FRACTAL_STOP_PIPS</code> offset (default
+                        15)</li>
+                    <li><strong>Take-profit</strong> — entry ± (stop distance × RRR)</li>
+                    <li><strong>Stop validation</strong> — distance must be between <code>MIN_STOP</code> (5 pips)
+                        and <code>MAX_STOP</code> (200 pips)</li>
+                </ul>
 
-                    <h2>Position Sizing</h2>
-                    <p>Formula: <code>(equity × RISK_PCT) / stop_distance_in_price</code>, normalised to broker volume
-                        step. <code>RISK_PCT</code> fixed at 1% — not a Discovery variable.</p>
+                <h2>Position Sizing</h2>
+                <p>Formula: <code>(equity × RISK_PCT) / stop_distance_in_price</code>, normalised to broker volume
+                    step. <code>RISK_PCT</code> fixed at 1% — not a Discovery variable.</p>
 
-                    <h2>Other Rules</h2>
-                    <ul class="doc-list">
-                        <li><strong>Daily loss limit</strong> — no new trades once losing-trade count reaches
-                            <code>MAX_DAILY_LOSSES</code> (default 2). Resets at UTC midnight.
-                        </li>
-                        <li><strong>Re-entry</strong> — no cooldown. A new signal on the bar after a close is accepted.
-                        </li>
-                    </ul>
-                </div>
+                <h2>Other Rules</h2>
+                <ul class="doc-list">
+                    <li><strong>Daily loss limit</strong> — no new trades once losing-trade count reaches
+                        <code>MAX_DAILY_LOSSES</code> (default 2). Resets at UTC midnight.
+                    </li>
+                    <li><strong>Re-entry</strong> — no cooldown. A new signal on the bar after a close is accepted.
+                    </li>
+                </ul>
             </div>
+            <!-- </div> -->
         </div>
 
-        <!-- Current config -->
-        <div class="section">
-            <div class="section-title">Current Active Configuration — v1</div>
-            <div class="callout callout-tip">
-                <span class="callout-icon">✅</span>
-                <div class="callout-body"><strong>Verified baseline (Jul–Dec 2025, GBPUSD):</strong> 57 trades · 42.1%
-                    win rate · PF 2.40 · $74,786. Assigned from Discovery trial #24.</div>
-            </div>
-            <div class="grid-2 mt-md">
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Parameter</th>
-                                <th>Value</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Instrument</td>
-                                <td>GBPUSD</td>
-                            </tr>
-                            <tr>
-                                <td>Interval</td>
-                                <td>5m</td>
-                            </tr>
-                            <tr>
-                                <td>Direction</td>
-                                <td><span class="badge badge-accent">Short Only</span></td>
-                            </tr>
-                            <tr>
-                                <td>EMA Long</td>
-                                <td>166</td>
-                            </tr>
-                            <tr>
-                                <td>Stop Loss</td>
-                                <td>10 pips</td>
-                            </tr>
-                            <tr>
-                                <td>RRR</td>
-                                <td>1 : 4</td>
-                            </tr>
-                            <tr>
-                                <td>Max DD</td>
-                                <td>2</td>
-                            </tr>
-                            <tr>
-                                <td>EMA Filter</td>
-                                <td>Off</td>
-                            </tr>
-                            <tr>
-                                <td>Blocked Hours (UTC)</td>
-                                <td>4, 5, 6, 8, 10, 11, 14, 17</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="card card-top">
-                    <div class="card-title">Regime Gates</div>
-                    <div class="mt-sm">
-                        <div class="field-label">Macro (allowed)</div>
-                        <div class="badge-group">
-                            <span class="badge badge-accent">staircase_down</span>
-                            <span class="badge badge-accent">strong_down</span>
-                        </div>
-                        <div class="field-label">Micro (allowed)</div>
-                        <div class="badge-group">
-                            <span class="badge badge-blue">ranging_wide</span>
-                            <span class="badge badge-blue">transitioning</span>
-                            <span class="badge badge-blue">trending_fast_down</span>
-                            <span class="badge badge-blue">trending_medium_down</span>
-                            <span class="badge badge-blue">trending_medium_up</span>
-                            <span class="badge badge-blue">trending_slow_down</span>
-                            <span class="badge badge-blue">trending_slow_up</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+
 
         <!-- v2 -->
         <div class="section">
