@@ -19,17 +19,14 @@
       },
       "regime_state": {
         "allowed_macro_regimes": [
-          "strong_down",
-          "staircase_down"
+          "staircase_down",
+          "strong_down"
         ],
         "allowed_micro_regimes": [
-          "trending_medium_down",
-          "trending_fast_up",
-          "trending_slow_up",
-          "ranging_narrow",
-          "transitioning"
+          "ranging_medium",
+          "ranging_wide"
         ],
-        "updated_at": "2026-05-23T08:33:49Z"
+        "updated_at": "2026-05-23T08:36:07Z"
       }
     }
   ]
