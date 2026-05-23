@@ -109,8 +109,6 @@ nav a.active {
 
 .page-header {
     margin-bottom: 52px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 32px;
 }
 
 .page-header .eyebrow {
@@ -126,7 +124,7 @@ nav a.active {
     font-size: 30px;
     font-weight: 600;
     letter-spacing: -0.02em;
-    color: var(--text);
+    color: var(--accent);
     margin-bottom: 10px;
     line-height: 1.2;
 }
@@ -596,9 +594,7 @@ hr {
 
 /* ── HERO (Overview page) ── */
 .hero {
-    padding: 64px 0 48px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 56px;
+    padding: 40px 0 40px;
 }
 
 .hero-eyebrow {
@@ -615,7 +611,7 @@ hr {
     font-weight: 600;
     letter-spacing: -0.03em;
     line-height: 1.1;
-    color: var(--text);
+    color: var(--accent);
     margin-bottom: 16px;
 }
 
@@ -938,17 +934,17 @@ hr {
    content, give that content top breathing room without an inline
    margin-top. Covers the recurring inline `style="margin-top:8px;"`
    pattern on .card > p / .doc-list / pre / ul. */
-.card > .card-title + p,
-.card > .card-title + ul,
-.card > .card-title + ol,
-.card > .card-title + pre,
-.card > .card-title + .doc-list {
+.card>.card-title+p,
+.card>.card-title+ul,
+.card>.card-title+ol,
+.card>.card-title+pre,
+.card>.card-title+.doc-list {
     margin-top: 8px;
 }
 
 /* Technical page Startup card: <p> ... <pre> ... <p>. Give the trailing
    paragraph the same top breathing room as the leading one. */
-.card pre + p {
+.card pre+p {
     margin-top: 8px;
 }
 
@@ -984,7 +980,7 @@ hr {
 
 /* When a badge-group is followed by another field-label, the new label
    needs visual separation from the badges above it. */
-.badge-group + .field-label {
+.badge-group+.field-label {
     margin-top: 16px;
 }
 
@@ -1019,14 +1015,32 @@ hr {
    inline `style="margin-top:Npx;"` adjustments on .grid-2, .callout, and
    h2. Kept intentionally small (sm/md/lg/xl) and matched to the values
    that were already in use across the docs. */
-.mt-sm { margin-top: 12px; }
-.mt-md { margin-top: 16px; }
-.mt-md-tight { margin-top: 14px; }
-.mt-lg { margin-top: 20px; }
-.mt-xl { margin-top: 28px; }
+.mt-sm {
+    margin-top: 12px;
+}
 
-.mb-0 { margin-bottom: 0; }
+.mt-md {
+    margin-top: 16px;
+}
+
+.mt-md-tight {
+    margin-top: 14px;
+}
+
+.mt-lg {
+    margin-top: 20px;
+}
+
+.mt-xl {
+    margin-top: 28px;
+}
+
+.mb-0 {
+    margin-bottom: 0;
+}
 
 /* Vertical-axis margin (top + bottom). Used on cards/grids that need
    breathing room above AND below them inside a longer prose section. */
-.my-md { margin: 16px 0; }
+.my-md {
+    margin: 16px 0;
+}

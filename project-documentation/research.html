@@ -31,16 +31,6 @@
             <div class="section-title">Discovery Development</div>
 
             <div class="finding-card">
-                <div class="finding-title">Seed stored in run results</div>
-                <div class="finding-body">Currently the random seed used for each Discovery run is not recorded anywhere
-                    in the run results. This means a run using a random seed cannot be reproduced — if you want to
-                    re-examine exactly which parameter combinations were tested, that information is lost. The fix is to
-                    store the seed (whether random or user-specified) in the run metadata and display it in the run
-                    header alongside trial count, pass count, and timestamp.
-                </div>
-            </div>
-
-            <div class="finding-card">
                 <div class="finding-title">Bayesian / guided search (e.g. Optuna) instead of pure random</div>
                 <div class="finding-body">Current Discovery uses pure random sampling — each trial picks parameter
                     combinations independently with no learning from previous trials. Bayesian search (e.g. using the

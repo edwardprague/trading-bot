@@ -186,10 +186,20 @@ def sample_params(rng, settings=None):
     to every trial in a run per the user's intent (transparency over
     search-space breadth).
 
-    May 2026: max_daily_losses was retired from the search space (it was a
-    legacy 1–5 sweep over a strategy safety rail, not a true tunable). It's
-    now pinned to FIXED_MAX_DAILY_LOSSES in build_env, so this dict no
-    longer carries the field."""
+    May 2026: each trial's params dict is now self-describing — the
+    per-run fixed constants (instrument, interval, direction,
+    blocked_hours, use_ema_filter, max_daily_losses) are folded into
+    every returned record. Previously these lived only at the run's
+    top-level config dict and downstream consumers (the trial detail
+    page, version assignment) would silently fall back to defaults when
+    the run used non-default values. Storing them per trial makes the
+    record self-describing without changing search behaviour — they're
+    still identical across every trial in a single run.
+
+    max_daily_losses was retired from the SEARCH space (it was a legacy
+    1–5 sweep over a strategy safety rail, not a true tunable) and is
+    pinned to FIXED_MAX_DAILY_LOSSES; we still emit the field so the
+    trial detail page can render it instead of showing an em-dash."""
     s = settings or resolve_settings(None)
     rrr_lo = RRR_REWARD_RANGE[0]
     rrr_hi = int(s.get("rrr_reward_max") or RRR_REWARD_RANGE[1])
@@ -204,6 +214,12 @@ def sample_params(rng, settings=None):
         "allowed_macro_regimes": _sample_subset(ALL_MACRO_REGIMES, rng),
         "allowed_micro_regimes": _sample_subset(ALL_MICRO_REGIMES, rng),
         "blocked_hours":         s["blocked_hours"],
+        # Per-run fixed constants (May 2026) — duplicated into every trial's
+        # params dict so the trial record is self-describing.
+        "instrument":            s["instrument"],
+        "interval":              s["interval"],
+        "direction":             s["direction"],
+        "max_daily_losses":      FIXED_MAX_DAILY_LOSSES,
     }
 
 
@@ -525,6 +541,13 @@ def main(argv=None):
             "allowed_macro_regimes": [s.strip() for s in args.macro.split(",") if s.strip()],
             "allowed_micro_regimes": [s.strip() for s in args.micro.split(",") if s.strip()],
             "blocked_hours":         settings["blocked_hours"],
+            # Self-describing fixed constants (May 2026) — same fields
+            # sample_params writes so the --once trial record matches the
+            # shape of full-search runs.
+            "instrument":            settings["instrument"],
+            "interval":              settings["interval"],
+            "direction":             settings["direction"],
+            "max_daily_losses":      FIXED_MAX_DAILY_LOSSES,
         }
         print(f"[discovery] --once trial: range {args.start} → {args.end}")
         print(f"[discovery] settings: {json.dumps(settings)}")

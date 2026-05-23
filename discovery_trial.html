@@ -247,6 +247,28 @@
         rows.forEach(function (r) { resTbody.appendChild(row(r[0], r[1])); });
       }
 
+      /* Bug fix (May 2026): Instrument / Interval / Direction were
+         hardcoded to GBPUSD / 5m / Short Only in the params table — so a
+         trial from a run that actually used EURJPY · Long Only (etc.)
+         displayed the wrong values. Fixed constants are now stored
+         per-trial in params (see discovery.py sample_params); we read
+         from there first, fall back to the run's `config` for trial
+         records that pre-date the per-trial storage, and only fall back
+         to the Phase-1 default as a last resort. */
+      function pickFixed(params, config, key, dflt) {
+        if (params && params[key] !== undefined && params[key] !== null && params[key] !== "") return params[key];
+        if (config && config[key] !== undefined && config[key] !== null && config[key] !== "") return config[key];
+        return dflt;
+      }
+      function humanizeDirection(d) {
+        if (!d) return "—";
+        var s = String(d).toLowerCase();
+        if (s === "short_only") return "Short Only";
+        if (s === "long_only")  return "Long Only";
+        if (s === "both")       return "Both";
+        return s.replace(/_/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+      }
+
       function renderParams(params, config) {
         params = params || {};
         config = config || {};
@@ -254,22 +276,39 @@
 
         var dateRange = (config.start && config.end) ? (esc(config.start) + " → " + esc(config.end)) : null;
 
+        /* Resolve fixed-constant fields — params first, then run config,
+           then Phase-1 defaults. The fallback chain keeps legacy trial
+           records (from before per-trial storage landed in May 2026)
+           rendering correctly: their run-level config still carries the
+           real values, so they go through path 2. */
+        var instrument     = pickFixed(params, config, "instrument",       "GBPUSD");
+        var interval       = pickFixed(params, config, "interval",         "5m");
+        var direction      = pickFixed(params, config, "direction",        "short_only");
+        var blockedHours   = pickFixed(params, config, "blocked_hours",    "None");
+        var maxDailyLosses = pickFixed(params, config, "max_daily_losses", 2);
+
         var rows = [
-          ["Date Range",   dateRange],
-          ["Instrument",   wrap("val-highlight", "GBPUSD")],
-          ["Interval",     wrap("val-highlight", "5m")],
-          ["EMA Short",    wrap("val-highlight", "8")],
-          ["EMA Mid",      wrap("val-highlight", "20")],
-          ["EMA Long",     isMissing(params.ema_long)        ? null : wrap("val-highlight", esc(params.ema_long))],
-          ["EMA Filter",   wrap("val-highlight", params.use_ema_filter ? "On" : "Off")],
-          ["Stop Loss",    isMissing(params.stop_loss_pips)  ? null : wrap("val-highlight", esc(params.stop_loss_pips) + " pips")],
-          ["Direction",    wrap("val-highlight", "Short Only")],
+          ["Date Range",        dateRange],
+          ["Instrument",        wrap("val-highlight", esc(String(instrument).toUpperCase()))],
+          ["Interval",          wrap("val-highlight", esc(interval))],
+          ["EMA Short",         wrap("val-highlight", "8")],
+          ["EMA Mid",           wrap("val-highlight", "20")],
+          ["EMA Long",          isMissing(params.ema_long)        ? null : wrap("val-highlight", esc(params.ema_long))],
+          ["EMA Filter",        wrap("val-highlight", params.use_ema_filter ? "On" : "Off")],
+          ["Stop Loss",         isMissing(params.stop_loss_pips)  ? null : wrap("val-highlight", esc(params.stop_loss_pips) + " pips")],
+          ["Direction",         wrap("val-highlight", esc(humanizeDirection(direction)))],
           ["RRR",          (params.rrr_risk || 1) + " : " + (params.rrr_reward || 1)],
-          ["Max DD",       isMissing(params.max_daily_losses) ? null : wrap("val-highlight", esc(params.max_daily_losses))],
-          ["Slippage",     wrap("val-highlight", "On")],
-          ["SL Slippage",  wrap("val-highlight", "1.0 pips")],
-          ["Spread",       wrap("val-highlight", "1.0 pips")],
-          ["Blocked Hours", esc(params.blocked_hours || "None")],
+          /* Renamed May 2026: this row pulls from params.max_daily_losses
+             (the daily-loss-stop count, a strategy safety rail). It was
+             previously mislabelled "Max DD" — the actual peak-to-trough
+             max drawdown is already shown in the Results panel as
+             "Max Drawdown". Fixed value of 2 across every trial since
+             May 2026; legacy trials may carry the sampled 1–5 value. */
+          ["Max Daily Losses",  wrap("val-highlight", esc(maxDailyLosses))],
+          ["Slippage",          wrap("val-highlight", "On")],
+          ["SL Slippage",       wrap("val-highlight", "1.0 pips")],
+          ["Spread",            wrap("val-highlight", "1.0 pips")],
+          ["Blocked Hours",     esc(blockedHours || "None")],
         ];
         rows.forEach(function (r) { paramTbody.appendChild(row(r[0], r[1])); });
       }
