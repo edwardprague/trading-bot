@@ -34,13 +34,15 @@
           "strong_down"
         ],
         "allowed_micro_regimes": [
+          "ranging_medium",
           "ranging_narrow",
+          "ranging_wide",
           "transitioning",
           "trending_fast_up",
           "trending_medium_down",
           "trending_slow_up"
         ],
-        "updated_at": "2026-05-23T10:33:37Z"
+        "updated_at": "2026-05-23T10:34:35Z"
       }
     }
   ]
