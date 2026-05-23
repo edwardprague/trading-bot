@@ -4056,9 +4056,13 @@ body.discovery-trial-page {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px 18px;
+    /* Single-column stack (May 2026): items now sit one per row in each
+       section, matching the vertical layout of the RA macro/micro regime
+       tables so the two pages read the same way. The previous 2-column
+       grid wrapped items side-by-side, which Edward found harder to scan. */
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .discovery-trial-regime-item {

@@ -65,11 +65,12 @@ LEGACY_REGIME_STATE_FILE  = DATA_DIR / "regime_filter_state.json"
 # created without a base to copy from: every key listed = every regime allowed,
 # which is functionally equivalent to "no gate" but renders all RA toggles as
 # ON (clearer UX than an empty allow-list).
-_ALL_MACRO_KEYS = ["strong_down", "staircase_down", "flat", "staircase_up", "strong_up"]
+_ALL_MACRO_KEYS = ["staircase_up", "strong_up", "flat", "staircase_down", "strong_down"]
 _ALL_MICRO_KEYS = [
-    "trending_fast_down", "trending_medium_down", "trending_slow_down",
     "trending_fast_up",   "trending_medium_up",   "trending_slow_up",
-    "ranging_narrow", "ranging_medium", "ranging_wide", "transitioning",
+    "ranging_wide",       "ranging_medium",       "ranging_narrow",
+    "trending_fast_down", "trending_medium_down", "trending_slow_down",
+    "transitioning",
 ]
 
 _DEFAULT_VERSIONS = {
@@ -1859,8 +1860,10 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
                page's Assign column doesn't show "Assigned → v7" for a
                version that no longer exists. */
             applyRenameToLocalAssignments(resp.rename_map || {});
-            var surviving = ((resp.store && resp.store.versions) || [])
-                              .map(function (v) { return v.name; });
+            /* Pass the full version objects (not just names) so the purge
+               can also drop entries whose target was renumbered into an
+               empty slot — see purgeStaleLocalAssignments. */
+            var surviving = (resp.store && resp.store.versions) || [];
             purgeStaleLocalAssignments(surviving);
             return refresh();
           });
@@ -1891,15 +1894,22 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
       }
 
       /* Drop localStorage discovery_trial_assignments entries whose .version
-         isn't in the surviving-version list (Issue 2 — May 2026). Called
-         after each delete so the Discovery page's Assign column doesn't
-         show "Assigned → v7" for a version that no longer exists. The
-         Discovery page also re-runs this purge on load as a safety net for
-         deletes that happened from another tab or before this code shipped. */
-      function purgeStaleLocalAssignments(validNames) {
-        if (!validNames) return;
-        var valid = {};
-        validNames.forEach(function (n) { valid[n] = true; });
+         isn't in the surviving-version list (Issue 2 — May 2026), OR whose
+         target is an empty slot with params=null (Issue 3 — May 2026).
+         Issue 3: deleting every version and creating a fresh "v1" leaves a
+         name-match but params=null — the name-only purge thought this was a
+         valid target. Now we require both: name exists AND params populated.
+         Called after each delete so the Discovery page's Assign column
+         doesn't show "Assigned → v7" for a version that no longer exists,
+         or "Assigned → v1" for a freshly-reseeded empty slot. The Discovery
+         page re-runs this purge on load as a safety net for deletes from
+         another tab. */
+      function purgeStaleLocalAssignments(versions) {
+        if (!versions) return;
+        var validAssigned = {};
+        versions.forEach(function (v) {
+          if (v && v.name && v.params) validAssigned[v.name] = true;
+        });
         try {
           var raw = window.localStorage.getItem("discovery_trial_assignments");
           if (!raw) return;
@@ -1907,7 +1917,7 @@ _VERSIONS_PAGE_HTML = """<!doctype html>
           var changed = false;
           Object.keys(m).forEach(function (trialId) {
             var rec = m[trialId];
-            if (rec && rec.version && !valid[rec.version]) {
+            if (rec && rec.version && !validAssigned[rec.version]) {
               delete m[trialId];
               changed = true;
             }
@@ -2309,21 +2319,30 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         try { window.localStorage.setItem(ASSIGN_LS_KEY, JSON.stringify(m)); } catch (e) {}
       }
       /* ── Self-heal: drop assignments pointing to versions that no longer
-         exist (May 2026 — Issue 2). The Versions-page rename map only
-         rewrites entries for SURVIVING versions during a renumber; entries
-         pointing to a version that was fully removed (not renumbered) leak
-         through and stick around as ghost "Assigned → v7" labels.
-         Called from the init block once /api/versions has returned, so we
-         have an authoritative set of currently-valid version names. */
-      function purgeStaleAssignments(validNames) {
-        if (!validNames) return;
-        var valid = {};
-        validNames.forEach(function (n) { valid[n] = true; });
+         exist (May 2026 — Issue 2), OR that exist by name but are empty
+         slots (Issue 3 — May 2026). Issue 3 case: if the user deletes
+         every version and then creates a fresh "v1", the renumber +
+         re-seed leaves a version named "v1" with params=null — the
+         original name-only purge thought this was a still-valid target
+         and left stale "Assigned → v1" pills behind, blocking re-
+         assignment. Treating "version exists AND has non-null params"
+         as the validity check fixes that: an empty slot can never be
+         the legitimate target of an existing assignment (assignments
+         write into the slot's params, so a non-null params means the
+         version is the same one we assigned to).
+         Called from the init block once /api/versions has returned, so
+         we have the authoritative current versions list. */
+      function purgeStaleAssignments(versions) {
+        if (!versions) return;
+        var validAssigned = {};
+        versions.forEach(function (v) {
+          if (v && v.name && v.params) validAssigned[v.name] = true;
+        });
         var m = loadAssignments();
         var changed = false;
         Object.keys(m).forEach(function (trialId) {
           var rec = m[trialId];
-          if (rec && rec.version && !valid[rec.version]) {
+          if (rec && rec.version && !validAssigned[rec.version]) {
             delete m[trialId];
             changed = true;
           }
@@ -3156,8 +3175,11 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
       fetch("/api/versions")
         .then(function (r) { return r.json(); })
         .then(function (store) {
-          var names = ((store && store.versions) || []).map(function (v) { return v.name; });
-          purgeStaleAssignments(names);
+          /* Pass the full version objects (not just names) so the purge
+             can check the params slot — see purgeStaleAssignments for
+             why empty slots can't be valid assignment targets. */
+          var versions = (store && store.versions) || [];
+          purgeStaleAssignments(versions);
         })
         .catch(function () { /* leave assignments untouched on failure */ })
         .then(function () { loadResults(); });

@@ -165,16 +165,20 @@ REGIME_COLORS = {
     "transitioning":        "#616161",
 }
 
+# Display order (May 2026, per Edward): up-trending → ranging (wide→narrow)
+# → down-trending → transitioning. This dict's key insertion order doubles as
+# the canonical REGIME_ORDER below, so editing one edits the other. Matches
+# the Discovery trial page's micro ordering.
 REGIME_DISPLAY = {
-    "trending_fast_down":   "Trending — Fast Down",
-    "trending_medium_down": "Trending — Medium Down",
-    "trending_slow_down":   "Trending — Slow Down",
     "trending_fast_up":     "Trending — Fast Up",
     "trending_medium_up":   "Trending — Medium Up",
     "trending_slow_up":     "Trending — Slow Up",
-    "ranging_narrow":       "Ranging — Narrow",
-    "ranging_medium":       "Ranging — Medium",
     "ranging_wide":         "Ranging — Wide",
+    "ranging_medium":       "Ranging — Medium",
+    "ranging_narrow":       "Ranging — Narrow",
+    "trending_fast_down":   "Trending — Fast Down",
+    "trending_medium_down": "Trending — Medium Down",
+    "trending_slow_down":   "Trending — Slow Down",
     "transitioning":        "Transitioning",
 }
 
@@ -192,8 +196,12 @@ SMALL_DISPLACEMENT_PIPS = 15   # |close − open| <  this → flat day (regardle
 EMA_MACRO_PERIOD        = 40   # span for the within-day EMA used for slope
 N18_LOOKBACK            = 18   # bars each side for Williams N=18 fractal detection
 
+# Display order (May 2026, per Edward): most-bullish at top, most-bearish
+# at bottom. Matches the Discovery trial page's macro ordering. Used wherever
+# the RA page iterates macros for display (perf table, summary cards,
+# timeline legend, filter chips, toggle pills, etc.).
 MACRO_REGIME_ORDER = [
-    "strong_down", "staircase_down", "flat", "staircase_up", "strong_up",
+    "staircase_up", "strong_up", "flat", "staircase_down", "strong_down",
 ]
 
 MACRO_REGIME_DISPLAY = {

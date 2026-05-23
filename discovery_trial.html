@@ -313,11 +313,17 @@
         rows.forEach(function (r) { paramTbody.appendChild(row(r[0], r[1])); });
       }
 
-      var ALL_MACRO = ["strong_down", "staircase_down", "flat", "staircase_up", "strong_up"];
+      /* Display order (May 2026) — per Edward's request, the Discovery
+         trial page lists macros top-down from most bullish to most bearish,
+         and micros grouped Up-trending → Ranging (wide→narrow) → Down-
+         trending → Transitioning. This is intentionally a Discovery-only
+         ordering: the RA page keeps its own canonical order. */
+      var ALL_MACRO = ["staircase_up", "strong_up", "flat", "staircase_down", "strong_down"];
       var ALL_MICRO = [
-        "trending_fast_down", "trending_medium_down", "trending_slow_down",
         "trending_fast_up",   "trending_medium_up",   "trending_slow_up",
-        "ranging_narrow", "ranging_medium", "ranging_wide", "transitioning",
+        "ranging_wide",       "ranging_medium",       "ranging_narrow",
+        "trending_fast_down", "trending_medium_down", "trending_slow_down",
+        "transitioning",
       ];
 
       /* Display-name converters mirror the RA page exactly:
@@ -424,6 +430,33 @@
         m[trialId] = { version: versionName, at: new Date().toISOString() };
         try { window.localStorage.setItem(ASSIGN_LS_KEY, JSON.stringify(m)); } catch (e) {}
       }
+      /* Issue 3 fix (May 2026): the detail page used to read localStorage
+         directly with no purge, so a trial whose assignment target was
+         deleted (or renumbered into an empty slot, or wiped-and-reseeded
+         under the same name) kept showing "✓ Assigned → vN" in the
+         header button — same bug as the Discovery list page, but
+         unreachable from the list's purge path. Mirrors the purge on
+         /discovery (server.py): an assignment is valid only when its
+         target version both exists AND has non-null params. */
+      function purgeStaleAssignments(versions) {
+        if (!versions) return;
+        var validAssigned = {};
+        versions.forEach(function (v) {
+          if (v && v.name && v.params) validAssigned[v.name] = true;
+        });
+        var m = loadAssignments();
+        var changed = false;
+        Object.keys(m).forEach(function (trialId) {
+          var rec = m[trialId];
+          if (rec && rec.version && !validAssigned[rec.version]) {
+            delete m[trialId];
+            changed = true;
+          }
+        });
+        if (changed) {
+          try { window.localStorage.setItem(ASSIGN_LS_KEY, JSON.stringify(m)); } catch (e) {}
+        }
+      }
       function refreshAssignBtn() {
         if (!STATE.trial) return;
         var prior = loadAssignments()[STATE.trial.id];
@@ -525,16 +558,35 @@
       });
 
       /* ── Boot: fetch the trial ────────────────────────────────────────── */
-      fetch("/api/discovery/trial/" + encodeURIComponent(trialId))
-        .then(function (r) {
-          if (!r.ok) {
-            return r.json().then(function (j) { throw new Error((j && j.error) || ("HTTP " + r.status)); });
-          }
-          return r.json();
-        })
-        .then(function (resp) {
+      /* Issue 3 fix: kick off /api/versions in parallel with the trial
+         fetch so we can purge stale localStorage assignments BEFORE the
+         Assign button decides whether to render as "✓ Assigned → vN".
+         Failure here just skips the purge — the button still works, the
+         stale label just isn't cleaned up this round (matches the
+         Discovery list page's fallback behaviour). */
+      var versionsP = fetch("/api/versions")
+        .then(function (r) { return r.json(); })
+        .then(function (store) { return (store && store.versions) || []; })
+        .catch(function () { return null; });
+
+      Promise.all([
+        fetch("/api/discovery/trial/" + encodeURIComponent(trialId))
+          .then(function (r) {
+            if (!r.ok) {
+              return r.json().then(function (j) { throw new Error((j && j.error) || ("HTTP " + r.status)); });
+            }
+            return r.json();
+          }),
+        versionsP,
+      ])
+        .then(function (results) {
+          var resp = results[0];
+          var versions = results[1];
           if (!resp.ok || !resp.trial) throw new Error(resp.error || "Trial not found");
           STATE.trial = resp.trial;
+          /* Purge BEFORE refreshAssignBtn so the header button reflects
+             the post-purge state on first paint. */
+          if (versions) purgeStaleAssignments(versions);
           /* Set "Trial #N" from the API response now that the URL uses the
              id (not the number). */
           document.getElementById("dt-trial-num").textContent = String(resp.trial.trial);
