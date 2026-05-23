@@ -31,3 +31,4 @@
 | v2 | 2026-05-23 19:48 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 153 | 70.6% | 2.13 | +$72368.61 | -3.40% | 1.28 |
 | v2 | 2026-05-23 19:51 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 279 | 48.7% | 0.86 | -$19438.51 | -23.51% | -0.34 |
 | v2 | 2026-05-23 19:52 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 62 | 62.9% | 1.48 | +$13082.61 | -3.68% | 0.76 |
+| v2 | 2026-05-23 19:53 | Trend Following | GBPUSD | 5m | v1 + EMA position filter — long above / short below EMA Long | 5 | 0.0% | 0.00 | -$5210.04 | -5.21% | -2.14 |
