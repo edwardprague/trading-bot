@@ -122,9 +122,10 @@
           "ranging_wide",
           "transitioning",
           "trending_fast_down",
+          "trending_medium_down",
           "trending_slow_down"
         ],
-        "updated_at": "2026-05-23T17:58:35Z"
+        "updated_at": "2026-05-23T18:02:00Z"
       }
     }
   ]
