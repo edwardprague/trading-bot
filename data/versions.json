@@ -73,16 +73,16 @@
       },
       "regime_state": {
         "allowed_macro_regimes": [
+          "flat",
           "staircase_down",
           "strong_up"
         ],
         "allowed_micro_regimes": [
-          "ranging_narrow",
           "ranging_wide",
           "trending_fast_down",
           "trending_medium_down"
         ],
-        "updated_at": "2026-05-23T10:53:27Z"
+        "updated_at": "2026-05-23T10:58:58Z"
       }
     }
   ]
