@@ -117,13 +117,14 @@
           "strong_down"
         ],
         "allowed_micro_regimes": [
+          "ranging_medium",
           "ranging_narrow",
           "ranging_wide",
           "transitioning",
           "trending_fast_down",
           "trending_slow_down"
         ],
-        "updated_at": "2026-05-23T17:55:28Z"
+        "updated_at": "2026-05-23T17:58:35Z"
       }
     }
   ]
