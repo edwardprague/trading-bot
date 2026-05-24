@@ -23,8 +23,19 @@ Usage
 -----
     source venv/bin/activate
     python3 regime_analysis.py
+
+    # Override the date windows (May 2026). --start / --end set both the
+    # labels parquet AND the rendered report; --labels-* and --report-*
+    # let those windows diverge:
+    python3 regime_analysis.py --start 2009-09-25 --end 2026-05-11
+    python3 regime_analysis.py --start 2009-09-25 --end 2026-05-11 \\
+        --report-start 2025-01-01 --report-end 2026-03-31
+
+    # Skip the per-day chart generation loop (much faster for label-only runs):
+    GENERATE_DAILY_CHARTS=false python3 regime_analysis.py --start 2009-09-25 --end 2026-05-11
 """
 
+import argparse
 import os
 import sys
 import io
@@ -118,6 +129,15 @@ LOOKBACK_FRACTALS = 4
 # How many bars (5m) to keep before START_DATE so the rolling lookback is
 # already populated by the time we reach the first in-range fractal.
 WARMUP_BARS = 30
+
+# Report window — defaults to the labels window above, but can be narrowed
+# independently via --report-start / --report-end (May 2026). Use case:
+# regenerate labels for the full historical range without forcing the HTML
+# report to render every day of it. Resolved by main() from CLI args; the
+# rest of the module reads these names so callers don't have to thread
+# explicit dates through every signature.
+REPORT_START_DATE = START_DATE
+REPORT_END_DATE   = END_DATE
 
 # When True, generate_daily_charts() runs and writes one PNG per trading day
 # to results/regime_charts/. When False, the chart-generation loop is skipped
@@ -1289,8 +1309,12 @@ def stage3_trade_outcomes(fractal_df, full_df, macro=None):
 
     trades, _, blocked_signals = strat.run_backtest(full_df)
 
-    start_ts = pd.Timestamp(START_DATE, tz="UTC")
-    end_ts   = pd.Timestamp(END_DATE,   tz="UTC") + pd.Timedelta(days=1)
+    # Trade attribution + per-regime stats are report-scoped (the perf tables
+    # only show trades inside the report window). May 2026: switched from the
+    # shared START_DATE/END_DATE to REPORT_START_DATE/REPORT_END_DATE so a
+    # wider labels run doesn't pull in trades outside the report's window.
+    start_ts = pd.Timestamp(REPORT_START_DATE, tz="UTC")
+    end_ts   = pd.Timestamp(REPORT_END_DATE,   tz="UTC") + pd.Timedelta(days=1)
 
     # ── Fresh per-fractal regime asof series (for micro attribution) ───────
     _frac_ts = pd.to_datetime(fractal_df["timestamp"])
@@ -1396,11 +1420,17 @@ def stage4_thresholds(thresholds):
 # Daily chart generation
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _trading_days_in_range(full_df):
-    """List of unique YYYY-MM-DD strings inside [START_DATE, END_DATE] that
-    have at least one bar in `full_df`."""
-    start_ts = pd.Timestamp(START_DATE, tz="UTC")
-    end_ts   = pd.Timestamp(END_DATE,   tz="UTC") + pd.Timedelta(days=1)
+def _trading_days_in_range(full_df, start_date=None, end_date=None):
+    """List of unique YYYY-MM-DD strings in `full_df` inside the requested
+    [start_date, end_date] window. Defaults to the labels window
+    (START_DATE / END_DATE) — pass the report window explicitly when the
+    caller wants days bounded by the report range (e.g. build_report's
+    low-activity stats or generate_daily_charts' per-day loop). May 2026:
+    parameterised for the labels/report-window split."""
+    sd = start_date if start_date is not None else START_DATE
+    ed = end_date   if end_date   is not None else END_DATE
+    start_ts = pd.Timestamp(sd, tz="UTC")
+    end_ts   = pd.Timestamp(ed, tz="UTC") + pd.Timedelta(days=1)
     dts = pd.to_datetime(full_df["Datetime"])
     dts_utc = dts.dt.tz_convert("UTC") if dts.dt.tz is not None else dts.dt.tz_localize("UTC")
     in_rng = full_df[(dts_utc >= start_ts) & (dts_utc < end_ts)]
@@ -1430,7 +1460,11 @@ def generate_daily_charts(full_df):
       buffer so terminal output stays minimal.
     """
     REGIME_CHARTS_DIR.mkdir(parents=True, exist_ok=True)
-    days = _trading_days_in_range(full_df)
+    # Bound chart generation to the report window (May 2026). A wide labels
+    # run shouldn't dump every labelled day's PNG to disk — only the days
+    # the report will actually link to. If labels == report (the common
+    # case), behaviour is unchanged.
+    days = _trading_days_in_range(full_df, REPORT_START_DATE, REPORT_END_DATE)
     total = len(days)
     if total == 0:
         return set()
@@ -2198,9 +2232,12 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     if blocked_signals_df is None:
         blocked_signals_df = pd.DataFrame(columns=trades_df.columns)
 
-    # Trim to requested range for display counts
-    start_ts = pd.Timestamp(START_DATE, tz="UTC")
-    end_ts   = pd.Timestamp(END_DATE,   tz="UTC") + pd.Timedelta(days=1)
+    # Trim to requested range for display counts. May 2026: report-scoped —
+    # the parquet may carry labels for a wider window (labels-pipeline), but
+    # the report's display counts / cards / timeline only show the report
+    # window. The labels parquet itself is unaffected.
+    start_ts = pd.Timestamp(REPORT_START_DATE, tz="UTC")
+    end_ts   = pd.Timestamp(REPORT_END_DATE,   tz="UTC") + pd.Timedelta(days=1)
     in_range = fractal_df[
         (fractal_df["timestamp"] >= start_ts) & (fractal_df["timestamp"] < end_ts)
     ]
@@ -2208,6 +2245,17 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         p for p in periods
         if pd.Timestamp(p["end_ts"]) >= start_ts and pd.Timestamp(p["start_ts"]) < end_ts
     ]
+
+    # Window the macro dict to the report range too (May 2026 follow-up to
+    # the labels/report split). The unfiltered macro dict from stage2b spans
+    # the full labels window; every downstream consumer in this function
+    # (_filter_trades_by_macro, build_macro_perf_table, build_macro_summary_cards,
+    # build_timeline_section_html) computes counts/labels from macro.values()
+    # or macro.get(date) and would otherwise produce full-history totals.
+    # Persist_labels in main() still gets the unfiltered macro — the parquet
+    # carries the full labels window regardless of the report window.
+    macro = {d: v for d, v in (macro or {}).items()
+             if REPORT_START_DATE <= d <= REPORT_END_DATE}
 
     # Periods-per-regime count (used by the Micro regime performance table
     # and by the timeline legend).
@@ -2220,7 +2268,7 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     # fractals were detected during it. Trades on these days are not excluded
     # from any statistics — we just flag them so the user knows the regime
     # labels assigned during those quiet stretches may be less reliable.
-    trading_days_all = _trading_days_in_range(full_df)
+    trading_days_all = _trading_days_in_range(full_df, REPORT_START_DATE, REPORT_END_DATE)
     fractals_per_day = {}
     if not in_range.empty:
         _ts = pd.to_datetime(in_range["timestamp"])
@@ -2419,7 +2467,7 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
     # interactive updates.
     timeline_inner_html = build_timeline_section_html(
         in_range_periods, macro, trades_per_day,
-        START_DATE, END_DATE, regime_count,
+        REPORT_START_DATE, REPORT_END_DATE, regime_count,
     )
 
     # Top-of-report summary stats bar — shared helper.
@@ -2456,9 +2504,9 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
            consistent with reading "From X To Y, then run". -->
       <!-- Task 3: native date inputs (no Mon-DD-YY overlay). -->
       <label class="rb-label" for="rb-start">From</label>
-      <input type="date" id="rb-start" class="rb-date" value="{START_DATE}">
+      <input type="date" id="rb-start" class="rb-date" value="{REPORT_START_DATE}">
       <label class="rb-label" for="rb-end">To</label>
-      <input type="date" id="rb-end" class="rb-date" value="{END_DATE}">
+      <input type="date" id="rb-end" class="rb-date" value="{REPORT_END_DATE}">
       <button id="run-analysis-btn" class="rb-btn rb-btn-green" type="button">
         <span class="rb-btn-icon">&#9654;</span> Run Analysis
       </button>
@@ -2576,7 +2624,7 @@ def build_report(fractal_df, periods, thresholds, trades_df, perf_df,
         </button>
       </div>
       <div class="regime-header-meta">
-        <span><strong>Range:</strong> {START_DATE} → {END_DATE}</span>
+        <span><strong>Range:</strong> {REPORT_START_DATE} → {REPORT_END_DATE}</span>
         <span><strong>Fractals:</strong> {len(in_range)}</span>
         <span><strong>Periods:</strong> {len(in_range_periods)}</span>
         <span><strong>Lookback:</strong> {LOOKBACK_FRACTALS}</span>
@@ -3786,7 +3834,95 @@ def persist_labels(fractal_df, thresholds, periods, macro=None):
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _parse_iso_date(s, field):
+    """Validate a YYYY-MM-DD string; abort with a clear error otherwise."""
+    try:
+        datetime.strptime(s, "%Y-%m-%d")
+    except ValueError:
+        raise SystemExit(f"ERROR: {field} must be YYYY-MM-DD (got: {s!r})")
+    return s
+
+
+def _build_arg_parser():
+    """CLI for regime_analysis.py. May 2026 — added windowed flags so the
+    labels parquet and report window can diverge (use case: regenerate
+    labels for the full historical range, render the report on a narrow
+    verification window). Resolution order:
+      • --labels-start / --labels-end → labels window
+      • --report-start / --report-end → report window
+      • --start / --end fall through to anything not explicitly set above
+      • module constants (START_DATE / END_DATE) are the final fallback
+    With no flags, behaviour matches pre-May-2026 (both windows = constants)."""
+    p = argparse.ArgumentParser(
+        description="Regenerate regime labels parquet + HTML report",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("--start", type=str, default=None,
+                   help="Set BOTH labels and report start dates (YYYY-MM-DD). "
+                        "Overridden per-window by --labels-start / --report-start.")
+    p.add_argument("--end", type=str, default=None,
+                   help="Set BOTH labels and report end dates (YYYY-MM-DD). "
+                        "Overridden per-window by --labels-end / --report-end.")
+    p.add_argument("--labels-start", type=str, default=None, dest="labels_start",
+                   help="Labels parquet start date (overrides --start).")
+    p.add_argument("--labels-end", type=str, default=None, dest="labels_end",
+                   help="Labels parquet end date (overrides --end).")
+    p.add_argument("--report-start", type=str, default=None, dest="report_start",
+                   help="HTML report start date (overrides --start). Must lie "
+                        "within the labels window.")
+    p.add_argument("--report-end", type=str, default=None, dest="report_end",
+                   help="HTML report end date (overrides --end). Must lie "
+                        "within the labels window.")
+    return p
+
+
+def _resolve_windows(args):
+    """Resolve the labels + report windows from CLI args, validate that the
+    report window is a subset of the labels window, and rebind the module
+    globals so the stages downstream see the resolved values. Returns
+    ((labels_start, labels_end), (report_start, report_end))."""
+    global START_DATE, END_DATE, REPORT_START_DATE, REPORT_END_DATE
+    labels_start = args.labels_start or args.start or START_DATE
+    labels_end   = args.labels_end   or args.end   or END_DATE
+    # Report defaults to labels when not explicitly set. This keeps the
+    # default behaviour identical to pre-May-2026: one window, one report.
+    report_start = args.report_start or args.start or labels_start
+    report_end   = args.report_end   or args.end   or labels_end
+
+    for s, name in [(labels_start, "--labels-start (or --start)"),
+                    (labels_end,   "--labels-end (or --end)"),
+                    (report_start, "--report-start (or --start)"),
+                    (report_end,   "--report-end (or --end)")]:
+        _parse_iso_date(s, name)
+
+    if labels_start > labels_end:
+        raise SystemExit(f"ERROR: labels-start ({labels_start}) is after "
+                         f"labels-end ({labels_end})")
+    if report_start > report_end:
+        raise SystemExit(f"ERROR: report-start ({report_start}) is after "
+                         f"report-end ({report_end})")
+    if report_start < labels_start or report_end > labels_end:
+        raise SystemExit(
+            f"ERROR: report window [{report_start}, {report_end}] must lie "
+            f"within labels window [{labels_start}, {labels_end}]. "
+            "Widen --labels-start/--labels-end or narrow --report-start/--report-end.")
+
+    START_DATE        = labels_start
+    END_DATE          = labels_end
+    REPORT_START_DATE = report_start
+    REPORT_END_DATE   = report_end
+    return (labels_start, labels_end), (report_start, report_end)
+
+
 def main():
+    args = _build_arg_parser().parse_args()
+    (labels_start, labels_end), (report_start, report_end) = _resolve_windows(args)
+    if (labels_start, labels_end) == (report_start, report_end):
+        print(f"Windows: labels = report = {labels_start} → {labels_end}")
+    else:
+        print(f"Windows: labels {labels_start} → {labels_end}  "
+              f"|  report {report_start} → {report_end}")
+
     fractal_df, full_df = stage1_extract_fractals()
     if fractal_df.empty:
         print("No fractals detected — aborting.")
