@@ -4155,6 +4155,28 @@ body.discovery-trial-page {
     letter-spacing: 0.08em;
 }
 
+/* Strict-swings chip (May 2026, live macro v2) — sits next to the LIVE
+   MODE chip when the run used the H1 ≥ H3 ≥ H6 precision filter. Uses
+   the platform's purple-violet accent so it reads as a property tag
+   distinct from LIVE MODE's cyan, not as a warning. */
+.discovery-run-stat-strict {
+    color: #f5f0ff;
+    background: #7c5cbf;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+/* Regime-filters parity-only note (May 2026, live macro v2). Slightly
+   tighter top margin so it reads as a continuation of the main hint
+   paragraph above it rather than a separate block. */
+.ds-regime-parity-only {
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
 /* Live Mode hint text inside the Discovery Settings panel — the
    explanatory paragraph under the Live Mode select. Inherits the dim
    muted-grey treatment of .text-dim but adds a small top margin so the

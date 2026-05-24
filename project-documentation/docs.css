@@ -49,6 +49,13 @@ body {
     line-height: 1.75;
 }
 
+
+.fractal-column {
+    background-color: teal;
+    color: #fff;
+    padding: 5px 7px;
+}
+
 /* ── NAV ── */
 nav {
     position: sticky;

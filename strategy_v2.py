@@ -133,13 +133,16 @@ _REGIME_MACRO_BY_DATE = {}      # {'YYYY-MM-DD': 'staircase_down', ...}
 _REGIME_MICRO_SERIES   = None    # pd.Series of micro_label keyed by UTC ts
 _REGIME_LABELS_LOADED  = False
 
-# Live Mode (May 2026) — when REGIME_MODE=live, swap the parquet-backed
-# lookups for a streaming classifier built from the bars cache. cBot-faithful
-# semantics: prior-day macro label, running per-fractal micro sub-labels,
-# no look-ahead. Used by Discovery's Live Mode toggle to optimise parameters
-# against the regime semantics the live cTrader cBot will actually see.
-_REGIME_MODE = os.environ.get("REGIME_MODE", "parity").strip().lower()
-_STREAMING_CLF = None    # StreamingRegimeClassifier instance (live mode only)
+# Live Mode (May 2026) — REGIME_MODE=live swaps the parquet-backed gate
+# for the v2 swing-height + ADX classifier (macro_classifier_v2.py).
+# Empirical basis: pre-session H1 averaged 24 pips on good-P&L days vs 14
+# pips on bad-P&L days in 2025 (Cohen's d ≈ 0.6); the regime-label gate
+# itself has near-zero next-day predictive power (~30% match vs ~28%
+# random). The v2 classifier replaces both the parquet path AND the
+# earlier streaming-classifier path; regime_streaming.py is retained on
+# disk for reference but no longer wired in.
+_REGIME_MODE   = os.environ.get("REGIME_MODE", "parity").strip().lower()
+_MACRO_CLF_V2  = None  # MacroClassifierV2 instance (live mode only)
 
 def _load_regime_labels():
     """Load macro/micro lookups from data/regime_labels.parquet.
@@ -299,149 +302,83 @@ def _check_micro_regime(ts):
         return True, ""
     return False, "micro_regime"
 
-def _load_streaming_regime_classifier():
-    """Live-mode counterpart of _load_regime_labels(). Builds a
-    StreamingRegimeClassifier(mode="live") over the bars cache for
-    INSTRUMENT/INTERVAL and stashes it in module-global _STREAMING_CLF.
-    _check_macro_regime / _check_micro_regime then delegate to it.
+def _load_macro_classifier_v2():
+    """Live-mode setup: build a MacroClassifierV2 from MACRO_* env vars
+    and replace _check_macro_regime with a closure that queries it.
 
-    Fall-back: if the bars cache is missing, or regime_streaming.py can't
-    be imported, the streaming gate silently no-ops (returns pass-through),
-    matching _load_regime_labels()'s graceful-degradation behaviour. This
-    way an un-cached instrument or a partial deployment doesn't break the
-    backtest.
+    Thresholds come from the env (set by discovery.py's build_env, or by
+    the dashboard's live-mode trigger). Defaults match the empirically
+    derived starting points from PRE_SESSION_METRICS_REPORT.md:
+        T_height = 10 pips
+        T_adx    = 20
+        strict_swings = False
+    Discovery treats T_height and T_adx as search dimensions, so each
+    trial's subprocess sees its own thresholds via env vars.
 
-    Frozen thresholds: we re-use the pips_per_bar / width_pips terciles
-    persisted in regime_labels.parquet (they're the calibrated values
-    every backtest in this project assumes). When the parquet is also
-    absent we fall back to the DEFAULT_THRESHOLDS hardcoded in
-    regime_streaming.py — same numbers, just a different lookup path.
+    The classifier is stateful across fractals. run_backtest pushes
+    on_fractal() events from the fractal-detection block and calls
+    reset() at the start of each run so a single module-level instance
+    serves repeated backtests cleanly.
+
+    Micro gate: live_v2 does NOT replace the micro gate — that stays on
+    the parquet (look-ahead) for now. The pre-session analysis only
+    addressed macro selectivity; micro is a separate question left for
+    a future pass.
     """
-    global _STREAMING_CLF, _REGIME_LABELS_LOADED
+    global _MACRO_CLF_V2, _REGIME_LABELS_LOADED, _check_macro_regime
     _REGIME_LABELS_LOADED = True
 
     try:
-        from regime_streaming import StreamingRegimeClassifier, DEFAULT_THRESHOLDS
+        from macro_classifier_v2 import MacroClassifierV2
     except ImportError as _e:
-        print(f"  [WARN] REGIME_MODE=live but regime_streaming import failed: {_e}")
-        print(f"         Regime gates disabled this run.")
+        print(f"  [WARN] REGIME_MODE=live but macro_classifier_v2 import failed: {_e}")
+        print(f"         Macro gate disabled — falling back to parity parquet path.")
+        _load_regime_labels()
         return
 
-    from pathlib import Path as _Path
-    base = _Path(__file__).resolve().parent
-    cache = base / "data" / f"{_INSTRUMENT}_{INTERVAL}.parquet"
-    if not cache.exists():
-        if ALLOWED_MACRO_KEYS or ALLOWED_MICRO_KEYS:
-            print(f"  [WARN] REGIME_MODE=live but bars cache {cache.name} missing — "
-                  f"regime gates disabled this run")
-        return
-
-    # Pull frozen tercile thresholds from regime_labels.parquet metadata so
-    # the streaming classifier's sub-labels share the same boundaries every
-    # other Discovery / RA run uses. Falls back to DEFAULT_THRESHOLDS when
-    # the labeler parquet is unavailable.
-    thresholds = dict(DEFAULT_THRESHOLDS)
-    parquet = base / "data" / "regime_labels.parquet"
-    if parquet.exists():
-        try:
-            import pyarrow.parquet as _pq
-            meta = _pq.read_metadata(str(parquet)).metadata or {}
-            blob = meta.get(b"regime_analysis") or meta.get(b"regime_labeler")
-            if blob:
-                _payload = json.loads(blob.decode("utf-8"))
-                if isinstance(_payload.get("thresholds"), dict):
-                    thresholds.update(_payload["thresholds"])
-        except Exception as _e:
-            print(f"  [WARN] Could not read live-mode thresholds from parquet: {_e}")
-
+    # Defaults updated May 2026 from (10, 20) to (12, 32) — see the
+    # macro_classifier_v2.py docstring for the empirical basis.
     try:
-        bars = pd.read_parquet(cache)
-    except Exception as _e:
-        print(f"  [WARN] Could not read bars cache {cache.name}: {_e}")
-        return
+        t_height = float(os.environ.get("MACRO_T_HEIGHT", "12.0"))
+    except (TypeError, ValueError):
+        t_height = 12.0
+    try:
+        t_adx = float(os.environ.get("MACRO_T_ADX", "32.0"))
+    except (TypeError, ValueError):
+        t_adx = 32.0
+    strict_swings = os.environ.get("MACRO_STRICT_SWINGS", "false").strip().lower() \
+                       in ("true", "1", "on", "yes")
 
-    # Bars cache index must be UTC-aware DatetimeIndex with Open/High/Low/Close.
-    # download_data.py guarantees this shape; defensive normalisation only.
-    if bars.index.tz is None:
-        bars.index = bars.index.tz_localize("UTC")
+    _MACRO_CLF_V2 = MacroClassifierV2(
+        t_height=t_height, t_adx=t_adx, strict_swings=strict_swings)
 
-    # Window the bars to the run's date range + buffer. Without this the
-    # streaming classifier processes every bar in the cache (16+ years for
-    # GBPUSD) at ~17s per trial — a 200-trial Discovery run would pay 57
-    # minutes of pure regime-build overhead. With a 60-day warmup buffer
-    # the state machine and rolling H/L lookbacks are fully primed before
-    # the trial's first bar, so the labels inside the window are identical
-    # to what a full-cache ingest would produce.
-    #
-    # 60-day buffer rationale: LOOKBACK_FRACTALS=4 fractals + the state-
-    # machine's 2-confirm rule needs ~6 same-kind fractals to commit a
-    # regime. On GBPUSD 5m that's typically a few days of bars; 60 days
-    # is comfortably above the worst case and the read remains cheap.
-    run_start_str = os.environ.get("RUN_START_DATE")
-    run_end_str   = os.environ.get("RUN_END_DATE")
-    if run_start_str and run_end_str:
-        try:
-            run_start = pd.Timestamp(run_start_str, tz="UTC") - pd.Timedelta(days=60)
-            run_end   = pd.Timestamp(run_end_str,   tz="UTC") + pd.Timedelta(days=7)
-            bars = bars[(bars.index >= run_start) & (bars.index < run_end)]
-        except Exception as _e:
-            print(f"  [WARN] Could not window bars for live mode ({_e}); "
-                  f"ingesting full cache")
+    def _check_macro_regime_v2(ts):
+        # ALLOWED_MACRO_KEYS is intentionally ignored in live_v2 — the
+        # regime-label allow-list has near-zero predictive value vs.
+        # swing-height + ADX (see LONDON_OPEN_VALIDATION_REPORT.md and
+        # PRE_SESSION_METRICS_REPORT.md). The new gate replaces it.
+        return _MACRO_CLF_V2.check_gate(ts)
 
-    _STREAMING_CLF = StreamingRegimeClassifier(mode="live", thresholds=thresholds)
-    _STREAMING_CLF.ingest(bars)
+    _check_macro_regime = _check_macro_regime_v2
 
-    if ALLOWED_MACRO_KEYS or ALLOWED_MICRO_KEYS:
-        print(f"  Regime gates (LIVE MODE): "
-              f"{len(_STREAMING_CLF.macro_by_date)} day labels, "
-              f"{len(_STREAMING_CLF.fractals)} fractal labels")
-        print(f"    cBot-faithful semantics — prior-day macro + running micro sub-labels")
-        if ALLOWED_MACRO_KEYS:
-            print(f"    Macro allow-list: {sorted(ALLOWED_MACRO_KEYS)}")
-        if ALLOWED_MICRO_KEYS:
-            print(f"    Micro allow-list: {sorted(ALLOWED_MICRO_KEYS)}")
+    # Still load the parquet for the micro gate (no changes there yet).
+    _load_regime_labels()
 
-    # Replace the gate functions with streaming-backed closures. Same
-    # signatures + return semantics as the parquet versions so the entry
-    # loop in run_backtest is untouched.
-    global _check_macro_regime, _check_micro_regime
-
-    def _check_macro_regime_live(ts):
-        if not ALLOWED_MACRO_KEYS:
-            return True, ""
-        if _STREAMING_CLF is None:
-            return True, ""
-        label = _STREAMING_CLF.macro_label_for_entry(ts)
-        if label is None:
-            return True, ""
-        if label in ALLOWED_MACRO_KEYS:
-            return True, ""
-        return False, "macro_regime"
-
-    def _check_micro_regime_live(ts):
-        if not ALLOWED_MICRO_KEYS:
-            return True, ""
-        if _STREAMING_CLF is None:
-            return True, ""
-        label = _STREAMING_CLF.micro_label_for_entry(ts)
-        if label is None:
-            return True, ""
-        if label in ALLOWED_MICRO_KEYS:
-            return True, ""
-        return False, "micro_regime"
-
-    _check_macro_regime = _check_macro_regime_live
-    _check_micro_regime = _check_micro_regime_live
+    if ALLOWED_MACRO_KEYS or ALLOWED_MICRO_KEYS or True:
+        strict_txt = "ON" if strict_swings else "off"
+        print(f"  Macro gate (LIVE v2): swing-height + ADX classifier")
+        print(f"    T_height = {t_height} pips  |  T_adx = {t_adx}  |  "
+              f"strict_swings = {strict_txt}")
+        print(f"    (Regime-label macro allow-list is bypassed in live mode v2)")
 
 
 # Load labels once at module import.
-# REGIME_MODE branch (May 2026): "live" → streaming classifier with no
-# look-ahead; anything else (default "parity" or unset) → existing
-# parquet behaviour. Discovery's Live Mode toggle sets REGIME_MODE=live
-# on the trial subprocesses; the dashboard / CLI paths leave it unset
-# and continue using the parquet exactly as before.
+# REGIME_MODE branch (May 2026): "live" → MacroClassifierV2 (swing-height
+# + ADX, no look-ahead); anything else (default "parity" or unset) →
+# parquet-based regime gate. The micro gate continues to use the parquet
+# in both modes for now.
 if _REGIME_MODE == "live":
-    _load_streaming_regime_classifier()
+    _load_macro_classifier_v2()
 else:
     _load_regime_labels()
 
@@ -885,6 +822,18 @@ def run_backtest(df):
     highs = df['High'].values
     lows  = df['Low'].values
     atr_vals = df['atr14'].values
+    # ADX values for the v2 macro gate (live mode only). Indexed by bar.
+    # Falls back to an all-NaN array when the indicator pipeline didn't
+    # produce ADX so on_fractal() can still receive a value without
+    # breaking — the v2 classifier treats non-numeric adx as "no ADX yet"
+    # and stays in pass-through warm-up.
+    adx_vals = df['adx'].values if 'adx' in df.columns else np.full(len(df), np.nan)
+
+    # Reset the live-mode macro classifier at the start of each backtest
+    # so a single module-level instance can serve repeated runs cleanly.
+    # No-op in parity mode (_MACRO_CLF_V2 stays None).
+    if _MACRO_CLF_V2 is not None:
+        _MACRO_CLF_V2.reset()
 
     prev_high_price = None   # price of the most recent pivot high
     prev_low_price  = None   # price of the most recent pivot low
@@ -1010,6 +959,13 @@ def run_backtest(df):
                 last_fractal_high_price = float(fh)
                 last_fractal_high_bar   = fi
                 _new_high_confirmed = True
+                # Live macro gate v2 — feed the new pivot high to the
+                # classifier so subsequent entry checks see updated H1/H3/H6
+                # + ADX. No-op in parity mode (_MACRO_CLF_V2 is None).
+                if _MACRO_CLF_V2 is not None:
+                    _MACRO_CLF_V2.on_fractal(
+                        price=float(fh), kind="H", adx=float(adx_vals[fi])
+                        if not pd.isna(adx_vals[fi]) else None)
 
             if is_pl:
                 last_low_label = 'L'
@@ -1018,6 +974,10 @@ def run_backtest(df):
                 last_fractal_low_price = float(fl)
                 last_fractal_low_bar   = fi
                 _new_low_confirmed = True
+                if _MACRO_CLF_V2 is not None:
+                    _MACRO_CLF_V2.on_fractal(
+                        price=float(fl), kind="L", adx=float(adx_vals[fi])
+                        if not pd.isna(adx_vals[fi]) else None)
 
         # ── Check entries ─────────────────────────────────────────────────────
         if not in_trade:
@@ -1132,7 +1092,16 @@ def run_backtest(df):
                 continue
 
             # ── Macro regime gate (Condition 1) ────────────────────────────────
-            if (long_sig or short_sig) and ALLOWED_MACRO_KEYS:
+            # The pre-May-2026 short-circuit "only call macro gate when
+            # ALLOWED_MACRO_KEYS is non-empty" assumed the macro gate was
+            # purely an allow-list check. The v2 live macro gate
+            # (macro_classifier_v2.MacroClassifierV2) doesn't consult
+            # ALLOWED_MACRO_KEYS at all — it gates on swing height + ADX —
+            # so the short-circuit silently disabled it. Replacement: also
+            # call _check_macro_regime when the v2 classifier is active,
+            # regardless of allow-list contents.
+            _v2_active = _MACRO_CLF_V2 is not None
+            if (long_sig or short_sig) and (ALLOWED_MACRO_KEYS or _v2_active):
                 _macro_ok, _macro_reason = _check_macro_regime(ts)
                 if not _macro_ok:
                     _side = "long" if long_sig else "short"

@@ -2164,9 +2164,28 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                       <option value="true">On (cBot-faithful)</option>
                   </select>
                   <div class="text-dim ds-hint ds-live-mode-hint">
-                    Off: uses same-day regime labels (backtest reference).
-                    On: prior-day macro + real-time micro labels, matching
-                    live cBot behaviour.
+                    Off: uses same-day regime labels (parity baseline).
+                    On: live v2 macro gate — swing-height + ADX classifier,
+                    no look-ahead, matching live cBot behaviour.
+                  </div>
+                </td></tr>
+            <!-- Expanding Swings (May 2026) — strict-mode toggle for the
+                 v2 macro gate. When On, the gate additionally requires
+                 H1 ≥ H3 ≥ H6 (monotonically expanding swing heights).
+                 Empirically catches only 49% of good-P&L days but
+                 excludes 97% of bad-day P&L (PRE_SESSION_METRICS_REPORT.md);
+                 useful as a higher-precision toggle layered on top of
+                 T_height + T_adx. No effect when Live Mode is Off. -->
+            <tr><td class="lbl">Expanding Swings</td>
+                <td>
+                  <select id="ds-strict-swings" class="discovery-form-input ds-select">
+                      <option value="false">Off</option>
+                      <option value="true">Required (H1 ≥ H3 ≥ H6)</option>
+                  </select>
+                  <div class="text-dim ds-hint ds-live-mode-hint">
+                    Optional precision filter on the live macro gate. When
+                    on, entries require monotonically expanding pre-session
+                    swings. Live mode only.
                   </div>
                 </td></tr>
           </tbody></table>
@@ -2176,6 +2195,34 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           <table><tbody>
             <tr><td class="lbl">EMA Long</td>      <td><span class="val-highlight">10 – 200</span></td></tr>
             <tr><td class="lbl">Stop Loss</td>     <td><span class="val-highlight">5 – 50 pips</span></td></tr>
+            <!-- Live macro v2 thresholds (May 2026). Searched per trial
+                 when Live Mode is on; ignored otherwise. T_height is the
+                 minimum swing height (H1) required at fractal formation;
+                 T_adx is the minimum 14-period ADX at the same moment.
+                 Both bounds are user-editable (May 2026 update) so the
+                 search range can be tuned without a code change — the
+                 60-trial run with default range (8-25 / 24-35) clustered
+                 at the upper height bound suggesting a wider search would
+                 find better operating points; the defaults below
+                 (20-40 / 28-45) reflect the new region of interest. -->
+            <tr><td class="lbl">Min Swing Height</td>
+                <td>
+                  <input type="number" id="ds-t-height-min" class="discovery-form-input ds-num-input"
+                         step="1" min="1" max="100" value="20">
+                  <span class="val-highlight">–</span>
+                  <input type="number" id="ds-t-height-max" class="discovery-form-input ds-num-input"
+                         step="1" min="1" max="100" value="40">
+                  <span class="text-dim">pips (T_height — live mode only)</span>
+                </td></tr>
+            <tr><td class="lbl">Min ADX</td>
+                <td>
+                  <input type="number" id="ds-t-adx-min" class="discovery-form-input ds-num-input"
+                         step="1" min="1" max="100" value="28">
+                  <span class="val-highlight">–</span>
+                  <input type="number" id="ds-t-adx-max" class="discovery-form-input ds-num-input"
+                         step="1" min="1" max="100" value="45">
+                  <span class="text-dim">(T_adx — live mode only)</span>
+                </td></tr>
             <!-- RRR Reward — May 2026: the lower bound stays fixed at 1
                  (the rrr_risk is implicitly 1 across every Discovery
                  trial), but the upper bound is now an editable per-run
@@ -2223,6 +2270,15 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           <p class="text-dim ds-hint discovery-regime-hint">
             Toggled-on regimes are allowed for every trial. Toggled-off regimes are
             locked out for the entire run.
+          </p>
+          <!-- May 2026: with Live Mode on, the regime-label toggles below
+               do nothing — the v2 macro gate (swing-height + ADX) replaces
+               the regime-label allow-list entirely. The toggles remain
+               here for parity-mode runs and as historical context. -->
+          <p class="text-dim ds-hint discovery-regime-hint ds-regime-parity-only">
+            <strong>Parity mode only.</strong> When Live Mode is on, the v2
+            macro gate (swing-height + ADX) replaces these regime-label
+            toggles. They have no effect on live-mode trials.
           </p>
           <div class="regime-control-grid">
             <div class="regime-control-col">
@@ -2617,6 +2673,17 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           var ps = trial.params || {};
           return (ps.stop_loss_pips == null) ? 0 : Number(ps.stop_loss_pips);
         }
+        /* T_height / T_adx — live macro v2 thresholds in trial.params.
+           Legacy trials predating the v2 gate sort to 0 (bottom of
+           descending sorts). */
+        if (key === "t_height") {
+          var pth = trial.params || {};
+          return (pth.t_height == null) ? 0 : Number(pth.t_height);
+        }
+        if (key === "t_adx") {
+          var pta = trial.params || {};
+          return (pta.t_adx == null) ? 0 : Number(pta.t_adx);
+        }
         var m = trial.metrics || {};
         var v = m[key];
         /* Profit factor null = infinity = best */
@@ -2801,11 +2868,21 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
            the parquet-baseline runs every historical record uses. */
         if (cfg.live_mode === true) {
           var liveChip = spanCls("discovery-run-stat discovery-run-stat-live", "LIVE MODE");
-          liveChip.title = "Regime labels computed with cBot-faithful semantics "
-                         + "(prior-day macro, running micro sub-labels, no "
-                         + "look-ahead). Parameters from this run are intended "
-                         + "for live deployment.";
+          liveChip.title = "v2 macro gate (swing-height + ADX, no "
+                         + "look-ahead). T_height and T_adx are searched "
+                         + "per trial within the displayed ranges. "
+                         + "Parameters from this run are intended for "
+                         + "live deployment.";
           meta.appendChild(liveChip);
+        }
+        /* Strict-swings chip (May 2026) — only rendered when the run used
+           the H1 ≥ H3 ≥ H6 precision filter on top of the v2 macro gate.
+           Off by default, so most live-mode runs won't show this chip. */
+        if (cfg.strict_swings === true) {
+          var strictChip = spanCls("discovery-run-stat discovery-run-stat-strict", "STRICT SWINGS");
+          strictChip.title = "Expanding-swings precision filter active: "
+                           + "entries additionally required H1 ≥ H3 ≥ H6.";
+          meta.appendChild(strictChip);
         }
         meta.appendChild(spanCls("discovery-run-date", fmtRunDate(run.started_at)));
         /* Elapsed wall-clock time. May 2026:
@@ -2910,6 +2987,13 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           ["max_daily_drawdown", "DD 2"],
           ["rrr",                "RRR"],
           ["ema",                "EMA"],
+          /* Live macro v2 thresholds (May 2026). Per-trial searched
+             values; show only the numeric pip / ADX figure. Sorted via
+             "t_height" / "t_adx" keys, special-cased to read from
+             .params. Cells render "—" for legacy trials whose params
+             dict pre-dates the v2 macro gate. */
+          ["t_height",           "T_h"],
+          ["t_adx",              "T_adx"],
           ["total_trades",       "Trades"],
           ["winning_trades",     "Wins"],
           ["losing_trades",      "Losses"],
@@ -2982,14 +3066,13 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         tbody.innerHTML = "";
         if (visible.length === 0) {
           /* No passing trials — render a single colspanned message row
-             instead of an empty tbody. colspan matches the 14-column
-             header (10 after Pass was dropped, 11 after RRR was added,
-             12 after EMA was added, 13 after Sharpe was added, 14 after
-             SL was added). */
+             instead of an empty tbody. colspan tracks the column count:
+             14 after SL was added, 16 after T_h + T_adx were added
+             (May 2026, live macro v2). */
           var emptyTr = document.createElement("tr");
           emptyTr.className = "discovery-run-empty";
           var emptyTd = document.createElement("td");
-          emptyTd.setAttribute("colspan", "14");
+          emptyTd.setAttribute("colspan", "16");
           emptyTd.textContent = "No passing results.";
           emptyTr.appendChild(emptyTd);
           tbody.appendChild(emptyTr);
@@ -3051,6 +3134,22 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           tr.appendChild(td(fmtPct(maxDailyDDPct(m)),          "discovery-cell-num"));
           tr.appendChild(td(rrrText,                           "discovery-cell-num"));
           tr.appendChild(td(emaText,                           "discovery-cell-num"));
+          /* T_height / T_adx — live macro v2 thresholds. p.t_height and
+             p.t_adx are populated by sample_params (discovery.py) on every
+             trial regardless of live-mode setting; parity-mode trials show
+             the searched value but it's informational only (strategy_v2
+             ignores it in parity mode). One decimal place matches the
+             per-trial precision (round(_, 1) in sample_params). Legacy
+             trials predating the v2 macro gate render "—". (Bug fix:
+             previously called fmt() which is not defined on this page —
+             reference error silently aborted renderBlockBody, leaving the
+             whole run block missing from the stack.) */
+          var thText  = (p.t_height !== undefined && p.t_height !== null)
+                          ? Number(p.t_height).toFixed(1) : "—";
+          var taxText = (p.t_adx    !== undefined && p.t_adx    !== null)
+                          ? Number(p.t_adx).toFixed(1)    : "—";
+          tr.appendChild(td(thText,                            "discovery-cell-num"));
+          tr.appendChild(td(taxText,                           "discovery-cell-num"));
           tr.appendChild(td(fmtInt(m.total_trades),            "discovery-cell-num"));
           tr.appendChild(td(fmtInt(m.winning_trades),          "discovery-cell-num"));
           tr.appendChild(td(fmtInt(m.losing_trades),           "discovery-cell-num"));
@@ -3349,6 +3448,13 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           /* May 2026 — Live Mode (cBot-faithful regime classification).
              Wire as a string; server-side accepts "true"/"false"/bool. */
           live_mode:        settings.live_mode,
+          /* May 2026 — Expanding Swings strict mode (v2 macro gate). */
+          strict_swings:    settings.strict_swings,
+          /* May 2026 — editable T_h / T_adx search bounds (live mode). */
+          t_height_min:     settings.t_height_min,
+          t_height_max:     settings.t_height_max,
+          t_adx_min:        settings.t_adx_min,
+          t_adx_max:        settings.t_adx_max,
         };
         if (seed !== null && !isNaN(seed)) body.seed = seed;
         fetch("/api/discovery/run", {
@@ -3396,11 +3502,22 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         rrr_reward_max:   "5",
         /* May 2026 — Live Mode (cBot-faithful regime classification).
            "false" → parquet-style same-day macro + retroactive sub-labels
-           (every historical Discovery run). "true" → no look-ahead;
-           strategy_v2 reads regime labels from regime_streaming.py in
-           "live" mode. Used to optimise parameters under the semantics a
-           live cTrader cBot can actually achieve. */
+           (every historical Discovery run). "true" → strategy_v2 swaps
+           in the v2 macro gate (swing-height + ADX, no look-ahead),
+           defined in macro_classifier_v2.py. */
         live_mode:        "false",
+        /* May 2026 — Expanding Swings strict mode for the v2 macro gate.
+           "false" → no extra filter. "true" → also require H1 ≥ H3 ≥ H6
+           at entry time. Live mode only. */
+        strict_swings:    "false",
+        /* May 2026 — Editable T_height / T_adx search ranges (live mode).
+           Defaults widened to 20-40 / 28-45 after the 60-trial run on the
+           original 8-25 / 24-35 ranges clustered at the upper T_h bound,
+           suggesting a richer operating region above. */
+        t_height_min:     "20",
+        t_height_max:     "40",
+        t_adx_min:        "28",
+        t_adx_max:        "45",
       };
       /* Regime keys in the canonical display order. Mirror discovery.py's
          ALL_MACRO_REGIMES / ALL_MICRO_REGIMES + the RA page's
@@ -3442,7 +3559,10 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         });
         [["min-pf", "min_pf"], ["min-trades", "min_trades"], ["max-dd-pct", "max_dd_pct"],
          ["max-daily-dd-pct", "max_daily_dd_pct"],
-         ["rrr-reward-max", "rrr_reward_max"]].forEach(function (p) {
+         ["rrr-reward-max", "rrr_reward_max"],
+         /* May 2026 — editable T_h / T_adx search bounds. */
+         ["t-height-min", "t_height_min"], ["t-height-max", "t_height_max"],
+         ["t-adx-min",    "t_adx_min"],    ["t-adx-max",    "t_adx_max"]].forEach(function (p) {
           var el = document.getElementById("ds-" + p[0]);
           if (!el) return;
           el.value = loadDS(p[1]);
@@ -3464,6 +3584,13 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         if (liveEl) {
           liveEl.value = loadDS("live_mode");
           liveEl.addEventListener("change", function () { saveDS("live_mode", liveEl.value); });
+        }
+        /* Expanding Swings select — same wire format as Live Mode /
+           EMA Filter. Strict-mode toggle for the v2 macro gate. */
+        var strictEl = document.getElementById("ds-strict-swings");
+        if (strictEl) {
+          strictEl.value = loadDS("strict_swings");
+          strictEl.addEventListener("change", function () { saveDS("strict_swings", strictEl.value); });
         }
         var grid = document.getElementById("ds-blocked-hours-grid");
         if (grid) {
@@ -3617,11 +3744,21 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
              constants apply to the whole run. NOT persisted to versions.json. */
           allowed_macro_regimes: collectAllowedRegimes("ds-regime-macro-toggles").join(","),
           allowed_micro_regimes: collectAllowedRegimes("ds-regime-micro-toggles").join(","),
-          /* Live Mode (May 2026) — cBot-faithful regime classification.
-             "false" → parquet behaviour (parity mode); "true" → streaming
-             classifier in live mode (prior-day macro + running micro
-             sub-labels, no look-ahead). */
+          /* Live Mode (May 2026) — "true" routes to the v2 macro gate
+             (swing-height + ADX, no look-ahead); "false" stays on the
+             parquet behaviour. */
           live_mode:        v("ds-live-mode", DISCO_DEFAULTS.live_mode),
+          /* Expanding Swings strict mode (May 2026) — secondary precision
+             filter on the v2 macro gate. Has no effect in parity mode. */
+          strict_swings:    v("ds-strict-swings", DISCO_DEFAULTS.strict_swings),
+          /* Editable T_h / T_adx search bounds (May 2026, live mode only).
+             Parsed as floats so non-integer thresholds (e.g. 23.5 pips) are
+             supportable later — the inputs use step="1" today but the
+             server-side accepts any number. */
+          t_height_min:     parseFloat(v("ds-t-height-min", DISCO_DEFAULTS.t_height_min)),
+          t_height_max:     parseFloat(v("ds-t-height-max", DISCO_DEFAULTS.t_height_max)),
+          t_adx_min:        parseFloat(v("ds-t-adx-min",    DISCO_DEFAULTS.t_adx_min)),
+          t_adx_max:        parseFloat(v("ds-t-adx-max",    DISCO_DEFAULTS.t_adx_max)),
         };
       }
 
@@ -4961,6 +5098,46 @@ def api_discovery_run():
         else:
             return jsonify({"ok": False, "error": "live_mode must be true or false"}), 400
 
+    # strict_swings: Expanding Swings precision filter for the v2 macro
+    # gate (live mode only). Same accepted forms as live_mode. Default
+    # False; ignored in parity mode by strategy_v2.
+    raw_strict = body.get("strict_swings")
+    strict_swings = None
+    if raw_strict is not None:
+        if isinstance(raw_strict, bool):
+            strict_swings = raw_strict
+        elif isinstance(raw_strict, str):
+            s = raw_strict.strip().lower()
+            if s in ("true", "1", "on", "yes"):
+                strict_swings = True
+            elif s in ("false", "0", "off", "no"):
+                strict_swings = False
+            else:
+                return jsonify({"ok": False, "error": "strict_swings must be true or false"}), 400
+        else:
+            return jsonify({"ok": False, "error": "strict_swings must be true or false"}), 400
+
+    # T_height / T_adx editable search bounds (May 2026, live mode only).
+    # Parsed as floats so the inputs can carry decimals if needed. Each
+    # bound is independently optional — if min OR max is missing,
+    # discovery.py falls back to its module defaults. If BOTH are present
+    # we additionally require min <= max + sanity bounds (1 ≤ v ≤ 100).
+    t_height_min = _parse_num("t_height_min", 1.0, 100.0, float)
+    t_height_max = _parse_num("t_height_max", 1.0, 100.0, float)
+    t_adx_min    = _parse_num("t_adx_min",    1.0, 100.0, float)
+    t_adx_max    = _parse_num("t_adx_max",    1.0, 100.0, float)
+    for v in (t_height_min, t_height_max, t_adx_min, t_adx_max):
+        if isinstance(v, tuple):
+            return v
+    if (t_height_min is not None and t_height_max is not None
+            and t_height_min > t_height_max):
+        return jsonify({"ok": False,
+                        "error": "t_height_min must be ≤ t_height_max"}), 400
+    if (t_adx_min is not None and t_adx_max is not None
+            and t_adx_min > t_adx_max):
+        return jsonify({"ok": False,
+                        "error": "t_adx_min must be ≤ t_adx_max"}), 400
+
     # ── Regime Filters (May 2026) ────────────────────────────────────────
     # Allow-list of toggled-on regime keys per axis. Wire format is CSV;
     # JSON array also accepted defensively (CLI callers might pass either).
@@ -5051,6 +5228,23 @@ def api_discovery_run():
         # Live Mode (May 2026) — only set when explicitly provided so CLI
         # callers and legacy paths default to False (parity) via discovery.py.
         if live_mode is not None: cfg["live_mode"] = live_mode
+        # Expanding Swings strict mode for the v2 macro gate (May 2026).
+        if strict_swings is not None: cfg["strict_swings"] = strict_swings
+        # Editable T_height / T_adx search ranges (May 2026, live mode).
+        # Stored as 2-element lists matching the existing t_height_range /
+        # t_adx_range schema in run config. Each bound is independent — if
+        # only min is provided we keep discovery.py's default max (and
+        # vice versa), letting the user widen one side at a time.
+        if t_height_min is not None or t_height_max is not None:
+            cfg["t_height_range"] = [
+                t_height_min if t_height_min is not None else None,
+                t_height_max if t_height_max is not None else None,
+            ]
+        if t_adx_min is not None or t_adx_max is not None:
+            cfg["t_adx_range"] = [
+                t_adx_min if t_adx_min is not None else None,
+                t_adx_max if t_adx_max is not None else None,
+            ]
         # Regime Filters (May 2026). Stored as lists in the cfg dict so they
         # round-trip cleanly through discovery.py's _load_runs / the
         # /api/discovery/results JSON. They land in the run record's

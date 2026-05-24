@@ -53,6 +53,16 @@ DISCOVERY_TMP_DIR    = DATA_DIR / ".discovery_tmp"
 EMA_LONG_RANGE      = (10, 200)
 STOP_LOSS_RANGE     = (5, 50)
 RRR_REWARD_RANGE    = (1, 5)
+# Live-mode macro gate (May 2026) — swing height + ADX thresholds.
+# These are the DEFAULT search ranges used when /api/discovery/run
+# doesn't supply explicit per-run bounds; the dashboard's Discovery
+# Settings panel exposes both bounds as editable inputs so the search
+# space can be tuned without a code change. Defaults widened to 20-40 /
+# 28-45 (from 8-25 / 24-35) after the 60-trial run on the narrower
+# range clustered at the upper T_h bound, suggesting more profitable
+# operating points sit above it.
+T_HEIGHT_RANGE      = (20.0, 40.0)   # pips
+T_ADX_RANGE         = (28.0, 45.0)
 # MAX_DAILY_LOSS_RANGE was retired (May 2026). The 1–5 sweep over
 # MAX_DAILY_LOSSES (daily-loss-stop count) was a legacy of an earlier
 # search-space design and no longer matches how the strategy is used —
@@ -171,14 +181,11 @@ def resolve_settings(config):
     macro_allowed = _norm_regime_list(cfg.get("allowed_macro_regimes"), ALL_MACRO_REGIMES)
     micro_allowed = _norm_regime_list(cfg.get("allowed_micro_regimes"), ALL_MICRO_REGIMES)
 
-    # Live Mode (May 2026) — cBot-faithful regime classification. Accept
-    # bool or string ("true"/"false"/"on"/"off"). Default False, which
-    # preserves parity with every historical Discovery run (regime labels
-    # loaded from data/regime_labels.parquet with same-day macro look-ahead
-    # and retroactive sub-labels). When True, strategy_v2 swaps in the
-    # streaming classifier in mode="live" — prior-day macro and running
-    # per-fractal micro sub-labels, no look-ahead, matching what a live
-    # cTrader cBot can actually achieve.
+    # Live Mode (May 2026) — when True, strategy_v2 swaps the parquet-
+    # backed macro gate for the swing-height + ADX classifier in
+    # macro_classifier_v2.py (PRE_SESSION_METRICS_REPORT.md is the
+    # empirical basis). Default False keeps every historical Discovery
+    # run on the parquet path it was originally measured against.
     raw_live = cfg.get("live_mode")
     if isinstance(raw_live, bool):
         live_on = raw_live
@@ -186,6 +193,42 @@ def resolve_settings(config):
         live_on = raw_live.strip().lower() in ("true", "1", "on", "yes")
     else:
         live_on = False
+
+    # Expanding-swings strict mode (May 2026) — per-run constant, default
+    # off. When on, the v2 macro gate additionally requires H1 ≥ H3 ≥ H6
+    # (swings monotonically expanding). Higher precision, lower recall.
+    # Has no effect in parity mode.
+    raw_strict = cfg.get("strict_swings")
+    if isinstance(raw_strict, bool):
+        strict_on = raw_strict
+    elif isinstance(raw_strict, str):
+        strict_on = raw_strict.strip().lower() in ("true", "1", "on", "yes")
+    else:
+        strict_on = False
+
+    # Editable T_height / T_adx search bounds (May 2026, live mode only).
+    # Accept either an explicit 2-element [min, max] list/tuple, or a
+    # partial list where None marks "use default". Out-of-band values
+    # (None / non-numeric / min > max) fall back to module defaults
+    # without erroring out — the server-side endpoint already validates
+    # before reaching here; this is the CLI / legacy safety net.
+    def _norm_range(raw, default):
+        if raw is None:
+            return tuple(default)
+        if isinstance(raw, (list, tuple)) and len(raw) == 2:
+            lo, hi = raw[0], raw[1]
+            try:
+                lo = float(lo) if lo is not None else float(default[0])
+                hi = float(hi) if hi is not None else float(default[1])
+            except (TypeError, ValueError):
+                return tuple(default)
+            if lo > hi:
+                return tuple(default)
+            return (lo, hi)
+        return tuple(default)
+
+    t_height_range = _norm_range(cfg.get("t_height_range"), T_HEIGHT_RANGE)
+    t_adx_range    = _norm_range(cfg.get("t_adx_range"),    T_ADX_RANGE)
 
     return {
         "instrument":      (cfg.get("instrument")    or FIXED_INSTRUMENT).upper(),
@@ -197,6 +240,9 @@ def resolve_settings(config):
         "allowed_macro_regimes": macro_allowed,
         "allowed_micro_regimes": micro_allowed,
         "live_mode":        live_on,
+        "strict_swings":    strict_on,
+        "t_height_range":   t_height_range,
+        "t_adx_range":      t_adx_range,
     }
 
 
@@ -287,6 +333,16 @@ def sample_params(rng, settings=None):
         "interval":              s["interval"],
         "direction":             s["direction"],
         "max_daily_losses":      FIXED_MAX_DAILY_LOSSES,
+        # Live macro v2 thresholds (May 2026). Drawn uniformly per trial
+        # from the run's editable search bounds (settings["t_height_range"]
+        # / settings["t_adx_range"]), with the module-level T_HEIGHT_RANGE
+        # / T_ADX_RANGE as fall-back defaults for CLI callers. round() at
+        # 0.1 keeps records readable. Used only in live mode; parity-mode
+        # trials carry these as informational fields that strategy_v2
+        # ignores.
+        "t_height":              round(rng.uniform(*(s.get("t_height_range") or T_HEIGHT_RANGE)), 1),
+        "t_adx":                 round(rng.uniform(*(s.get("t_adx_range")    or T_ADX_RANGE)),    1),
+        "strict_swings":         bool(s.get("strict_swings", False)),
     }
 
 
@@ -323,11 +379,17 @@ def build_env(params, start_date, end_date, settings=None):
         "APPLY_SLIPPAGE":        FIXED_APPLY_SLIPPAGE,
         "SPREAD_PIPS":           FIXED_SPREAD_PIPS,
         "SL_SLIPPAGE_PIPS":      FIXED_SL_SLIPPAGE,
-        # Live Mode (May 2026). When "live", strategy_v2 builds a
-        # StreamingRegimeClassifier(mode="live") from the bars cache at
-        # module import and uses it in place of the parquet gate. Default
-        # "parity" keeps the historical parquet-based behaviour.
+        # Live Mode (May 2026). When "live", strategy_v2 swaps the
+        # parquet-backed macro gate for the v2 swing-height + ADX
+        # classifier (macro_classifier_v2.py). Default "parity" keeps
+        # the historical parquet behaviour.
         "REGIME_MODE":           "live" if s.get("live_mode") else "parity",
+        # Live macro v2 thresholds (read by strategy_v2 at module load).
+        # Sent on every trial subprocess; parity-mode strategy_v2 ignores
+        # them, so it's safe to set unconditionally.
+        "MACRO_T_HEIGHT":        str(params.get("t_height", 10.0)),
+        "MACRO_T_ADX":           str(params.get("t_adx",    20.0)),
+        "MACRO_STRICT_SWINGS":   "true" if params.get("strict_swings") else "false",
     })
     return env
 
@@ -660,9 +722,19 @@ def main(argv=None):
         "allowed_micro_regimes": settings["allowed_micro_regimes"],
         # Live Mode (May 2026). Persisted into the run record so the
         # Discovery page's run-header chip ("LIVE MODE") can distinguish
-        # cBot-faithful runs from the parquet-baseline default, and so a
-        # future reproduction reads the same regime-classification mode.
+        # the v2 swing-height + ADX gate from the parquet-baseline
+        # default, and so a future reproduction reads the same mode.
         "live_mode":        settings["live_mode"],
+        # Strict swings (expanding H1 ≥ H3 ≥ H6) — per-run constant for
+        # the v2 macro gate. Off by default. Stored so completed runs
+        # show whether the precision filter was active.
+        "strict_swings":    settings["strict_swings"],
+        # Live macro v2 search ranges (May 2026). User-editable per run
+        # via the Discovery Settings panel; resolve_settings normalises
+        # missing / partial inputs against the module-level defaults so
+        # the stored range is always the ACTUAL one Discovery searched.
+        "t_height_range":   list(settings["t_height_range"]),
+        "t_adx_range":      list(settings["t_adx_range"]),
         "min_pf":           thresholds["min_pf"],
         "min_trades":       thresholds["min_trades"],
         "max_dd_pct":       thresholds["max_dd_pct"],
