@@ -118,43 +118,7 @@
             </div>
         </div>
 
-        <div class="page-section" id="cp">
-            <div class="section-title">Browser Testing For Chat (Claude in Chrome MCP)</div>
 
-            <h2>Connection Procedure</h2>
-            <div class="card card-flow">
-                <div class="flow-steps">
-                    <div class="flow-step">
-                        <div class="flow-num">1</div>
-                        <div class="flow-content">
-                            <h4>list_connected_browsers → select_browser</h4>
-                            <p>Use the correct deviceId from the list.</p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">2</div>
-                        <div class="flow-content">
-                            <h4>tabs_context_mcp (createIfEmpty: true)</h4>
-                            <p>Creates the MCP tab group.</p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">3</div>
-                        <div class="flow-content">
-                            <h4>navigate to http://localhost:8080/</h4>
-                            <p>Triggers Chrome's permission prompt for the extension.</p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">4</div>
-                        <div class="flow-content">
-                            <h4>If necessary, prompt Edward to allow the browser connection.</h4>
-                            <p>Sometimes a prompt needs to be displayed for permissions.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
 
         <!-- BD -->

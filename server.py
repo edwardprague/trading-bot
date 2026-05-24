@@ -2149,6 +2149,26 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                       <option value="true">On</option>
                       <option value="false">Off</option>
                     </select></td></tr>
+            <!-- Live Mode — May 2026 (cBot-faithful regime classification).
+                 Off: regime labels include same-day macro look-ahead +
+                      retroactive period sub-labels — matches the parquet
+                      baseline of every historical Discovery run.
+                 On:  regime labels use prior-day macro + running per-fractal
+                      micro sub-labels — the no-look-ahead semantics a live
+                      cTrader cBot can actually achieve. Use this mode when
+                      optimising parameters intended for live deployment. -->
+            <tr><td class="lbl">Live Mode</td>
+                <td>
+                  <select id="ds-live-mode" class="discovery-form-input ds-select">
+                      <option value="false">Off</option>
+                      <option value="true">On (cBot-faithful)</option>
+                  </select>
+                  <div class="text-dim ds-hint ds-live-mode-hint">
+                    Off: uses same-day regime labels (backtest reference).
+                    On: prior-day macro + real-time micro labels, matching
+                    live cBot behaviour.
+                  </div>
+                </td></tr>
           </tbody></table>
         </div>
         <div class="discovery-settings-group">
@@ -2774,6 +2794,19 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         if (cfg.seed !== undefined && cfg.seed !== null) {
           meta.appendChild(spanCls("discovery-run-stat", "seed " + cfg.seed));
         }
+        /* Live Mode chip (May 2026). Only rendered when the run used live
+           mode — default parity-mode runs don't get a chip so the header
+           stays uncluttered. Distinguishes optimisation runs whose
+           parameters target the live cBot semantics (no look-ahead) from
+           the parquet-baseline runs every historical record uses. */
+        if (cfg.live_mode === true) {
+          var liveChip = spanCls("discovery-run-stat discovery-run-stat-live", "LIVE MODE");
+          liveChip.title = "Regime labels computed with cBot-faithful semantics "
+                         + "(prior-day macro, running micro sub-labels, no "
+                         + "look-ahead). Parameters from this run are intended "
+                         + "for live deployment.";
+          meta.appendChild(liveChip);
+        }
         meta.appendChild(spanCls("discovery-run-date", fmtRunDate(run.started_at)));
         /* Elapsed wall-clock time. May 2026:
              • Completed run → started_at → finished_at (frozen).
@@ -3313,6 +3346,9 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
              a 200-trial run that's guaranteed to find zero trades. */
           allowed_macro_regimes: settings.allowed_macro_regimes,
           allowed_micro_regimes: settings.allowed_micro_regimes,
+          /* May 2026 — Live Mode (cBot-faithful regime classification).
+             Wire as a string; server-side accepts "true"/"false"/bool. */
+          live_mode:        settings.live_mode,
         };
         if (seed !== null && !isNaN(seed)) body.seed = seed;
         fetch("/api/discovery/run", {
@@ -3358,6 +3394,13 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
            persisted to localStorage and folded into /api/discovery/run. */
         use_ema_filter:   "true",
         rrr_reward_max:   "5",
+        /* May 2026 — Live Mode (cBot-faithful regime classification).
+           "false" → parquet-style same-day macro + retroactive sub-labels
+           (every historical Discovery run). "true" → no look-ahead;
+           strategy_v2 reads regime labels from regime_streaming.py in
+           "live" mode. Used to optimise parameters under the semantics a
+           live cTrader cBot can actually achieve. */
+        live_mode:        "false",
       };
       /* Regime keys in the canonical display order. Mirror discovery.py's
          ALL_MACRO_REGIMES / ALL_MICRO_REGIMES + the RA page's
@@ -3413,6 +3456,14 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         if (emaEl) {
           emaEl.value = loadDS("use_ema_filter");
           emaEl.addEventListener("change", function () { saveDS("use_ema_filter", emaEl.value); });
+        }
+        /* Live Mode select — same wire format as EMA Filter ("true"/"false"
+           strings). Server-side accepts either form (see live_mode parsing
+           in /api/discovery/run). */
+        var liveEl = document.getElementById("ds-live-mode");
+        if (liveEl) {
+          liveEl.value = loadDS("live_mode");
+          liveEl.addEventListener("change", function () { saveDS("live_mode", liveEl.value); });
         }
         var grid = document.getElementById("ds-blocked-hours-grid");
         if (grid) {
@@ -3566,6 +3617,11 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
              constants apply to the whole run. NOT persisted to versions.json. */
           allowed_macro_regimes: collectAllowedRegimes("ds-regime-macro-toggles").join(","),
           allowed_micro_regimes: collectAllowedRegimes("ds-regime-micro-toggles").join(","),
+          /* Live Mode (May 2026) — cBot-faithful regime classification.
+             "false" → parquet behaviour (parity mode); "true" → streaming
+             classifier in live mode (prior-day macro + running micro
+             sub-labels, no look-ahead). */
+          live_mode:        v("ds-live-mode", DISCO_DEFAULTS.live_mode),
         };
       }
 
@@ -4885,6 +4941,26 @@ def api_discovery_run():
         else:
             return jsonify({"ok": False, "error": "use_ema_filter must be true or false"}), 400
 
+    # live_mode: cBot-faithful regime classification. Same accepted forms
+    # as use_ema_filter (bool, "true"/"false", "on"/"off"). None / missing
+    # → cfg key stays unset and discovery.py defaults to False (parity
+    # mode, which matches every historical Discovery run).
+    raw_live_mode = body.get("live_mode")
+    live_mode = None
+    if raw_live_mode is not None:
+        if isinstance(raw_live_mode, bool):
+            live_mode = raw_live_mode
+        elif isinstance(raw_live_mode, str):
+            s = raw_live_mode.strip().lower()
+            if s in ("true", "1", "on", "yes"):
+                live_mode = True
+            elif s in ("false", "0", "off", "no"):
+                live_mode = False
+            else:
+                return jsonify({"ok": False, "error": "live_mode must be true or false"}), 400
+        else:
+            return jsonify({"ok": False, "error": "live_mode must be true or false"}), 400
+
     # ── Regime Filters (May 2026) ────────────────────────────────────────
     # Allow-list of toggled-on regime keys per axis. Wire format is CSV;
     # JSON array also accepted defensively (CLI callers might pass either).
@@ -4972,6 +5048,9 @@ def api_discovery_run():
         # discovery.py can fall back to its defaults for CLI users.
         if rrr_reward_max is not None: cfg["rrr_reward_max"] = rrr_reward_max
         if use_ema_filter is not None: cfg["use_ema_filter"] = use_ema_filter
+        # Live Mode (May 2026) — only set when explicitly provided so CLI
+        # callers and legacy paths default to False (parity) via discovery.py.
+        if live_mode is not None: cfg["live_mode"] = live_mode
         # Regime Filters (May 2026). Stored as lists in the cfg dict so they
         # round-trip cleanly through discovery.py's _load_runs / the
         # /api/discovery/results JSON. They land in the run record's

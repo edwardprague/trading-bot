@@ -171,6 +171,22 @@ def resolve_settings(config):
     macro_allowed = _norm_regime_list(cfg.get("allowed_macro_regimes"), ALL_MACRO_REGIMES)
     micro_allowed = _norm_regime_list(cfg.get("allowed_micro_regimes"), ALL_MICRO_REGIMES)
 
+    # Live Mode (May 2026) — cBot-faithful regime classification. Accept
+    # bool or string ("true"/"false"/"on"/"off"). Default False, which
+    # preserves parity with every historical Discovery run (regime labels
+    # loaded from data/regime_labels.parquet with same-day macro look-ahead
+    # and retroactive sub-labels). When True, strategy_v2 swaps in the
+    # streaming classifier in mode="live" — prior-day macro and running
+    # per-fractal micro sub-labels, no look-ahead, matching what a live
+    # cTrader cBot can actually achieve.
+    raw_live = cfg.get("live_mode")
+    if isinstance(raw_live, bool):
+        live_on = raw_live
+    elif isinstance(raw_live, str):
+        live_on = raw_live.strip().lower() in ("true", "1", "on", "yes")
+    else:
+        live_on = False
+
     return {
         "instrument":      (cfg.get("instrument")    or FIXED_INSTRUMENT).upper(),
         "interval":         cfg.get("interval")      or FIXED_INTERVAL,
@@ -180,6 +196,7 @@ def resolve_settings(config):
         "rrr_reward_max":   rrr_max,
         "allowed_macro_regimes": macro_allowed,
         "allowed_micro_regimes": micro_allowed,
+        "live_mode":        live_on,
     }
 
 
@@ -306,6 +323,11 @@ def build_env(params, start_date, end_date, settings=None):
         "APPLY_SLIPPAGE":        FIXED_APPLY_SLIPPAGE,
         "SPREAD_PIPS":           FIXED_SPREAD_PIPS,
         "SL_SLIPPAGE_PIPS":      FIXED_SL_SLIPPAGE,
+        # Live Mode (May 2026). When "live", strategy_v2 builds a
+        # StreamingRegimeClassifier(mode="live") from the bars cache at
+        # module import and uses it in place of the parquet gate. Default
+        # "parity" keeps the historical parquet-based behaviour.
+        "REGIME_MODE":           "live" if s.get("live_mode") else "parity",
     })
     return env
 
@@ -636,6 +658,11 @@ def main(argv=None):
         # way back in.
         "allowed_macro_regimes": settings["allowed_macro_regimes"],
         "allowed_micro_regimes": settings["allowed_micro_regimes"],
+        # Live Mode (May 2026). Persisted into the run record so the
+        # Discovery page's run-header chip ("LIVE MODE") can distinguish
+        # cBot-faithful runs from the parquet-baseline default, and so a
+        # future reproduction reads the same regime-classification mode.
+        "live_mode":        settings["live_mode"],
         "min_pf":           thresholds["min_pf"],
         "min_trades":       thresholds["min_trades"],
         "max_dd_pct":       thresholds["max_dd_pct"],

@@ -4139,6 +4139,32 @@ body.discovery-trial-page {
     letter-spacing: 0.02em;
 }
 
+/* Live Mode chip (May 2026) — distinguishes Discovery runs whose regime
+   classification used the cBot-faithful no-look-ahead semantics from the
+   parquet-baseline (parity-mode) runs every historical record uses. The
+   accent colour matches the platform's "active / cyan" treatment used
+   elsewhere for the active-version pill, so the chip reads as a property
+   tag rather than a warning. */
+.discovery-run-stat-live {
+    color: #1a1a2e;
+    background: #4cc9f0;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+/* Live Mode hint text inside the Discovery Settings panel — the
+   explanatory paragraph under the Live Mode select. Inherits the dim
+   muted-grey treatment of .text-dim but adds a small top margin so the
+   text doesn't crowd the select control above it. */
+.ds-live-mode-hint {
+    margin-top: 4px;
+    max-width: 480px;
+    line-height: 1.4;
+}
+
 /* Elapsed wall-clock time pill (May 2026). Same muted-grey treatment as
    the date / stat pills, with tabular-nums so the seconds digit doesn't
    shift width when it ticks every 1.5s on the in-flight run. */

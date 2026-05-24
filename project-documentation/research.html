@@ -34,6 +34,17 @@
                 </li>
                 <li>RRR 1:1 performs best</li>
                 <li>The first 3 Micro and Macro filters off performs best</li>
+                <li>The strategy as currently optimised was essentially trained on look-ahead data — Discovery found
+                    parameters that work well when you already know today's regime before trading it.
+                </li>
+                <li>The parquet-based backtest labels each day with the benefit of hindsight — it knows how the full day
+                    played out before deciding whether to trade that day. A live cBot can't do that. It only knows
+                    yesterday's completed day when today's trading begins. That one-day lag, combined with the micro
+                    labels being computed slightly differently in real time, costs 43 trades and flips the result from
+                    +$129k to -$14k on the 2025 window.</li>
+                <li>The earlier parity-vs-live divergence (+$129k → −$14k) is now well-explained: the macro gate's value
+                    in parity mode comes almost entirely from look-ahead, not from any pattern that's available before
+                    midnight. Any "yesterday-plus-a-few-hours" approach hits this ceiling.</li>
             </ul>
         </div>
 
@@ -78,9 +89,10 @@
             <div class="finding-card">
                 <div class="finding-title">EMA Buffer as a search bounds parameter in Discovery
                 </div>
-                <div class="finding-body">The strategy currently defaults to a 5 pip buffer and testing a range could be
-                    helpful.
-                </div>
+                <div class="card-subtitle"><code>EMA40_BUFFER_PIPS</code> — default 5 pips</div>
+                <p>Short requires <code>close &lt; ema_long − buffer</code>; long requires
+                    <code>close &gt; ema_long + buffer</code>. Setting to 0 recovers strict-below behaviour.
+                </p>
             </div>
 
             <div class="finding-card">

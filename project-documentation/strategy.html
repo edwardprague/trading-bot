@@ -245,45 +245,6 @@
             <!-- </div> -->
         </div>
 
-
-
-        <!-- v2 -->
-        <div class="section">
-            <div class="section-title">v2 — Additional Gates (on top of v1)</div>
-            <div class="grid-2">
-                <div class="card">
-                    <div class="card-title">EMA Position Filter</div>
-                    <div class="card-subtitle">Toggle: <code>USE_EMA_FILTER</code> (default on)</div>
-                    <p>Evaluated on the confirmation bar's close. Long requires <code>close &gt; EMA Long</code>; short
-                        requires <code>close &lt; EMA Long</code>. <code>EMA_LONG</code> defaults to 40 bars.</p>
-                </div>
-                <div class="card">
-                    <div class="card-title">EMA Buffer</div>
-                    <div class="card-subtitle"><code>EMA40_BUFFER_PIPS</code> — default 5 pips</div>
-                    <p>Tightens the EMA filter. Short requires <code>close &lt; ema_long − buffer</code>; long requires
-                        <code>close &gt; ema_long + buffer</code>. Setting to 0 recovers strict-below behaviour.
-                    </p>
-                </div>
-                <div class="card">
-                    <div class="card-title">Macro Regime Gate</div>
-                    <div class="card-subtitle"><code>ALLOWED_MACRO_REGIMES</code></div>
-                    <p>Skips entries on days whose macro regime isn't in the allow-list. If the parquet doesn't cover a
-                        day, the gate passes through silently.</p>
-                </div>
-                <div class="card">
-                    <div class="card-title">Micro Regime Gate</div>
-                    <div class="card-subtitle"><code>ALLOWED_MICRO_REGIMES</code></div>
-                    <p>Skips entries whose micro regime at entry timestamp isn't in the allow-list. Labels loaded from
-                        <code>data/regime_labels.parquet</code> at import.
-                    </p>
-                </div>
-            </div>
-        </div>
-
-
-
-
-
     </div>
 </body>
 

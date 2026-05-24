@@ -133,6 +133,14 @@ _REGIME_MACRO_BY_DATE = {}      # {'YYYY-MM-DD': 'staircase_down', ...}
 _REGIME_MICRO_SERIES   = None    # pd.Series of micro_label keyed by UTC ts
 _REGIME_LABELS_LOADED  = False
 
+# Live Mode (May 2026) — when REGIME_MODE=live, swap the parquet-backed
+# lookups for a streaming classifier built from the bars cache. cBot-faithful
+# semantics: prior-day macro label, running per-fractal micro sub-labels,
+# no look-ahead. Used by Discovery's Live Mode toggle to optimise parameters
+# against the regime semantics the live cTrader cBot will actually see.
+_REGIME_MODE = os.environ.get("REGIME_MODE", "parity").strip().lower()
+_STREAMING_CLF = None    # StreamingRegimeClassifier instance (live mode only)
+
 def _load_regime_labels():
     """Load macro/micro lookups from data/regime_labels.parquet.
 
@@ -291,8 +299,151 @@ def _check_micro_regime(ts):
         return True, ""
     return False, "micro_regime"
 
+def _load_streaming_regime_classifier():
+    """Live-mode counterpart of _load_regime_labels(). Builds a
+    StreamingRegimeClassifier(mode="live") over the bars cache for
+    INSTRUMENT/INTERVAL and stashes it in module-global _STREAMING_CLF.
+    _check_macro_regime / _check_micro_regime then delegate to it.
+
+    Fall-back: if the bars cache is missing, or regime_streaming.py can't
+    be imported, the streaming gate silently no-ops (returns pass-through),
+    matching _load_regime_labels()'s graceful-degradation behaviour. This
+    way an un-cached instrument or a partial deployment doesn't break the
+    backtest.
+
+    Frozen thresholds: we re-use the pips_per_bar / width_pips terciles
+    persisted in regime_labels.parquet (they're the calibrated values
+    every backtest in this project assumes). When the parquet is also
+    absent we fall back to the DEFAULT_THRESHOLDS hardcoded in
+    regime_streaming.py — same numbers, just a different lookup path.
+    """
+    global _STREAMING_CLF, _REGIME_LABELS_LOADED
+    _REGIME_LABELS_LOADED = True
+
+    try:
+        from regime_streaming import StreamingRegimeClassifier, DEFAULT_THRESHOLDS
+    except ImportError as _e:
+        print(f"  [WARN] REGIME_MODE=live but regime_streaming import failed: {_e}")
+        print(f"         Regime gates disabled this run.")
+        return
+
+    from pathlib import Path as _Path
+    base = _Path(__file__).resolve().parent
+    cache = base / "data" / f"{_INSTRUMENT}_{INTERVAL}.parquet"
+    if not cache.exists():
+        if ALLOWED_MACRO_KEYS or ALLOWED_MICRO_KEYS:
+            print(f"  [WARN] REGIME_MODE=live but bars cache {cache.name} missing — "
+                  f"regime gates disabled this run")
+        return
+
+    # Pull frozen tercile thresholds from regime_labels.parquet metadata so
+    # the streaming classifier's sub-labels share the same boundaries every
+    # other Discovery / RA run uses. Falls back to DEFAULT_THRESHOLDS when
+    # the labeler parquet is unavailable.
+    thresholds = dict(DEFAULT_THRESHOLDS)
+    parquet = base / "data" / "regime_labels.parquet"
+    if parquet.exists():
+        try:
+            import pyarrow.parquet as _pq
+            meta = _pq.read_metadata(str(parquet)).metadata or {}
+            blob = meta.get(b"regime_analysis") or meta.get(b"regime_labeler")
+            if blob:
+                _payload = json.loads(blob.decode("utf-8"))
+                if isinstance(_payload.get("thresholds"), dict):
+                    thresholds.update(_payload["thresholds"])
+        except Exception as _e:
+            print(f"  [WARN] Could not read live-mode thresholds from parquet: {_e}")
+
+    try:
+        bars = pd.read_parquet(cache)
+    except Exception as _e:
+        print(f"  [WARN] Could not read bars cache {cache.name}: {_e}")
+        return
+
+    # Bars cache index must be UTC-aware DatetimeIndex with Open/High/Low/Close.
+    # download_data.py guarantees this shape; defensive normalisation only.
+    if bars.index.tz is None:
+        bars.index = bars.index.tz_localize("UTC")
+
+    # Window the bars to the run's date range + buffer. Without this the
+    # streaming classifier processes every bar in the cache (16+ years for
+    # GBPUSD) at ~17s per trial — a 200-trial Discovery run would pay 57
+    # minutes of pure regime-build overhead. With a 60-day warmup buffer
+    # the state machine and rolling H/L lookbacks are fully primed before
+    # the trial's first bar, so the labels inside the window are identical
+    # to what a full-cache ingest would produce.
+    #
+    # 60-day buffer rationale: LOOKBACK_FRACTALS=4 fractals + the state-
+    # machine's 2-confirm rule needs ~6 same-kind fractals to commit a
+    # regime. On GBPUSD 5m that's typically a few days of bars; 60 days
+    # is comfortably above the worst case and the read remains cheap.
+    run_start_str = os.environ.get("RUN_START_DATE")
+    run_end_str   = os.environ.get("RUN_END_DATE")
+    if run_start_str and run_end_str:
+        try:
+            run_start = pd.Timestamp(run_start_str, tz="UTC") - pd.Timedelta(days=60)
+            run_end   = pd.Timestamp(run_end_str,   tz="UTC") + pd.Timedelta(days=7)
+            bars = bars[(bars.index >= run_start) & (bars.index < run_end)]
+        except Exception as _e:
+            print(f"  [WARN] Could not window bars for live mode ({_e}); "
+                  f"ingesting full cache")
+
+    _STREAMING_CLF = StreamingRegimeClassifier(mode="live", thresholds=thresholds)
+    _STREAMING_CLF.ingest(bars)
+
+    if ALLOWED_MACRO_KEYS or ALLOWED_MICRO_KEYS:
+        print(f"  Regime gates (LIVE MODE): "
+              f"{len(_STREAMING_CLF.macro_by_date)} day labels, "
+              f"{len(_STREAMING_CLF.fractals)} fractal labels")
+        print(f"    cBot-faithful semantics — prior-day macro + running micro sub-labels")
+        if ALLOWED_MACRO_KEYS:
+            print(f"    Macro allow-list: {sorted(ALLOWED_MACRO_KEYS)}")
+        if ALLOWED_MICRO_KEYS:
+            print(f"    Micro allow-list: {sorted(ALLOWED_MICRO_KEYS)}")
+
+    # Replace the gate functions with streaming-backed closures. Same
+    # signatures + return semantics as the parquet versions so the entry
+    # loop in run_backtest is untouched.
+    global _check_macro_regime, _check_micro_regime
+
+    def _check_macro_regime_live(ts):
+        if not ALLOWED_MACRO_KEYS:
+            return True, ""
+        if _STREAMING_CLF is None:
+            return True, ""
+        label = _STREAMING_CLF.macro_label_for_entry(ts)
+        if label is None:
+            return True, ""
+        if label in ALLOWED_MACRO_KEYS:
+            return True, ""
+        return False, "macro_regime"
+
+    def _check_micro_regime_live(ts):
+        if not ALLOWED_MICRO_KEYS:
+            return True, ""
+        if _STREAMING_CLF is None:
+            return True, ""
+        label = _STREAMING_CLF.micro_label_for_entry(ts)
+        if label is None:
+            return True, ""
+        if label in ALLOWED_MICRO_KEYS:
+            return True, ""
+        return False, "micro_regime"
+
+    _check_macro_regime = _check_macro_regime_live
+    _check_micro_regime = _check_micro_regime_live
+
+
 # Load labels once at module import.
-_load_regime_labels()
+# REGIME_MODE branch (May 2026): "live" → streaming classifier with no
+# look-ahead; anything else (default "parity" or unset) → existing
+# parquet behaviour. Discovery's Live Mode toggle sets REGIME_MODE=live
+# on the trial subprocesses; the dashboard / CLI paths leave it unset
+# and continue using the parquet exactly as before.
+if _REGIME_MODE == "live":
+    _load_streaming_regime_classifier()
+else:
+    _load_regime_labels()
 
 # ── Time filter: skip entries during these UTC hours ─────────────────────────
 _blocked_env = os.environ.get("BLOCKED_HOURS_UTC", "").strip()
