@@ -2149,33 +2149,20 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                       <option value="true">On</option>
                       <option value="false">Off</option>
                     </select></td></tr>
-            <!-- Live Mode — May 2026 (cBot-faithful regime classification).
-                 Off: regime labels include same-day macro look-ahead +
-                      retroactive period sub-labels — matches the parquet
-                      baseline of every historical Discovery run.
-                 On:  regime labels use prior-day macro + running per-fractal
-                      micro sub-labels — the no-look-ahead semantics a live
-                      cTrader cBot can actually achieve. Use this mode when
-                      optimising parameters intended for live deployment. -->
-            <tr><td class="lbl">Live Mode</td>
-                <td>
-                  <select id="ds-live-mode" class="discovery-form-input ds-select">
-                      <option value="false">Off</option>
-                      <option value="true">On (cBot-faithful)</option>
-                  </select>
-                  <div class="text-dim ds-hint ds-live-mode-hint">
-                    Off: uses same-day regime labels (parity baseline).
-                    On: live v2 macro gate — swing-height + ADX classifier,
-                    no look-ahead, matching live cBot behaviour.
-                  </div>
-                </td></tr>
-            <!-- Expanding Swings (May 2026) — strict-mode toggle for the
-                 v2 macro gate. When On, the gate additionally requires
-                 H1 ≥ H3 ≥ H6 (monotonically expanding swing heights).
-                 Empirically catches only 49% of good-P&L days but
-                 excludes 97% of bad-day P&L (PRE_SESSION_METRICS_REPORT.md);
-                 useful as a higher-precision toggle layered on top of
-                 T_height + T_adx. No effect when Live Mode is Off. -->
+            <!-- Live Mode row removed (May 2026). Live mode (cBot-faithful,
+                 no look-ahead regime classification — v2 macro gate using
+                 swing-height + ADX) is now the permanent operating mode
+                 for Discovery. The dropdown was retired once live became
+                 the default; the parity code path in strategy_v2.py is
+                 retained internally for reference but no longer exposed
+                 in the UI. live_mode is hardcoded to "true" in
+                 DISCO_DEFAULTS below and folded into every payload. -->
+            <!-- Expanding Swings — strict-mode toggle for the v2 macro
+                 gate. When On, the gate additionally requires H1 ≥ H3 ≥ H6
+                 (monotonically expanding swing heights). Empirically
+                 catches only 49% of good-P&L days but excludes 97% of
+                 bad-day P&L (PRE_SESSION_METRICS_REPORT.md); useful as
+                 a higher-precision toggle layered on top of T_h + T_adx. -->
             <tr><td class="lbl">Expanding Swings</td>
                 <td>
                   <select id="ds-strict-swings" class="discovery-form-input ds-select">
@@ -2183,9 +2170,9 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                       <option value="true">Required (H1 ≥ H3 ≥ H6)</option>
                   </select>
                   <div class="text-dim ds-hint ds-live-mode-hint">
-                    Optional precision filter on the live macro gate. When
-                    on, entries require monotonically expanding pre-session
-                    swings. Live mode only.
+                    Optional precision filter on the macro gate. When on,
+                    entries require monotonically expanding pre-session
+                    swings.
                   </div>
                 </td></tr>
           </tbody></table>
@@ -2195,16 +2182,15 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           <table><tbody>
             <tr><td class="lbl">EMA Long</td>      <td><span class="val-highlight">10 – 200</span></td></tr>
             <tr><td class="lbl">Stop Loss</td>     <td><span class="val-highlight">5 – 50 pips</span></td></tr>
-            <!-- Live macro v2 thresholds (May 2026). Searched per trial
-                 when Live Mode is on; ignored otherwise. T_height is the
-                 minimum swing height (H1) required at fractal formation;
-                 T_adx is the minimum 14-period ADX at the same moment.
-                 Both bounds are user-editable (May 2026 update) so the
-                 search range can be tuned without a code change — the
-                 60-trial run with default range (8-25 / 24-35) clustered
-                 at the upper height bound suggesting a wider search would
-                 find better operating points; the defaults below
-                 (20-40 / 28-45) reflect the new region of interest. -->
+            <!-- Live macro v2 thresholds. Searched per trial. T_height is
+                 the minimum swing height (H1) required at fractal
+                 formation; T_adx is the minimum 14-period ADX at the
+                 same moment. Both bounds are user-editable so the search
+                 range can be tuned without a code change — the 60-trial
+                 run with default range (8-25 / 24-35) clustered at the
+                 upper height bound suggesting a wider search would find
+                 better operating points; the defaults below (20-40 /
+                 28-45) reflect the new region of interest. -->
             <tr><td class="lbl">Min Swing Height</td>
                 <td>
                   <input type="number" id="ds-t-height-min" class="discovery-form-input ds-num-input"
@@ -2212,7 +2198,7 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                   <span class="val-highlight">–</span>
                   <input type="number" id="ds-t-height-max" class="discovery-form-input ds-num-input"
                          step="1" min="1" max="100" value="40">
-                  <span class="text-dim">pips (T_height — live mode only)</span>
+                  <span class="text-dim">pips (T_height)</span>
                 </td></tr>
             <tr><td class="lbl">Min ADX</td>
                 <td>
@@ -2221,7 +2207,7 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                   <span class="val-highlight">–</span>
                   <input type="number" id="ds-t-adx-max" class="discovery-form-input ds-num-input"
                          step="1" min="1" max="100" value="45">
-                  <span class="text-dim">(T_adx — live mode only)</span>
+                  <span class="text-dim">(T_adx)</span>
                 </td></tr>
             <!-- RRR Reward — May 2026: the lower bound stays fixed at 1
                  (the rrr_risk is implicitly 1 across every Discovery
@@ -2250,74 +2236,34 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
                  the Instrument / Direction fixed constants above). -->
           </tbody></table>
         </div>
-        <!-- ── Regime Filters ────────────────────────────────────────────
-             Per-run regime allow-list. Toggled-on regimes are allowed for
-             every trial; toggled-off regimes are locked out for the entire
-             run — mechanically identical to the Instrument / Interval /
-             Direction fixed constants above, and semantically identical to
-             the RA page's regime toggles (just set at the run level rather
-             than the version level). Visual design mirrors the RA page's
-             regime filter panel (.regime-toggle*, .regime-color-*,
-             .macro-color-* classes reused), with one behavioural
-             distinction worth flagging: these toggles configure the
-             Discovery run only — they are NOT persisted to versions.json. -->
+        <!-- ── Micro Regime Filters ──────────────────────────────────────
+             Per-run micro-regime allow-list. Toggled-on micro regimes are
+             allowed for every trial; toggled-off ones are locked out for
+             the entire run — mechanically identical to the Instrument /
+             Interval / Direction fixed constants above. Visual design
+             mirrors the RA page's regime filter panel (.regime-toggle*,
+             .regime-color-* classes reused). These toggles configure the
+             Discovery run only — they are NOT persisted to versions.json.
+
+             The 5 macro-regime toggles (Staircase Up, Strong Up, Flat,
+             Staircase Down, Strong Down) were removed once live mode
+             became the permanent operating mode: the macro gate is now
+             H1 + ADX (v2 macro_classifier_v2.py), and the old macro
+             allow-list has no effect in live mode. The full set of
+             macro keys is still sent on the wire (see getDiscoverySettings
+             below) so the server's validation contract is unchanged. -->
         <div class="discovery-settings-group">
           <div class="discovery-regime-header">
-            <div class="section-title">Regime Filters</div>
+            <div class="section-title">Micro Regime Filters</div>
             <button type="button" id="ds-regime-reset" class="rb-btn rb-btn-ghost"
-                    title="Restore all regime toggles to on">Reset to Defaults</button>
+                    title="Restore all micro regime toggles to on">Reset to Defaults</button>
           </div>
           <p class="text-dim ds-hint discovery-regime-hint">
-            Toggled-on regimes are allowed for every trial. Toggled-off regimes are
-            locked out for the entire run.
-          </p>
-          <!-- May 2026: with Live Mode on, the regime-label toggles below
-               do nothing — the v2 macro gate (swing-height + ADX) replaces
-               the regime-label allow-list entirely. The toggles remain
-               here for parity-mode runs and as historical context. -->
-          <p class="text-dim ds-hint discovery-regime-hint ds-regime-parity-only">
-            <strong>Parity mode only.</strong> When Live Mode is on, the v2
-            macro gate (swing-height + ADX) replaces these regime-label
-            toggles. They have no effect on live-mode trials.
+            Toggled-on micro regimes are allowed for every trial. Toggled-off
+            micro regimes are locked out for the entire run.
           </p>
           <div class="regime-control-grid">
             <div class="regime-control-col">
-              <h3 class="regime-control-col-title">Macro Regimes</h3>
-              <div class="regime-toggle-list" id="ds-regime-macro-toggles">
-                <label class="regime-toggle" data-regime-key="staircase_up">
-                  <input type="checkbox" class="regime-toggle-input" checked>
-                  <span class="regime-toggle-swatch macro-color-staircase-up"></span>
-                  <span class="regime-toggle-label">Staircase Up</span>
-                  <span class="regime-toggle-switch"></span>
-                </label>
-                <label class="regime-toggle" data-regime-key="strong_up">
-                  <input type="checkbox" class="regime-toggle-input" checked>
-                  <span class="regime-toggle-swatch macro-color-strong-up"></span>
-                  <span class="regime-toggle-label">Strong Up</span>
-                  <span class="regime-toggle-switch"></span>
-                </label>
-                <label class="regime-toggle" data-regime-key="flat">
-                  <input type="checkbox" class="regime-toggle-input" checked>
-                  <span class="regime-toggle-swatch macro-color-flat"></span>
-                  <span class="regime-toggle-label">Flat</span>
-                  <span class="regime-toggle-switch"></span>
-                </label>
-                <label class="regime-toggle" data-regime-key="staircase_down">
-                  <input type="checkbox" class="regime-toggle-input" checked>
-                  <span class="regime-toggle-swatch macro-color-staircase-down"></span>
-                  <span class="regime-toggle-label">Staircase Down</span>
-                  <span class="regime-toggle-switch"></span>
-                </label>
-                <label class="regime-toggle" data-regime-key="strong_down">
-                  <input type="checkbox" class="regime-toggle-input" checked>
-                  <span class="regime-toggle-swatch macro-color-strong-down"></span>
-                  <span class="regime-toggle-label">Strong Down</span>
-                  <span class="regime-toggle-switch"></span>
-                </label>
-              </div>
-            </div>
-            <div class="regime-control-col">
-              <h3 class="regime-control-col-title">Micro Regimes</h3>
               <div class="regime-toggle-list" id="ds-regime-micro-toggles">
                 <label class="regime-toggle" data-regime-key="trending_fast_up">
                   <input type="checkbox" class="regime-toggle-input" checked>
@@ -2840,8 +2786,13 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         var microNarrowed = microAllowed && microAllowed.length < DISCO_MICRO_ALL.length;
         if (macroNarrowed || microNarrowed) {
           var parts = [];
-          if (macroAllowed) parts.push(macroAllowed.length + "/" + DISCO_MACRO_ALL.length + " macro");
-          if (microAllowed) parts.push(microAllowed.length + "/" + DISCO_MICRO_ALL.length + " micro");
+          /* Only surface the macro fraction on historical runs where the
+             macro allow-list was actually narrowed — new runs always send
+             the full macro set now (UI toggles removed when live mode
+             became permanent), so the macro slot would otherwise read a
+             noisy "5/5 macro" alongside the genuinely narrowed micro. */
+          if (macroNarrowed) parts.push(macroAllowed.length + "/" + DISCO_MACRO_ALL.length + " macro");
+          if (microNarrowed) parts.push(microAllowed.length + "/" + DISCO_MICRO_ALL.length + " micro");
           var chip = spanCls("discovery-run-stat", "regimes: " + parts.join(" · "));
           var excluded = [].concat(
             excludedLabels(macroAllowed, DISCO_MACRO_ALL),
@@ -2861,20 +2812,11 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         if (cfg.seed !== undefined && cfg.seed !== null) {
           meta.appendChild(spanCls("discovery-run-stat", "seed " + cfg.seed));
         }
-        /* Live Mode chip (May 2026). Only rendered when the run used live
-           mode — default parity-mode runs don't get a chip so the header
-           stays uncluttered. Distinguishes optimisation runs whose
-           parameters target the live cBot semantics (no look-ahead) from
-           the parquet-baseline runs every historical record uses. */
-        if (cfg.live_mode === true) {
-          var liveChip = spanCls("discovery-run-stat discovery-run-stat-live", "LIVE MODE");
-          liveChip.title = "v2 macro gate (swing-height + ADX, no "
-                         + "look-ahead). T_height and T_adx are searched "
-                         + "per trial within the displayed ranges. "
-                         + "Parameters from this run are intended for "
-                         + "live deployment.";
-          meta.appendChild(liveChip);
-        }
+        /* LIVE MODE chip removed: live mode is now the permanent
+           operating mode, so the chip stopped distinguishing anything
+           and was dropped from the run header. The cfg.live_mode field
+           is still persisted in run records for historical inspection,
+           but it's no longer surfaced as a header chip. */
         /* Strict-swings chip (May 2026) — only rendered when the run used
            the H1 ≥ H3 ≥ H6 precision filter on top of the v2 macro gate.
            Off by default, so most live-mode runs won't show this chip. */
@@ -3500,12 +3442,15 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
            persisted to localStorage and folded into /api/discovery/run. */
         use_ema_filter:   "true",
         rrr_reward_max:   "5",
-        /* May 2026 — Live Mode (cBot-faithful regime classification).
-           "false" → parquet-style same-day macro + retroactive sub-labels
-           (every historical Discovery run). "true" → strategy_v2 swaps
-           in the v2 macro gate (swing-height + ADX, no look-ahead),
-           defined in macro_classifier_v2.py. */
-        live_mode:        "false",
+        /* Live Mode is now hardcoded to "true": cBot-faithful regime
+           classification (v2 macro gate, swing-height + ADX, no
+           look-ahead) is the permanent operating mode for Discovery.
+           The dropdown was removed from the UI; this default value is
+           what getDiscoverySettings() picks up via v("ds-live-mode", ...)
+           when the (now-absent) element lookup returns null. The parity
+           code path in strategy_v2.py / discovery.py is retained for
+           reference but no longer reachable from the dashboard. */
+        live_mode:        "true",
         /* May 2026 — Expanding Swings strict mode for the v2 macro gate.
            "false" → no extra filter. "true" → also require H1 ≥ H3 ≥ H6
            at entry time. Live mode only. */
@@ -3577,16 +3522,12 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
           emaEl.value = loadDS("use_ema_filter");
           emaEl.addEventListener("change", function () { saveDS("use_ema_filter", emaEl.value); });
         }
-        /* Live Mode select — same wire format as EMA Filter ("true"/"false"
-           strings). Server-side accepts either form (see live_mode parsing
-           in /api/discovery/run). */
-        var liveEl = document.getElementById("ds-live-mode");
-        if (liveEl) {
-          liveEl.value = loadDS("live_mode");
-          liveEl.addEventListener("change", function () { saveDS("live_mode", liveEl.value); });
-        }
-        /* Expanding Swings select — same wire format as Live Mode /
-           EMA Filter. Strict-mode toggle for the v2 macro gate. */
+        /* Live Mode select was retired — live mode is now the permanent
+           operating mode and is hardcoded via DISCO_DEFAULTS.live_mode
+           above. The (now-absent) #ds-live-mode lookup in
+           getDiscoverySettings() falls through to that default. */
+        /* Expanding Swings select — wire format "true"/"false" string.
+           Strict-mode toggle for the v2 macro gate. */
         var strictEl = document.getElementById("ds-strict-swings");
         if (strictEl) {
           strictEl.value = loadDS("strict_swings");
@@ -3689,20 +3630,27 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
         return out;
       }
       function resetRegimeToggles() {
-        ["ds-regime-macro-toggles", "ds-regime-micro-toggles"].forEach(function (id) {
-          var container = document.getElementById(id);
-          if (!container) return;
+        /* Macro toggle container was removed when live mode became
+           permanent — the loop below only touches the micro column.
+           The macro localStorage key is still reset to all-on so any
+           stale value left over from before the cleanup can't leak
+           through (the wire format still sends the full macro list
+           from DISCO_MACRO_KEYS in getDiscoverySettings). */
+        var container = document.getElementById("ds-regime-micro-toggles");
+        if (container) {
           container.querySelectorAll(".regime-toggle").forEach(function (toggle) {
             var input = toggle.querySelector(".regime-toggle-input");
             if (input) input.checked = true;
             paintToggleOffState(toggle);
           });
-        });
+        }
         saveAllowedCsv("macro", DISCO_MACRO_KEYS);
         saveAllowedCsv("micro", DISCO_MICRO_KEYS);
       }
       function initRegimeToggles() {
-        hydrateRegimeColumn("ds-regime-macro-toggles", "macro", DISCO_MACRO_KEYS);
+        /* Macro hydration removed — only the micro column is wired
+           up now. See the Micro Regime Filters HTML block above for
+           the rationale. */
         hydrateRegimeColumn("ds-regime-micro-toggles", "micro", DISCO_MICRO_KEYS);
         var resetBtn = document.getElementById("ds-regime-reset");
         if (resetBtn && !resetBtn._dsBound) {
@@ -3738,11 +3686,15 @@ _DISCOVERY_PAGE_HTML = """<!doctype html>
              string keeps the wire format consistent with the other selects. */
           use_ema_filter:   v("ds-use-ema-filter",  DISCO_DEFAULTS.use_ema_filter),
           rrr_reward_max:   parseInt(v("ds-rrr-reward-max", DISCO_DEFAULTS.rrr_reward_max), 10),
-          /* Regime Filters (Discovery-scoped). CSV of allowed (toggled-on)
-             regime keys per axis — toggled-off regimes are excluded from
-             every trial's allow-list, identical to how the other fixed
-             constants apply to the whole run. NOT persisted to versions.json. */
-          allowed_macro_regimes: collectAllowedRegimes("ds-regime-macro-toggles").join(","),
+          /* Micro Regime Filters (Discovery-scoped). CSV of allowed
+             (toggled-on) micro regime keys — toggled-off regimes are
+             excluded from every trial's allow-list. NOT persisted to
+             versions.json. The macro allow-list is no longer surfaced
+             in the UI (live mode's H1 + ADX gate replaced the macro
+             regime labels), so the full set of macro keys is always
+             sent on the wire to satisfy the server's non-empty
+             validation contract. */
+          allowed_macro_regimes: DISCO_MACRO_KEYS.join(","),
           allowed_micro_regimes: collectAllowedRegimes("ds-regime-micro-toggles").join(","),
           /* Live Mode (May 2026) — "true" routes to the v2 macro gate
              (swing-height + ADX, no look-ahead); "false" stays on the
