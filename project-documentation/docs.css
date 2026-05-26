@@ -172,11 +172,11 @@ h2:first-child {
 }
 
 h3 {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
     letter-spacing: 0.02em;
     text-transform: uppercase;
-    color: var(--text2);
+    color: #d97757;
     margin: 28px 0 10px;
 }
 

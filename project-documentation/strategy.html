@@ -26,250 +26,76 @@
             <h1>Strategy Logic</h1>
         </div>
 
-        <!-- Methodology -->
-        <div class="section">
-            <div class="section-title">Fractal Geometry Methodology</div>
-            <p>Fractal entry strategy filtered by macro and micro regimes.</p>
-            <div class="card card-flow">
-                <div class="flow-steps">
-                    <div class="flow-step">
-                        <div class="flow-num flow-num-green">1</div>
-                        <div class="flow-content">
-                            <h4>Entry Logic</h4>
-                            <p>The fractal entry logic is a clean, structurally-sound signal. It's not predicting
-                                direction, it's just identifying moments where price has already demonstrated a
-                                lower-high structure, which is a meaningful read on short-term momentum. That's a solid
-                                foundation.</p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num flow-num-green">2</div>
-                        <div class="flow-content">
-                            <h4>Regime Layers</h4>
-                            <p>The fractal regime layer is what's doing the heavy lifting in terms of selectivity. It’s
-                                essentially saying "we know this entry strategy only works when the broader market
-                                context is aligned" — and locking out the conditions where it structurally can't win.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num flow-num-green">3</div>
-                        <div class="flow-content">
-                            <h4>Based on real market structure</h4>
-                            <p>What makes this particularly encouraging is that the regime classification is based on
-                                real market structure — it's not an optimised parameter, it's a description of what the
-                                market is doing. So the filter has a genuine logical basis, which makes it more likely
-                                to hold out-of-sample than if you'd just curve-fitted a time-of-day filter or something
-                                arbitrary.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <div class="section-title">Target Performance</div>
+        <p>Target performance ($7k/month on $100k), the deployment path (cTrader cBot), and the philosophy — that
+            development velocity and rapid iteration are themselves a competitive edge.</p>
 
+        <div class="page-section" id="cp">
 
+            <h2>Development Pillars</h2>
 
-        <!-- FRACTAL METRICS SECTION — paste after existing methodology section -->
-
-        <section>
-            <h2>FRACTAL METRICS</h2>
-            <hr>
-
-            <p>Each confirmed N=2 fractal records a set of real-time metrics. These are available at the moment the
-                fractal forms — no look-ahead required — and are displayed in the Backtesting fractal table.</p>
-
-            <h3>Swing Height — H1, H3, H6</h3>
-            <p>The pip distance from the current fractal's price to the most recent opposite-kind fractal (e.g. for a
-                high-fractal: distance to the nearest prior low-fractal). H1 is the raw value; H3 and H6 are rolling
-                means over the last 3 and 6 non-null heights respectively, forming a smoothing ladder over the same
-                underlying series.</p>
-
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Column</th>
-                            <th>What it measures</th>
-                            <th>What it shows</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><span class="fractal-column">Type</span></td>
-                            <td>Upper fractal or lower fractal</td>
-                            <td>Upper and lower</td>
-                        </tr>
-                        <tr>
-                            <td><span class="fractal-column">L#</span></td>
-                            <td>Micro trend leg number</td>
-                            <td>The number of lower fractals before a higher fractal forms. Each of those H fractals
-                                gets a number.</td>
-                        </tr>
-                        <tr>
-                            <td><span class="fractal-column">H1</span></td>
-                            <td>1 fractal</td>
-                            <td>Current swing size in pips — the raw leg just completed</td>
-                        </tr>
-                        <tr>
-                            <td><span class="fractal-column">H3</span></td>
-                            <td>Last 3 fractals</td>
-                            <td>Short moving average of swing size</td>
-                        </tr>
-                        <tr>
-                            <td><span class="fractal-column">H6</span></td>
-                            <td>Last 6 fractals</td>
-                            <td>Medium moving average of swing size</td>
-                        </tr>
-                        <tr>
-                            <td><span class="fractal-column">ADX</span></td>
-                            <td>Trend strength at the time of the fractal — not direction, but conviction</td>
-                            <td>High ADX confirms a genuine trend; low ADX suggests ranging regardless of fractal
-                                direction</td>
-                        </tr>
-                        <tr>
-                            <td><span class="fractal-column">ATR (pips)</span></td>
-                            <td>Average true range — current volatility in pips</td>
-                            <td>Context for stop sizing and swing expectations</td>
-                        </tr>
-                        <tr>
-                            <td><span class="fractal-column">VD High / Low</span></td>
-                            <td>Vertical displacement — net pip movement since the prior fractal of the same kind
-                            </td>
-                            <td>Indicates whether swing highs or lows are expanding or compressing</td>
-                        </tr>
-                        <tr>
-                            <td><span class="fractal-column">Pullback %</span></td>
-                            <td>How far price retraced before confirming the fractal, as a percentage of the prior
-                                swing
-                            </td>
-                            <td>Shallow pullbacks in a downtrend suggest strong momentum; deep pullbacks suggest
-                                hesitation</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <h3>H Combinations</h3>
-
-            <div class="team-grid">
-                <div class="team-card">
-                    <div class="team-name">H1 &gt; H3 &gt; H6</div>
-                    <div class="team-role">Expansion</div>
-                    <div class="team-desc">Swings are expanding — momentum accelerating</div>
-                </div>
-                <div class="team-card">
-                    <div class="team-name">H1 &lt; H3 &lt; H6</div>
-                    <div class="team-role">Contraction</div>
-                    <div class="team-desc">Swings are contracting — momentum fading or exhaustion</div>
-                </div>
-
-                <div class="team-card">
-                    <div class="team-name">H1 ≈ H3 ≈ H6</div>
-                    <div class="team-role">Neutral</div>
-                    <div class="team-desc">Swings are stable — consistent rhythm</div>
-                </div>
-            </div>
-        </section>
-
-        <div class="callout">
-
-            <ul class="doc-list">
-                <li>Note on macro regime development: H1/H3/H6, ADX, VD High/Low, and Pullback % are
-                    all
-                    computable in real time at fractal formation with no look-ahead.
-                </li>
-                <li>These metrics are the foundation
-                    for
-                    the live macro classifier currently under development — which aims to replace the prior daily
-                    look-ahead
-                    based classifier with a genuinely live signal built from fractal structure and trend conviction.
-                </li>
-
-            </ul>
-        </div>
-
-        </section>
-
-        <!-- Gate pipeline -->
-        <div class="section">
-            <div class="section-title">Entry Gate Pipeline Order</div>
-            <p>The first gate that rejects a signal stamps a <code>reason</code> on it, driving counterfactual stats in
-                the RA.</p>
             <div class="card card-flow">
                 <div class="flow-steps">
                     <div class="flow-step">
                         <div class="flow-num">1</div>
                         <div class="flow-content">
-                            <h4>Signal generation</h4>
-                            <p>Fractal detection + higher-low / lower-high test</p>
+                            <h4>Regime Awareness</h4>
+                            <p>Knowing when the strategy should and should not trade. Most retail strategies run blind
+                                regardless of market conditions — entering on any signal in any environment. This
+                                strategy gates entries through two independent regime layers: a macro gate (is today an
+                                active, directional market?) and a micro gate (is the immediate intraday fractal
+                                structure aligned with the trade direction?). The regime system is the most
+                                consequential layer — a mediocre signal in the right conditions outperforms a great
+                                signal in the wrong ones.</p>
                         </div>
                     </div>
                     <div class="flow-step">
                         <div class="flow-num">2</div>
                         <div class="flow-content">
-                            <h4>Direction filter</h4>
-                            <p><code>TRADE_DIRECTION</code> — both / long_only / short_only</p>
+                            <h4>Entry Signal Quality</h4>
+                            <p>Does the entry logic capture something real about market behaviour, or is it
+                                pattern-matching noise? Fractal geometry is a more principled foundation than most
+                                retail strategies — it is based on structural price behaviour rather than lagging
+                                indicator crossovers. The question is not whether fractals are the right approach, but
+                                whether the specific implementation is capturing genuine market microstructure. A signal
+                                that works for the wrong reasons will fail out-of-sample.</p>
                         </div>
                     </div>
                     <div class="flow-step">
                         <div class="flow-num">3</div>
                         <div class="flow-content">
-                            <h4>EMA position filter</h4>
-                            <p>v2 only, if <code>USE_EMA_FILTER</code> is on</p>
+                            <h4>Risk Management</h4>
+                            <p>Not just stop losses — position sizing, drawdown limits, and correlation management
+                                across positions and instruments. A strategy with a mediocre signal and excellent risk
+                                management will outperform a strategy with a great signal and poor risk management over
+                                the long run. Risk management is also the layer that makes a strategy survivable during
+                                inevitable periods of underperformance. Portfolio construction — running multiple
+                                uncorrelated strategies across pairs and directions — belongs here.</p>
                         </div>
                     </div>
                     <div class="flow-step">
                         <div class="flow-num">4</div>
                         <div class="flow-content">
-                            <h4>Daily loss limit</h4>
-                            <p>Blocks entries once <code>MAX_DAILY_LOSSES</code> is reached for the UTC day</p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">5</div>
-                        <div class="flow-content">
-                            <h4>Time filter</h4>
-                            <p><code>BLOCKED_HOURS_UTC</code></p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">6</div>
-                        <div class="flow-content">
-                            <h4>Macro regime gate</h4>
-                            <p>v2 only</p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">7</div>
-                        <div class="flow-content">
-                            <h4>Micro regime gate</h4>
-                            <p>v2 only</p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">8</div>
-                        <div class="flow-content">
-                            <h4>Stop-distance validation</h4>
-                            <p><code>MIN_STOP</code> / <code>MAX_STOP</code> range check</p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num flow-num-green">9</div>
-                        <div class="flow-content">
-                            <h4>Trade execution</h4>
-                            <p>Signal accepted — position opened</p>
+                            <h4>Execution Quality</h4>
+                            <p>Slippage, spread, and entry timing. On 5-minute bars this matters more than it appears —
+                                a strategy that looks excellent at bar close can look very different when accounting for
+                                real fill prices, news-driven spread widening, and execution latency in cTrader. Entry
+                                timing within the signal — whether to enter at confirmation or wait for a pullback, for
+                                example — also belongs here. This pillar is last because it only adds value once the
+                                first three are solid.</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- REGIME CLASSIFICATION SECTION — replace existing regime classification section entirely -->
+        <hr>
 
-        <section>
+        <!-- Methodology -->
+        <div class="section">
+
             <h2>REGIME CLASSIFICATION</h2>
-            <hr>
-
+            <!-- <hr> -->
             <p>The strategy uses two independent regime layers — macro and micro — both of which must be open for a
                 trade to be taken. Both are computed in real time from live fractal data with no look-ahead.</p>
 
@@ -308,29 +134,6 @@
                 per Discovery run — not hardcoded — so the optimal thresholds are found empirically for each instrument
                 and date range.</p>
 
-            <div class="info-card">
-                <strong>Optional strict mode</strong>
-                <p>When enabled, additionally requires <code>H1 ≥ H3 ≥ H6</code> — expanding pre-session swing momentum.
-                    This raises precision significantly (removes ~97% of bad-day losses) at the cost of capturing fewer
-                    good days. Configurable as a toggle in Discovery settings.</p>
-            </div>
-
-            <div class="callout">
-                <strong>Why swing height works as a macro signal</strong>
-                <p>Volatility clusters — large moves tend to follow large moves, and quiet periods stay quiet.
-                    Pre-session H1 averaging 24 pips on profitable trading days vs 14 pips on unprofitable days (Cohen's
-                    d 0.58, 2025 GBPUSD sample). The combination of H1 ≥ 10 AND ADX ≥ 20 achieves 73.5% good-day capture
-                    with 68.8% bad-day exclusion — clearing the 70% viability threshold.</p>
-            </div>
-
-            <div class="callout callout--note">
-                <strong>Note on the prior macro classifier</strong>
-                <p>An earlier macro classifier based on daily N=18 fractal structure (displacement, EMA-40 slope,
-                    Williams pivots) produced strong parity-mode results but was found to have near-zero predictive
-                    power in live mode — day-to-day label persistence of only 29.1% vs a 28.4% random baseline. Its
-                    apparent performance came entirely from same-day look-ahead. The swing height + ADX classifier
-                    replaces it entirely for live trading.</p>
-            </div>
 
             <!-- MICRO -->
             <h3>Micro Regime Gate</h3>
@@ -413,53 +216,134 @@
                 shift slightly as the quantile distribution is recomputed across a larger sample. Bake the current
                 values into the cBot as fixed parameters; update them when a new training run produces materially
                 different thresholds.</p>
+        </div>
 
-            <!-- INTERACTION -->
-            <h3>How the two layers interact</h3>
+        <section>
+            <h3>MICRO GATE - FRACTAL METRICS</h3>
 
-            <p>Both gates must be open simultaneously for a trade signal to proceed to entry. The macro gate filters by
-                market activity and trend conviction; the micro gate filters by immediate structural alignment. Neither
-                gate alone is sufficient.</p>
+            <p>Each confirmed N=2 fractal records a set of real-time metrics. These are available at the moment the
+                fractal forms — no look-ahead required — and are displayed in the Backtesting fractal table.</p>
 
             <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <th>Macro gate</th>
-                            <th>Micro gate</th>
-                            <th>Result</th>
+                            <th>Column</th>
+                            <th>What it measures</th>
+                            <th>What it shows</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td>Open</td>
-                            <td>Open</td>
-                            <td>Signal proceeds to entry check</td>
+                            <td><span class="fractal-column">Type</span></td>
+                            <td>Upper fractal or lower fractal</td>
+                            <td>Upper and lower</td>
                         </tr>
                         <tr>
-                            <td>Open</td>
-                            <td>Closed</td>
-                            <td>Signal blocked — wrong intraday structure</td>
+                            <td><span class="fractal-column">L#</span></td>
+                            <td>Micro trend leg number</td>
+                            <td>The number of lower fractals before a higher fractal forms. Each of those H fractals
+                                gets a number.</td>
                         </tr>
                         <tr>
-                            <td>Closed</td>
-                            <td>Open</td>
-                            <td>Signal blocked — insufficient market activity</td>
+                            <td><span class="fractal-column">H1</span></td>
+                            <td>1 fractal</td>
+                            <td>Current swing size in pips — the raw leg just completed</td>
                         </tr>
                         <tr>
-                            <td>Closed</td>
-                            <td>Closed</td>
-                            <td>Signal blocked</td>
+                            <td><span class="fractal-column">H3</span></td>
+                            <td>Last 3 fractals</td>
+                            <td>Short moving average of swing size</td>
+                        </tr>
+                        <tr>
+                            <td><span class="fractal-column">H6</span></td>
+                            <td>Last 6 fractals</td>
+                            <td>Medium moving average of swing size</td>
+                        </tr>
+                        <tr>
+                            <td><span class="fractal-column">ADX</span></td>
+                            <td>Trend strength at the time of the fractal — not direction, but conviction</td>
+                            <td>High ADX confirms a genuine trend; low ADX suggests ranging regardless of fractal
+                                direction</td>
+                        </tr>
+                        <tr>
+                            <td><span class="fractal-column">ATR (pips)</span></td>
+                            <td>Average true range — current volatility in pips</td>
+                            <td>Context for stop sizing and swing expectations</td>
+                        </tr>
+                        <tr>
+                            <td><span class="fractal-column">VD High / Low</span></td>
+                            <td>Vertical displacement — net pip movement since the prior fractal of the same kind
+                            </td>
+                            <td>Indicates whether swing highs or lows are expanding or compressing</td>
+                        </tr>
+                        <tr>
+                            <td><span class="fractal-column">Pullback %</span></td>
+                            <td>How far price retraced before confirming the fractal, as a percentage of the prior
+                                swing
+                            </td>
+                            <td>Shallow pullbacks in a downtrend suggest strong momentum; deep pullbacks suggest
+                                hesitation</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
+            <h3>Swing Height — H1, H3, H6</h3>
+            <p>The pip distance from the current fractal's price to the most recent opposite-kind fractal (e.g. for a
+                high-fractal: distance to the nearest prior low-fractal). H1 is the raw value; H3 and H6 are rolling
+                means over the last 3 and 6 non-null heights respectively, forming a smoothing ladder over the same
+                underlying series.</p>
+
+            <h3>H Combinations</h3>
+
+            <div class="team-grid">
+                <div class="team-card">
+                    <div class="team-name">H1 &gt; H3 &gt; H6</div>
+                    <div class="team-role">Expansion</div>
+                    <div class="team-desc">Swings are expanding — momentum accelerating</div>
+                </div>
+                <div class="team-card">
+                    <div class="team-name">H1 &lt; H3 &lt; H6</div>
+                    <div class="team-role">Contraction</div>
+                    <div class="team-desc">Swings are contracting — momentum fading or exhaustion</div>
+                </div>
+
+                <div class="team-card">
+                    <div class="team-name">H1 ≈ H3 ≈ H6</div>
+                    <div class="team-role">Neutral</div>
+                    <div class="team-desc">Swings are stable — consistent rhythm</div>
+                </div>
+            </div>
         </section>
+
+        <div class="callout">
+
+            <ul class="doc-list">
+                <li>Note on macro regime development: H1/H3/H6, ADX, VD High/Low, and Pullback % are
+                    all
+                    computable in real time at fractal formation with no look-ahead.
+                </li>
+                <li>These metrics are the foundation
+                    for
+                    the live macro classifier currently under development — which aims to replace the prior daily
+                    look-ahead
+                    based classifier with a genuinely live signal built from fractal structure and trend conviction.
+                </li>
+
+            </ul>
+        </div>
+
+        </section>
+
+        <hr>
+
+
+        <h2>ENTRY SIGNAL QUALITY</h2>
 
         <!-- v1 -->
         <div class="section">
-            <div class="section-title">v1 — Fractal Geometry Entries</div>
+            <h3>v1 — Fractal Based Entries</h3>
 
             <!-- <div class="grid-2"> -->
             <div>
@@ -505,6 +389,80 @@
                 </ul>
             </div>
             <!-- </div> -->
+        </div>
+
+        <!-- Gate pipeline -->
+        <div class="section">
+            <div class="section-title">Entry Gate Pipeline Order</div>
+            <p>The first gate that rejects a signal stamps a <code>reason</code> on it, driving counterfactual stats in
+                the RA.</p>
+            <div class="card card-flow">
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-num">1</div>
+                        <div class="flow-content">
+                            <h4>Signal generation</h4>
+                            <p>Fractal detection + higher-low / lower-high test</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">2</div>
+                        <div class="flow-content">
+                            <h4>Direction filter</h4>
+                            <p><code>TRADE_DIRECTION</code> — both / long_only / short_only</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">3</div>
+                        <div class="flow-content">
+                            <h4>EMA position filter</h4>
+                            <p>v2 only, if <code>USE_EMA_FILTER</code> is on</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">4</div>
+                        <div class="flow-content">
+                            <h4>Daily loss limit</h4>
+                            <p>Blocks entries once <code>MAX_DAILY_LOSSES</code> is reached for the UTC day</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">5</div>
+                        <div class="flow-content">
+                            <h4>Time filter</h4>
+                            <p><code>BLOCKED_HOURS_UTC</code></p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">6</div>
+                        <div class="flow-content">
+                            <h4>Macro regime gate</h4>
+                            <p></p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">7</div>
+                        <div class="flow-content">
+                            <h4>Micro regime gate</h4>
+                            <p></p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">8</div>
+                        <div class="flow-content">
+                            <h4>Stop-distance validation</h4>
+                            <p><code>MIN_STOP</code> / <code>MAX_STOP</code> range check</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num flow-num-green">9</div>
+                        <div class="flow-content">
+                            <h4>Trade execution</h4>
+                            <p>Signal accepted — position opened</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
     </div>

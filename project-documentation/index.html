@@ -33,6 +33,8 @@
             </div> -->
         </div>
 
+
+
         <!-- Team -->
         <div class="section-title">Team</div>
         <div class="team-grid">
@@ -61,56 +63,18 @@
 
             <div class="section-title">Team Workflow Responsibilities</div>
 
-            <h2 class="mt-xl">Chat's Workflow</h2>
+            <h2 class="mt-xl">Ada's Workflow - As Analyst</h2>
             <ul class="doc-list">
-                <li>Edward and Chat discuss and plan research and development. After deciding on instructions for Ada,
-                    Chat will summarize the instructions and
-                    Edward will relay them.
-                </li>
-                <li>Chat will almost always need to view the dashboard in the browser for reference and testing, and
-                    should make sure to be connected before the chat begins.</li>
+                <li>Leads the research agenda. Forms hypotheses, runs analyses and Discovery, interprets results,
+                    proposes next steps. Works autonomously within the current strategic priority.</li>
+                <li>Surfaces genuine decision points — findings with strategic implications, trade-offs between
+                    directions, results that change the picture significantly. Presents options with honest assessment
+                    of each, not just "what should I do next?"</li>
             </ul>
 
-            <div class="page-section" id="cp">
-
-                <h2>Browser Connection For Chat (Claude in Chrome MCP)</h2>
-
-                <div class="card card-flow">
-                    <div class="flow-steps">
-                        <div class="flow-step">
-                            <div class="flow-num">1</div>
-                            <div class="flow-content">
-                                <h4>list_connected_browsers → select_browser</h4>
-                                <p>Use the correct deviceId from the list.</p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">2</div>
-                            <div class="flow-content">
-                                <h4>tabs_context_mcp (createIfEmpty: true)</h4>
-                                <p>Creates the MCP tab group.</p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">3</div>
-                            <div class="flow-content">
-                                <h4>navigate to <code>http://localhost:8080/</code></h4>
-                                <p>Triggers Chrome's permission prompt for the extension.</p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">4</div>
-                            <div class="flow-content">
-                                <h4>If necessary, prompt Edward to allow the browser connection.</h4>
-                                <p>Sometimes a prompt needs to be displayed for permissions.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <h2 class="mt-xl">Ada's Workflow</h2>
+            <h2 class="mt-xl">Ada's Workflow - As Developer</h2>
             <ul class="doc-list">
+
                 <li>Ada recieves tasks and implements them.
                 </li>
                 <li>Always ask clarifying questions if the request is ambiguous.</li>
@@ -127,53 +91,55 @@
                     Chrome, not just sandbox-tested.</li>
             </ul>
 
-            <h2 class="mt-xl">Ongoing Docs Maintenance (Chat / Ada)</h2>
+            <h2 class="mt-xl">Chat's Workflow</h2>
             <ul class="doc-list">
-                <li>At significant milestones in each chat we'll be updating the docs, located in the
-                    <code>project-documentation</code>
-                    directory or URL <code>http://localhost:8080/docs/index.html</code>
+                <li>Edward and Chat discuss and plan research and development. After deciding on instructions for Ada,
+                    Chat will summarize the instructions and
+                    Edward will relay them.
                 </li>
-                <li>Ada should update the docs directly in the file, and Chat should provide code snippets in the chat
-                    window
-                    for
-                    copy and paste.</li>
+                <li>Chat will almost always need to view the dashboard in the browser for reference and testing, and
+                    should make sure to be connected before the chat begins.</li>
             </ul>
+
 
         </div>
 
-        <!-- Doc cards -->
-        <div class="section-title">Documentation Pages</div>
-        <div class="grid-2">
+        <div class="page-section" id="cp">
 
-            <a class="doc-card" href="dashboard.html">
-                <span class="doc-card-icon">🖥️</span>
-                <div class="doc-card-title">Dashboard Guide</div>
-                <div class="doc-card-desc">The four-page dashboard — Backtesting, Regimes, Discovery, and Versions. What
-                    each page
-                    does, how to use it, and keyboard shortcuts.</div>
-            </a>
+            <h2>Browser Connection For Chat (Claude in Chrome MCP)</h2>
 
-            <a class="doc-card" href="technical.html">
-                <span class="doc-card-icon">⚙️</span>
-                <div class="doc-card-title">Technical Setup</div>
-                <div class="doc-card-desc">File structure, Flask endpoints, environment variables, Python packages, and
-                    data folder contents.</div>
-            </a>
-
-            <a class="doc-card" href="strategy.html">
-                <span class="doc-card-icon">📐</span>
-                <div class="doc-card-title">Strategy (Legagy)</div>
-                <div class="doc-card-desc">Fractal detection, entry gates, regime classification, position sizing, and
-                    the full entry gate pipeline for v1 and v2.</div>
-            </a>
-
-            <a class="doc-card" href="research.html">
-                <span class="doc-card-icon">🔬</span>
-                <div class="doc-card-title">Research &amp; Development</div>
-                <div class="doc-card-desc">Key conclusions from analysis sessions — Discovery insights, regime edge,
-                    instrument findings, and near-future direction.</div>
-            </a>
-
+            <div class="card card-flow">
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-num">1</div>
+                        <div class="flow-content">
+                            <h4>list_connected_browsers → select_browser</h4>
+                            <p>Use the correct deviceId from the list.</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">2</div>
+                        <div class="flow-content">
+                            <h4>tabs_context_mcp (createIfEmpty: true)</h4>
+                            <p>Creates the MCP tab group.</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">3</div>
+                        <div class="flow-content">
+                            <h4>navigate to <code>http://localhost:8080/</code></h4>
+                            <p>Triggers Chrome's permission prompt for the extension.</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">4</div>
+                        <div class="flow-content">
+                            <h4>If necessary, prompt Edward to allow the browser connection.</h4>
+                            <p>Sometimes a prompt needs to be displayed for permissions.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
     </div>
