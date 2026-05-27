@@ -1,148 +1,133 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Fractal Bot — Project Docs</title>
+        <link rel="stylesheet" href="docs.css" />
+    </head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fractal Bot — Project Docs</title>
-    <link rel="stylesheet" href="docs.css">
-</head>
+    <body>
+        <nav>
+            <a class="nav-brand" href="index.html">Fractal Geo</a>
+            <a href="index.html" class="active">Overview</a>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="technical.html">Technical Setup</a>
+            <a href="strategy.html">Strategy</a>
+            <a href="research.html">Research &amp; Development</a>
+        </nav>
 
-<body>
-
-    <nav>
-        <a class="nav-brand" href="index.html">Fractal Geo</a>
-        <a href="index.html" class="active">Overview</a>
-        <a href="dashboard.html">Dashboard</a>
-        <a href="technical.html">Technical Setup</a>
-        <a href="strategy.html">Strategy</a>
-        <a href="research.html">Research &amp; Development</a>
-    </nav>
-
-    <div class="page">
-
-        <div class="hero">
-            <h1>Project Overview</h1>
-            <p class="lead">A backtesting dashboard for developing an algorithmic trading bot for cTrader. Python
-                handles research and backtesting; the final strategy is exported as C# for live trading.</p>
-            <!-- <div class="hero-meta">
+        <div class="page">
+            <div class="hero">
+                <h1>Project Overview</h1>
+                <p class="lead">
+                    A backtesting dashboard for developing an algorithmic trading bot for cTrader. Python handles research and backtesting; the final strategy is exported as C# for
+                    live trading.
+                </p>
+                <!-- <div class="hero-meta">
                 <div class="hero-meta-item">Instrument <span>GBPUSD · EURUSD</span></div>
                 <div class="hero-meta-item">Interval <span>5m</span></div>
                 <div class="hero-meta-item">Active Version <span>v1</span></div>
                 <div class="hero-meta-item">Strategy <span>Fractal Geometry · Short Only</span></div>
             </div> -->
-        </div>
-
-
-
-        <!-- Team -->
-        <div class="section-title">Team</div>
-        <div class="team-grid">
-            <div class="team-card">
-                <div class="team-name">Edward</div>
-                <div class="team-role">Director</div>
-                <div class="team-desc">Manages overall direction. Decides what gets built next, reviews results, and
-                    bridges between Chat and Ada.</div>
             </div>
-            <div class="team-card">
-                <div class="team-name">Chat</div>
-                <div class="team-role">Analyst &amp; Tester</div>
-                <div class="team-desc">Strategy development, backtest analysis, and live browser testing via the Claude
-                    in Chrome extension.</div>
+
+            <!-- Team -->
+            <div class="section-title">Team</div>
+            <div class="team-grid">
+                <div class="team-card">
+                    <div class="team-name">Edward</div>
+                    <div class="team-role">Director</div>
+                    <div class="team-desc">Manages overall direction. Decides what gets built next, reviews results, and bridges between Chat and Ada.</div>
+                </div>
+                <div class="team-card">
+                    <div class="team-name">Chat</div>
+                    <div class="team-role">Analyst &amp; Tester</div>
+                    <div class="team-desc">Strategy development, backtest analysis, and live browser testing via the Claude in Chrome extension.</div>
+                </div>
+                <div class="team-card">
+                    <div class="team-name">Cowork (Ada)</div>
+                    <div class="team-role">Implementation</div>
+                    <div class="team-desc">Executes all implementation tasks. Verifies fixes in the browser before marking tasks complete.</div>
+                </div>
             </div>
-            <div class="team-card">
-                <div class="team-name">Cowork (Ada)</div>
-                <div class="team-role">Implementation</div>
-                <div class="team-desc">Executes all implementation tasks. Verifies fixes in the browser before marking
-                    tasks complete.</div>
+
+            <div class="section">
+                <div class="section-title">Team Workflow Responsibilities</div>
+
+                <h2 class="mt-xl">Ada's Workflow - As Analyst</h2>
+                <ul class="doc-list">
+                    <li>
+                        Leads the research agenda. Forms hypotheses, runs analyses and Discovery, interprets results, proposes next steps. Works autonomously within the current
+                        strategic priority.
+                    </li>
+                    <li>
+                        Surfaces genuine decision points — findings with strategic implications, trade-offs between directions, results that change the picture significantly.
+                        Presents options with honest assessment of each, not just "what should I do next?"
+                    </li>
+                </ul>
+
+                <h2 class="mt-xl">Ada's Workflow - As Developer</h2>
+                <ul class="doc-list">
+                    <li>Ada recieves tasks and implements them.</li>
+                    <li>Always ask clarifying questions if the request is ambiguous.</li>
+                    <li>New styling goes in style.css — never use inline style="…" attributes on new HTML.</li>
+                    <li>When a task is done, state what Edward needs to do to see the change:</li>
+                    <li>Restart the Flask server (needed for server.py changes including INJECT_HTML)</li>
+                    <li>Run a backtest from the dashboard to regenerate report.html (only if a strategy-template change should be visible immediately)</li>
+                    <li>Run python3 regime_analysis.py to regenerate results/regime_analysis.html (RA page changes only)</li>
+                    <li>Or any combination of the above.</li>
+                    <li>In-browser verification. Visual and event-flow bugs must be verified in a real browser via Claude in Chrome, not just sandbox-tested.</li>
+                </ul>
+
+                <h2 class="mt-xl">Chat's Workflow</h2>
+                <ul class="doc-list">
+                    <li>
+                        Edward and Chat discuss and plan research and development. After deciding on instructions for Ada, Chat will summarize the instructions and Edward will
+                        relay them.
+                    </li>
+                    <li>
+                        Chat will almost always need to view the dashboard in the browser for reference and testing, and should make sure to be connected before the chat begins.
+                    </li>
+                </ul>
             </div>
-        </div>
 
-        <div class="section">
+            <div class="page-section" id="cp">
+                <h2>Browser Connection For Chat (Claude in Chrome MCP)</h2>
 
-
-            <div class="section-title">Team Workflow Responsibilities</div>
-
-            <h2 class="mt-xl">Ada's Workflow - As Analyst</h2>
-            <ul class="doc-list">
-                <li>Leads the research agenda. Forms hypotheses, runs analyses and Discovery, interprets results,
-                    proposes next steps. Works autonomously within the current strategic priority.</li>
-                <li>Surfaces genuine decision points — findings with strategic implications, trade-offs between
-                    directions, results that change the picture significantly. Presents options with honest assessment
-                    of each, not just "what should I do next?"</li>
-            </ul>
-
-            <h2 class="mt-xl">Ada's Workflow - As Developer</h2>
-            <ul class="doc-list">
-
-                <li>Ada recieves tasks and implements them.
-                </li>
-                <li>Always ask clarifying questions if the request is ambiguous.</li>
-                <li>New styling goes in style.css — never use inline style="…" attributes
-                    on new HTML.</li>
-                <li>When a task is done, state what Edward needs to do to see the change:</li>
-                <li>Restart the Flask server (needed for server.py changes including INJECT_HTML)</li>
-                <li>Run a backtest from the dashboard to regenerate report.html (only if a strategy-template change
-                    should be visible immediately)</li>
-                <li>Run python3 regime_analysis.py to regenerate results/regime_analysis.html (RA page changes only)
-                </li>
-                <li>Or any combination of the above.</li>
-                <li>In-browser verification. Visual and event-flow bugs must be verified in a real browser via Claude in
-                    Chrome, not just sandbox-tested.</li>
-            </ul>
-
-            <h2 class="mt-xl">Chat's Workflow</h2>
-            <ul class="doc-list">
-                <li>Edward and Chat discuss and plan research and development. After deciding on instructions for Ada,
-                    Chat will summarize the instructions and
-                    Edward will relay them.
-                </li>
-                <li>Chat will almost always need to view the dashboard in the browser for reference and testing, and
-                    should make sure to be connected before the chat begins.</li>
-            </ul>
-
-
-        </div>
-
-        <div class="page-section" id="cp">
-
-            <h2>Browser Connection For Chat (Claude in Chrome MCP)</h2>
-
-            <div class="card card-flow">
-                <div class="flow-steps">
-                    <div class="flow-step">
-                        <div class="flow-num">1</div>
-                        <div class="flow-content">
-                            <h4>list_connected_browsers → select_browser</h4>
-                            <p>Use the correct deviceId from the list.</p>
+                <div class="card card-flow">
+                    <div class="flow-steps">
+                        <div class="flow-step">
+                            <div class="flow-num">1</div>
+                            <div class="flow-content">
+                                <h4>list_connected_browsers → select_browser</h4>
+                                <p>Use the correct deviceId from the list.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">2</div>
-                        <div class="flow-content">
-                            <h4>tabs_context_mcp (createIfEmpty: true)</h4>
-                            <p>Creates the MCP tab group.</p>
+                        <div class="flow-step">
+                            <div class="flow-num">2</div>
+                            <div class="flow-content">
+                                <h4>tabs_context_mcp (createIfEmpty: true)</h4>
+                                <p>Creates the MCP tab group.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">3</div>
-                        <div class="flow-content">
-                            <h4>navigate to <code>http://localhost:8080/</code></h4>
-                            <p>Triggers Chrome's permission prompt for the extension.</p>
+                        <div class="flow-step">
+                            <div class="flow-num">3</div>
+                            <div class="flow-content">
+                                <h4>navigate to <code>http://localhost:8080/</code></h4>
+                                <p>Triggers Chrome's permission prompt for the extension.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">4</div>
-                        <div class="flow-content">
-                            <h4>If necessary, prompt Edward to allow the browser connection.</h4>
-                            <p>Sometimes a prompt needs to be displayed for permissions.</p>
+                        <div class="flow-step">
+                            <div class="flow-num">4</div>
+                            <div class="flow-content">
+                                <h4>If necessary, prompt Edward to allow the browser connection.</h4>
+                                <p>Sometimes a prompt needs to be displayed for permissions.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
-    </div>
-</body>
-
+    </body>
 </html>
