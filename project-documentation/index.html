@@ -16,27 +16,23 @@
         </nav>
 
         <div class="page">
+
+            <!-- Hero -->
             <div class="hero">
                 <h1>Project Overview</h1>
                 <p class="lead">
                     Our current backtesting dashboard will be used to develop a profitable algorithmic trading strategy. Python handles research and backtesting; the final strategy
                     is exported as C# for live trading with cTrader.
                 </p>
-                <!-- <div class="hero-meta">
-                <div class="hero-meta-item">Instrument <span>GBPUSD · EURUSD</span></div>
-                <div class="hero-meta-item">Interval <span>5m</span></div>
-                <div class="hero-meta-item">Active Version <span>v1</span></div>
-                <div class="hero-meta-item">Strategy <span>Fractal Geometry · Short Only</span></div>
-            </div> -->
             </div>
 
-            <div class="page-header">
-                <h1>Liquidity Engeneering Model</h1>
-                <p>The strategy that we're starting to develop should be built around a Liquidity Engeneering Model framework, which is described in detail below.</p>
-            </div>
-
+            <!-- Liquidity Engineering Model -->
             <div class="section">
-                <div class="section-title">Basic Charts Setup</div>
+                <div class="section-title">Liquidity Engineering Model</div>
+                <p>The strategy that we're starting to develop should be built around a Liquidity Engineering Model framework, which is described in detail below.</p>
+
+                <!-- Basic Charts Setup -->
+                <h2>Basic Charts Setup</h2>
 
                 <h3>Time Frames</h3>
                 <ul class="doc-list">
@@ -49,7 +45,7 @@
                     <li>200 EMA</li>
                     <li>40 EMA</li>
                     <li>20 EMA</li>
-                    <li><strong>Trend Confirmation Measurement</strong> - If there is 20 < 40 for longer than 10 minutes (10 candles)</li>
+                    <li><strong>Trend Confirmation Measurement</strong> - If there is 20 &lt; 40 for longer than 10 minutes (10 candles)</li>
                 </ul>
 
                 <h3>Fractal Indicators</h3>
@@ -64,12 +60,15 @@
                     <li><strong>LTF</strong> - Lower Time Frame - Typically refers to the 1m time frame</li>
                     <li><strong>PA</strong> - Price Action</li>
                     <li><strong>PP</strong> - Fractals a.k.a Pivot Points</li>
-                    <li><strong>FPP</strong> - (Forward Pivot Points) Market has pushed forward and decicively pulled back enough for a PP to print on the chart.</li>
-                    <li><strong>PBPP</strong> - (Pull Back Pivot Points) Market has pulled back and then decisively resumed trending causeing a clear PP to print on the chart.</li>
+                    <li><strong>FPP</strong> - (Forward Pivot Points) Market has pushed forward and decisively pulled back enough for a PP to print on the chart.</li>
+                    <li><strong>PBPP</strong> - (Pull Back Pivot Points) Market has pulled back and then decisively resumed trending causing a clear PP to print on the chart.</li>
                 </ul>
+
                 <hr />
 
-                <h2 class="mt-xl">Liquidity Engineering Model</h2>
+                <!-- Methodology -->
+                <h2>Liquidity Engineering Model</h2>
+
                 <h3>Methodology</h3>
                 <ul class="doc-list">
                     <li>
@@ -77,14 +76,14 @@
                         <strong>Sweep liquidity</strong> (move price through those levels to fill institutional orders).
                     </li>
                     <li>
-                        Traders are provided 2 components that must exist to incuce trading liquidity: 1. A <strong>reason to enter</strong> (micro trend moving in a clear
+                        Traders are provided 2 components that must exist to induce trading liquidity: 1. A <strong>reason to enter</strong> (micro trend moving in a clear
                         direction) 2. A <strong>place to exit</strong> (clear, sensible stop loss levels - recent swing points).
                     </li>
                     <li>
-                        Specificly placed levels (patterns) are created to induce liquidity to be placed at predictable levels, and later those specific levels are 'breached' to
-                        capure the liquidity.
+                        Specifically placed levels (patterns) are created to induce liquidity to be placed at predictable levels, and later those specific levels are 'breached' to
+                        capture the liquidity.
                     </li>
-                    <li>It's extremely simple and cant be fundamentally done in a more complex way - feign one direction and then move in an opposite direction.</li>
+                    <li>It's extremely simple and can't be fundamentally done in a more complex way - feign one direction and then move in an opposite direction.</li>
                     <li>
                         This pattern is particularly consistent on the one-minute chart. Most retail traders are going to gravitate to the 1-minute chart, to make quick money in
                         the least amount of time, and will place their stop losses tightly and predictably.
@@ -95,12 +94,13 @@
                         sweeps those levels before reversing. That's not a coincidence or a pattern that disappears — it's a mechanical feature of how markets clear large orders.
                     </li>
                 </ul>
+
                 <h3>Liquidity Induction</h3>
                 <p>The induction pattern is simple and clear so that the maximum number of traders can see it and react to it.</p>
                 <ul class="doc-list">
-                    <li>Price moves in a micro trend with a clearly visable direction.</li>
+                    <li>Price moves in a micro trend with a clearly visible direction.</li>
                     <li>
-                        The clarity of the trend is underlied with higher high and higher low (and vice versa) pivot points. There are sharp, decisive, clear, reversals in
+                        The clarity of the trend is underlined with higher high and higher low (and vice versa) pivot points. There are sharp, decisive, clear, reversals in
                         direction. There are clear pushes forward, clear pull backs, and clear pull back reversals / trend continuation.
                     </li>
                     <li>
@@ -108,6 +108,7 @@
                         twice, therefore, the third leg a is particularly inducing component.
                     </li>
                 </ul>
+
                 <h3>Liquidity Sweep</h3>
                 <ul class="doc-list">
                     <li>At some point after the liquidity has been sufficiently induced, the price pulls back past the PBPP and sweeps those and predictable levels.</li>
@@ -118,90 +119,35 @@
                         with the LTF PP and proceeds without sweeping them.
                     </li>
                 </ul>
+
+                <hr />
+
+                <!-- Inducement Patterns and Sweeps -->
+                <h2>Liquidity Engineering Model - Inducement Patterns and Sweeps</h2>
+                <p>
+                    In the following chart images the inducement patterns are indicated with the blue boxes. Each blue box represents an inducement pattern that all share the same
+                    qualities:
+                </p>
+                <ul class="doc-list">
+                    <li>1 - A clear short term direction.</li>
+                    <li>
+                        2 - A number of pivot points (typically 3 or more) serving both as confirmation of the direction and providing obvious levels for liquidity to cluster for the
+                        sweep.
+                    </li>
+                </ul>
+                <p>After each blue box, you can see how the PBPP levels were methodically breached (indicated by the white horizontal lines).</p>
+
+                <h3>Range Cycle</h3>
+                <div><img src="img/micro-trends.png" alt="" /></div>
+
+                <h3>Range + Trend Cycle</h3>
+                <p>
+                    On the left of this chart the price is consolidating. There are 2 micro trends in which all the PBPP levels were swept. On the right side, the price is trending,
+                    proceeding efficiently to a HTF level, and the PBPP are rarely swept (indicated by the white horizontal lines).
+                </p>
+                <div><img src="img/range-trend.png" alt="" /></div>
             </div>
-            <h3>Liquidity Engineering Model - Inducement Patterns and Sweeps</h3>
-            <p>
-                In the following chart images the inducement patterns are indicated with the blue boxes. Each blue box represents an inducement pattern that all share the same
-                qualities:
-            </p>
-            <ul class="doc-list">
-                <li>1 - A clear short term direction.</li>
-                <li>
-                    2 - A number of pivot points (tpically 3 or more) serving both as confirmation of the direction and providing obvious levels for liquidity to cluster for the
-                    sweep.
-                </li>
-            </ul>
-            <p>After each blue box, you can see how the PBPP levels were methodically breached (indicated by the white horizontal lines).</p>
 
-            <h3>Range Cycle</h3>
-            <div><img src="img/micro-trends.png" alt="" /></div>
-
-            <h3>Range + Trend Cycle</h3>
-            <p>
-                On the left of this chart the price is consolidating. There are 2 micro trends in which all the PBPP levels were swept. On the right side, the price is trending,
-                proceeding efficiently to a HTF level, and the PBPP are rarely swept (indicated by the white horizontal lines).
-            </p>
-            <div><img src="img/range-trend.png" alt="" /></div>
-
-            <hr />
-
-            <hr />
-
-            <h2>Development Pillars</h2>
-            <p>Four specific areas have been identified as a basic development structure to keep in mind throught the project.</p>
-
-            <div class="card card-flow">
-                <div class="flow-steps">
-                    <div class="flow-step">
-                        <div class="flow-num">1</div>
-                        <div class="flow-content">
-                            <h4>Regime Awareness</h4>
-                            <p>
-                                Knowing when the strategy should and should not trade. Most retail strategies run blind regardless of market conditions — entering on any signal in
-                                any environment. This strategy gates entries through two independent regime layers: a macro gate (is today an active, directional market?) and a
-                                micro gate (is the immediate intraday fractal structure aligned with the trade direction?). The regime system is the most consequential layer — a
-                                mediocre signal in the right conditions outperforms a great signal in the wrong ones.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">2</div>
-                        <div class="flow-content">
-                            <h4>Entry Signal Quality</h4>
-                            <p>
-                                Does the entry logic capture something real about market behaviour, or is it pattern-matching noise? Fractal geometry is a more principled
-                                foundation than most retail strategies — it is based on structural price behaviour rather than lagging indicator crossovers. The question is not
-                                whether fractals are the right approach, but whether the specific implementation is capturing genuine market microstructure. A signal that works for
-                                the wrong reasons will fail out-of-sample.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">3</div>
-                        <div class="flow-content">
-                            <h4>Risk Management</h4>
-                            <p>
-                                Not just stop losses — position sizing, drawdown limits, and correlation management across positions and instruments. A strategy with a mediocre
-                                signal and excellent risk management will outperform a strategy with a great signal and poor risk management over the long run. Risk management is
-                                also the layer that makes a strategy survivable during inevitable periods of underperformance. Portfolio construction — running multiple
-                                uncorrelated strategies across pairs and directions — belongs here.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="flow-step">
-                        <div class="flow-num">4</div>
-                        <div class="flow-content">
-                            <h4>Execution Quality</h4>
-                            <p>
-                                Slippage, spread, and entry timing. On 5-minute bars this matters more than it appears — a strategy that looks excellent at bar close can look very
-                                different when accounting for real fill prices, news-driven spread widening, and execution latency in cTrader. Entry timing within the signal —
-                                whether to enter at confirmation or wait for a pullback, for example — also belongs here. This pillar is last because it only adds value once the
-                                first three are solid.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </body>
 </html>

@@ -17,42 +17,46 @@
     </nav>
 
     <div class="page">
+
+        <!-- Page Header -->
         <div class="page-header">
             <h1>Technical Setup</h1>
         </div>
 
         <!-- Team -->
-        <div class="section-title">Team</div>
-        <div class="team-grid">
-            <div class="team-card">
-                <div class="team-name">Edward</div>
-                <div class="team-role">Director</div>
-                <div class="team-desc">Manages overall direction. Decides what gets built next, reviews results, and
-                    bridges between Chat and Ada.</div>
-            </div>
-            <div class="team-card">
-                <div class="team-name">Chat</div>
-                <div class="team-role">Analyst &amp; Tester</div>
-                <div class="team-desc">Strategy development, backtest analysis, and live browser testing via the Claude
-                    in Chrome extension.</div>
-            </div>
-            <div class="team-card">
-                <div class="team-name">Cowork (Ada)</div>
-                <div class="team-role">Strategy Analyst &amp Development</div>
-                <div class="team-desc">Lead strategy analyst as well as implementation of development tasks. Verifies
-                    fixes in the browser before marking tasks complete.</div>
+        <div class="section">
+            <div class="section-title">Team</div>
+            <div class="team-grid">
+                <div class="team-card">
+                    <div class="team-name">Edward</div>
+                    <div class="team-role">Director</div>
+                    <div class="team-desc">Manages overall direction. Decides what gets built next, reviews results, and
+                        bridges between Chat and Ada.</div>
+                </div>
+                <div class="team-card">
+                    <div class="team-name">Chat</div>
+                    <div class="team-role">Analyst &amp; Tester</div>
+                    <div class="team-desc">Strategy development, backtest analysis, and live browser testing via the Claude
+                        in Chrome extension.</div>
+                </div>
+                <div class="team-card">
+                    <div class="team-name">Cowork (Ada)</div>
+                    <div class="team-role">Strategy Analyst &amp; Development</div>
+                    <div class="team-desc">Lead strategy analyst as well as implementation of development tasks. Verifies
+                        fixes in the browser before marking tasks complete.</div>
+                </div>
             </div>
         </div>
 
+        <!-- Team Workflow -->
         <div class="section">
             <div class="section-title">Team Workflow Responsibilities</div>
 
-            <h2 class="mt-xl">Ada's Workflow - As Strategy Analyst</h2>
+            <h2>Ada's Workflow - As Strategy Analyst</h2>
             <ul class="doc-list">
                 <li>
                     Leads the research agenda. Forms hypotheses, runs analyses, interprets results, proposes next steps.
-                    Works autonomously within the current strategic
-                    priority.
+                    Works autonomously within the current strategic priority.
                 </li>
                 <li>
                     Surfaces genuine decision points — findings with strategic implications, trade-offs between
@@ -61,23 +65,22 @@
                 </li>
             </ul>
 
-            <h2 class="mt-xl">Ada's Workflow - As Developer</h2>
+            <h2>Ada's Workflow - As Developer</h2>
             <ul class="doc-list">
-                <li>Ada recieves tasks and implements them.</li>
+                <li>Ada receives tasks and implements them.</li>
                 <li>Always ask clarifying questions if the request is ambiguous.</li>
                 <li>New styling goes in style.css — never use inline style="…" attributes on new HTML.</li>
                 <li>When a task is done, state what Edward needs to do to see the change:</li>
                 <li>Restart the Flask server (needed for server.py changes including INJECT_HTML)</li>
                 <li>Run a backtest from the dashboard to regenerate report.html (only if a strategy-template change
                     should be visible immediately)</li>
-                <li>Run python3 regime_analysis.py to regenerate results/regime_analysis.html (RA page changes only)
-                </li>
+                <li>Run python3 regime_analysis.py to regenerate results/regime_analysis.html (RA page changes only)</li>
                 <li>Or any combination of the above.</li>
                 <li>In-browser verification. Visual and event-flow bugs must be verified in a real browser via Claude in
                     Chrome, not just sandbox-tested.</li>
             </ul>
 
-            <h2 class="mt-xl">Chat's Workflow</h2>
+            <h2>Chat's Workflow</h2>
             <ul class="doc-list">
                 <li>
                     Edward and Chat discuss results and suggestions from Ada and guide research and development. After
@@ -89,9 +92,9 @@
             </ul>
         </div>
 
-        <div class="page-section" id="cp">
-            <h2>Browser Connection For Chat (Claude in Chrome MCP)</h2>
-
+        <!-- Browser Connection -->
+        <div class="section" id="cp">
+            <div class="section-title">Browser Connection For Chat (Claude in Chrome MCP)</div>
             <div class="card card-flow">
                 <div class="flow-steps">
                     <div class="flow-step">
@@ -129,15 +132,15 @@
         <!-- Environment -->
         <div class="section">
             <div class="section-title">Environment</div>
-
             <ul class="doc-list">
                 <li><strong>Working directory</strong> — <code>~/Documents/GitHub/trading-bot</code></li>
                 <li><strong>Venv activation</strong> — <code>source venv/bin/activate</code></li>
             </ul>
         </div>
 
-        <!-- Setup -->
+        <!-- Startup -->
         <div class="section">
+            <div class="section-title">Startup</div>
             <div class="card">
                 <div class="card-title">Startup</div>
                 <p>Double-click <code>start.command</code> from Finder. Runs:</p>
@@ -145,7 +148,6 @@
 git pull
 source venv/bin/activate
 python3 server.py</code></pre>
-
                 <p>Opens dashboard at <code>http://localhost:8080</code></p>
                 <p>Run without creating new images:</p>
                 <pre><code>GENERATE_DAILY_CHARTS=false python3 regime_analysis.py</code></pre>
@@ -161,7 +163,6 @@ python3 server.py</code></pre>
                     <a href="https://github.com/edwardprague/trading-bot" target="_blank"
                         class="link-blue">github.com/edwardprague/trading-bot</a>
                 </li>
-
                 <li><code>data/versions.json</code> — tracked in git. Always commit after version changes.</li>
                 <li><code>data/</code> — otherwise gitignored (large OHLC parquets stay local)</li>
                 <li>Always <code>git pull</code> before starting a session on a new machine</li>
@@ -169,7 +170,7 @@ python3 server.py</code></pre>
             </ul>
         </div>
 
-        <!-- Python packages -->
+        <!-- Python Packages -->
         <div class="section">
             <div class="section-title">Python Packages</div>
             <div class="table-wrap">
@@ -222,7 +223,7 @@ python3 server.py</code></pre>
             </div>
         </div>
 
-        <!-- Project files -->
+        <!-- Project Files -->
         <div class="section">
             <div class="section-title">Project Files</div>
             <div class="table-wrap">
@@ -239,8 +240,7 @@ python3 server.py</code></pre>
                             <td>
                                 Flask web server — routes dashboard, regime analysis, async backtests, and
                                 <code>/versions</code>. Hosts <code>INJECT_HTML</code> (top-nav + run
-                                bar) injected on
-                                <code>/</code>
+                                bar) injected on <code>/</code>
                             </td>
                         </tr>
                         <tr>
@@ -260,8 +260,7 @@ python3 server.py</code></pre>
                         </tr>
                         <tr>
                             <td>regime_analysis.py</td>
-                            <td>Builds <code>regime_labels.parquet</code> + <code>results/regime_analysis.html</code>
-                            </td>
+                            <td>Builds <code>regime_labels.parquet</code> + <code>results/regime_analysis.html</code></td>
                         </tr>
                         <tr>
                             <td>cbot_templates.py</td>
@@ -306,7 +305,7 @@ python3 server.py</code></pre>
             </div>
         </div>
 
-        <!-- Data folder -->
+        <!-- Data Folder -->
         <div class="section">
             <div class="section-title">Data Folder</div>
             <div class="grid-2">
@@ -322,8 +321,7 @@ python3 server.py</code></pre>
                         <li><code>USDCAD_5m.parquet</code></li>
                     </ul>
                     <p class="text-note-after">
-                        Refresh with
-                        <code>python3 download_data.py</code>
+                        Refresh with <code>python3 download_data.py</code>
                     </p>
                 </div>
                 <div>
@@ -339,7 +337,7 @@ python3 server.py</code></pre>
             </div>
         </div>
 
-        <!-- Flask endpoints -->
+        <!-- Flask Endpoints -->
         <div class="section">
             <div class="section-title">Flask Endpoints</div>
             <div class="table-wrap">
@@ -430,8 +428,7 @@ python3 server.py</code></pre>
                         <tr>
                             <td>/run_regime_analysis</td>
                             <td>POST</td>
-                            <td>Synchronous RA backtest re-run (~30–100s). Writes regime_state back to versions.json.
-                            </td>
+                            <td>Synchronous RA backtest re-run (~30–100s). Writes regime_state back to versions.json.</td>
                         </tr>
                         <tr>
                             <td>/results/&lt;filename&gt;</td>
@@ -443,9 +440,9 @@ python3 server.py</code></pre>
             </div>
         </div>
 
-        <!-- Gate pipeline -->
+        <!-- Trade Entry Gate Pipeline -->
         <div class="section">
-            <h2>Trade Entry Gate Pipeline Order</h2>
+            <div class="section-title">Trade Entry Gate Pipeline Order</div>
             <p>The first gate that rejects a signal stamps a <code>reason</code> on it, driving counterfactual stats in
                 the RA.</p>
             <div class="card card-flow">
@@ -489,14 +486,12 @@ python3 server.py</code></pre>
                         <div class="flow-num">6</div>
                         <div class="flow-content">
                             <h4>Macro regime gate</h4>
-                            <p></p>
                         </div>
                     </div>
                     <div class="flow-step">
                         <div class="flow-num">7</div>
                         <div class="flow-content">
                             <h4>Micro regime gate</h4>
-                            <p></p>
                         </div>
                     </div>
                     <div class="flow-step">
@@ -517,7 +512,7 @@ python3 server.py</code></pre>
             </div>
         </div>
 
-        <!-- cTrader -->
+        <!-- cTrader Integration -->
         <div class="section">
             <div class="section-title">cTrader Integration</div>
             <div class="card">
@@ -537,8 +532,8 @@ python3 server.py</code></pre>
         </div>
 
         <!-- Keyboard Shortcuts -->
-        <div class="page-section" id="shortcuts">
-            <h2>Keyboard Shortcuts</h2>
+        <div class="section" id="shortcuts">
+            <div class="section-title">Keyboard Shortcuts</div>
 
             <h3>BD Keyboard Shortcuts</h3>
             <p class="text-note">Click the page body first to ensure focus. Suppressed when focus is in an input,
@@ -588,7 +583,6 @@ python3 server.py</code></pre>
                         <div class="shortcut-key"><kbd>L</kbd></div>
                         <div class="shortcut-desc">Toggle Development Log</div>
                     </div>
-
                     <div class="shortcut-row">
                         <div class="shortcut-key"><kbd>⇧</kbd>+<kbd>1–4</kbd></div>
                         <div class="shortcut-desc">Toggle sidebar section Year/Month/Weeks/Day</div>
@@ -660,6 +654,7 @@ python3 server.py</code></pre>
                 </div>
             </div>
         </div>
+
     </div>
 </body>
 
