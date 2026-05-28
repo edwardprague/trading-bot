@@ -1,0 +1,30 @@
+# Production dependencies for Railway / any clean Python 3.13 deploy.
+# Versions pinned from the local venv (Python 3.9) — all recent enough to
+# support 3.13. If a pin fails to install on a future Python upgrade,
+# loosen the constraint or drop it. Generated from the deps actually
+# imported by server.py / discovery.py / strategy_v*.py / regime_analysis.py.
+
+# Web framework
+flask==3.1.3
+
+# Numerics / data
+numpy==2.0.2
+pandas==2.3.3
+scipy==1.13.1
+scikit-learn==1.6.1
+
+# Parquet I/O (strategy + regime labels read parquets from $DATA_DIR)
+pyarrow==21.0.0
+
+# Charting (regime_analysis.py renders matplotlib charts)
+matplotlib==3.9.4
+
+# HTTP + .env loading (download_data.py + the dotenv shims)
+requests==2.32.5
+python-dotenv==1.2.1
+
+# Model persistence (regime_discovery.py saves regime_model.pkl)
+joblib==1.5.3
+
+# MASSIVE data-provider SDK (download_data.py + strategy_v1.py cache miss path)
+massive==2.4.0
