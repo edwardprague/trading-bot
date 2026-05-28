@@ -1,519 +1,666 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Technical Reference — Fractal Bot Docs</title>
-        <link rel="stylesheet" href="docs.css" />
-    </head>
 
-    <body>
-        <nav>
-            <a href="index.html">Overview</a>
-            <a href="research.html">Research &amp; Development</a>
-            <a href="dashboard.html">Dashboard</a>
-            <a href="technical.html" class="active">Technical Setup</a>
-        </nav>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Technical Reference — Fractal Bot Docs</title>
+    <link rel="stylesheet" href="docs.css" />
+</head>
 
-        <div class="page">
-            <div class="page-header">
-                <h1>Technical Setup</h1>
+<body>
+    <nav>
+        <a href="index.html">Overview</a>
+        <a href="research.html">Research &amp; Development</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="technical.html" class="active">Technical Setup</a>
+    </nav>
+
+    <div class="page">
+        <div class="page-header">
+            <h1>Technical Setup</h1>
+        </div>
+
+        <!-- Team -->
+        <div class="section-title">Team</div>
+        <div class="team-grid">
+            <div class="team-card">
+                <div class="team-name">Edward</div>
+                <div class="team-role">Director</div>
+                <div class="team-desc">Manages overall direction. Decides what gets built next, reviews results, and
+                    bridges between Chat and Ada.</div>
             </div>
-
-            <!-- Team -->
-            <div class="section-title">Team</div>
-            <div class="team-grid">
-                <div class="team-card">
-                    <div class="team-name">Edward</div>
-                    <div class="team-role">Director</div>
-                    <div class="team-desc">Manages overall direction. Decides what gets built next, reviews results, and bridges between Chat and Ada.</div>
-                </div>
-                <div class="team-card">
-                    <div class="team-name">Chat</div>
-                    <div class="team-role">Analyst &amp; Tester</div>
-                    <div class="team-desc">Strategy development, backtest analysis, and live browser testing via the Claude in Chrome extension.</div>
-                </div>
-                <div class="team-card">
-                    <div class="team-name">Cowork (Ada)</div>
-                    <div class="team-role">Strategy Analyst &amp Development</div>
-                    <div class="team-desc">Lead strategy analyst as well as implementation of development tasks. Verifies fixes in the browser before marking tasks complete.</div>
-                </div>
+            <div class="team-card">
+                <div class="team-name">Chat</div>
+                <div class="team-role">Analyst &amp; Tester</div>
+                <div class="team-desc">Strategy development, backtest analysis, and live browser testing via the Claude
+                    in Chrome extension.</div>
             </div>
-
-            <div class="section">
-                <div class="section-title">Team Workflow Responsibilities</div>
-
-                <h2 class="mt-xl">Ada's Workflow - As Strategy Analyst</h2>
-                <ul class="doc-list">
-                    <li>
-                        Leads the research agenda. Forms hypotheses, runs analyses, interprets results, proposes next steps. Works autonomously within the current strategic
-                        priority.
-                    </li>
-                    <li>
-                        Surfaces genuine decision points — findings with strategic implications, trade-offs between directions, results that change the picture significantly.
-                        Presents options with honest assessment of each, not just "what should I do next?"
-                    </li>
-                </ul>
-
-                <h2 class="mt-xl">Ada's Workflow - As Developer</h2>
-                <ul class="doc-list">
-                    <li>Ada recieves tasks and implements them.</li>
-                    <li>Always ask clarifying questions if the request is ambiguous.</li>
-                    <li>New styling goes in style.css — never use inline style="…" attributes on new HTML.</li>
-                    <li>When a task is done, state what Edward needs to do to see the change:</li>
-                    <li>Restart the Flask server (needed for server.py changes including INJECT_HTML)</li>
-                    <li>Run a backtest from the dashboard to regenerate report.html (only if a strategy-template change should be visible immediately)</li>
-                    <li>Run python3 regime_analysis.py to regenerate results/regime_analysis.html (RA page changes only)</li>
-                    <li>Or any combination of the above.</li>
-                    <li>In-browser verification. Visual and event-flow bugs must be verified in a real browser via Claude in Chrome, not just sandbox-tested.</li>
-                </ul>
-
-                <h2 class="mt-xl">Chat's Workflow</h2>
-                <ul class="doc-list">
-                    <li>
-                        Edward and Chat discuss results and suggestions from Ada and guide research and development. After deciding on specific instructions for Ada, Chat will
-                        summarize the instructions and Edward will relay them.
-                    </li>
-                    <li>Chat will almost always need to view the dashboard in the browser for reference and testing, and should make sure to be connected.</li>
-                </ul>
+            <div class="team-card">
+                <div class="team-name">Cowork (Ada)</div>
+                <div class="team-role">Strategy Analyst &amp Development</div>
+                <div class="team-desc">Lead strategy analyst as well as implementation of development tasks. Verifies
+                    fixes in the browser before marking tasks complete.</div>
             </div>
+        </div>
 
-            <div class="page-section" id="cp">
-                <h2>Browser Connection For Chat (Claude in Chrome MCP)</h2>
+        <div class="section">
+            <div class="section-title">Team Workflow Responsibilities</div>
 
-                <div class="card card-flow">
-                    <div class="flow-steps">
-                        <div class="flow-step">
-                            <div class="flow-num">1</div>
-                            <div class="flow-content">
-                                <h4>list_connected_browsers → select_browser</h4>
-                                <p>Use the correct deviceId from the list.</p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">2</div>
-                            <div class="flow-content">
-                                <h4>tabs_context_mcp (createIfEmpty: true)</h4>
-                                <p>Creates the MCP tab group.</p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">3</div>
-                            <div class="flow-content">
-                                <h4>navigate to <code>http://localhost:8080/</code></h4>
-                                <p>Triggers Chrome's permission prompt for the extension.</p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">4</div>
-                            <div class="flow-content">
-                                <h4>If necessary, prompt Edward to allow the browser connection.</h4>
-                                <p>Sometimes a prompt needs to be displayed for permissions.</p>
-                            </div>
+            <h2 class="mt-xl">Ada's Workflow - As Strategy Analyst</h2>
+            <ul class="doc-list">
+                <li>
+                    Leads the research agenda. Forms hypotheses, runs analyses, interprets results, proposes next steps.
+                    Works autonomously within the current strategic
+                    priority.
+                </li>
+                <li>
+                    Surfaces genuine decision points — findings with strategic implications, trade-offs between
+                    directions, results that change the picture significantly.
+                    Presents options with honest assessment of each, not just "what should I do next?"
+                </li>
+            </ul>
+
+            <h2 class="mt-xl">Ada's Workflow - As Developer</h2>
+            <ul class="doc-list">
+                <li>Ada recieves tasks and implements them.</li>
+                <li>Always ask clarifying questions if the request is ambiguous.</li>
+                <li>New styling goes in style.css — never use inline style="…" attributes on new HTML.</li>
+                <li>When a task is done, state what Edward needs to do to see the change:</li>
+                <li>Restart the Flask server (needed for server.py changes including INJECT_HTML)</li>
+                <li>Run a backtest from the dashboard to regenerate report.html (only if a strategy-template change
+                    should be visible immediately)</li>
+                <li>Run python3 regime_analysis.py to regenerate results/regime_analysis.html (RA page changes only)
+                </li>
+                <li>Or any combination of the above.</li>
+                <li>In-browser verification. Visual and event-flow bugs must be verified in a real browser via Claude in
+                    Chrome, not just sandbox-tested.</li>
+            </ul>
+
+            <h2 class="mt-xl">Chat's Workflow</h2>
+            <ul class="doc-list">
+                <li>
+                    Edward and Chat discuss results and suggestions from Ada and guide research and development. After
+                    deciding on specific instructions for Ada, Chat will
+                    summarize the instructions and Edward will relay them.
+                </li>
+                <li>Chat will almost always need to view the dashboard in the browser for reference and testing, and
+                    should make sure to be connected.</li>
+            </ul>
+        </div>
+
+        <div class="page-section" id="cp">
+            <h2>Browser Connection For Chat (Claude in Chrome MCP)</h2>
+
+            <div class="card card-flow">
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-num">1</div>
+                        <div class="flow-content">
+                            <h4>list_connected_browsers → select_browser</h4>
+                            <p>Use the correct deviceId from the list.</p>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Environment -->
-            <div class="section">
-                <div class="section-title">Environment</div>
-
-                <ul class="doc-list">
-                    <li><strong>Working directory</strong> — <code>~/Documents/GitHub/trading-bot</code></li>
-                    <li><strong>Venv activation</strong> — <code>source venv/bin/activate</code></li>
-                </ul>
-            </div>
-
-            <!-- Setup -->
-            <div class="section">
-                <div class="card">
-                    <div class="card-title">Startup</div>
-                    <p>Double-click <code>start.command</code> from Finder. Runs:</p>
-                    <pre><code>cd ~/Documents/GitHub/trading-bot
-git pull
-source venv/bin/activate
-python3 server.py</code></pre>
-
-                    <p>Opens dashboard at <code>http://localhost:8080</code></p>
-                    <p>Run without creating new images:</p>
-                    <pre><code>GENERATE_DAILY_CHARTS=false python3 regime_analysis.py</code></pre>
-                </div>
-            </div>
-
-            <!-- Git -->
-            <div class="section">
-                <div class="section-title">Git</div>
-                <ul class="doc-list">
-                    <li>
-                        <strong>Repository</strong> —
-                        <a href="https://github.com/edwardprague/trading-bot" target="_blank" class="link-blue">github.com/edwardprague/trading-bot</a>
-                    </li>
-
-                    <li><code>data/versions.json</code> — tracked in git. Always commit after version changes.</li>
-                    <li><code>data/</code> — otherwise gitignored (large OHLC parquets stay local)</li>
-                    <li>Always <code>git pull</code> before starting a session on a new machine</li>
-                    <li><code>start.command</code> does <code>git pull</code> automatically on launch</li>
-                </ul>
-            </div>
-
-            <!-- Python packages -->
-            <div class="section">
-                <div class="section-title">Python Packages</div>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Package</th>
-                                <th>Purpose</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>flask</td>
-                                <td>Dashboard + regime analysis web server</td>
-                            </tr>
-                            <tr>
-                                <td>pandas</td>
-                                <td>Data manipulation</td>
-                            </tr>
-                            <tr>
-                                <td>numpy</td>
-                                <td>Numerical calculations</td>
-                            </tr>
-                            <tr>
-                                <td>pyarrow / fastparquet</td>
-                                <td>Parquet I/O (either works)</td>
-                            </tr>
-                            <tr>
-                                <td>massive</td>
-                                <td>Massive.io API client (data source)</td>
-                            </tr>
-                            <tr>
-                                <td>python-dotenv</td>
-                                <td>Loads API keys from <code>.env</code></td>
-                            </tr>
-                            <tr>
-                                <td>matplotlib</td>
-                                <td>Chart generation</td>
-                            </tr>
-                            <tr>
-                                <td>ta / pandas-ta</td>
-                                <td>Technical indicators (ADX, EMA)</td>
-                            </tr>
-                            <tr>
-                                <td>requests</td>
-                                <td>HTTP requests</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Project files -->
-            <div class="section">
-                <div class="section-title">Project Files</div>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>File / Folder</th>
-                                <th>Role</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>server.py</td>
-                                <td>
-                                    Flask web server — routes dashboard, regime analysis, async backtests, and <code>/versions</code>. Hosts <code>INJECT_HTML</code> (top-nav + run
-                                    bar) injected on
-                                    <code>/</code>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>strategy.py</td>
-                                <td>
-                                    Thin router — reads <code>STRATEGY_VERSION</code> env var, delegates to
-                                    <code>strategy_vN.py</code>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>strategy_v1.py</td>
-                                <td>Fractal-only entries</td>
-                            </tr>
-                            <tr>
-                                <td>strategy_v2.py</td>
-                                <td>v1 + EMA position filter + regime gates (current)</td>
-                            </tr>
-                            <tr>
-                                <td>regime_analysis.py</td>
-                                <td>Builds <code>regime_labels.parquet</code> + <code>results/regime_analysis.html</code></td>
-                            </tr>
-                            <tr>
-                                <td>cbot_templates.py</td>
-                                <td>Renders <code>FractalBot_v{N}.cs</code> for cTrader</td>
-                            </tr>
-                            <tr>
-                                <td>download_data.py</td>
-                                <td>
-                                    Fetches OHLC bars from Massive API →
-                                    <code>data/&lt;instrument&gt;_&lt;interval&gt;.parquet</code>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>start.command</td>
-                                <td>Double-click startup (git pull + Flask)</td>
-                            </tr>
-                            <tr>
-                                <td>report.html</td>
-                                <td>
-                                    Auto-generated dashboard — <strong>never edit directly</strong>; edit
-                                    <code>strategy_vN.py</code>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>style.css</td>
-                                <td>Shared stylesheet for dashboard + regime analysis</td>
-                            </tr>
-                            <tr>
-                                <td>.env</td>
-                                <td>API keys — gitignored, never commit</td>
-                            </tr>
-                            <tr>
-                                <td>data/</td>
-                                <td>Cached OHLC parquets, regime labels, versions store</td>
-                            </tr>
-                            <tr>
-                                <td>results/</td>
-                                <td>Generated reports + charts</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Data folder -->
-            <div class="section">
-                <div class="section-title">Data Folder</div>
-                <div class="grid-2">
-                    <div>
-                        <h2>OHLC Parquets</h2>
-                        <ul class="doc-list">
-                            <li><code>GBPUSD_5m.parquet</code></li>
-                            <li><code>EURUSD_5m.parquet</code></li>
-                            <li><code>GBPJPY_5m.parquet</code></li>
-                            <li><code>USDJPY_5m.parquet</code></li>
-                            <li><code>EURJPY_5m.parquet</code></li>
-                            <li><code>AUDUSD_5m.parquet</code></li>
-                            <li><code>USDCAD_5m.parquet</code></li>
-                        </ul>
-                        <p class="text-note-after">
-                            Refresh with
-                            <code>python3 download_data.py</code>
-                        </p>
-                    </div>
-                    <div>
-                        <h2>Config &amp; Labels</h2>
-                        <ul class="doc-list">
-                            <li><code>regime_labels.parquet</code> — Per-fractal regime labels. Schema metadata carries macro_by_date JSON + tercile thresholds.</li>
-                            <li><code>macro_by_date.json</code> — Sidecar macro labels fallback</li>
-                            <li><code>versions.json</code> — Active-version id + per-version regime allow-lists + notes. Source of truth — tracked in git.</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Flask endpoints -->
-            <div class="section">
-                <div class="section-title">Flask Endpoints</div>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Route</th>
-                                <th>Method</th>
-                                <th>Purpose</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>/</td>
-                                <td>GET</td>
-                                <td>Dashboard — serves <code>report.html</code> with run-bar injected</td>
-                            </tr>
-                            <tr>
-                                <td>/style.css</td>
-                                <td>GET</td>
-                                <td>Shared stylesheet</td>
-                            </tr>
-                            <tr>
-                                <td>/versions</td>
-                                <td>GET</td>
-                                <td>Versions management page</td>
-                            </tr>
-                            <tr>
-                                <td>/discovery</td>
-                                <td>GET</td>
-                                <td>Discovery page</td>
-                            </tr>
-                            <tr>
-                                <td>/docs</td>
-                                <td>GET</td>
-                                <td>This documentation</td>
-                            </tr>
-                            <tr>
-                                <td>/run</td>
-                                <td>POST</td>
-                                <td>Kick off backtest subprocess (full date range)</td>
-                            </tr>
-                            <tr>
-                                <td>/run_range</td>
-                                <td>POST</td>
-                                <td>Kick off backtest over a specific date range</td>
-                            </tr>
-                            <tr>
-                                <td>/run_batch</td>
-                                <td>POST</td>
-                                <td>Queue multiple backtests</td>
-                            </tr>
-                            <tr>
-                                <td>/status</td>
-                                <td>GET</td>
-                                <td>Poll backtest progress — BD only</td>
-                            </tr>
-                            <tr>
-                                <td>/api/versions</td>
-                                <td>GET</td>
-                                <td>Return full versions.json store</td>
-                            </tr>
-                            <tr>
-                                <td>/api/versions</td>
-                                <td>POST</td>
-                                <td>Add a new profile</td>
-                            </tr>
-                            <tr>
-                                <td>/api/versions/&lt;id&gt;</td>
-                                <td>DELETE</td>
-                                <td>Delete a profile; auto-switches active if needed</td>
-                            </tr>
-                            <tr>
-                                <td>/api/versions/&lt;id&gt;/notes</td>
-                                <td>POST</td>
-                                <td>Update a profile's notes field</td>
-                            </tr>
-                            <tr>
-                                <td>/api/active_version</td>
-                                <td>GET</td>
-                                <td>Return currently-active profile dict</td>
-                            </tr>
-                            <tr>
-                                <td>/api/active_version</td>
-                                <td>POST</td>
-                                <td>Switch the active profile</td>
-                            </tr>
-                            <tr>
-                                <td>/run_regime_analysis</td>
-                                <td>POST</td>
-                                <td>Synchronous RA backtest re-run (~30–100s). Writes regime_state back to versions.json.</td>
-                            </tr>
-                            <tr>
-                                <td>/results/&lt;filename&gt;</td>
-                                <td>GET</td>
-                                <td>Serve any file in results/</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Gate pipeline -->
-            <div class="section">
-                <h2>Trade Entry Gate Pipeline Order</h2>
-                <p>The first gate that rejects a signal stamps a <code>reason</code> on it, driving counterfactual stats in the RA.</p>
-                <div class="card card-flow">
-                    <div class="flow-steps">
-                        <div class="flow-step">
-                            <div class="flow-num">1</div>
-                            <div class="flow-content">
-                                <h4>Signal generation</h4>
-                                <p>Fractal detection + higher-low / lower-high test</p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">2</div>
-                            <div class="flow-content">
-                                <h4>Direction filter</h4>
-                                <p><code>TRADE_DIRECTION</code> — both / long_only / short_only</p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">3</div>
-                            <div class="flow-content">
-                                <h4>EMA position filter</h4>
-                                <p>v2 only, if <code>USE_EMA_FILTER</code> is on</p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">4</div>
-                            <div class="flow-content">
-                                <h4>Daily loss limit</h4>
-                                <p>Blocks entries once <code>MAX_DAILY_LOSSES</code> is reached for the UTC day</p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">5</div>
-                            <div class="flow-content">
-                                <h4>Time filter</h4>
-                                <p><code>BLOCKED_HOURS_UTC</code></p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">6</div>
-                            <div class="flow-content">
-                                <h4>Macro regime gate</h4>
-                                <p></p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">7</div>
-                            <div class="flow-content">
-                                <h4>Micro regime gate</h4>
-                                <p></p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num">8</div>
-                            <div class="flow-content">
-                                <h4>Stop-distance validation</h4>
-                                <p><code>MIN_STOP</code> / <code>MAX_STOP</code> range check</p>
-                            </div>
-                        </div>
-                        <div class="flow-step">
-                            <div class="flow-num flow-num-green">9</div>
-                            <div class="flow-content">
-                                <h4>Trade execution</h4>
-                                <p>Signal accepted — position opened</p>
-                            </div>
+                    <div class="flow-step">
+                        <div class="flow-num">2</div>
+                        <div class="flow-content">
+                            <h4>tabs_context_mcp (createIfEmpty: true)</h4>
+                            <p>Creates the MCP tab group.</p>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- cTrader -->
-            <div class="section">
-                <div class="section-title">cTrader Integration</div>
-                <div class="card">
-                    <div class="card-title">Code Generation</div>
-                    <p>
-                        Click <strong>Create cBot</strong> on the BD. This calls <code>cbot_templates.py</code> which renders <code>FractalBot_v{N}.cs</code>. The generated file is
-                        overwritten on every generation — <strong>never edit it directly.</strong> All logic changes go in <code>cbot_templates.py</code>.
-                    </p>
-                    <div class="callout callout-info mt-md-tight mb-0">
-                        <span class="callout-icon">ℹ️</span>
-                        <div class="callout-body">C# runs natively inside cTrader as a cBot. The Python Open API is an external connection not suitable for prop firm use.</div>
+                    <div class="flow-step">
+                        <div class="flow-num">3</div>
+                        <div class="flow-content">
+                            <h4>navigate to <code>http://localhost:8080/</code></h4>
+                            <p>Triggers Chrome's permission prompt for the extension.</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">4</div>
+                        <div class="flow-content">
+                            <h4>If necessary, prompt Edward to allow the browser connection.</h4>
+                            <p>Sometimes a prompt needs to be displayed for permissions.</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </body>
+
+        <!-- Environment -->
+        <div class="section">
+            <div class="section-title">Environment</div>
+
+            <ul class="doc-list">
+                <li><strong>Working directory</strong> — <code>~/Documents/GitHub/trading-bot</code></li>
+                <li><strong>Venv activation</strong> — <code>source venv/bin/activate</code></li>
+            </ul>
+        </div>
+
+        <!-- Setup -->
+        <div class="section">
+            <div class="card">
+                <div class="card-title">Startup</div>
+                <p>Double-click <code>start.command</code> from Finder. Runs:</p>
+                <pre><code>cd ~/Documents/GitHub/trading-bot
+git pull
+source venv/bin/activate
+python3 server.py</code></pre>
+
+                <p>Opens dashboard at <code>http://localhost:8080</code></p>
+                <p>Run without creating new images:</p>
+                <pre><code>GENERATE_DAILY_CHARTS=false python3 regime_analysis.py</code></pre>
+            </div>
+        </div>
+
+        <!-- Git -->
+        <div class="section">
+            <div class="section-title">Git</div>
+            <ul class="doc-list">
+                <li>
+                    <strong>Repository</strong> —
+                    <a href="https://github.com/edwardprague/trading-bot" target="_blank"
+                        class="link-blue">github.com/edwardprague/trading-bot</a>
+                </li>
+
+                <li><code>data/versions.json</code> — tracked in git. Always commit after version changes.</li>
+                <li><code>data/</code> — otherwise gitignored (large OHLC parquets stay local)</li>
+                <li>Always <code>git pull</code> before starting a session on a new machine</li>
+                <li><code>start.command</code> does <code>git pull</code> automatically on launch</li>
+            </ul>
+        </div>
+
+        <!-- Python packages -->
+        <div class="section">
+            <div class="section-title">Python Packages</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Package</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>flask</td>
+                            <td>Dashboard + regime analysis web server</td>
+                        </tr>
+                        <tr>
+                            <td>pandas</td>
+                            <td>Data manipulation</td>
+                        </tr>
+                        <tr>
+                            <td>numpy</td>
+                            <td>Numerical calculations</td>
+                        </tr>
+                        <tr>
+                            <td>pyarrow / fastparquet</td>
+                            <td>Parquet I/O (either works)</td>
+                        </tr>
+                        <tr>
+                            <td>massive</td>
+                            <td>Massive.io API client (data source)</td>
+                        </tr>
+                        <tr>
+                            <td>python-dotenv</td>
+                            <td>Loads API keys from <code>.env</code></td>
+                        </tr>
+                        <tr>
+                            <td>matplotlib</td>
+                            <td>Chart generation</td>
+                        </tr>
+                        <tr>
+                            <td>ta / pandas-ta</td>
+                            <td>Technical indicators (ADX, EMA)</td>
+                        </tr>
+                        <tr>
+                            <td>requests</td>
+                            <td>HTTP requests</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Project files -->
+        <div class="section">
+            <div class="section-title">Project Files</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File / Folder</th>
+                            <th>Role</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>server.py</td>
+                            <td>
+                                Flask web server — routes dashboard, regime analysis, async backtests, and
+                                <code>/versions</code>. Hosts <code>INJECT_HTML</code> (top-nav + run
+                                bar) injected on
+                                <code>/</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>strategy.py</td>
+                            <td>
+                                Thin router — reads <code>STRATEGY_VERSION</code> env var, delegates to
+                                <code>strategy_vN.py</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>strategy_v1.py</td>
+                            <td>Fractal-only entries</td>
+                        </tr>
+                        <tr>
+                            <td>strategy_v2.py</td>
+                            <td>v1 + EMA position filter + regime gates (current)</td>
+                        </tr>
+                        <tr>
+                            <td>regime_analysis.py</td>
+                            <td>Builds <code>regime_labels.parquet</code> + <code>results/regime_analysis.html</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>cbot_templates.py</td>
+                            <td>Renders <code>FractalBot_v{N}.cs</code> for cTrader</td>
+                        </tr>
+                        <tr>
+                            <td>download_data.py</td>
+                            <td>
+                                Fetches OHLC bars from Massive API →
+                                <code>data/&lt;instrument&gt;_&lt;interval&gt;.parquet</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>start.command</td>
+                            <td>Double-click startup (git pull + Flask)</td>
+                        </tr>
+                        <tr>
+                            <td>report.html</td>
+                            <td>
+                                Auto-generated dashboard — <strong>never edit directly</strong>; edit
+                                <code>strategy_vN.py</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>style.css</td>
+                            <td>Shared stylesheet for dashboard + regime analysis</td>
+                        </tr>
+                        <tr>
+                            <td>.env</td>
+                            <td>API keys — gitignored, never commit</td>
+                        </tr>
+                        <tr>
+                            <td>data/</td>
+                            <td>Cached OHLC parquets, regime labels, versions store</td>
+                        </tr>
+                        <tr>
+                            <td>results/</td>
+                            <td>Generated reports + charts</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Data folder -->
+        <div class="section">
+            <div class="section-title">Data Folder</div>
+            <div class="grid-2">
+                <div>
+                    <h2>OHLC Parquets</h2>
+                    <ul class="doc-list">
+                        <li><code>GBPUSD_5m.parquet</code></li>
+                        <li><code>EURUSD_5m.parquet</code></li>
+                        <li><code>GBPJPY_5m.parquet</code></li>
+                        <li><code>USDJPY_5m.parquet</code></li>
+                        <li><code>EURJPY_5m.parquet</code></li>
+                        <li><code>AUDUSD_5m.parquet</code></li>
+                        <li><code>USDCAD_5m.parquet</code></li>
+                    </ul>
+                    <p class="text-note-after">
+                        Refresh with
+                        <code>python3 download_data.py</code>
+                    </p>
+                </div>
+                <div>
+                    <h2>Config &amp; Labels</h2>
+                    <ul class="doc-list">
+                        <li><code>regime_labels.parquet</code> — Per-fractal regime labels. Schema metadata carries
+                            macro_by_date JSON + tercile thresholds.</li>
+                        <li><code>macro_by_date.json</code> — Sidecar macro labels fallback</li>
+                        <li><code>versions.json</code> — Active-version id + per-version regime allow-lists + notes.
+                            Source of truth — tracked in git.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flask endpoints -->
+        <div class="section">
+            <div class="section-title">Flask Endpoints</div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Route</th>
+                            <th>Method</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>/</td>
+                            <td>GET</td>
+                            <td>Dashboard — serves <code>report.html</code> with run-bar injected</td>
+                        </tr>
+                        <tr>
+                            <td>/style.css</td>
+                            <td>GET</td>
+                            <td>Shared stylesheet</td>
+                        </tr>
+                        <tr>
+                            <td>/versions</td>
+                            <td>GET</td>
+                            <td>Versions management page</td>
+                        </tr>
+                        <tr>
+                            <td>/discovery</td>
+                            <td>GET</td>
+                            <td>Discovery page</td>
+                        </tr>
+                        <tr>
+                            <td>/docs</td>
+                            <td>GET</td>
+                            <td>This documentation</td>
+                        </tr>
+                        <tr>
+                            <td>/run</td>
+                            <td>POST</td>
+                            <td>Kick off backtest subprocess (full date range)</td>
+                        </tr>
+                        <tr>
+                            <td>/run_range</td>
+                            <td>POST</td>
+                            <td>Kick off backtest over a specific date range</td>
+                        </tr>
+                        <tr>
+                            <td>/run_batch</td>
+                            <td>POST</td>
+                            <td>Queue multiple backtests</td>
+                        </tr>
+                        <tr>
+                            <td>/status</td>
+                            <td>GET</td>
+                            <td>Poll backtest progress — BD only</td>
+                        </tr>
+                        <tr>
+                            <td>/api/versions</td>
+                            <td>GET</td>
+                            <td>Return full versions.json store</td>
+                        </tr>
+                        <tr>
+                            <td>/api/versions</td>
+                            <td>POST</td>
+                            <td>Add a new profile</td>
+                        </tr>
+                        <tr>
+                            <td>/api/versions/&lt;id&gt;</td>
+                            <td>DELETE</td>
+                            <td>Delete a profile; auto-switches active if needed</td>
+                        </tr>
+                        <tr>
+                            <td>/api/versions/&lt;id&gt;/notes</td>
+                            <td>POST</td>
+                            <td>Update a profile's notes field</td>
+                        </tr>
+                        <tr>
+                            <td>/api/active_version</td>
+                            <td>GET</td>
+                            <td>Return currently-active profile dict</td>
+                        </tr>
+                        <tr>
+                            <td>/api/active_version</td>
+                            <td>POST</td>
+                            <td>Switch the active profile</td>
+                        </tr>
+                        <tr>
+                            <td>/run_regime_analysis</td>
+                            <td>POST</td>
+                            <td>Synchronous RA backtest re-run (~30–100s). Writes regime_state back to versions.json.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>/results/&lt;filename&gt;</td>
+                            <td>GET</td>
+                            <td>Serve any file in results/</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Gate pipeline -->
+        <div class="section">
+            <h2>Trade Entry Gate Pipeline Order</h2>
+            <p>The first gate that rejects a signal stamps a <code>reason</code> on it, driving counterfactual stats in
+                the RA.</p>
+            <div class="card card-flow">
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-num">1</div>
+                        <div class="flow-content">
+                            <h4>Signal generation</h4>
+                            <p>Fractal detection + higher-low / lower-high test</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">2</div>
+                        <div class="flow-content">
+                            <h4>Direction filter</h4>
+                            <p><code>TRADE_DIRECTION</code> — both / long_only / short_only</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">3</div>
+                        <div class="flow-content">
+                            <h4>EMA position filter</h4>
+                            <p>v2 only, if <code>USE_EMA_FILTER</code> is on</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">4</div>
+                        <div class="flow-content">
+                            <h4>Daily loss limit</h4>
+                            <p>Blocks entries once <code>MAX_DAILY_LOSSES</code> is reached for the UTC day</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">5</div>
+                        <div class="flow-content">
+                            <h4>Time filter</h4>
+                            <p><code>BLOCKED_HOURS_UTC</code></p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">6</div>
+                        <div class="flow-content">
+                            <h4>Macro regime gate</h4>
+                            <p></p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">7</div>
+                        <div class="flow-content">
+                            <h4>Micro regime gate</h4>
+                            <p></p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">8</div>
+                        <div class="flow-content">
+                            <h4>Stop-distance validation</h4>
+                            <p><code>MIN_STOP</code> / <code>MAX_STOP</code> range check</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num flow-num-green">9</div>
+                        <div class="flow-content">
+                            <h4>Trade execution</h4>
+                            <p>Signal accepted — position opened</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- cTrader -->
+        <div class="section">
+            <div class="section-title">cTrader Integration</div>
+            <div class="card">
+                <div class="card-title">Code Generation</div>
+                <p>
+                    Click <strong>Create cBot</strong> on the BD. This calls <code>cbot_templates.py</code> which
+                    renders <code>FractalBot_v{N}.cs</code>. The generated file is
+                    overwritten on every generation — <strong>never edit it directly.</strong> All logic changes go in
+                    <code>cbot_templates.py</code>.
+                </p>
+                <div class="callout callout-info mt-md-tight mb-0">
+                    <span class="callout-icon">ℹ️</span>
+                    <div class="callout-body">C# runs natively inside cTrader as a cBot. The Python Open API is an
+                        external connection not suitable for prop firm use.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Keyboard Shortcuts -->
+        <div class="page-section" id="shortcuts">
+            <h2>Keyboard Shortcuts</h2>
+
+            <h3>BD Keyboard Shortcuts</h3>
+            <p class="text-note">Click the page body first to ensure focus. Suppressed when focus is in an input,
+                select, or textarea.</p>
+            <div class="grid-2">
+                <div class="shortcut-grid">
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>1</kbd></div>
+                        <div class="shortcut-desc">Scroll to top</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>2</kbd>–<kbd>9</kbd></div>
+                        <div class="shortcut-desc">Scroll to Nth visible section</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>0</kbd></div>
+                        <div class="shortcut-desc">Scroll to bottom</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>↑</kbd> <kbd>↓</kbd></div>
+                        <div class="shortcut-desc">Sidebar navigation</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>D</kbd></div>
+                        <div class="shortcut-desc">Add Date Range</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>C</kbd></div>
+                        <div class="shortcut-desc">Copy Report</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>G</kbd></div>
+                        <div class="shortcut-desc">General tab</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>A</kbd></div>
+                        <div class="shortcut-desc">Advanced tab</div>
+                    </div>
+                </div>
+                <div class="shortcut-grid">
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>S</kbd></div>
+                        <div class="shortcut-desc">Toggle Backtest Settings panel (shared key on Regimes +
+                            Discovery)</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>L</kbd></div>
+                        <div class="shortcut-desc">Toggle Development Log</div>
+                    </div>
+
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>⇧</kbd>+<kbd>1–4</kbd></div>
+                        <div class="shortcut-desc">Toggle sidebar section Year/Month/Weeks/Day</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>⇧</kbd>+<kbd>Del</kbd></div>
+                        <div class="shortcut-desc">Delete selected version or run</div>
+                    </div>
+                    <div class="shortcut-row">
+                        <div class="shortcut-key"><kbd>↵</kbd></div>
+                        <div class="shortcut-desc">Submit in dialogs / edit fields</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>RA Keyboard Shortcuts</h3>
+            <div class="shortcut-grid shortcut-grid-narrow">
+                <div class="shortcut-row">
+                    <div class="shortcut-key"><kbd>1</kbd></div>
+                    <div class="shortcut-desc">Scroll to top</div>
+                </div>
+                <div class="shortcut-row">
+                    <div class="shortcut-key"><kbd>2</kbd></div>
+                    <div class="shortcut-desc">Stats cards</div>
+                </div>
+                <div class="shortcut-row">
+                    <div class="shortcut-key"><kbd>3</kbd></div>
+                    <div class="shortcut-desc">Macro regime performance</div>
+                </div>
+                <div class="shortcut-row">
+                    <div class="shortcut-key"><kbd>4</kbd></div>
+                    <div class="shortcut-desc">Micro regime performance</div>
+                </div>
+                <div class="shortcut-row">
+                    <div class="shortcut-key"><kbd>5</kbd></div>
+                    <div class="shortcut-desc">Regime timeline</div>
+                </div>
+                <div class="shortcut-row">
+                    <div class="shortcut-key"><kbd>6</kbd></div>
+                    <div class="shortcut-desc">Daily performance</div>
+                </div>
+                <div class="shortcut-row">
+                    <div class="shortcut-key"><kbd>7</kbd></div>
+                    <div class="shortcut-desc">Macro Regime Profiles</div>
+                </div>
+                <div class="shortcut-row">
+                    <div class="shortcut-key"><kbd>8</kbd></div>
+                    <div class="shortcut-desc">Regime summary cards</div>
+                </div>
+                <div class="shortcut-row">
+                    <div class="shortcut-key"><kbd>9</kbd></div>
+                    <div class="shortcut-desc">Threshold distributions</div>
+                </div>
+                <div class="shortcut-row">
+                    <div class="shortcut-key"><kbd>0</kbd></div>
+                    <div class="shortcut-desc">Regime periods (bottom)</div>
+                </div>
+                <div class="shortcut-row">
+                    <div class="shortcut-key"><kbd>S</kbd></div>
+                    <div class="shortcut-desc">Toggle Regime Filters panel (shared key on BD + Discovery)</div>
+                </div>
+            </div>
+
+            <h3>Discovery Keyboard Shortcuts</h3>
+            <div class="shortcut-grid shortcut-grid-narrow">
+                <div class="shortcut-row">
+                    <div class="shortcut-key"><kbd>S</kbd></div>
+                    <div class="shortcut-desc">Toggle Discovery Settings panel (shared key on BD + Regimes)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
 </html>
