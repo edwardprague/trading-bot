@@ -1,188 +1,206 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Research &amp; Findings — Fractal Bot Docs</title>
+        <link rel="stylesheet" href="docs.css" />
+    </head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Research &amp; Findings — Fractal Bot Docs</title>
-    <link rel="stylesheet" href="docs.css">
-</head>
+    <body>
+        <nav>
+            <a href="index.html">Overview</a>
+            <a href="research.html" class="active">Research &amp; Development</a>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="technical.html">Technical Setup</a>
+        </nav>
 
-<body>
-
-    <nav>
-        <a class="nav-brand" href="index.html">Fractal Geo</a>
-        <a href="index.html">Overview</a>
-        <a href="dashboard.html">Dashboard</a>
-        <a href="technical.html">Technical Setup</a>
-        <a href="strategy.html">Strategy</a>
-        <a href="research.html" class="active">Research &amp; Development</a>
-    </nav>
-
-    <div class="page">
-        <a class="back-link" href="index.html">← Back to Overview</a>
-
-        <div class="page-header">
-            <h1>Research &amp; Development</h1>
-        </div>
-
-        <!-- Key findings -->
-        <div class="section">
-            <div class="section-title">Key Strategy Findings</div>
-            <ul class="doc-list">
-                <li>The strategy is genuinely asymmetric — longs do not work
-                </li>
-                <li>RRR 1:1 performs best</li>
-                <li>The first 3 Micro and Macro filters off performs best</li>
-                <li>The strategy as currently optimised was essentially trained on look-ahead data — Discovery found
-                    parameters that work well when you already know today's regime before trading it.
-                </li>
-                <li>The parquet-based backtest labels each day with the benefit of hindsight — it knows how the full day
-                    played out before deciding whether to trade that day. A live cBot can't do that. It only knows
-                    yesterday's completed day when today's trading begins. That one-day lag, combined with the micro
-                    labels being computed slightly differently in real time, costs 43 trades and flips the result from
-                    +$129k to -$14k on the 2025 window.</li>
-                <li>The earlier parity-vs-live divergence (+$129k → −$14k) is now well-explained: the macro gate's value
-                    in parity mode comes almost entirely from look-ahead, not from any pattern that's available before
-                    midnight. Any "yesterday-plus-a-few-hours" approach hits this ceiling.</li>
-            </ul>
-        </div>
-
-        <!-- Key findings -->
-        <div class="section">
-            <div class="section-title">7% monthly target</div>
-            <ul class="doc-list">
-                <li>Top hedge funds don't approach that — the best systematic traders in the world (Renaissance, Two
-                    Sigma etc.) target 20-40% annually with massive Sharpe ratios. But the comparison isn't quite
-                    apples-to-apples for the reasons you identify — they're managing billions with regulatory
-                    constraints, investor redemption risk, market impact from position size, and reputational risk that
-                    makes drawdowns catastrophic. A retail algo on $100k has none of those constraints.
-                </li>
-                <li>The more relevant comparison is prop trading firms and retail algo traders — and there are credible
-                    accounts of 50-100% annual returns on small accounts with systematic strategies. Not common, not
-                    guaranteed, but not impossible either. <strong>7% monthly (125% annual) sits at the very top of
-                        what's been
-                        documented as sustainable. It's a stretch target, not a fantasy.</strong> But it would require
-                    the strategy
-                    to perform significantly better than what we currently have.</li>
-                <li>The goal is ambitious but the reasoning behind why it might be achievable is sound. The key insight
-                    — that development velocity and pivot capability are themselves a form of edge — is correct. The
-                    path there is probably portfolio construction across multiple strategies rather than one strategy
-                    doing 7%, and the infrastructure you've built is exactly what that would require.</li>
-                <li>The rapid pivot capability is real and it matters because systematic trading is fundamentally an
-                    iterative game. <strong>Most of the edge in retail algo trading comes from the ability to discover
-                        something, validate it quickly, deploy it, monitor it, and adapt when conditions change — faster
-                        than the market erodes the edge.</strong> You have that infrastructure now.</li>
-            </ul>
-        </div>
-
-        <div class="section">
-            <div class="section-title">What the realistic path to 7% looks like</div>
-            <ul class="doc-list">
-                <li>Not one strategy doing 7% — but potentially several strategies each doing 1-2% monthly with low
-                    correlation between them. The 7% target starts to look more conceivable when you think of it as a
-                    portfolio of 4-6 strategies each contributing 1-2% monthly rather than one strategy doing all the
-                    work.
-                </li>
-                <li>To reach 7% monthly consistently you'd likely need some combination of: <strong>better
-                        strategy performance, multiple uncorrelated strategies running simultaneously, and/or higher
-                        leverage used judiciously.</strong></li>
-
-            </ul>
-        </div>
-
-        <!-- Discovery -->
-        <div class="section">
-            <div class="section-title">Discovery Development</div>
-
-            <div class="finding-card">
-                <div class="finding-title">Bayesian / guided search (e.g. Optuna) instead of pure random</div>
-                <div class="finding-body">Current Discovery uses pure random sampling — each trial picks parameter
-                    combinations independently with no learning from previous trials. Bayesian search (e.g. using the
-                    Optuna library in Python) instead builds a probabilistic model of which regions of the search space
-                    are promising, and samples more densely there over time. This dramatically improves the pass rate
-                    per trial — fewer wasted trials in clearly poor regions, more exploration around combinations that
-                    are working. The practical benefit is finding better candidates with the same trial budget, or the
-                    same quality candidates with far fewer trials.</div>
+        <div class="page">
+            <div class="page-header">
+                <h1>Research &amp; Development</h1>
             </div>
 
-            <div class="finding-card">
-                <div class="finding-title">Composite objective function scoring
-                </div>
-                <div class="finding-body">Currently passing is binary — a trial either clears all thresholds (PF ≥ 1.5,
-                    min trades, max DD) or it doesn't. All passing trials are shown equally with no ranking beyond PF
-                    sort. A composite score such as <code>PF × win_rate / max_DD</code> would rank trials by overall
-                    quality rather than just filtering them, surfacing the genuinely best candidates at the top. This
-                    also reduces the influence of trials that barely pass one criterion while excelling at others — a
-                    more honest picture of which parameter sets are worth assigning to a version.
-                </div>
-            </div>
-
-            <div class="finding-card">
-                <div class="finding-title">Sharpe ratio as a ranking/filter criterion
-                </div>
-                <div class="finding-body">Current passing criteria (PF, min trades, max DD) can't distinguish between a
-                    smooth equity curve and a lumpy one with similar aggregate numbers. A 1:4 RRR strategy earns in
-                    bursts — high variability in periodic returns. A 1:1 strategy with 70% win rate is smoother. Sharpe
-                    penalises both sides equally; Sortino (downside only) may be more appropriate for high-RRR
-                    strategies. Adding Sharpe ≥ 1.0 as a filter would improve result quality.
-                </div>
-            </div>
-
-            <div class="finding-card">
-                <div class="finding-title">EMA Buffer as a search bounds parameter in Discovery
-                </div>
-                <div class="card-subtitle"><code>EMA40_BUFFER_PIPS</code> — default 5 pips</div>
-                <p>Short requires <code>close &lt; ema_long − buffer</code>; long requires
-                    <code>close &gt; ema_long + buffer</code>. Setting to 0 recovers strict-below behaviour.
+            <!-- Discovery -->
+            <div class="section">
+                <h2 class="mt-xl">Ada's Strategy Development Process</h2>
+                <p>
+                    In the past the dashboard was only used by Edward and Chat, to generate tests, analyze the data, think logically about the results, and formulate creative,
+                    forward thinking iterations to develop the strategy. Going forward, Ada will be the primary discovery agent, which would consist of the following:
                 </p>
-            </div>
 
-            <div class="finding-card">
-                <div class="finding-title">Walk-Forward Validation</div>
-                <div class="finding-body">Train on a historical window, validate on out-of-sample window, slide forward.
-                    Prevents overfitting and gives statistical confidence that regime gates capture a real edge rather
-                    than noise. Highest-value next build.
+                <ul class="doc-list">
+                    <li>Utilizing the dashboard tools: Backtesting, Regime Analysis, and Discovery to run data autonomously.</li>
+                    <li>Results should be carefully considered and thought about logically, in terms of does this help us achieve our goal or not, and if so, could it improve?</li>
+                    <li>Subsequent iterations should be made automatically according to Ada's judgement, or discussed if more appropriate.</li>
+                    <li>
+                        Ada should do more heavy lifting on logical thinking, strategic advice, and coming up with answers to more simple, rather broad questions through a feedback
+                        loop and iteration processes.
+                    </li>
+                    <li>
+                        Ada should have a role in the development of the dashboard in general. Suggestions on dashboard modification, collecting new data, etc. should always be
+                        stated, as soon as the need arises, and the development will be carefully attended to.
+                    </li>
+                    <li>Once Ada is setup and ready to use the tools, Edward and Chat will formulate an ongoing series of questions to start testing for.</li>
+                    <li>Next step - How best to get Ada setup with using the dashboard autonomously?</li>
+                </ul>
+
+                <hr />
+
+                <h2 class="mt-xl">Next R&D Goals</h2>
+
+                <h3>Regime Framework Development</h3>
+                <ul class="doc-list">
+                    <li>A vital part of the strategy is answering the question "What is the price action doing right now?"</li>
+                    <li>
+                        We are currently using the metrics, listed below in Discovery Tools, to read the micro regimes / price action. The utilization of these metrics is still in
+                        it's infant stage and will require more development to develop the framework and gain the most clear indication of "What is the price action doing right
+                        now?".
+                    </li>
+                </ul>
+
+                <h3>Entries</h3>
+                <ul class="doc-list">
+                    <li>
+                        Discover profitable trading opportunities within the Liquidity Engineering Model: Research, encode, test, and iterate to find the optimal algorithmic
+                        expression of it.
+                    </li>
+                    <!-- <li>Discover what entries work best with which cycle: consolidating or trending, and which cycle is best to focus on.</li> -->
+                    <li>Develop entry strategies for the 2 unique cycle types: consolidating or trending. And discover which cycle is best to focus on.</li>
+                    <li>Discover whether the entries work well with both long and short positions, and which direction is more profitable to focus on.</li>
+                </ul>
+
+                <h3>Risk Reward</h3>
+                <ul class="doc-list">
+                    <li>Discover ideal take profit (TP) and stop loss (SL) levels.</li>
+                    <li>In consolidation cycles maybe it's better to have tighter TP and SL levels and wider TP and SL in trending cycles.</li>
+                </ul>
+
+                <h3>Trade Frequency</h3>
+                <ul class="doc-list">
+                    <li>It might be best to focus on one good trade in the London session and one good trade in the NY session.</li>
+                </ul>
+
+                <h3>Instruments</h3>
+                <ul class="doc-list">
+                    <li>
+                        Our testing will begin with the GBPUSD and later evolve into testing with different instruments, forex and indices, to discover which are the most
+                        profitable to focus on.
+                    </li>
+                </ul>
+
+                <hr />
+
+                <h2 class="mt-xl">Initial Thoughts and Ideas</h2>
+                <h3>Pullbacks</h3>
+                <p>
+                    The micro trends are the clear part, very easy to identify by design. The question is about the pullbacks, which is the unclear part, by design. The
+                    unpredictability of the pullback depth and timing is what causes retail traders to get stopped out and provide the liquidity.
+                </p>
+                <ul class="doc-list">
+                    <li>When and how will the PBPP sweeps occur?</li>
+                    <li>How far will the pull backs go? How many PBPP will be swept before continuing in the overall trend.</li>
+                    <li>Will there be LTF PBPP sweeps or is the market interested in continuing efficiently to a HTF level?</li>
+                </ul>
+                <h3>Entry Thoughts</h3>
+                <ul class="doc-list">
+                    <li>
+                        Expand current entry criteria (first fractal lower that the previous one) to include a head and shoulders pattern detection (first fractal lower that the
+                        previous one + lower fractal before the previous one).
+                    </li>
+                    <li>Head and shoulders pattern - Shoulder + Head + Shoulder = Fractal 1 + Fractal 2 + Fractal 3 (enter trade)</li>
+                    <li>
+                        For tighter entries it might be better to enter on the 4th fractal candle (if it's engulfing the previous candle) instead of the 5th, but that is an
+                        unconfirmed fractal and may not work as well.
+                    </li>
+                    <li>This entry might work better in consolidation cycles than trending cycles.</li>
+                    <li>The structure of the EMAs, height measurements, and pullback % of the recent fractals, could inform whether the price is consolidating or trending.</li>
+                </ul>
+
+                <h3>Entry Thoughts 2</h3>
+                <ul class="doc-list">
+                    <li>
+                        Expand current entry criteria (first fractal lower that the previous one) to include a head and shoulders pattern detection (first fractal lower that the
+                        previous one + lower fractal before the previous one).
+                    </li>
+                    <li>Shoulder + Head + Shoulder = Fractal 1 + Fractal 2 + Fractal 3 (enter trade)</li>
+                    <li>
+                        Head and shoulders pattern should be preceeded by at least 2 or 3 ascending PP (or vice versa). This would confirm that it was a long enough trend to
+                        appropriately reverse from.
+                    </li>
+                    <li>Enter in the trend direction after a PB leg with at least 2 PP.</li>
+                </ul>
+
+                <h2 class="mt-xl">Potential Strategy Analysis Development</h2>
+
+                <div class="finding-card">
+                    <div class="finding-title">Bayesian / guided search (e.g. Optuna) instead of pure random</div>
+                    <div class="finding-body">
+                        Current Discovery uses pure random sampling — each trial picks parameter combinations independently with no learning from previous trials. Bayesian search
+                        (e.g. using the Optuna library in Python) instead builds a probabilistic model of which regions of the search space are promising, and samples more densely
+                        there over time. This dramatically improves the pass rate per trial — fewer wasted trials in clearly poor regions, more exploration around combinations that
+                        are working. The practical benefit is finding better candidates with the same trial budget, or the same quality candidates with far fewer trials.
+                    </div>
+                </div>
+
+                <div class="finding-card">
+                    <div class="finding-title">Composite objective function scoring</div>
+                    <div class="finding-body">
+                        Currently passing is binary — a trial either clears all thresholds (PF ≥ 1.5, min trades, max DD) or it doesn't. All passing trials are shown equally with
+                        no ranking beyond PF sort. A composite score such as <code>PF × win_rate / max_DD</code> would rank trials by overall quality rather than just filtering
+                        them, surfacing the genuinely best candidates at the top. This also reduces the influence of trials that barely pass one criterion while excelling at others
+                        — a more honest picture of which parameter sets are worth assigning to a version.
+                    </div>
+                </div>
+
+                <div class="finding-card">
+                    <div class="finding-title">Sharpe ratio as a ranking/filter criterion</div>
+                    <div class="finding-body">
+                        Current passing criteria (PF, min trades, max DD) can't distinguish between a smooth equity curve and a lumpy one with similar aggregate numbers. A 1:4 RRR
+                        strategy earns in bursts — high variability in periodic returns. A 1:1 strategy with 70% win rate is smoother. Sharpe penalises both sides equally; Sortino
+                        (downside only) may be more appropriate for high-RRR strategies. Adding Sharpe ≥ 1.0 as a filter would improve result quality.
+                    </div>
+                </div>
+
+                <div class="finding-card">
+                    <div class="finding-title">EMA Buffer as a search bounds parameter in Discovery</div>
+                    <div class="card-subtitle"><code>EMA40_BUFFER_PIPS</code> — default 5 pips</div>
+                    <p>
+                        Short requires <code>close &lt; ema_long − buffer</code>; long requires <code>close &gt; ema_long + buffer</code>. Setting to 0 recovers strict-below
+                        behaviour.
+                    </p>
+                </div>
+
+                <div class="finding-card">
+                    <div class="finding-title">Walk-Forward Validation</div>
+                    <div class="finding-body">
+                        Train on a historical window, validate on out-of-sample window, slide forward. Prevents overfitting and gives statistical confidence that regime gates
+                        capture a real edge rather than noise. Highest-value next build.
+                    </div>
                 </div>
             </div>
 
+            <!-- Key findings -->
+            <div class="section">
+                <div class="section-title">Key Historical Findings</div>
+            </div>
+
+            <!-- Near-future -->
+            <div class="section">
+                <div class="section-title">Future Development</div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-title">Test Indices</div>
+                        <p>DE40, US30 and JP225 are preferred for live manual trading; indices subscription to be added in a future cycle.</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Cloud Deployment</div>
+                        <p>
+                            Move to a persistent server (DigitalOcean / Render / Railway) to eliminate machine-syncing and allow Discovery to run long jobs without tying up a
+                            laptop.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <!-- Key findings -->
-        <div class="section">
-            <div class="section-title">Key Historical Findings</div>
-            <div class="finding-card">
-                <div class="finding-meta">Platform · P&amp;L Accuracy</div>
-                <div class="finding-title">Sub-period re-runs produce different P&L than the parent run — this is
-                    expected</div>
-                <div class="finding-body">Position sizing uses <code>equity × RISK_PCT / stop_distance</code>. A fresh
-                    October run starts at $100k; in the 6-month run, October starts at ~$136k (compounded from earlier
-                    months). Trade counts and win rates match exactly; dollar P&L diverges. Rule: read sub-period P&L
-                    from the parent run's Monthly / Daily tables. Don't re-run to check P&L.</div>
-            </div>
-        </div>
-
-        <!-- Near-future -->
-        <div class="section">
-            <div class="section-title">Future Development</div>
-            <div class="grid-2">
-                <div class="card">
-                    <div class="card-title">Test Indices</div>
-                    <p>DE40 and US30 preferred for live manual trading; indices subscription to
-                        be added in a future cycle.</p>
-                </div>
-                <div class="card">
-                    <div class="card-title">Cloud Deployment</div>
-                    <p>Move to a persistent server (DigitalOcean / Render / Railway) to
-                        eliminate machine-syncing and allow Discovery to run long jobs without tying up a laptop.</p>
-                </div>
-                <div class="card">
-                    <div class="card-title">TBD</div>
-                    <p>Lorem ipsum dolor sit amet.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</body>
-
+    </body>
 </html>

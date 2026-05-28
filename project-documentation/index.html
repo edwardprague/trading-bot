@@ -9,20 +9,18 @@
 
     <body>
         <nav>
-            <a class="nav-brand" href="index.html">Fractal Geo</a>
             <a href="index.html" class="active">Overview</a>
+            <a href="research.html">Research &amp; Development</a>
             <a href="dashboard.html">Dashboard</a>
             <a href="technical.html">Technical Setup</a>
-            <a href="strategy.html">Strategy</a>
-            <a href="research.html">Research &amp; Development</a>
         </nav>
 
         <div class="page">
             <div class="hero">
                 <h1>Project Overview</h1>
                 <p class="lead">
-                    A backtesting dashboard for developing an algorithmic trading bot for cTrader. Python handles research and backtesting; the final strategy is exported as C# for
-                    live trading.
+                    Our current backtesting dashboard will be used to develop a profitable algorithmic trading strategy. Python handles research and backtesting; the final strategy
+                    is exported as C# for live trading with cTrader.
                 </p>
                 <!-- <div class="hero-meta">
                 <div class="hero-meta-item">Instrument <span>GBPUSD · EURUSD</span></div>
@@ -32,98 +30,418 @@
             </div> -->
             </div>
 
-            <!-- Team -->
-            <div class="section-title">Team</div>
-            <div class="team-grid">
-                <div class="team-card">
-                    <div class="team-name">Edward</div>
-                    <div class="team-role">Director</div>
-                    <div class="team-desc">Manages overall direction. Decides what gets built next, reviews results, and bridges between Chat and Ada.</div>
-                </div>
-                <div class="team-card">
-                    <div class="team-name">Chat</div>
-                    <div class="team-role">Analyst &amp; Tester</div>
-                    <div class="team-desc">Strategy development, backtest analysis, and live browser testing via the Claude in Chrome extension.</div>
-                </div>
-                <div class="team-card">
-                    <div class="team-name">Cowork (Ada)</div>
-                    <div class="team-role">Implementation</div>
-                    <div class="team-desc">Executes all implementation tasks. Verifies fixes in the browser before marking tasks complete.</div>
-                </div>
+            <div class="page-header">
+                <h1>Liquidity Engeneering Model</h1>
+                <p>The strategy that we're starting to develop should be built around a Liquidity Engeneering Model framework, which is described in detail below.</p>
             </div>
 
             <div class="section">
-                <div class="section-title">Team Workflow Responsibilities</div>
+                <div class="section-title">Basic Charts Setup</div>
 
-                <h2 class="mt-xl">Ada's Workflow - As Analyst</h2>
+                <h3>Time Frames</h3>
                 <ul class="doc-list">
-                    <li>
-                        Leads the research agenda. Forms hypotheses, runs analyses and Discovery, interprets results, proposes next steps. Works autonomously within the current
-                        strategic priority.
-                    </li>
-                    <li>
-                        Surfaces genuine decision points — findings with strategic implications, trade-offs between directions, results that change the picture significantly.
-                        Presents options with honest assessment of each, not just "what should I do next?"
-                    </li>
+                    <li>Lower Time Frame (trade entry) - 1m (LTF)</li>
+                    <li>Higher Time Frame (trade confluence) - 1h (HTF)</li>
                 </ul>
 
-                <h2 class="mt-xl">Ada's Workflow - As Developer</h2>
+                <h3>Trend Direction Filter</h3>
                 <ul class="doc-list">
-                    <li>Ada recieves tasks and implements them.</li>
-                    <li>Always ask clarifying questions if the request is ambiguous.</li>
-                    <li>New styling goes in style.css — never use inline style="…" attributes on new HTML.</li>
-                    <li>When a task is done, state what Edward needs to do to see the change:</li>
-                    <li>Restart the Flask server (needed for server.py changes including INJECT_HTML)</li>
-                    <li>Run a backtest from the dashboard to regenerate report.html (only if a strategy-template change should be visible immediately)</li>
-                    <li>Run python3 regime_analysis.py to regenerate results/regime_analysis.html (RA page changes only)</li>
-                    <li>Or any combination of the above.</li>
-                    <li>In-browser verification. Visual and event-flow bugs must be verified in a real browser via Claude in Chrome, not just sandbox-tested.</li>
+                    <li>200 EMA</li>
+                    <li>40 EMA</li>
+                    <li>20 EMA</li>
+                    <li><strong>Trend Confirmation Measurement</strong> - If there is 20 < 40 for longer than 10 minutes (10 candles)</li>
                 </ul>
 
-                <h2 class="mt-xl">Chat's Workflow</h2>
+                <h3>Fractal Indicators</h3>
+                <ul class="doc-list">
+                    <li><strong>1 minute Fractals</strong> - 1m chart fractals (white dots on the chart image below)</li>
+                    <li><strong>5 minute Fractals</strong> - 5m chart fractals displayed on the 1m chart (red dots on the chart image below)</li>
+                </ul>
+
+                <h3>Project Terminology Acronyms</h3>
+                <ul class="doc-list">
+                    <li><strong>HTF</strong> - Higher Time Frame - Typically refers to the 1h time frame</li>
+                    <li><strong>LTF</strong> - Lower Time Frame - Typically refers to the 1m time frame</li>
+                    <li><strong>PA</strong> - Price Action</li>
+                    <li><strong>PP</strong> - Fractals a.k.a Pivot Points</li>
+                    <li><strong>FPP</strong> - (Forward Pivot Points) Market has pushed forward and decicively pulled back enough for a PP to print on the chart.</li>
+                    <li><strong>PBPP</strong> - (Pull Back Pivot Points) Market has pulled back and then decisively resumed trending causeing a clear PP to print on the chart.</li>
+                </ul>
+                <hr />
+
+                <h2 class="mt-xl">Liquidity Engineering Model</h2>
+                <h3>Methodology</h3>
                 <ul class="doc-list">
                     <li>
-                        Edward and Chat discuss and plan research and development. After deciding on instructions for Ada, Chat will summarize the instructions and Edward will
-                        relay them.
+                        The market has 2 priorities: 1. <strong>Induce liquidity</strong> (get retail traders to place stops at obvious levels) 2.
+                        <strong>Sweep liquidity</strong> (move price through those levels to fill institutional orders).
                     </li>
                     <li>
-                        Chat will almost always need to view the dashboard in the browser for reference and testing, and should make sure to be connected before the chat begins.
+                        Traders are provided 2 components that must exist to incuce trading liquidity: 1. A <strong>reason to enter</strong> (micro trend moving in a clear
+                        direction) 2. A <strong>place to exit</strong> (clear, sensible stop loss levels - recent swing points).
+                    </li>
+                    <li>
+                        Specificly placed levels (patterns) are created to induce liquidity to be placed at predictable levels, and later those specific levels are 'breached' to
+                        capure the liquidity.
+                    </li>
+                    <li>It's extremely simple and cant be fundamentally done in a more complex way - feign one direction and then move in an opposite direction.</li>
+                    <li>
+                        This pattern is particularly consistent on the one-minute chart. Most retail traders are going to gravitate to the 1-minute chart, to make quick money in
+                        the least amount of time, and will place their stop losses tightly and predictably.
+                    </li>
+                    <li>
+                        The pattern identified has a genuine structural basis. It's not statistical pattern matching, it's a description of market microstructure mechanics.
+                        Liquidity has to exist for large orders to be filled. Retail traders predictably place stops at obvious swing points. The market therefore predictably
+                        sweeps those levels before reversing. That's not a coincidence or a pattern that disappears — it's a mechanical feature of how markets clear large orders.
+                    </li>
+                </ul>
+                <h3>Liquidity Induction</h3>
+                <p>The induction pattern is simple and clear so that the maximum number of traders can see it and react to it.</p>
+                <ul class="doc-list">
+                    <li>Price moves in a micro trend with a clearly visable direction.</li>
+                    <li>
+                        The clarity of the trend is underlied with higher high and higher low (and vice versa) pivot points. There are sharp, decisive, clear, reversals in
+                        direction. There are clear pushes forward, clear pull backs, and clear pull back reversals / trend continuation.
+                    </li>
+                    <li>
+                        Typically a micro trend has at least 3 swing legs, creating 3 pivot points in the wake of the trend. For a pattern to emerge, something must occur at least
+                        twice, therefore, the third leg a is particularly inducing component.
+                    </li>
+                </ul>
+                <h3>Liquidity Sweep</h3>
+                <ul class="doc-list">
+                    <li>At some point after the liquidity has been sufficiently induced, the price pulls back past the PBPP and sweeps those and predictable levels.</li>
+                    <li>A sweep typically happens after only 3 legs in order to capture the liquidity levels at their most full point before they dissipate from profit taking.</li>
+                    <li>
+                        <strong>In consolidation</strong> the price can sweep back and forth repeatedly over micro trends within the range. <strong>In a trend</strong> the price
+                        can continue after the sweep. <strong>In a higher time frame movement</strong>, when the price is going for HTF level sweeps, the market is not concerned
+                        with the LTF PP and proceeds without sweeping them.
                     </li>
                 </ul>
             </div>
+            <h3>Inducement Patterns and Sweeps</h3>
+            <p>
+                In the following chart images the inducement patterns are indicated with the blue boxes. Each blue box represents an inducement pattern that all share the same
+                qualities:
+            </p>
+            <ul class="doc-list">
+                <li>1 - A clear short term direction.</li>
+                <li>
+                    2 - A number of pivot points (tpically 3 or more) serving both as confirmation of the direction and providing obvious levels for liquidity to cluster for the
+                    sweep.
+                </li>
+            </ul>
+            <p>After each blue box, you can see how the PBPP levels were methodically breached (indicated by the white horizontal lines).</p>
 
-            <div class="page-section" id="cp">
-                <h2>Browser Connection For Chat (Claude in Chrome MCP)</h2>
+            <h3>Range Cycle</h3>
+            <div><img src="img/micro-trends.png" alt="" /></div>
 
-                <div class="card card-flow">
-                    <div class="flow-steps">
-                        <div class="flow-step">
-                            <div class="flow-num">1</div>
-                            <div class="flow-content">
-                                <h4>list_connected_browsers → select_browser</h4>
-                                <p>Use the correct deviceId from the list.</p>
-                            </div>
+            <h3>Range + Trend Cycle</h3>
+            <p>
+                On the left of this chart the price is consolidating. There are 2 micro trends in which all the PBPP levels were swept. On the right side, the price is trending,
+                proceeding efficiently to a HTF level, and the PBPP are rarely swept (indicated by the white horizontal lines).
+            </p>
+            <div><img src="img/range-trend.png" alt="" /></div>
+
+            <hr />
+
+            <div>
+                <h2 class="mt-xl">Discovery Tools</h2>
+                The utilization of these metrics is still in it's infant stage and will require more development to develop the framework and gain the most clear indication of
+                "What is the price action doing right now?"
+                <section>
+                    <h2 class="mt-xl">Micro Regimes</h2>
+                    <h3>Fractal Parameters</h3>
+                    <p>On the Backtesting page, for date runs under 1 month, we have a Fractals table tracking the following information for each fractal.</p>
+                    <p>
+                        Each confirmed N=2 fractal records a set of real-time metrics. These are available at the moment the fractal forms — no look-ahead required — and are
+                        displayed in the Backtesting fractal table.
+                    </p>
+
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Column</th>
+                                    <th>What it measures</th>
+                                    <th>What it shows</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="fractal-column">Type</span></td>
+                                    <td>Upper fractal or lower fractal</td>
+                                    <td>Upper and lower</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="fractal-column">L#</span></td>
+                                    <td>Micro trend leg number</td>
+                                    <td>The number of lower fractals before a higher fractal forms. Each of those H fractals gets a number.</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="fractal-column">H1</span></td>
+                                    <td>1 fractal</td>
+                                    <td>Current swing size in pips — the raw leg just completed</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="fractal-column">H3</span></td>
+                                    <td>Last 3 fractals</td>
+                                    <td>Short moving average of swing size</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="fractal-column">H6</span></td>
+                                    <td>Last 6 fractals</td>
+                                    <td>Medium moving average of swing size</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="fractal-column">ADX</span></td>
+                                    <td>Trend strength at the time of the fractal — not direction, but conviction</td>
+                                    <td>High ADX confirms a genuine trend; low ADX suggests ranging regardless of fractal direction</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="fractal-column">ATR (pips)</span></td>
+                                    <td>Average true range — current volatility in pips</td>
+                                    <td>Context for stop sizing and swing expectations</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="fractal-column">VD High / Low</span></td>
+                                    <td>Vertical displacement — net pip movement since the prior fractal of the same kind</td>
+                                    <td>Indicates whether swing highs or lows are expanding or compressing</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="fractal-column">Pullback %</span></td>
+                                    <td>How far price retraced before confirming the fractal, as a percentage of the prior swing</td>
+                                    <td>Shallow pullbacks in a downtrend suggest strong momentum; deep pullbacks suggest hesitation</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h3>Swing Height — H1, H3, H6</h3>
+                    <p>
+                        The pip distance from the current fractal's price to the most recent opposite-kind fractal (e.g. for a high-fractal: distance to the nearest prior
+                        low-fractal). H1 is the raw value; H3 and H6 are rolling means over the last 3 and 6 non-null heights respectively, forming a smoothing ladder over the same
+                        underlying series.
+                    </p>
+
+                    <h3>H Combinations</h3>
+
+                    <div class="team-grid">
+                        <div class="team-card">
+                            <div class="team-name">H1 &gt; H3 &gt; H6</div>
+                            <div class="team-role">Expansion</div>
+                            <div class="team-desc">Swings are expanding — momentum accelerating</div>
                         </div>
-                        <div class="flow-step">
-                            <div class="flow-num">2</div>
-                            <div class="flow-content">
-                                <h4>tabs_context_mcp (createIfEmpty: true)</h4>
-                                <p>Creates the MCP tab group.</p>
-                            </div>
+                        <div class="team-card">
+                            <div class="team-name">H1 &lt; H3 &lt; H6</div>
+                            <div class="team-role">Contraction</div>
+                            <div class="team-desc">Swings are contracting — momentum fading or exhaustion</div>
                         </div>
-                        <div class="flow-step">
-                            <div class="flow-num">3</div>
-                            <div class="flow-content">
-                                <h4>navigate to <code>http://localhost:8080/</code></h4>
-                                <p>Triggers Chrome's permission prompt for the extension.</p>
-                            </div>
+
+                        <div class="team-card">
+                            <div class="team-name">H1 ≈ H3 ≈ H6</div>
+                            <div class="team-role">Neutral</div>
+                            <div class="team-desc">Swings are stable — consistent rhythm</div>
                         </div>
-                        <div class="flow-step">
-                            <div class="flow-num">4</div>
-                            <div class="flow-content">
-                                <h4>If necessary, prompt Edward to allow the browser connection.</h4>
-                                <p>Sometimes a prompt needs to be displayed for permissions.</p>
-                            </div>
+                    </div>
+                </section>
+
+                <!-- MICRO -->
+                <p>
+                    The micro gate answers: <em>is the immediate intraday fractal structure aligned with the trade direction?</em> It tracks the last 4 high-fractals and last 4
+                    low-fractals continuously, classifying the current market character in real time.
+                </p>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Label</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>trending_fast/medium/slow_down</code></td>
+                                <td>Both highs and lows making consistent lower-high / lower-low sequence, graded by speed</td>
+                            </tr>
+                            <tr>
+                                <td><code>ranging_narrow/medium/wide</code></td>
+                                <td>No clear directional sequence — market oscillating, graded by range width</td>
+                            </tr>
+                            <tr>
+                                <td><code>transitioning</code></td>
+                                <td>Regime in flux — insufficient consecutive same-kind fractals to confirm a new state</td>
+                            </tr>
+                            <tr>
+                                <td><code>trending_fast/medium/slow_up</code></td>
+                                <td>Both highs and lows making consistent higher-high / higher-low sequence</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p>
+                    The micro classifier uses a state machine — it does not reset at midnight. It carries fractal state continuously, which gives it natural persistence across day
+                    boundaries and makes it genuinely live-capable without modification.
+                </p>
+
+                <p>Fine sub-labels (fast/medium/slow, narrow/medium/wide) are computed using four frozen threshold constants derived from training data:</p>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Constant</th>
+                                <th>Value</th>
+                                <th>Used for</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>pips_per_bar_t1</code></td>
+                                <td>0.7249</td>
+                                <td>Trending slow / medium boundary</td>
+                            </tr>
+                            <tr>
+                                <td><code>pips_per_bar_t2</code></td>
+                                <td>1.3061</td>
+                                <td>Trending medium / fast boundary</td>
+                            </tr>
+                            <tr>
+                                <td><code>width_pips_t1</code></td>
+                                <td>10.875</td>
+                                <td>Ranging narrow / medium boundary</td>
+                            </tr>
+                            <tr>
+                                <td><code>width_pips_t2</code></td>
+                                <td>18.118</td>
+                                <td>Ranging medium / wide boundary</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- MACRO -->
+                <h2 class="mt-xl">Macro Regimes</h2>
+
+                <h3>Fractal Height + ADX</h3>
+
+                <p>
+                    The macro gate answers: <em>is the market in an active, directional state right now?</em> It is computed at each N=2 fractal formation using two signals that
+                    are available natively in real time.
+                </p>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Signal</th>
+                                <th>What it measures</th>
+                                <th>Gate threshold</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>H1</code> — current swing height</td>
+                                <td>Size of the most recent fractal leg in pips. Large swings indicate the market is making decisive moves.</td>
+                                <td><code>H1 ≥ T_height</code> (default 10 pips)</td>
+                            </tr>
+                            <tr>
+                                <td><code>ADX-14</code> — trend strength</td>
+                                <td>Directional conviction — not direction itself, but whether price is moving with purpose rather than ranging.</td>
+                                <td><code>ADX ≥ T_adx</code> (default 20)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <h2 class="mt-xl">EMAs</h2>
+
+            <p>
+                EMAs can be valuable for guaging HTF and LTF consolidation and trending price action. At this stage we are starting with the 1h and 1m charts for multi time frame
+                analysis, and the 200, 40, 20 EMA combination. In the image below you can see the following:
+            </p>
+
+            <ul class="doc-list">
+                <li>
+                    On the 1h chart, it's quite clear that the price is trending upwards bu the 20 > 40 > 200 configuration. The strength of the trend can also be guaged by the EMA
+                    configuration.
+                </li>
+                <li>
+                    The 1m chart tells quite a different, and more rapidly changing, story. In the images below the 1m chart at 10:00 looked quite different to the 1m chart at
+                    13:30.
+                </li>
+            </ul>
+            <h3>10:00</h3>
+            <div><img src="img/HTF-LTF.png" alt="" /></div>
+            <h3>13:30</h3>
+            <div><img src="img/HTF-LTF-2.png" alt="" /></div>
+
+            <p>
+                EMAs on the 1m chart could be useful as a measurement to guage if the price is consolidating or trending, by considering if there has been a 20 / 40 EMA crossover
+                in the last 10 minures (10 candles). In the charts below, the blue boxes indicate 10m periods when the 20 crossed over the 40. The red boxes indicate 10m periods
+                after which the price kepts going. In neither case did price go far, but this illustrates a potential unique measurement idea.
+            </p>
+            <h3>Example 1</h3>
+            <div><img src="img/10mEMA-1.png" alt="" /></div>
+            <h3>Example 2</h3>
+            <div><img src="img/10mEMA-2.png" alt="" /></div>
+
+            <hr />
+
+            <h2>Development Pillars</h2>
+            <p>Four specific areas have been identified as a basic development structure to keep in mind throught the project.</p>
+
+            <div class="card card-flow">
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-num">1</div>
+                        <div class="flow-content">
+                            <h4>Regime Awareness</h4>
+                            <p>
+                                Knowing when the strategy should and should not trade. Most retail strategies run blind regardless of market conditions — entering on any signal in
+                                any environment. This strategy gates entries through two independent regime layers: a macro gate (is today an active, directional market?) and a
+                                micro gate (is the immediate intraday fractal structure aligned with the trade direction?). The regime system is the most consequential layer — a
+                                mediocre signal in the right conditions outperforms a great signal in the wrong ones.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">2</div>
+                        <div class="flow-content">
+                            <h4>Entry Signal Quality</h4>
+                            <p>
+                                Does the entry logic capture something real about market behaviour, or is it pattern-matching noise? Fractal geometry is a more principled
+                                foundation than most retail strategies — it is based on structural price behaviour rather than lagging indicator crossovers. The question is not
+                                whether fractals are the right approach, but whether the specific implementation is capturing genuine market microstructure. A signal that works for
+                                the wrong reasons will fail out-of-sample.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">3</div>
+                        <div class="flow-content">
+                            <h4>Risk Management</h4>
+                            <p>
+                                Not just stop losses — position sizing, drawdown limits, and correlation management across positions and instruments. A strategy with a mediocre
+                                signal and excellent risk management will outperform a strategy with a great signal and poor risk management over the long run. Risk management is
+                                also the layer that makes a strategy survivable during inevitable periods of underperformance. Portfolio construction — running multiple
+                                uncorrelated strategies across pairs and directions — belongs here.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num">4</div>
+                        <div class="flow-content">
+                            <h4>Execution Quality</h4>
+                            <p>
+                                Slippage, spread, and entry timing. On 5-minute bars this matters more than it appears — a strategy that looks excellent at bar close can look very
+                                different when accounting for real fill prices, news-driven spread widening, and execution latency in cTrader. Entry timing within the signal —
+                                whether to enter at confirmation or wait for a pullback, for example — also belongs here. This pillar is last because it only adds value once the
+                                first three are solid.
+                            </p>
                         </div>
                     </div>
                 </div>
