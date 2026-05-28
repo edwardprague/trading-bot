@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Sub page 1 — Fractal Bot Docs</title>
+        <link rel="stylesheet" href="docs.css" />
+    </head>
+
+    <body>
+        <!-- Sidebar mount point. The menu's HTML is rendered by menu.js
+             from the FRACTAL_DOCS_MENU array, so links are managed in one
+             place across all docs pages. This page sits under Dashboard
+             as a sub-item (see menu.js: parent: "dashboard.html"). -->
+        <aside id="sidebar"></aside>
+        <script src="menu.js"></script>
+
+        <div class="page">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>Liquidity Engeneering Model</h1>
+            </div>
+
+            <div class="section-title">Liquidity Engineering Model</div>
+            <p>The strategy that we're starting to develop should be built around a Liquidity Engineering Model framework, which is described in detail below.</p>
+
+            <h3>Methodology</h3>
+            <ul class="doc-list">
+                <li>
+                    The market has 2 priorities: 1. <strong>Induce liquidity</strong> (get retail traders to place stops at obvious levels) 2.
+                    <strong>Sweep liquidity</strong> (move price through those levels to fill institutional orders).
+                </li>
+                <li>
+                    Traders are provided 2 components that must exist to induce trading liquidity: 1. A <strong>reason to enter</strong> (micro trend moving in a clear direction)
+                    2. A <strong>place to exit</strong> (clear, sensible stop loss levels - recent swing points).
+                </li>
+                <li>
+                    Specifically placed levels (patterns) are created to induce liquidity to be placed at predictable levels, and later those specific levels are 'breached' to
+                    capture the liquidity.
+                </li>
+                <li>It's extremely simple and can't be fundamentally done in a more complex way - feign one direction and then move in an opposite direction.</li>
+                <li>
+                    This pattern is particularly consistent on the one-minute chart. Most retail traders are going to gravitate to the 1-minute chart, to make quick money in the
+                    least amount of time, and will place their stop losses tightly and predictably.
+                </li>
+                <li>
+                    The pattern identified has a genuine structural basis. It's not statistical pattern matching, it's a description of market microstructure mechanics. Liquidity
+                    has to exist for large orders to be filled. Retail traders predictably place stops at obvious swing points. The market therefore predictably sweeps those levels
+                    before reversing. That's not a coincidence or a pattern that disappears — it's a mechanical feature of how markets clear large orders.
+                </li>
+            </ul>
+
+            <h3>Liquidity Induction</h3>
+            <p>The induction pattern is simple and clear so that the maximum number of traders can see it and react to it.</p>
+            <ul class="doc-list">
+                <li>Price moves in a micro trend with a clearly visible direction.</li>
+                <li>
+                    The clarity of the trend is underlined with higher high and higher low (and vice versa) pivot points. There are sharp, decisive, clear, reversals in direction.
+                    There are clear pushes forward, clear pull backs, and clear pull back reversals / trend continuation.
+                </li>
+                <li>
+                    Typically a micro trend has at least 3 swing legs, creating 3 pivot points in the wake of the trend. For a pattern to emerge, something must occur at least
+                    twice, therefore, the third leg a is particularly inducing component.
+                </li>
+            </ul>
+
+            <h3>Liquidity Sweep</h3>
+            <ul class="doc-list">
+                <li>At some point after the liquidity has been sufficiently induced, the price pulls back past the PBPP and sweeps those and predictable levels.</li>
+                <li>A sweep typically happens after only 3 legs in order to capture the liquidity levels at their most full point before they dissipate from profit taking.</li>
+                <li>
+                    <strong>In consolidation</strong> the price can sweep back and forth repeatedly over micro trends within the range. <strong>In a trend</strong> the price can
+                    continue after the sweep. <strong>In a higher time frame movement</strong>, when the price is going for HTF level sweeps, the market is not concerned with the
+                    LTF PP and proceeds without sweeping them.
+                </li>
+            </ul>
+
+            <hr />
+
+            <!-- Inducement Patterns and Sweeps -->
+            <h2>Liquidity Engineering Model - Inducement Patterns and Sweeps</h2>
+            <p>
+                In the following chart images the inducement patterns are indicated with the blue boxes. Each blue box represents an inducement pattern that all share the same
+                qualities:
+            </p>
+            <ul class="doc-list">
+                <li>1 - A clear short term direction.</li>
+                <li>
+                    2 - A number of pivot points (typically 3 or more) serving both as confirmation of the direction and providing obvious levels for liquidity to cluster for the
+                    sweep.
+                </li>
+            </ul>
+            <p>After each blue box, you can see how the PBPP levels were methodically breached (indicated by the white horizontal lines).</p>
+
+            <h3>Range Cycle</h3>
+            <div><img src="img/micro-trends.png" alt="" /></div>
+
+            <h3>Range + Trend Cycle</h3>
+            <p>
+                On the left of this chart the price is consolidating. There are 2 micro trends in which all the PBPP levels were swept. On the right side, the price is trending,
+                proceeding efficiently to a HTF level, and the PBPP are rarely swept (indicated by the white horizontal lines).
+            </p>
+            <div><img src="img/range-trend.png" alt="" /></div>
+        </div>
+    </body>
+</html>

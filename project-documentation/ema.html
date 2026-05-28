@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Sub page 1 — Fractal Bot Docs</title>
+        <link rel="stylesheet" href="docs.css" />
+    </head>
+
+    <body>
+        <!-- Sidebar mount point. The menu's HTML is rendered by menu.js
+             from the FRACTAL_DOCS_MENU array, so links are managed in one
+             place across all docs pages. This page sits under Dashboard
+             as a sub-item (see menu.js: parent: "dashboard.html"). -->
+        <aside id="sidebar"></aside>
+        <script src="menu.js"></script>
+
+        <div class="page">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>EMA Analysis</h1>
+            </div>
+
+            <!-- EMA Analysis -->
+            <div class="section">
+                <div class="section-title">EMA Analysis</div>
+                <p>
+                    EMAs can be valuable for gauging HTF and LTF consolidation and trending price action. At this stage we are starting with the 1h and 1m charts for multi time
+                    frame analysis, and the 200, 40, 20 EMA combination. In the image below you can see the following:
+                </p>
+                <ul class="doc-list">
+                    <li>
+                        On the 1h chart, it's quite clear that the price is trending upwards by the 20 &gt; 40 &gt; 200 configuration. The strength of the trend can also be gauged
+                        by the EMA configuration.
+                    </li>
+                    <li>
+                        The 1m chart tells quite a different, and more rapidly changing, story. In the images below the 1m chart at 10:00 looked quite different to the 1m chart at
+                        13:30.
+                    </li>
+                </ul>
+
+                <h3>10:00</h3>
+                <div><img src="img/HTF-LTF.png" alt="" /></div>
+
+                <h3>13:30</h3>
+                <div><img src="img/HTF-LTF-2.png" alt="" /></div>
+
+                <p>
+                    EMAs on the 1m chart could be useful as a measurement to gauge if the price is consolidating or trending, by considering if there has been a 20 / 40 EMA
+                    crossover in the last 10 minutes (10 candles). In the charts below, the blue boxes indicate 10m periods when the 20 crossed over the 40. The red boxes indicate
+                    10m periods after which the price kept going. In neither case did price go far, but this illustrates a potential unique measurement idea.
+                </p>
+
+                <h3>Example 1</h3>
+                <div><img src="img/10mEMA-1.png" alt="" /></div>
+
+                <h3>Example 2</h3>
+                <div><img src="img/10mEMA-2.png" alt="" /></div>
+            </div>
+        </div>
+    </body>
+</html>

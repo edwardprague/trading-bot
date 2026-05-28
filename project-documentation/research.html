@@ -15,7 +15,6 @@
         <script src="menu.js"></script>
 
         <div class="page">
-
             <!-- Page Header -->
             <div class="page-header">
                 <h1>Research &amp; Development</h1>
@@ -33,10 +32,10 @@
                             <div class="flow-content">
                                 <h4>Regime Awareness</h4>
                                 <p>
-                                    Knowing when the strategy should and should not trade. Most retail strategies run blind regardless of market conditions — entering on any signal in
-                                    any environment. This strategy gates entries through two independent regime layers: a macro gate (is today an active, directional market?) and a
-                                    micro gate (is the immediate intraday fractal structure aligned with the trade direction?). The regime system is the most consequential layer — a
-                                    mediocre signal in the right conditions outperforms a great signal in the wrong ones.
+                                    Knowing when the strategy should and should not trade. Most retail strategies run blind regardless of market conditions — entering on any signal
+                                    in any environment. This strategy gates entries through two independent regime layers: a macro gate (is today an active, directional market?)
+                                    and a micro gate (is the immediate intraday fractal structure aligned with the trade direction?). The regime system is the most consequential
+                                    layer — a mediocre signal in the right conditions outperforms a great signal in the wrong ones.
                                 </p>
                             </div>
                         </div>
@@ -47,8 +46,8 @@
                                 <p>
                                     Does the entry logic capture something real about market behaviour, or is it pattern-matching noise? Fractal geometry is a more principled
                                     foundation than most retail strategies — it is based on structural price behaviour rather than lagging indicator crossovers. The question is not
-                                    whether fractals are the right approach, but whether the specific implementation is capturing genuine market microstructure. A signal that works for
-                                    the wrong reasons will fail out-of-sample.
+                                    whether fractals are the right approach, but whether the specific implementation is capturing genuine market microstructure. A signal that works
+                                    for the wrong reasons will fail out-of-sample.
                                 </p>
                             </div>
                         </div>
@@ -58,8 +57,8 @@
                                 <h4>Risk Management</h4>
                                 <p>
                                     Not just stop losses — position sizing, drawdown limits, and correlation management across positions and instruments. A strategy with a mediocre
-                                    signal and excellent risk management will outperform a strategy with a great signal and poor risk management over the long run. Risk management is
-                                    also the layer that makes a strategy survivable during inevitable periods of underperformance. Portfolio construction — running multiple
+                                    signal and excellent risk management will outperform a strategy with a great signal and poor risk management over the long run. Risk management
+                                    is also the layer that makes a strategy survivable during inevitable periods of underperformance. Portfolio construction — running multiple
                                     uncorrelated strategies across pairs and directions — belongs here.
                                 </p>
                             </div>
@@ -69,39 +68,15 @@
                             <div class="flow-content">
                                 <h4>Execution Quality</h4>
                                 <p>
-                                    Slippage, spread, and entry timing. On 5-minute bars this matters more than it appears — a strategy that looks excellent at bar close can look very
-                                    different when accounting for real fill prices, news-driven spread widening, and execution latency in cTrader. Entry timing within the signal —
-                                    whether to enter at confirmation or wait for a pullback, for example — also belongs here. This pillar is last because it only adds value once the
-                                    first three are solid.
+                                    Slippage, spread, and entry timing. On 5-minute bars this matters more than it appears — a strategy that looks excellent at bar close can look
+                                    very different when accounting for real fill prices, news-driven spread widening, and execution latency in cTrader. Entry timing within the
+                                    signal — whether to enter at confirmation or wait for a pullback, for example — also belongs here. This pillar is last because it only adds
+                                    value once the first three are solid.
                                 </p>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Ada's Strategy Development Process -->
-            <div class="section">
-                <div class="section-title">Ada's Strategy Development Process</div>
-                <p>
-                    In the past the dashboard was only used by Edward and Chat, to generate tests, analyze the data, think logically about the results, and formulate creative,
-                    forward thinking iterations to develop the strategy. Going forward, Ada will be the primary discovery agent, which would consist of the following:
-                </p>
-                <ul class="doc-list">
-                    <li>Utilizing the dashboard tools: Backtesting, Regime Analysis, and Discovery to run data autonomously.</li>
-                    <li>Results should be carefully considered and thought about logically, in terms of does this help us achieve our goal or not, and if so, could it improve?</li>
-                    <li>Subsequent iterations should be made automatically according to Ada's judgement, or discussed if more appropriate.</li>
-                    <li>
-                        Ada should do more heavy lifting on logical thinking, strategic advice, and coming up with answers to more simple, rather broad questions through a feedback
-                        loop and iteration processes.
-                    </li>
-                    <li>
-                        Ada should have a role in the development of the dashboard in general. Suggestions on dashboard modification, collecting new data, etc. should always be
-                        stated, as soon as the need arises, and the development will be carefully attended to.
-                    </li>
-                    <li>Once Ada is setup and ready to use the tools, Edward and Chat will formulate an ongoing series of questions to start testing for.</li>
-                    <li>Next step - How best to get Ada setup with using the dashboard autonomously?</li>
-                </ul>
             </div>
 
             <!-- Next R&D Goals -->
@@ -113,7 +88,8 @@
                     <li>A vital part of the strategy is answering the question "What is the price action doing right now?"</li>
                     <li>
                         We are currently using the metrics, listed below in Discovery Tools, to read the micro regimes / price action. The utilization of these metrics is still in
-                        its infant stage and will require more development to develop the framework and gain the most clear indication of "What is the price action doing right now?".
+                        its infant stage and will require more development to develop the framework and gain the most clear indication of "What is the price action doing right
+                        now?".
                     </li>
                 </ul>
 
@@ -146,164 +122,6 @@
                     </li>
                 </ul>
             </div>
-
-            <!-- Initial Thoughts and Ideas -->
-            <div class="section">
-                <div class="section-title">Initial Thoughts and Ideas</div>
-
-                <h3>Pullbacks</h3>
-                <p>
-                    The micro trends are the clear part, very easy to identify by design. The question is about the pullbacks, which is the unclear part, by design. The
-                    unpredictability of the pullback depth and timing is what causes retail traders to get stopped out and provide the liquidity.
-                </p>
-                <ul class="doc-list">
-                    <li>When and how will the PBPP sweeps occur?</li>
-                    <li>How far will the pull backs go? How many PBPP will be swept before continuing in the overall trend.</li>
-                    <li>Will there be LTF PBPP sweeps or is the market interested in continuing efficiently to a HTF level?</li>
-                </ul>
-
-                <h3>Entry Thoughts</h3>
-                <ul class="doc-list">
-                    <li>
-                        Expand current entry criteria (first fractal lower that the previous one) to include a head and shoulders pattern detection (first fractal lower that the
-                        previous one + lower fractal before the previous one).
-                    </li>
-                    <li>Head and shoulders pattern - Shoulder + Head + Shoulder = Fractal 1 + Fractal 2 + Fractal 3 (enter trade)</li>
-                    <li>
-                        For tighter entries it might be better to enter on the 4th fractal candle (if it's engulfing the previous candle) instead of the 5th, but that is an
-                        unconfirmed fractal and may not work as well.
-                    </li>
-                    <li>This entry might work better in consolidation cycles than trending cycles.</li>
-                    <li>The structure of the EMAs, height measurements, and pullback % of the recent fractals, could inform whether the price is consolidating or trending.</li>
-                </ul>
-
-                <h3>Entry Thoughts 2</h3>
-                <ul class="doc-list">
-                    <li>
-                        Expand current entry criteria (first fractal lower that the previous one) to include a head and shoulders pattern detection (first fractal lower that the
-                        previous one + lower fractal before the previous one).
-                    </li>
-                    <li>Shoulder + Head + Shoulder = Fractal 1 + Fractal 2 + Fractal 3 (enter trade)</li>
-                    <li>
-                        Head and shoulders pattern should be preceded by at least 2 or 3 ascending PP (or vice versa). This would confirm that it was a long enough trend to
-                        appropriately reverse from.
-                    </li>
-                    <li>Enter in the trend direction after a PB leg with at least 2 PP.</li>
-                </ul>
-            </div>
-
-            <!-- Potential Strategy Analysis Development -->
-            <div class="section">
-                <div class="section-title">Potential Strategy Analysis Development</div>
-
-                <div class="finding-card">
-                    <div class="finding-title">Bayesian / guided search (e.g. Optuna) instead of pure random</div>
-                    <div class="finding-body">
-                        Current Discovery uses pure random sampling — each trial picks parameter combinations independently with no learning from previous trials. Bayesian search
-                        (e.g. using the Optuna library in Python) instead builds a probabilistic model of which regions of the search space are promising, and samples more densely
-                        there over time. This dramatically improves the pass rate per trial — fewer wasted trials in clearly poor regions, more exploration around combinations that
-                        are working. The practical benefit is finding better candidates with the same trial budget, or the same quality candidates with far fewer trials.
-                    </div>
-                </div>
-
-                <div class="finding-card">
-                    <div class="finding-title">Composite objective function scoring</div>
-                    <div class="finding-body">
-                        Currently passing is binary — a trial either clears all thresholds (PF ≥ 1.5, min trades, max DD) or it doesn't. All passing trials are shown equally with
-                        no ranking beyond PF sort. A composite score such as <code>PF × win_rate / max_DD</code> would rank trials by overall quality rather than just filtering
-                        them, surfacing the genuinely best candidates at the top. This also reduces the influence of trials that barely pass one criterion while excelling at others
-                        — a more honest picture of which parameter sets are worth assigning to a version.
-                    </div>
-                </div>
-
-                <div class="finding-card">
-                    <div class="finding-title">Sharpe ratio as a ranking/filter criterion</div>
-                    <div class="finding-body">
-                        Current passing criteria (PF, min trades, max DD) can't distinguish between a smooth equity curve and a lumpy one with similar aggregate numbers. A 1:4 RRR
-                        strategy earns in bursts — high variability in periodic returns. A 1:1 strategy with 70% win rate is smoother. Sharpe penalises both sides equally; Sortino
-                        (downside only) may be more appropriate for high-RRR strategies. Adding Sharpe ≥ 1.0 as a filter would improve result quality.
-                    </div>
-                </div>
-
-                <div class="finding-card">
-                    <div class="finding-title">EMA Buffer as a search bounds parameter in Discovery</div>
-                    <div class="card-subtitle"><code>EMA40_BUFFER_PIPS</code> — default 5 pips</div>
-                    <p>
-                        Short requires <code>close &lt; ema_long − buffer</code>; long requires <code>close &gt; ema_long + buffer</code>. Setting to 0 recovers strict-below
-                        behaviour.
-                    </p>
-                </div>
-
-                <div class="finding-card">
-                    <div class="finding-title">Walk-Forward Validation</div>
-                    <div class="finding-body">
-                        Train on a historical window, validate on out-of-sample window, slide forward. Prevents overfitting and gives statistical confidence that regime gates
-                        capture a real edge rather than noise. Highest-value next build.
-                    </div>
-                </div>
-            </div>
-
-            <!-- Key Historical Findings -->
-            <div class="section">
-                <div class="section-title">Key Historical Findings</div>
-                <!-- To be populated as findings accumulate -->
-            </div>
-
-            <!-- Future Development -->
-            <div class="section">
-                <div class="section-title">Future Development</div>
-                <div class="grid-2">
-                    <div class="card">
-                        <div class="card-title">Test Indices</div>
-                        <p>DE40, US30 and JP225 are preferred for live manual trading; indices subscription to be added in a future cycle.</p>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">Cloud Deployment</div>
-                        <p>
-                            Move to a persistent server (DigitalOcean / Render / Railway) to eliminate machine-syncing and allow Discovery to run long jobs without tying up a
-                            laptop.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- EMA Analysis -->
-            <div class="section">
-                <div class="section-title">EMA Analysis</div>
-                <p>
-                    EMAs can be valuable for gauging HTF and LTF consolidation and trending price action. At this stage we are starting with the 1h and 1m charts for multi time frame
-                    analysis, and the 200, 40, 20 EMA combination. In the image below you can see the following:
-                </p>
-                <ul class="doc-list">
-                    <li>
-                        On the 1h chart, it's quite clear that the price is trending upwards by the 20 &gt; 40 &gt; 200 configuration. The strength of the trend can also be gauged by the EMA
-                        configuration.
-                    </li>
-                    <li>
-                        The 1m chart tells quite a different, and more rapidly changing, story. In the images below the 1m chart at 10:00 looked quite different to the 1m chart at
-                        13:30.
-                    </li>
-                </ul>
-
-                <h3>10:00</h3>
-                <div><img src="img/HTF-LTF.png" alt="" /></div>
-
-                <h3>13:30</h3>
-                <div><img src="img/HTF-LTF-2.png" alt="" /></div>
-
-                <p>
-                    EMAs on the 1m chart could be useful as a measurement to gauge if the price is consolidating or trending, by considering if there has been a 20 / 40 EMA crossover
-                    in the last 10 minutes (10 candles). In the charts below, the blue boxes indicate 10m periods when the 20 crossed over the 40. The red boxes indicate 10m periods
-                    after which the price kept going. In neither case did price go far, but this illustrates a potential unique measurement idea.
-                </p>
-
-                <h3>Example 1</h3>
-                <div><img src="img/10mEMA-1.png" alt="" /></div>
-
-                <h3>Example 2</h3>
-                <div><img src="img/10mEMA-2.png" alt="" /></div>
-            </div>
-
         </div>
     </body>
 </html>

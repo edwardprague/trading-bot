@@ -15,21 +15,116 @@
         <script src="menu.js"></script>
 
         <div class="page">
-
-            <!-- Hero -->
-            <div class="hero">
+            <!-- Page Header -->
+            <div class="page-header">
                 <h1>Project Overview</h1>
-                <p class="lead">
+                <p>
                     Our current backtesting dashboard will be used to develop a profitable algorithmic trading strategy. Python handles research and backtesting; the final strategy
                     is exported as C# for live trading with cTrader.
                 </p>
             </div>
 
-            <!-- Liquidity Engineering Model -->
+            <!-- Team -->
             <div class="section">
-                <div class="section-title">Liquidity Engineering Model</div>
-                <p>The strategy that we're starting to develop should be built around a Liquidity Engineering Model framework, which is described in detail below.</p>
+                <div class="section-title">Team</div>
+                <div class="team-grid">
+                    <div class="team-card">
+                        <div class="team-name">Edward</div>
+                        <div class="team-role">Director</div>
+                        <div class="team-desc">Manages overall direction. Decides what gets built next, reviews results, and bridges between Chat and Ada.</div>
+                    </div>
+                    <div class="team-card">
+                        <div class="team-name">Chat</div>
+                        <div class="team-role">Analyst &amp; Tester</div>
+                        <div class="team-desc">Strategy development, backtest analysis, and live browser testing via the Claude in Chrome extension.</div>
+                    </div>
+                    <div class="team-card">
+                        <div class="team-name">Cowork (Ada)</div>
+                        <div class="team-role">Strategy Analyst &amp; Development</div>
+                        <div class="team-desc">
+                            Lead strategy analyst as well as implementation of development tasks. Verifies fixes in the browser before marking tasks complete.
+                        </div>
+                    </div>
+                </div>
+            </div>
 
+            <!-- Team Workflow -->
+            <div class="section">
+                <div class="section-title">Team Workflow Responsibilities</div>
+
+                <h2>Ada's Workflow - As Strategy Analyst</h2>
+                <ul class="doc-list">
+                    <li>
+                        Leads the research agenda. Forms hypotheses, runs analyses, interprets results, proposes next steps. Works autonomously within the current strategic
+                        priority.
+                    </li>
+                    <li>
+                        Surfaces genuine decision points — findings with strategic implications, trade-offs between directions, results that change the picture significantly.
+                        Presents options with honest assessment of each, not just "what should I do next?"
+                    </li>
+                </ul>
+
+                <h2>Ada's Workflow - As Developer</h2>
+                <ul class="doc-list">
+                    <li>Ada receives tasks and implements them.</li>
+                    <li>Always ask clarifying questions if the request is ambiguous.</li>
+                    <li>New styling goes in style.css — never use inline style="…" attributes on new HTML.</li>
+                    <li>When a task is done, state what Edward needs to do to see the change:</li>
+                    <li>Restart the Flask server (needed for server.py changes including INJECT_HTML)</li>
+                    <li>Run a backtest from the dashboard to regenerate report.html (only if a strategy-template change should be visible immediately)</li>
+                    <li>Run python3 regime_analysis.py to regenerate results/regime_analysis.html (RA page changes only)</li>
+                    <li>Or any combination of the above.</li>
+                    <li>In-browser verification. Visual and event-flow bugs must be verified in a real browser via Claude in Chrome, not just sandbox-tested.</li>
+                </ul>
+
+                <h2>Chat's Workflow</h2>
+                <ul class="doc-list">
+                    <li>
+                        Edward and Chat discuss results and suggestions from Ada and guide research and development. After deciding on specific instructions for Ada, Chat will
+                        summarize the instructions and Edward will relay them.
+                    </li>
+                    <li>Chat will almost always need to view the dashboard in the browser for reference and testing, and should make sure to be connected.</li>
+                </ul>
+            </div>
+
+            <!-- Ada's Strategy Development Process -->
+            <div class="section">
+                <div class="section-title">Ada's Strategy Development Process</div>
+                <p>
+                    In the past the dashboard was only used by Edward and Chat, to generate tests, analyze the data, think logically about the results, and formulate creative,
+                    forward thinking iterations to develop the strategy. Going forward, Ada will be the primary discovery agent, which would consist of the following:
+                </p>
+                <ul class="doc-list">
+                    <li>Utilizing the dashboard tools: Backtesting, Regime Analysis, and Discovery to run data autonomously.</li>
+                    <li>Results should be carefully considered and thought about logically, in terms of does this help us achieve our goal or not, and if so, could it improve?</li>
+                    <li>Subsequent iterations should be made automatically according to Ada's judgement, or discussed if more appropriate.</li>
+                    <li>
+                        Ada should do more heavy lifting on logical thinking, strategic advice, and coming up with answers to more simple, rather broad questions through a feedback
+                        loop and iteration processes.
+                    </li>
+                    <li>
+                        Ada should have a role in the development of the dashboard in general. Suggestions on dashboard modification, collecting new data, etc. should always be
+                        stated, as soon as the need arises, and the development will be carefully attended to.
+                    </li>
+                    <li>Once Ada is setup and ready to use the tools, Edward and Chat will formulate an ongoing series of questions to start testing for.</li>
+                    <li>Next step - How best to get Ada setup with using the dashboard autonomously?</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Project Terminology Acronyms</div>
+                <ul class="doc-list">
+                    <li><strong>HTF</strong> - Higher Time Frame - Typically refers to the 1h time frame</li>
+                    <li><strong>LTF</strong> - Lower Time Frame - Typically refers to the 1m time frame</li>
+                    <li><strong>PA</strong> - Price Action</li>
+                    <li><strong>PB</strong> - Pull Back</li>
+                    <li><strong>PP</strong> - Fractals a.k.a Pivot Points</li>
+                    <li><strong>FPP</strong> - (Forward Pivot Points) Market has pushed forward and decisively pulled back enough for a PP to print on the chart.</li>
+                    <li><strong>PBPP</strong> - (Pull Back Pivot Points) Market has pulled back and then decisively resumed trending causing a clear PP to print on the chart.</li>
+                </ul>
+            </div>
+
+            <div class="section">
                 <!-- Basic Charts Setup -->
                 <h2>Basic Charts Setup</h2>
 
@@ -52,101 +147,7 @@
                     <li><strong>1 minute Fractals</strong> - 1m chart fractals (white dots on the chart image below)</li>
                     <li><strong>5 minute Fractals</strong> - 5m chart fractals displayed on the 1m chart (red dots on the chart image below)</li>
                 </ul>
-
-                <h3>Project Terminology Acronyms</h3>
-                <ul class="doc-list">
-                    <li><strong>HTF</strong> - Higher Time Frame - Typically refers to the 1h time frame</li>
-                    <li><strong>LTF</strong> - Lower Time Frame - Typically refers to the 1m time frame</li>
-                    <li><strong>PA</strong> - Price Action</li>
-                    <li><strong>PP</strong> - Fractals a.k.a Pivot Points</li>
-                    <li><strong>FPP</strong> - (Forward Pivot Points) Market has pushed forward and decisively pulled back enough for a PP to print on the chart.</li>
-                    <li><strong>PBPP</strong> - (Pull Back Pivot Points) Market has pulled back and then decisively resumed trending causing a clear PP to print on the chart.</li>
-                </ul>
-
-                <hr />
-
-                <!-- Methodology -->
-                <h2>Liquidity Engineering Model</h2>
-
-                <h3>Methodology</h3>
-                <ul class="doc-list">
-                    <li>
-                        The market has 2 priorities: 1. <strong>Induce liquidity</strong> (get retail traders to place stops at obvious levels) 2.
-                        <strong>Sweep liquidity</strong> (move price through those levels to fill institutional orders).
-                    </li>
-                    <li>
-                        Traders are provided 2 components that must exist to induce trading liquidity: 1. A <strong>reason to enter</strong> (micro trend moving in a clear
-                        direction) 2. A <strong>place to exit</strong> (clear, sensible stop loss levels - recent swing points).
-                    </li>
-                    <li>
-                        Specifically placed levels (patterns) are created to induce liquidity to be placed at predictable levels, and later those specific levels are 'breached' to
-                        capture the liquidity.
-                    </li>
-                    <li>It's extremely simple and can't be fundamentally done in a more complex way - feign one direction and then move in an opposite direction.</li>
-                    <li>
-                        This pattern is particularly consistent on the one-minute chart. Most retail traders are going to gravitate to the 1-minute chart, to make quick money in
-                        the least amount of time, and will place their stop losses tightly and predictably.
-                    </li>
-                    <li>
-                        The pattern identified has a genuine structural basis. It's not statistical pattern matching, it's a description of market microstructure mechanics.
-                        Liquidity has to exist for large orders to be filled. Retail traders predictably place stops at obvious swing points. The market therefore predictably
-                        sweeps those levels before reversing. That's not a coincidence or a pattern that disappears — it's a mechanical feature of how markets clear large orders.
-                    </li>
-                </ul>
-
-                <h3>Liquidity Induction</h3>
-                <p>The induction pattern is simple and clear so that the maximum number of traders can see it and react to it.</p>
-                <ul class="doc-list">
-                    <li>Price moves in a micro trend with a clearly visible direction.</li>
-                    <li>
-                        The clarity of the trend is underlined with higher high and higher low (and vice versa) pivot points. There are sharp, decisive, clear, reversals in
-                        direction. There are clear pushes forward, clear pull backs, and clear pull back reversals / trend continuation.
-                    </li>
-                    <li>
-                        Typically a micro trend has at least 3 swing legs, creating 3 pivot points in the wake of the trend. For a pattern to emerge, something must occur at least
-                        twice, therefore, the third leg a is particularly inducing component.
-                    </li>
-                </ul>
-
-                <h3>Liquidity Sweep</h3>
-                <ul class="doc-list">
-                    <li>At some point after the liquidity has been sufficiently induced, the price pulls back past the PBPP and sweeps those and predictable levels.</li>
-                    <li>A sweep typically happens after only 3 legs in order to capture the liquidity levels at their most full point before they dissipate from profit taking.</li>
-                    <li>
-                        <strong>In consolidation</strong> the price can sweep back and forth repeatedly over micro trends within the range. <strong>In a trend</strong> the price
-                        can continue after the sweep. <strong>In a higher time frame movement</strong>, when the price is going for HTF level sweeps, the market is not concerned
-                        with the LTF PP and proceeds without sweeping them.
-                    </li>
-                </ul>
-
-                <hr />
-
-                <!-- Inducement Patterns and Sweeps -->
-                <h2>Liquidity Engineering Model - Inducement Patterns and Sweeps</h2>
-                <p>
-                    In the following chart images the inducement patterns are indicated with the blue boxes. Each blue box represents an inducement pattern that all share the same
-                    qualities:
-                </p>
-                <ul class="doc-list">
-                    <li>1 - A clear short term direction.</li>
-                    <li>
-                        2 - A number of pivot points (typically 3 or more) serving both as confirmation of the direction and providing obvious levels for liquidity to cluster for the
-                        sweep.
-                    </li>
-                </ul>
-                <p>After each blue box, you can see how the PBPP levels were methodically breached (indicated by the white horizontal lines).</p>
-
-                <h3>Range Cycle</h3>
-                <div><img src="img/micro-trends.png" alt="" /></div>
-
-                <h3>Range + Trend Cycle</h3>
-                <p>
-                    On the left of this chart the price is consolidating. There are 2 micro trends in which all the PBPP levels were swept. On the right side, the price is trending,
-                    proceeding efficiently to a HTF level, and the PBPP are rarely swept (indicated by the white horizontal lines).
-                </p>
-                <div><img src="img/range-trend.png" alt="" /></div>
             </div>
-
         </div>
     </body>
 </html>

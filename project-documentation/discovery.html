@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Sub page 1 — Fractal Bot Docs</title>
+        <link rel="stylesheet" href="docs.css" />
+    </head>
+
+    <body>
+        <!-- Sidebar mount point. The menu's HTML is rendered by menu.js
+             from the FRACTAL_DOCS_MENU array, so links are managed in one
+             place across all docs pages. This page sits under Dashboard
+             as a sub-item (see menu.js: parent: "dashboard.html"). -->
+        <aside id="sidebar"></aside>
+        <script src="menu.js"></script>
+
+        <div class="page">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>Discovery</h1>
+            </div>
+
+            <div class="page-section">
+                <div class="callout callout-note">
+                    <span class="callout-icon">🔗</span>
+                    <div class="callout-body"><a class="url-pill" href="http://localhost:8080/discovery" target="_blank">localhost:8080/discovery</a></div>
+                </div>
+                <p>
+                    The <strong>optimisation engine</strong>. Explores the parameter space via random search, running a full backtest for each trial and scoring against the passing
+                    criteria. Each run is independent — random seed, no pooling across runs.
+                </p>
+                <div class="callout callout-tip">
+                    <span class="callout-icon">💡</span>
+                    <div class="callout-body">
+                        <strong>Seed:</strong> Leave as "random" for exploration. Note the seed if you need to reproduce a specific run exactly. Currently the seed is not stored in
+                        run results — a known gap to fix.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

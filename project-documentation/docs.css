@@ -106,14 +106,14 @@ img {
 
 .sidebar-nav a:hover {
     color: var(--text);
-    background: rgba(0, 0, 0, 0.025);
+    background: #eee7dd;
 }
 
 .sidebar-nav a.active {
-    color: var(--accent-dk);
-    border-left-color: var(--accent);
+    color: #fff;
+    /* border-left-color: var(--accent); */
     font-weight: 500;
-    background: rgba(0, 0, 0, 0.025);
+    background: var(--accent);
 }
 
 /* Sub-items (.sub) are nested one level under a parent. Indented and
@@ -126,9 +126,13 @@ img {
     color: var(--text2);
 }
 
-.sidebar-nav a.sub:hover {
-    color: var(--text);
+.sidebar-nav a.sub.active {
+    color: #fff;
 }
+
+/* .sidebar-nav a.sub:hover {
+    color: var(--text);
+} */
 
 /* ── PAGE ── */
 /* The sidebar is `position: fixed`, so it's removed from normal flow.
@@ -180,7 +184,7 @@ body {
 }
 
 .section-title {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;

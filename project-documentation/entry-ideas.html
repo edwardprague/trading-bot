@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Sub page 1 — Fractal Bot Docs</title>
+        <link rel="stylesheet" href="docs.css" />
+    </head>
+
+    <body>
+        <!-- Sidebar mount point. The menu's HTML is rendered by menu.js
+             from the FRACTAL_DOCS_MENU array, so links are managed in one
+             place across all docs pages. This page sits under Dashboard
+             as a sub-item (see menu.js: parent: "dashboard.html"). -->
+        <aside id="sidebar"></aside>
+        <script src="menu.js"></script>
+
+        <div class="page">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>Entry Ideas</h1>
+            </div>
+
+            <h3>Entry Thoughts</h3>
+            <ul class="doc-list">
+                <li>Trading with the trend</li>
+                <li>Waiting for a Inducing PB</li>
+                <li>Entering when the PB gives a continuation signal</li>
+            </ul>
+
+            <h3>Trend Filter</h3>
+            <ul class="doc-list">
+                <li>Price > 20 > 40 > 200 (or vice versa)</li>
+            </ul>
+
+            <h3>Inducing PB</h3>
+            <ul class="doc-list">
+                <li>A PB with a minimum of 2 PP, against the trend direction</li>
+            </ul>
+
+            <h3>Continuation Signal</h3>
+
+            <ul class="doc-list">
+                <li>Shoulder + Head + Shoulder = Fractal 1 + Fractal 2 + Fractal 3 (enter trade)</li>
+                <li>Head and shoulders entry must be preceded by at least 2 PP. This would confirm that it was a long enough PB to appropriately reverse and continue from.</li>
+                <li>The right shoulder would be the entry signal</li>
+            </ul>
+
+            <h3>Examples of Inducing PB and Continuation Signal</h3>
+
+            <div><img src="img/entry-signal.png" alt="" /></div>
+            <div><img src="img/entry-signal-2.png" alt="" /></div>
+        </div>
+    </body>
+</html>

@@ -30,8 +30,16 @@
 var FRACTAL_DOCS_MENU = [
     { href: "index.html", label: "Overview" },
     { href: "research.html", label: "Research & Development" },
+    { href: "lem.html", label: "Liquidity Engeneering Model", parent: "research.html" },
+    { href: "ema.html", label: "EMA Analysis", parent: "research.html" },
+    { href: "entry-ideas.html", label: "Entry Ideas", parent: "research.html" },
+    { href: "key-findings.html", label: "Key Findings", parent: "research.html" },
+    { href: "potential-dev.html", label: "Potential Dev", parent: "research.html" },
     { href: "dashboard.html", label: "Dashboard" },
-    { href: "subpage-1.html", label: "Sub page 1", parent: "dashboard.html" },
+    { href: "backtesting.html", label: "Backtesting", parent: "dashboard.html" },
+    { href: "regimes.html", label: "Regimes", parent: "dashboard.html" },
+    { href: "discovery.html", label: "Discovery", parent: "dashboard.html" },
+    { href: "versions.html", label: "Versions", parent: "dashboard.html" },
     { href: "technical.html", label: "Technical Setup" },
 ];
 
@@ -56,10 +64,12 @@ var FRACTAL_DOCS_MENU = [
        array) fall through as top-level items so the page is still
        reachable. */
     function flattenWithChildren(menu) {
-        var byParent = {};        // parent href -> [child entries, in source order]
-        var topLevel = [];        // entries that are top-level (no parent), in source order
+        var byParent = {}; // parent href -> [child entries, in source order]
+        var topLevel = []; // entries that are top-level (no parent), in source order
         var hrefs = {};
-        menu.forEach(function (it) { hrefs[it.href] = true; });
+        menu.forEach(function (it) {
+            hrefs[it.href] = true;
+        });
 
         menu.forEach(function (item) {
             if (item.parent && hrefs[item.parent]) {
@@ -85,14 +95,16 @@ var FRACTAL_DOCS_MENU = [
         if (!aside) return;
         var current = currentPageName();
         var ordered = flattenWithChildren(FRACTAL_DOCS_MENU);
-        var items = ordered.map(function (row) {
-            var item = row.item;
-            var classes = [];
-            if (item.href === current) classes.push("active");
-            if (row.level > 0) classes.push("sub");
-            var cls = classes.length ? ' class="' + classes.join(" ") + '"' : "";
-            return '<a href="' + escapeHtml(item.href) + '"' + cls + ">" + escapeHtml(item.label) + "</a>";
-        }).join("");
+        var items = ordered
+            .map(function (row) {
+                var item = row.item;
+                var classes = [];
+                if (item.href === current) classes.push("active");
+                if (row.level > 0) classes.push("sub");
+                var cls = classes.length ? ' class="' + classes.join(" ") + '"' : "";
+                return '<a href="' + escapeHtml(item.href) + '"' + cls + ">" + escapeHtml(item.label) + "</a>";
+            })
+            .join("");
         aside.innerHTML = '<nav class="sidebar-nav">' + items + "</nav>";
     }
 

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Sub page 1 — Fractal Bot Docs</title>
+        <link rel="stylesheet" href="docs.css" />
+    </head>
+
+    <body>
+        <!-- Sidebar mount point. The menu's HTML is rendered by menu.js
+             from the FRACTAL_DOCS_MENU array, so links are managed in one
+             place across all docs pages. This page sits under Dashboard
+             as a sub-item (see menu.js: parent: "dashboard.html"). -->
+        <aside id="sidebar"></aside>
+        <script src="menu.js"></script>
+
+        <div class="page">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>Regimes</h1>
+            </div>
+            <div class="page-section">
+                <div class="callout callout-note">
+                    <span class="callout-icon">🔗</span>
+                    <div class="callout-body">
+                        <a class="url-pill" href="http://localhost:8080/results/regime_analysis.html" target="_blank">localhost:8080/results/regime_analysis.html</a>
+                    </div>
+                </div>
+                <p>
+                    The <strong>diagnostic lens</strong>. Breaks the active version's behaviour down by market regime — both day-level (macro) and intraday (micro). Always uses the
+                    active version — no version dropdown.
+                </p>
+                <div class="callout callout-warning">
+                    <span class="callout-icon">⚠️</span>
+                    <div class="callout-body">
+                        <strong>RA does not auto-run on load.</strong> Results shown are from the last saved run. Click Run Analysis to refresh (~30–100s, blocks Flask). Avoid
+                        triggering during browser testing.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

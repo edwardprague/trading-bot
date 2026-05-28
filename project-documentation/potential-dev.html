@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Sub page 1 — Fractal Bot Docs</title>
+        <link rel="stylesheet" href="docs.css" />
+    </head>
+
+    <body>
+        <!-- Sidebar mount point. The menu's HTML is rendered by menu.js
+             from the FRACTAL_DOCS_MENU array, so links are managed in one
+             place across all docs pages. This page sits under Dashboard
+             as a sub-item (see menu.js: parent: "dashboard.html"). -->
+        <aside id="sidebar"></aside>
+        <script src="menu.js"></script>
+
+        <div class="page">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>Potential Development</h1>
+            </div>
+
+            <!-- Potential Strategy Analysis Development -->
+            <div class="section">
+                <div class="section-title">Potential Strategy Analysis Development</div>
+
+                <div class="finding-card">
+                    <div class="finding-title">Bayesian / guided search (e.g. Optuna) instead of pure random</div>
+                    <div class="finding-body">
+                        Current Discovery uses pure random sampling — each trial picks parameter combinations independently with no learning from previous trials. Bayesian search
+                        (e.g. using the Optuna library in Python) instead builds a probabilistic model of which regions of the search space are promising, and samples more densely
+                        there over time. This dramatically improves the pass rate per trial — fewer wasted trials in clearly poor regions, more exploration around combinations that
+                        are working. The practical benefit is finding better candidates with the same trial budget, or the same quality candidates with far fewer trials.
+                    </div>
+                </div>
+
+                <div class="finding-card">
+                    <div class="finding-title">Composite objective function scoring</div>
+                    <div class="finding-body">
+                        Currently passing is binary — a trial either clears all thresholds (PF ≥ 1.5, min trades, max DD) or it doesn't. All passing trials are shown equally with
+                        no ranking beyond PF sort. A composite score such as <code>PF × win_rate / max_DD</code> would rank trials by overall quality rather than just filtering
+                        them, surfacing the genuinely best candidates at the top. This also reduces the influence of trials that barely pass one criterion while excelling at others
+                        — a more honest picture of which parameter sets are worth assigning to a version.
+                    </div>
+                </div>
+
+                <div class="finding-card">
+                    <div class="finding-title">Sharpe ratio as a ranking/filter criterion</div>
+                    <div class="finding-body">
+                        Current passing criteria (PF, min trades, max DD) can't distinguish between a smooth equity curve and a lumpy one with similar aggregate numbers. A 1:4 RRR
+                        strategy earns in bursts — high variability in periodic returns. A 1:1 strategy with 70% win rate is smoother. Sharpe penalises both sides equally; Sortino
+                        (downside only) may be more appropriate for high-RRR strategies. Adding Sharpe ≥ 1.0 as a filter would improve result quality.
+                    </div>
+                </div>
+
+                <div class="finding-card">
+                    <div class="finding-title">EMA Buffer as a search bounds parameter in Discovery</div>
+                    <div class="card-subtitle"><code>EMA40_BUFFER_PIPS</code> — default 5 pips</div>
+                    <p>
+                        Short requires <code>close &lt; ema_long − buffer</code>; long requires <code>close &gt; ema_long + buffer</code>. Setting to 0 recovers strict-below
+                        behaviour.
+                    </p>
+                </div>
+
+                <div class="finding-card">
+                    <div class="finding-title">Walk-Forward Validation</div>
+                    <div class="finding-body">
+                        Train on a historical window, validate on out-of-sample window, slide forward. Prevents overfitting and gives statistical confidence that regime gates
+                        capture a real edge rather than noise. Highest-value next build.
+                    </div>
+                </div>
+
+                <div class="finding-card">
+                    <div class="finding-title">Test Indices</div>
+                    <div class="finding-body">DE40, US30 and JP225 are preferred for live manual trading; indices subscription to be added in a future cycle.</div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
