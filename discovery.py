@@ -45,7 +45,10 @@ from pathlib import Path
 
 BASE_DIR             = Path(__file__).parent
 STRATEGY_FILE        = BASE_DIR / "strategy.py"
-DATA_DIR             = BASE_DIR / "data"
+# DATA_DIR mirrors the $DATA_DIR convention in server.py so this CLI / the
+# subprocesses server.py spawns both write to the same persistent location
+# (the Railway Volume in production, BASE_DIR/data locally).
+DATA_DIR             = Path(os.environ.get("DATA_DIR") or (BASE_DIR / "data"))
 RESULTS_FILE_DEFAULT = DATA_DIR / "discovery_results.json"
 DISCOVERY_TMP_DIR    = DATA_DIR / ".discovery_tmp"
 

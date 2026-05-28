@@ -67,7 +67,10 @@ os.environ.setdefault("TRADE_DIRECTION", "short_only")
 def _seed_regime_env_from_active_version():
     import json as _json
     from pathlib import Path as _Path
-    versions_file = _Path(__file__).parent / "data" / "versions.json"
+    # $DATA_DIR override — keep this file in sync with the volume-backed
+    # versions.json that server.py writes in production.
+    _data_root = _Path(os.environ.get("DATA_DIR") or (_Path(__file__).parent / "data"))
+    versions_file = _data_root / "versions.json"
     try:
         with open(versions_file, "r", encoding="utf-8") as _f:
             data = _json.load(_f)
@@ -151,7 +154,10 @@ REPORT_END_DATE   = END_DATE
 GENERATE_DAILY_CHARTS = os.environ.get("GENERATE_DAILY_CHARTS", "true").strip().lower() in ("true", "1", "yes", "on")
 
 ROOT_DIR           = Path(__file__).resolve().parent
-DATA_DIR           = ROOT_DIR / "data"
+# $DATA_DIR override so regime labels write to the Railway Volume in
+# production (mirrors the same convention in server.py / discovery.py /
+# strategy_v*.py — see those files for details).
+DATA_DIR           = Path(os.environ.get("DATA_DIR") or (ROOT_DIR / "data"))
 RESULTS_DIR        = ROOT_DIR / "results"
 REGIME_CHARTS_DIR  = RESULTS_DIR / "regime_charts"
 REPORT_PATH        = RESULTS_DIR / "regime_analysis.html"

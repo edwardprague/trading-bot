@@ -73,7 +73,9 @@ START_DATE = "2026-01-01"
 END_DATE   = "2026-03-31"
 
 ROOT_DIR    = Path(__file__).resolve().parent
-DATA_DIR    = ROOT_DIR / "data"
+# $DATA_DIR override (see server.py for the convention) so this CLI
+# reads/writes the regime_model.pkl on the same volume the dashboard uses.
+DATA_DIR    = Path(os.environ.get("DATA_DIR") or (ROOT_DIR / "data"))
 RESULTS_DIR = ROOT_DIR / "results"
 REPORT_PATH = RESULTS_DIR / "regime_discovery.html"
 MODEL_PATH  = DATA_DIR / "regime_model.pkl"

@@ -44,7 +44,14 @@ BASE_DIR      = Path(__file__).parent
 REPORT_FILE   = BASE_DIR / "report.html"
 STRATEGY_FILE = BASE_DIR / "strategy.py"
 RESULTS_DIR   = BASE_DIR / "results"
-DATA_DIR      = BASE_DIR / "data"
+# DATA_DIR is overridable via $DATA_DIR so the Railway Volume can be
+# mounted at any path (e.g. /data, /var/data) — we read & write parquet
+# files, discovery_results.json, versions.json etc. through this dir, and
+# they MUST live on the volume to survive a redeploy. Default falls back
+# to BASE_DIR/data for local dev where the folder is checked into the
+# working tree. discovery.py mirrors this same env-var convention so both
+# processes target the same on-disk location.
+DATA_DIR      = Path(os.environ.get("DATA_DIR") or (BASE_DIR / "data"))
 DOCS_DIR      = BASE_DIR / "project-documentation"
 
 # Versions store — server-side source of truth for the user's strategy
@@ -5581,10 +5588,15 @@ def devlog_save():
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    # PORT is read from the environment so the same entrypoint works for
+    # local dev (default 8080) and Railway / any PaaS that injects $PORT.
+    # Railway requires the app to bind to whatever value it sets, otherwise
+    # the public domain proxies to a closed socket and the URL 502s.
+    port = int(os.environ.get("PORT", "8080"))
     print()
     print("  Trading Bot Dashboard")
     print("  ────────────────────────────────────────")
-    print("  Open  →  http://localhost:8080")
+    print(f"  Open  →  http://localhost:{port}")
     print("  Stop  →  Ctrl+C")
     print()
-    app.run(host="0.0.0.0", port=8080, debug=False, threaded=True)
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)

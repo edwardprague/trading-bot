@@ -158,7 +158,10 @@ def fetch_data(ticker, interval, days_back, start_date=None, end_date=None):
     # already-buffered [start, end] window. Any failure falls through to the
     # Massive API path below, so the cache layer never blocks a backtest.
     from pathlib import Path as _Path
-    _cache_path = _Path(__file__).resolve().parent / "data" / f"{_INSTRUMENT}_{interval}.parquet"
+    # Honor $DATA_DIR so the parquet cache lives on the Railway Volume in
+    # production. Falls back to the in-repo data/ folder for local dev.
+    _data_root = _Path(os.environ.get("DATA_DIR") or (_Path(__file__).resolve().parent / "data"))
+    _cache_path = _data_root / f"{_INSTRUMENT}_{interval}.parquet"
     if _cache_path.exists():
         try:
             _cached = pd.read_parquet(_cache_path)

@@ -167,8 +167,10 @@ def _load_regime_labels():
     _REGIME_LABELS_LOADED = True   # set early so we don't retry on every entry
     from pathlib import Path as _Path
     base    = _Path(__file__).resolve().parent
-    parquet = base / "data" / "regime_labels.parquet"
-    sidecar = base / "data" / "macro_by_date.json"
+    # Honor $DATA_DIR so labels load from the Railway Volume in production.
+    _data_root = _Path(os.environ.get("DATA_DIR") or (base / "data"))
+    parquet = _data_root / "regime_labels.parquet"
+    sidecar = _data_root / "macro_by_date.json"
 
     if not parquet.exists():
         if ALLOWED_MACRO_KEYS or ALLOWED_MICRO_KEYS:
