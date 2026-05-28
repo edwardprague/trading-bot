@@ -9,12 +9,11 @@
 </head>
 
 <body>
-    <nav>
-        <a href="index.html">Overview</a>
-        <a href="research.html">Research &amp; Development</a>
-        <a href="dashboard.html">Dashboard</a>
-        <a href="technical.html" class="active">Technical Setup</a>
-    </nav>
+    <!-- Sidebar mount point. The menu's HTML is rendered by menu.js
+         from the FRACTAL_DOCS_MENU array, so links are managed in one
+         place across all four docs pages. -->
+    <aside id="sidebar"></aside>
+    <script src="menu.js"></script>
 
     <div class="page">
 

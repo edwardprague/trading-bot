@@ -60,62 +60,85 @@ img {
     padding: 5px 7px;
 }
 
-/* ── NAV ── */
-nav {
-    position: sticky;
+/* ── SIDEBAR ──
+   Fixed left-hand navigation. Replaces the legacy top-nav (sticky bar
+   across the top of every page). Menu items now live in menu.js — the
+   <aside id="sidebar"> on each page is the mount point, populated by
+   that script. Adding/removing pages happens in menu.js only, no per-
+   page edits needed.
+
+   The sidebar is `position: fixed` so it stays put while the long-form
+   doc content scrolls. .page below adds a left margin equal to the
+   sidebar width so the content lands to the right of it. */
+:root {
+    --sidebar-width: 240px;
+}
+
+#sidebar {
+    position: fixed;
     top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--sidebar-width);
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    padding: 32px 0;
+    overflow-y: auto;
     z-index: 100;
-    background: rgba(245, 240, 232, 0.94);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
+}
+
+.sidebar-nav {
     display: flex;
-    align-items: center;
-    padding: 0 40px;
-    height: 56px;
-    gap: 0;
+    flex-direction: column;
 }
 
-.nav-brand {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--accent);
-    text-decoration: none;
-    margin-right: 40px;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.nav-brand img {
-    width: 50px;
-}
-
-nav a {
+.sidebar-nav a {
     color: var(--text2);
     text-decoration: none;
     font-size: 13px;
     font-weight: 400;
-    padding: 0 14px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    border-bottom: 2px solid transparent;
-    transition: color 0.15s, border-color 0.15s;
-    white-space: nowrap;
+    padding: 10px 24px;
+    /* Reserve the 3px the active-state left bar will occupy so the text
+       doesn't shift horizontally when a link becomes active. */
+    border-left: 3px solid transparent;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
-nav a:hover {
+.sidebar-nav a:hover {
+    color: var(--text);
+    background: rgba(0, 0, 0, 0.025);
+}
+
+.sidebar-nav a.active {
+    color: var(--accent-dk);
+    border-left-color: var(--accent);
+    font-weight: 500;
+    background: rgba(0, 0, 0, 0.025);
+}
+
+/* Sub-items (.sub) are nested one level under a parent. Indented and
+   dimmed by default so the hierarchy reads at a glance; active state
+   still uses the same accent left-bar but anchored at the parent
+   indent so all active rows share one vertical baseline. */
+.sidebar-nav a.sub {
+    padding-left: 44px;
+    font-size: 12px;
+    color: var(--text2);
+}
+
+.sidebar-nav a.sub:hover {
     color: var(--text);
 }
 
-nav a.active {
-    color: var(--accent-dk);
-    border-bottom-color: var(--accent);
-    font-weight: 500;
+/* ── PAGE ── */
+/* The sidebar is `position: fixed`, so it's removed from normal flow.
+   We pad <body> by the sidebar's width so the page-flow content lands
+   to its right; .page then auto-centres within the remaining viewport
+   width, matching the original docs aesthetic. */
+body {
+    padding-left: var(--sidebar-width);
 }
 
-/* ── PAGE ── */
 .page {
     max-width: 1080px;
     margin: 0 auto;
