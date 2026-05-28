@@ -468,12 +468,20 @@ def run_trial(trial_num, params, start_date, end_date, settings=None, thresholds
         elif out_path.exists():
             with open(out_path, "r", encoding="utf-8") as f:
                 metrics = json.load(f)
-            # Normalize the sign convention: strategy_v2 stores drawdown as a
-            # negative number. Phase 1 treats max DD as a positive magnitude
-            # everywhere downstream (objective check, UI display, threshold
-            # tooltips), so we abs() it once here at the boundary.
-            if metrics.get("max_drawdown") is not None:
-                metrics["max_drawdown"] = abs(metrics["max_drawdown"])
+            # strategy_v2.compute_metrics() returns None when the trade list is
+            # empty (no signals passed the gates) — json.dump(None) writes the
+            # literal "null". Treat that as a zero-trade trial rather than
+            # crashing on metrics.get(...). Previously this raised
+            # 'NoneType' object has no attribute 'get'.
+            if metrics is None:
+                metrics = None  # fall through to the zero-trades fallback below
+            else:
+                # Normalize the sign convention: strategy_v2 stores drawdown as a
+                # negative number. Phase 1 treats max DD as a positive magnitude
+                # everywhere downstream (objective check, UI display, threshold
+                # tooltips), so we abs() it once here at the boundary.
+                if metrics.get("max_drawdown") is not None:
+                    metrics["max_drawdown"] = abs(metrics["max_drawdown"])
         else:
             error = "metrics file not written"
     except subprocess.TimeoutExpired:
