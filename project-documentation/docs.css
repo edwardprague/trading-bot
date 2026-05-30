@@ -379,9 +379,9 @@ pre code {
 }
 
 .badge-accent {
-    background: var(--accent-bg);
-    color: var(--accent-dk);
-    border: 1px solid var(--accent-lt);
+    background: var(--accent);
+    color: #fff;
+    /* border: 1px solid var(--accent-lt); */
 }
 
 .badge-green {

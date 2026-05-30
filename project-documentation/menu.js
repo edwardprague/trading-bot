@@ -33,6 +33,7 @@ var FRACTAL_DOCS_MENU = [
     { href: "lem.html", label: "Liquidity Engeneering Model", parent: "research.html" },
     { href: "ema.html", label: "EMA Analysis", parent: "research.html" },
     { href: "entry-ideas.html", label: "Entry Ideas", parent: "research.html" },
+    { href: "entry-ideas-2.html", label: "Micro Swing Strategy", parent: "research.html" },
     { href: "key-findings.html", label: "Key Findings", parent: "research.html" },
     { href: "potential-dev.html", label: "Potential Dev", parent: "research.html" },
     { href: "dashboard.html", label: "Dashboard" },
