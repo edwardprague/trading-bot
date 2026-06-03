@@ -390,6 +390,17 @@ pre code {
     border: 1px solid #b8dfc9;
 }
 
+.badge-purple {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #817EB9;
+    color: #fff;
+}
+
+.badge-blue-2 {
+    background: #769BC8;
+    color: #fff;
+}
+
 .badge-blue {
     background: var(--blue-bg);
     color: var(--blue);
