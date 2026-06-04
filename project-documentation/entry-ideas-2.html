@@ -1,93 +1,118 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Micro Swing Strategy — Fractal Bot Docs</title>
-        <link rel="stylesheet" href="docs.css" />
-    </head>
 
-    <body>
-        <!-- Sidebar mount point. The menu's HTML is rendered by menu.js
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Micro Swing Strategy — Fractal Bot Docs</title>
+    <link rel="stylesheet" href="docs.css" />
+</head>
+
+<body>
+    <!-- Sidebar mount point. The menu's HTML is rendered by menu.js
              from the FRACTAL_DOCS_MENU array, so links are managed in one
              place across all docs pages. This page sits under Dashboard
              as a sub-item (see menu.js: parent: "dashboard.html"). -->
-        <aside id="sidebar"></aside>
-        <script src="menu.js"></script>
+    <aside id="sidebar"></aside>
+    <script src="menu.js"></script>
 
-        <div class="page">
-            <!-- Page Header -->
-            <div class="page-header">
-                <h1>Micro Swing Strategy</h1>
-            </div>
+    <div class="page">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1>Micro Swing Strategy</h1>
+        </div>
 
-            <h3>Methodology</h3>
-            <p>The price on the 1m chart moves in macro swings which serve 2 purposes: Induction and Sweeping</p>
-            <p>The PP structure is very clear and consistent.</p>
-            <ul class="doc-list">
-                <li><span class="badge badge-blue-2">Induction</span> - Swings are composed of at least 2 or 3 PP.</li>
-                <li><span class="badge badge-blue-2">Sweep</span> - PB swings should sweep a number of previous PBPP.</li>
-            </ul>
+        <h3>Methodology</h3>
+        <p>The price on the 1m chart moves in macro swings which serve 2 purposes: Induction and Sweeping</p>
+        <p>The PP structure is very clear and consistent on the 1m chart. It seems to really be the way the market makes
+            it's money. It's simple and seems that it can't foundationally be much more complex.</p>
+        <ul class="doc-list">
+            <li><span class="badge badge-blue-2">Induction</span> - Swings are composed of at least 2 or 3 PP.</li>
+            <li><span class="badge badge-blue-2">Sweep</span> - PB swings should sweep a number of previous PBPP.</li>
+        </ul>
 
-            <h3>Entry Signals</h3>
+        <h3>Entry Signals</h3>
 
-            <div class="card" style="padding: 0; overflow: hidden">
-                <div class="flow-steps" style="padding: 8px 24px">
-                    <div class="flow-step">
-                        <div class="flow-num" style="background: var(--green)">1</div>
-                        <div class="flow-content">
-                            <h4>Foundational Requirement - Induction / Sweep Swing</h4>
-                            <p>
-                                After a formidable PB swing has occured, creating a number of PP, and swept a reasonable number of PBPP. The trade can be entered immediately as a
-                                counter trend trade.
-                            </p>
-                        </div>
+        <div class="card" style="padding: 0; overflow: hidden">
+            <div class="flow-steps" style="padding: 8px 24px">
+                <div class="flow-step">
+                    <div class="flow-num" style="background: var(--green)">1</div>
+                    <div class="flow-content">
+                        <h4>Foundational Requirement - Induction / Sweep Swing</h4>
+                        <p>
+                            After a formidable PB swing has occured, creating a number of PP, and swept a reasonable
+                            number of PBPP. The trade can be entered immediately as a
+                            counter trend trade.
+                        </p>
                     </div>
-                    <div class="flow-step">
-                        <div class="flow-num" style="background: var(--green)">2</div>
-                        <div class="flow-content">
-                            <h4>Confluence 1 - Engulfing Candle</h4>
-                            <p>An engulfing candle in the expected direction</p>
-                        </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-num" style="background: var(--green)">2</div>
+                    <div class="flow-content">
+                        <h4>Confluence 1 - Engulfing Candle</h4>
+                        <p>An engulfing candle in the expected direction</p>
                     </div>
-                    <div class="flow-step">
-                        <div class="flow-num" style="background: var(--green)">3</div>
-                        <div class="flow-content">
-                            <h4>Confluence 2 - Head and Shoulders</h4>
-                            <p>
-                                A head and shoulders fractal formation. Head and shoulders entry must be preceded by at least 2 PP. This would confirm that it was a long enough PB
-                                to appropriately reverse and continue from.
-                            </p>
-                        </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-num" style="background: var(--green)">3</div>
+                    <div class="flow-content">
+                        <h4>Confluence 2 - Head and Shoulders</h4>
+                        <p>
+                            A head and shoulders fractal formation. Head and shoulders entry must be preceded by at
+                            least 2 PP. This would confirm that it was a long enough PB
+                            to appropriately reverse and continue from.
+                        </p>
                     </div>
-                    <div class="flow-step">
-                        <div class="flow-num" style="background: var(--green)">4</div>
-                        <div class="flow-content">
-                            <h4>Confluence 3 - Change of Charachter</h4>
-                            <p>Change of Charachter formation</p>
-                        </div>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-num" style="background: var(--green)">4</div>
+                    <div class="flow-content">
+                        <h4>Confluence 3 - Change of Charachter</h4>
+                        <p>Change of Charachter formation</p>
                     </div>
                 </div>
             </div>
-
-            <h3>Trend Filter</h3>
-            <ul class="doc-list">
-                <li><span class="badge badge-accent">HTF</span> - 20 SMA</li>
-                <li><span class="badge badge-accent">LTF</span> - No SMA used which is highly advantagous as they are only conflicting noise on the 1m chart.</li>
-            </ul>
-
-            <h2>Setup Examples</h2>
-            <div class="section-title">Common Morning Pattern</div>
-            <p>It's common that the JP moves strongly to a new level in the Asian session and consolidates during London, which presents good micro swing trade opportunities.</p>
-            <div class="section-title">Reversal Trade - Top Edge of Range</div>
-            <p>The trade was structurally sound for a reversal trade, after a CHoCH move. A good RR placement above the previous high PP and the TP was at the previous low PP.</p>
-            <div><img src="img/trade-example-1.png" alt="" /></div>
-
-            <div><img src="img/pbs-2.png" alt="" /></div>
-
-            <div class="section-title">Reversal Trade - Bottom Edge of Range</div>
-            <p>The price had moved strongly to the bottom of the range, swept the last 3 hours worth of PP, and was poised to move back up.</p>
-            <div><img src="img/trade-example-2.png" alt="" /></div>
         </div>
-    </body>
+
+        <h3>Trend Filter</h3>
+        <ul class="doc-list">
+            <li><span class="badge badge-accent">HTF</span> - 20 SMA</li>
+            <li><span class="badge badge-accent">LTF</span> - No SMA used which is highly advantagous as they are only
+                conflicting noise on the 1m chart.</li>
+        </ul>
+
+        <h2>Discoveries</h2>
+        <ul class="doc-list">
+            <li>The JP often does most of it's movement in the Asian session, and is nicely consolidating during London
+                through to NY.</li>
+            <li>When the price pulls back and sweeps the recent PP, there is often a cluster of them rather close with
+                the next furthest PP being a good distance away, which it can tend to leave alone?</li>
+            <li>The NY session often breaks out of the London session HL, <strong>so it may be good to be looking for
+                    more trend trades in NY and range trades (at top or bottom) during London.</strong></li>
+        </ul>
+
+        <h2>Setup Examples</h2>
+        <div class="section-title">Common Morning Pattern</div>
+        <p>It's common that the JP moves strongly to a new level in the Asian session and consolidates during London,
+            which presents good micro swing trade opportunities.</p>
+
+        <div class="section-title">Reversal Trade - London - Top Edge of Range</div>
+        <p>The trade was structurally sound for a reversal trade, after a CHoCH move. A good RR placement above the
+            previous high PP and the TP was at the previous low PP.</p>
+        <div><img src="img/trade-example-1.png" alt="" /></div>
+
+        <div><img src="img/pbs-2.png" alt="" /></div>
+
+        <div class="section-title">Reversal Trade - London - Bottom Edge of Range</div>
+        <p>The price had moved strongly to the bottom of the range, swept the last 3 hours worth of PP, and was poised
+            to move back up.</p>
+        <div><img src="img/trade-example-2.png" alt="" /></div>
+
+        <div class="section-title">Trend Trade - New York - Before Breakout</div>
+        <p>3 PP formed in the PB swing, sweeping the recent previous PBPP, in what looks like a downward trend day.</p>
+        <div><img src="img/trade-example-3.png" alt="" /></div>
+
+    </div>
+</body>
+
 </html>
