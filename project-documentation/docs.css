@@ -49,6 +49,11 @@ body {
     line-height: 1.75;
 }
 
+
+.trade-example {
+    margin-bottom: 20px;
+}
+
 img {
     width: 800px;
 }
