@@ -386,6 +386,8 @@ pre code {
 .badge-accent {
     background: var(--accent);
     color: #fff;
+    font-family: 'Inter', -apple-system, sans-serif;
+
     /* border: 1px solid var(--accent-lt); */
 }
 
