@@ -1,159 +1,137 @@
 <!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Induction / Sweep Strategy</title>
+        <link rel="stylesheet" href="docs.css" />
+    </head>
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Induction / Sweep Swing Strategy</title>
-    <link rel="stylesheet" href="docs.css" />
-</head>
+    <body>
+        <aside id="sidebar"></aside>
+        <script src="menu.js"></script>
 
-<body>
-    <aside id="sidebar"></aside>
-    <script src="menu.js"></script>
+        <div class="page">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>Induction / Sweep Strategy</h1>
+            </div>
 
-    <div class="page">
-        <!-- Page Header -->
-        <div class="page-header">
-            <h1>Induction / Sweep Swing Strategy</h1>
-        </div>
+            <h3>Methodology</h3>
+            <p>The price on the 1m chart moves in macro swings which serve 2 purposes: Induction and Sweeping</p>
+            <p>
+                This is the way that the market makes it's money on the LTF. The PP structure is very clear and consistent on the 1m chart. It's mostly simple to see and it can't
+                foundationally be much more complex.
+            </p>
+            <p>The sweeps are efficient, quick, and rather consistant.</p>
 
-        <h3>Methodology</h3>
-        <p><strong>Good Measurements / Good Analysis / Good Judgement / Quality Attention / No Effort</strong></p>
-        <p>The price on the 1m chart moves in macro swings which serve 2 purposes: Induction and Sweeping</p>
-        <p>
-            The PP structure is very clear and consistent on the 1m chart. It seems to really be the way the market
-            makes it's money. It's simple and seems that it can't
-            foundationally be much more complex.
-        </p>
-        <p>The sweeps are efficient (quick) and rather consistant with the 3 PP PB, which is great.</p>
+            <h3>Swing Types</h3>
+            <ul class="doc-list">
+                <li>
+                    <span class="badge badge-blue-2">Induction (Slower - More PP)</span> - A large swing with a few handful of PBPP to an HTF PP (At the edge the remaining PP can
+                    be left for further buildup).
+                </li>
+                <li><span class="badge badge-blue-2">Sweep (Faster - Less PP)</span> - PB swings should sweep a number of previous PBPP with around 3 PP legs.</li>
+            </ul>
 
-        <h3>Entry Signals</h3>
+            <h3>Trade Types - Both After A Sweep</h3>
+            <ul class="doc-list">
+                <li><span class="badge badge-accent">Counter Trend</span> - At the edge of an HTF range, after a strong trend to get there.</li>
+                <li><span class="badge badge-accent">Trend</span> - An LTF micro trend with a clearish overall direction, and a multi PP leg proper sweeping PB.</li>
+            </ul>
 
-        <div class="card" style="padding: 0; overflow: hidden">
-            <div class="flow-steps" style="padding: 8px 24px">
-                <div class="flow-step">
-                    <div class="flow-num" style="background: var(--green)">1</div>
-                    <div class="flow-content">
-                        <h4>Foundational Requirement - Induction / Sweep Swing</h4>
-                        <p>
-                            After a formidable PB swing has occured, creating a number of PP, and swept a reasonable
-                            number of PBPP. The trade can be entered immediately as a
-                            counter trend trade.
-                        </p>
+            <h3 class="">Entry Questions</h3>
+            <div class="card" style="padding: 0; overflow: hidden">
+                <div class="flow-steps" style="padding: 8px 24px">
+                    <div class="flow-step">
+                        <div class="flow-num">1</div>
+                        <div class="flow-content">
+                            <h4>Overreaching Questions</h4>
+                            <p>- What does the price look like it's doing (to most people) and what is it probably doing (against most people)?</p>
+                            <p>- Did price just do what most people probably thought it would not do?</p>
+                            <p>- How CLEAR are the conditions? Because a trade is like a fart...</p>
+                        </div>
                     </div>
-                </div>
-                <div class="flow-step">
-                    <div class="flow-num" style="background: var(--green)">2</div>
-                    <div class="flow-content">
-                        <h4>Confluence 1 - Engulfing Candle</h4>
-                        <p>An engulfing candle in the expected direction</p>
+                    <div class="flow-step">
+                        <div class="flow-num" style="background: var(--green)">2</div>
+                        <div class="flow-content">
+                            <h4>HTF</h4>
+                            <p>What is the HTF PA, and where are the PP? What does the HTF price look like it's doing (to most people) and what is it probably doing?</p>
+                        </div>
                     </div>
-                </div>
-                <div class="flow-step">
-                    <div class="flow-num" style="background: var(--green)">3</div>
-                    <div class="flow-content">
-                        <h4>Confluence 2 - Head and Shoulders</h4>
-                        <p>
-                            A head and shoulders fractal formation. Head and shoulders entry must be preceded by at
-                            least 2 PP. This would confirm that it was a long enough PB
-                            to appropriately reverse and continue from.
-                        </p>
+                    <div class="flow-step">
+                        <div class="flow-num" style="background: var(--green)">3</div>
+                        <div class="flow-content">
+                            <h4>LTF</h4>
+                            <p>What direction makes sense on the LTF according to it's PA and the HTF PA?</p>
+                        </div>
                     </div>
-                </div>
-                <div class="flow-step">
-                    <div class="flow-num" style="background: var(--green)">4</div>
-                    <div class="flow-content">
-                        <h4>Confluence 3 - Change of Charachter</h4>
-                        <p>Change of Charachter formation</p>
+                    <div class="flow-step">
+                        <div class="flow-num" style="background: var(--green)">4</div>
+                        <div class="flow-content">
+                            <h4>PP Sweeps</h4>
+                            <p>Which PP could likely be swept sooner? Which PP could likely be swept later? (Good potential SL level)</p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num" style="background: var(--green)">5</div>
+                        <div class="flow-content">
+                            <h4>Trend Entries</h4>
+                            <p>
+                                If trend tading, how many PBPP has the PB swing had? How many PP sweeps did it do? What is the distance to the further PP, indicating it might not
+                                continue there?
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-num" style="background: var(--green)">6</div>
+                        <div class="flow-content">
+                            <h4>CT Entries</h4>
+                            <p>If CT trading, what HTF PP was swept? Is the price at least TP distance from the swept PP?</p>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <h2>Discoveries</h2>
+            <ul class="doc-list">
+                <li>The JP often does most of it's movement in the Asian session, and is nicely consolidating during London through to NY.</li>
+                <li>
+                    When the price pulls back and sweeps the recent PP, there is often a cluster of them rather close with the next furthest PP being a good distance away, which it
+                    can tend to leave alone?
+                </li>
+                <li>
+                    The NY session often breaks out of the London session HL,
+                    <strong>so it may be good to be looking for more trend trades in NY and range trades (at top or bottom) during London.</strong>
+                </li>
+                <li><strong>CT Trades must be at least TP distance from the swept PP.</strong></li>
+                <li><strong>THE SWEEP OCCURS IN ABOUT HALF THE TIME OF THE INDUCTION?</strong></li>
+            </ul>
+
+            <h2>Considerations</h2>
+            <ul class="doc-list">
+                <li>
+                    You have a mastered methodology about the induction sweep on the 1m. Think on what the 5 and 15m HTF methodology would look like, and hour is probably too much.
+                </li>
+                <li>
+                    It seems like the 5m and 15 react in the same way. It seems to be a good factor that on those time frames the PP need more efficient sweeping because those
+                    traders aren't in it for long.
+                </li>
+                <li>The question for sweeps is timing, how long does it take to sweep 15 and 5m. There sould be an standard ideal timing element to that.</li>
+            </ul>
+
+            <h2>Trade Examples</h2>
+            <div class="section-title">🔥 Most Ideal Setups</div>
+
+            <ul class="doc-list">
+                <li>A long induction swing with a few handfuls of PBPP, for about 500+ pips to the bottom of the HTF range.</li>
+                <li>A more rapid PB sweep over about 1 handful of PBPP, leaving 2 or 2 spread out PP, with ideally a larger gap between the further cluster.</li>
+                <li>The PB sweep has 2-3 PP, just what the recipe calls for.</li>
+                <li>Once that further PBPP gets swept, before the larger gap (of about 125 in this example), take the trade.</li>
+                <li>Essentially PP counting. How many PP did the PB seing have? How many PP were swept.</li>
+                <li>In a counter trend trade the entry should be at least TP distance from the sweep.</li>
+            </ul>
+            <p><strong>The entry signal is the sweep with exhaustion.</strong></p>
         </div>
-
-        <h3>Swing Types</h3>
-        <ul class="doc-list">
-            <li><span class="badge badge-blue-2">Induction</span> - Swings are composed of at least 2 or 3 PP.</li>
-            <li><span class="badge badge-blue-2">Sweep</span> - PB swings should sweep a number of previous PBPP.</li>
-        </ul>
-
-        <h3>Trend Filter</h3>
-        <ul class="doc-list">
-            <li><span class="badge badge-accent">HTF</span> - 20 SMA</li>
-            <li><span class="badge badge-accent">LTF</span> - No SMA used which is highly advantagous as they are only
-                conflicting noise on the 1m chart.</li>
-        </ul>
-
-        <h2>Discoveries</h2>
-        <ul class="doc-list">
-            <li>The JP often does most of it's movement in the Asian session, and is nicely consolidating during London
-                through to NY.</li>
-            <li>
-                When the price pulls back and sweeps the recent PP, there is often a cluster of them rather close with
-                the next furthest PP being a good distance away, which it
-                can tend to leave alone?
-            </li>
-            <li>
-                The NY session often breaks out of the London session HL,
-                <strong>so it may be good to be looking for more trend trades in NY and range trades (at top or bottom)
-                    during London.</strong>
-            </li>
-        </ul>
-
-        <h2>Considerations</h2>
-        <ul class="doc-list">
-            <li>
-                You have a mastered methodology about the induction sweep on the 1m. Think on what the 5 and 15m HTF
-                methodology would look like, and hour is probably too much.
-            </li>
-            <li>
-                It seems like the 5m and 15 react in the same way. It seems to be a good factor that on those time
-                frames the PP need more efficient sweeping because those
-                traders aren't in it for long.
-            </li>
-            <li>The question for sweeps is timing, how long does it take to sweep 15 and 5m. There sould be an standard
-                ideal timing element to that.</li>
-        </ul>
-
-        <h2>Trade Examples</h2>
-        <div class="section-title">Common Morning Pattern</div>
-        <p>It's common that the JP moves strongly to a new level in the Asian session and consolidates during London,
-            which presents good micro swing trade opportunities.</p>
-
-        <div class="section-title">Reversal Trade - London - Top Edge of Range</div>
-        <p>The trade was structurally sound for a reversal trade, after a CHoCH move. A good RR placement above the
-            previous high PP and the TP was at the previous low PP.</p>
-        <div class="trade-example"><img src="img/trade-example-1.png" alt="" /></div>
-
-        <div class="section-title">Reversal Trade - London - Bottom Edge of Range</div>
-        <p>The price had moved strongly to the bottom of the range, swept the last 3 hours worth of PP, and was poised
-            to move back up.</p>
-        <div class="trade-example"><img src="img/trade-example-2.png" alt="" /></div>
-
-        <div class="section-title">Trend Trade - New York - Before Breakout</div>
-        <p>3 PP formed in the PB swing, sweeping the recent previous PBPP, in what looks like a downward trend day.</p>
-        <div class="trade-example"><img src="img/trade-example-3.png" alt="" /></div>
-
-        <div class="section-title">Non Tradable Mini Range Conditions</div>
-        <p>After the trade in example 3 above, the price was trending but also largely consolitating quite tightly
-            between the recent two, more widely spaced PP. These are not
-            ideal conditions, because of the lack of real direction and volitility.</p>
-        <div class="trade-example"><img src="img/trade-example-4.png" alt="" /></div>
-
-        <h3>Another Non Tradable Example</h3>
-        <p>This example of non tradable condidions is very much like the one above, about 23 hours before. The price was
-            floating between the most recent wider PP with no clear indication of which of those PP would be swept next.
-        </p>
-        <div class="trade-example"><img src="img/trade-example-5.png" alt="" /></div>
-
-        <div class="section-title">Breakout - New York</div>
-        <p>The price ultimately swung for 1350 pips to sweep the Asia low. From the top of London at 11 and breaking the
-            London low without stoppong in NY. It took 5 hours and there wasnt a real swing PB.</p>
-        <div class="trade-example"><img src="img/trade-example-6.png" alt="" /></div>
-
-
-
-    </div>
-</body>
-
+    </body>
 </html>
