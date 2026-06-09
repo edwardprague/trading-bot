@@ -33,7 +33,8 @@ var FRACTAL_DOCS_MENU = [
     { href: "lem.html", label: "Liquidity Engeneering Model", parent: "research.html" },
     { href: "ema.html", label: "EMA Analysis", parent: "research.html" },
     { href: "entry-ideas.html", label: "Entry Ideas", parent: "research.html" },
-    { href: "entry-ideas-2.html", label: "Induction / Sweep Strategy", parent: "research.html" },
+    { href: "iss.html", label: "Induction / Sweep Strategy", parent: "research.html" },
+    { href: "discovery.html", label: "Discovery", parent: "research.html" },
     { href: "trade-examples-tt.html", label: "Trade Examples - TT", parent: "research.html" },
     { href: "trade-examples-ct.html", label: "Trade Examples - CT", parent: "research.html" },
     { href: "trade-examples-nt.html", label: "Trade Examples - NT", parent: "research.html" },
@@ -43,7 +44,7 @@ var FRACTAL_DOCS_MENU = [
     { href: "dashboard.html", label: "Dashboard" },
     { href: "backtesting.html", label: "Backtesting", parent: "dashboard.html" },
     { href: "regimes.html", label: "Regimes", parent: "dashboard.html" },
-    { href: "discovery.html", label: "Discovery", parent: "dashboard.html" },
+    { href: "discovery-older.html", label: "Discovery", parent: "dashboard.html" },
     { href: "versions.html", label: "Versions", parent: "dashboard.html" },
     { href: "technical.html", label: "Technical Setup" },
 ];
